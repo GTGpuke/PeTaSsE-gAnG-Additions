@@ -1,25 +1,73 @@
-# eclipse
-bin
-*.launch
-.settings
-.metadata
-.classpath
-.project
+# ============================================================
+#  .gitignore — PétasseGang Addons (Forge / Minecraft)
+# ============================================================
 
-# idea
-out
+# ── Gradle ───────────────────────────────────────────────────
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# ── IDE — IntelliJ IDEA ──────────────────────────────────────
+.idea/
+*.iml
 *.ipr
 *.iws
-*.iml
-.idea
+.claude
+out/
 
-# gradle
-build
-.gradle
+# ── IDE — Eclipse ────────────────────────────────────────────
+.project
+.classpath
+.settings/
+bin/
 
-# other
-eclipse
-run
+# ── IDE — VS Code ────────────────────────────────────────────
+.vscode/
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/extensions.json
+*.code-workspace
 
-# Files from Forge MDK
-forge*changelog.txt
+# ── Forge / Minecraft ────────────────────────────────────────
+run/
+logs/
+*.log
+crash-reports/
+src/generated/
+
+# Forge MDK example files (supprimés mais au cas où)
+src/main/java/com/example/
+src/main/resources/META-INF/accesstransformer.cfg
+
+# ── Java ─────────────────────────────────────────────────────
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+hs_err_pid*
+replay_pid*
+
+# ── OS — macOS ───────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ── OS — Windows ─────────────────────────────────────────────
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ── OS — Linux ───────────────────────────────────────────────
+*~
+.fuse_hidden*
+.Trash-*
+
+# ── Divers ───────────────────────────────────────────────────
+*.bak
+*.tmp
+*.swp
+*.swo
+.env
+generate_texture.py

@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write   # Required to create GitHub Releases
+
+jobs:
+  release:
+    name: Build & Publish Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # Full history — needed for changelog extraction
+
+      - name: Set up Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: 'gradle'
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v3
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          gradle-version: '9.3.0'
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon
+        env:
+          GRADLE_OPTS: "-Xmx4G"
+
+      - name: Build release JAR
+        run: ./gradlew build --no-daemon
+        env:
+          GRADLE_OPTS: "-Xmx4G"
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          # Extract the section for this version from CHANGELOG.md
+          NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" docs/CHANGELOG.md)
+          if [ -z "$NOTES" ]; then
+            NOTES="See docs/CHANGELOG.md for details."
+          fi
+          echo "$NOTES" > release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "PétasseGang Addons v${{ steps.version.outputs.VERSION }}"
+          body_path: release_notes.md
+          files: build/libs/petassegang_addons-${{ steps.version.outputs.VERSION }}.jar
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

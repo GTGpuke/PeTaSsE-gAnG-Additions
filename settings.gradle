@@ -3,12 +3,13 @@ pluginManagement {
         gradlePluginPortal()
         maven {
             name = 'MinecraftForge'
-            url = 'https://maven.minecraftforge.net/'
+            url  = 'https://maven.minecraftforge.net'
         }
-        maven { url = 'https://maven.parchmentmc.org' }
     }
 }
 
-plugins {
-    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
-}
+// Note: Java 25 must be installed manually and JAVA_HOME must point to it.
+// Auto-provisioning via foojay is NOT used because JvmVendorSpec.IBM_SEMERU
+// was removed in Gradle 9.x, breaking the foojay resolver.
+
+rootProject.name = 'petassegang_addons'
