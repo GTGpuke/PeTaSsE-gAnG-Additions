@@ -1,4 +1,4 @@
-# PétasseGang Addons — Documentation
+# PeTaSsE_gAnG_Additions — Documentation
 
 Documentation technique complète du mod.
 

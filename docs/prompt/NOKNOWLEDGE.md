@@ -20,7 +20,7 @@ Tu démarres sans contexte sur ce projet. Lis les fichiers suivants dans cet ord
 
 ### 4. Code source principal
 - [`src/main/java/com/petassegang/addons/util/ModConstants.java`](../../src/main/java/com/petassegang/addons/util/ModConstants.java) — MOD_ID, MOD_NAME, LOGGER (référence partout)
-- [`src/main/java/com/petassegang/addons/PetasseGangAddonsMod.java`](../../src/main/java/com/petassegang/addons/PetasseGangAddonsMod.java) — Point d'entrée @Mod, bus d'événements, init des registres
+- [`src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java`](../../src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java) — Point d'entrée @Mod, bus d'événements, init des registres
 - [`src/main/java/com/petassegang/addons/init/ModItems.java`](../../src/main/java/com/petassegang/addons/init/ModItems.java) — Pattern DeferredRegister pour les items
 
 ### 5. Architecture et conventions
@@ -74,7 +74,7 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 | Gradle | 9.3.0+ |
 | Java | 25 (Temurin recommandé) |
 | JUnit | 5.10.3 |
-| mod_id | `petassegang_addons` |
+| mod_id | `petasse_gang_additions` |
 | package racine | `com.petassegang.addons` |
 
 ---
@@ -83,7 +83,7 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 
 ```bash
 ./gradlew genEclipseRuns   # Générer les run configs IDE (une seule fois)
-./gradlew build            # Build → build/libs/petassegang_addons-0.1.0.jar
+./gradlew build            # Build → build/libs/petasse_gang_additions-0.1.0.jar
 ./gradlew test             # Tests JUnit 5
 ./gradlew runGameTestServer # Tests in-game Forge
 ./gradlew runData          # Data generation

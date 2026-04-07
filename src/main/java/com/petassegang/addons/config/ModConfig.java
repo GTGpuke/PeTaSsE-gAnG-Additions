@@ -25,7 +25,7 @@ public final class ModConfig {
     static {
         // --- Serveur ---
         ForgeConfigSpec.Builder serverBuilder = new ForgeConfigSpec.Builder();
-        serverBuilder.comment("PétasseGang Addons — Configuration Serveur")
+        serverBuilder.comment("PeTaSsE_gAnG_Additions — Configuration Serveur")
                      .push("items");
 
         ENABLE_GANG_BADGE = serverBuilder
@@ -37,7 +37,7 @@ public final class ModConfig {
 
         // --- Client ---
         ForgeConfigSpec.Builder clientBuilder = new ForgeConfigSpec.Builder();
-        clientBuilder.comment("PétasseGang Addons — Configuration Client")
+        clientBuilder.comment("PeTaSsE_gAnG_Additions — Configuration Client")
                      .push("display");
         // Réservé pour les options client futures (effets de particules, HUD, etc.)
         clientBuilder.pop();

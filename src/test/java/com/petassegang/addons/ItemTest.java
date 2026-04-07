@@ -52,7 +52,7 @@ class ItemTest {
     @DisplayName("La rareté est EPIC")
     void testRarityIsEpic() {
         ItemStack stack = new ItemStack(item);
-        assertEquals(Rarity.EPIC, item.getRarity(stack),
+        assertEquals(Rarity.EPIC, stack.getRarity(),
                 "La rareté du Gang Badge doit être EPIC.");
     }
 

@@ -1,9 +1,9 @@
-# PétasseGang Addons
+# PeTaSsE_gAnG_Additions
 
 Custom content mod for the PétasseGang Minecraft server.
 
-[![Build](https://github.com/PetasseGang/petassegang_addons/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petassegang_addons/actions/workflows/build.yml)
-[![Tests](https://github.com/PetasseGang/petassegang_addons/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petassegang_addons/actions/workflows/test.yml)
+[![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
+[![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
 ![MC](https://img.shields.io/badge/Minecraft-26.1-brightgreen)
 ![Forge](https://img.shields.io/badge/Forge-62.0.x-orange)
 ![License](https://img.shields.io/badge/License-MIT-blue)
@@ -16,18 +16,16 @@ Custom content mod for the PétasseGang Minecraft server.
 
 ```bash
 # 1. Clone
-git clone https://github.com/PetasseGang/petassegang_addons.git
-cd petassegang_addons
+git clone https://github.com/PetasseGang/petasse_gang_additions.git
+cd petasse_gang_additions
 
-# 2. Générer les run configs VS Code (une seule fois)
-./gradlew genEclipseRuns
+# 2. Lancer le client Minecraft avec le mod
+./gradlew runClient
+# → ou dans VS Code : Ctrl+Shift+B → "runClient"
 
-# 3. Lancer le client Minecraft avec le mod
-./gradlew runClient  # ou via IDE après genEclipseRuns
-
-# 4. Build
+# 3. Build
 ./gradlew build
-# → build/libs/petassegang_addons-0.1.0.jar
+# → build/libs/petasse_gang_additions-0.1.0.jar
 ```
 
 > **Première fois ?** Voir [docs/SETUP.md](docs/SETUP.md) pour l'installation complète de Java 25 et la configuration VS Code.
@@ -37,9 +35,9 @@ cd petassegang_addons
 ## Structure du projet
 
 ```
-petassegang_addons/
+petasse_gang_additions/
 ├── src/main/java/com/petassegang/addons/
-│   ├── PetasseGangAddonsMod.java   ← entry-point @Mod
+│   ├── PeTaSsEgAnGAdditionsMod.java   ← entry-point @Mod
 │   ├── init/ModItems.java          ← registres items
 │   ├── item/GangBadgeItem.java     ← Gang Badge (premier item)
 │   ├── creative/ModCreativeTab.java
@@ -47,7 +45,7 @@ petassegang_addons/
 │   └── util/ModConstants.java
 ├── src/main/resources/
 │   ├── META-INF/mods.toml
-│   └── assets/petassegang_addons/  ← textures, modèles, lang
+│   └── assets/petasse_gang_additions/  ← textures, modèles, lang
 ├── src/test/                       ← JUnit 5 + GameTests
 ├── .github/workflows/              ← CI/CD GitHub Actions
 ├── .skills/                        ← Skills Claude Code
@@ -100,7 +98,7 @@ Il suffit de décrire ce que tu veux :
 ./gradlew build
 
 # Artefact :
-build/libs/petassegang_addons-0.1.0.jar
+build/libs/petasse_gang_additions-0.1.0.jar
 ```
 
 Pour installer sur le serveur : copier le JAR dans le dossier `mods/` du serveur.

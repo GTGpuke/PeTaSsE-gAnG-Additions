@@ -1,6 +1,6 @@
 ---
 name: add-recipe
-description: "Ajouter une recette au mod PétasseGang Addons. Déclenche pour 'recette', 'craft', 'fabriquer', 'fondre', 'cuisiner', 'table de craft', 'fourneau', 'smithing', 'recipe'."
+description: "Ajouter une recette au mod PeTaSsE_gAnG_Additions. Déclenche pour 'recette', 'craft', 'fabriquer', 'fondre', 'cuisiner', 'table de craft', 'fourneau', 'smithing', 'recipe'."
 ---
 
 # Skill — Ajouter une Recette
@@ -31,7 +31,7 @@ description: "Ajouter une recette au mod PétasseGang Addons. Déclenche pour 'r
 ## Emplacement des fichiers
 
 ```
-data/petassegang_addons/recipes/
+data/petasse_gang_additions/recipes/
 └── my_item.json
 ```
 
@@ -58,7 +58,7 @@ data/petassegang_addons/recipes/
     "C": { "item": "minecraft:nether_star" }
   },
   "result": {
-    "id": "petassegang_addons:my_item",
+    "id": "petasse_gang_additions:my_item",
     "count": 1
   }
 }
@@ -76,7 +76,7 @@ data/petassegang_addons/recipes/
     { "item": "minecraft:diamond" }
   ],
   "result": {
-    "id": "petassegang_addons:my_item",
+    "id": "petasse_gang_additions:my_item",
     "count": 1
   }
 }
@@ -88,8 +88,8 @@ data/petassegang_addons/recipes/
 {
   "type": "minecraft:smelting",
   "category": "misc",
-  "ingredient": { "item": "petassegang_addons:raw_gangite" },
-  "result": { "id": "petassegang_addons:gangite_ingot" },
+  "ingredient": { "item": "petasse_gang_additions:raw_gangite" },
+  "result": { "id": "petasse_gang_additions:gangite_ingot" },
   "experience": 1.0,
   "cookingtime": 200
 }
@@ -101,8 +101,8 @@ data/petassegang_addons/recipes/
 {
   "type": "minecraft:blasting",
   "category": "misc",
-  "ingredient": { "item": "petassegang_addons:gangite_ore" },
-  "result": { "id": "petassegang_addons:gangite_ingot" },
+  "ingredient": { "item": "petasse_gang_additions:gangite_ore" },
+  "result": { "id": "petasse_gang_additions:gangite_ingot" },
   "experience": 0.7,
   "cookingtime": 100
 }
@@ -112,9 +112,9 @@ data/petassegang_addons/recipes/
 
 ## Checklist finale
 
-- [ ] Fichier JSON créé dans `data/petassegang_addons/recipes/`
+- [ ] Fichier JSON créé dans `data/petasse_gang_additions/recipes/`
 - [ ] Ingrédients corrects (vérifier les item IDs)
 - [ ] Résultat correct (vérifier l'item ID)
-- [ ] Testé en jeu : `/recipe give @p petassegang_addons:my_item`
+- [ ] Testé en jeu : `/recipe give @p petasse_gang_additions:my_item`
 - [ ] `docs/ITEMS.md` mis à jour (mentionner la recette)
 - [ ] `docs/CHANGELOG.md` mis à jour

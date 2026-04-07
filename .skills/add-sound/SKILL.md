@@ -1,6 +1,6 @@
 ---
 name: add-sound
-description: "Ajouter un son au mod PétasseGang Addons. Déclenche pour 'son', 'audio', 'musique', 'bruit', 'ambiance', 'sfx', 'sound', 'play sound'."
+description: "Ajouter un son au mod PeTaSsE_gAnG_Additions. Déclenche pour 'son', 'audio', 'musique', 'bruit', 'ambiance', 'sfx', 'sound', 'play sound'."
 ---
 
 # Skill — Ajouter un Son
@@ -20,10 +20,10 @@ description: "Ajouter un son au mod PétasseGang Addons. Déclenche pour 'son', 
 - Format : **OGG Vorbis** (.ogg) — seul format supporté par Minecraft
 - Sample rate : 44100 Hz recommandé
 - Mono ou stéréo (mono pour les sons positionnels in-world)
-- Placer dans : `src/main/resources/assets/petassegang_addons/sounds/`
+- Placer dans : `src/main/resources/assets/petasse_gang_additions/sounds/`
 
 ```
-assets/petassegang_addons/sounds/
+assets/petasse_gang_additions/sounds/
 ├── item/
 │   └── gang_badge_equip.ogg
 ├── block/
@@ -36,15 +36,15 @@ assets/petassegang_addons/sounds/
 
 ### 2. Créer/Mettre à jour sounds.json
 
-**Fichier :** `src/main/resources/assets/petassegang_addons/sounds.json`
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/sounds.json`
 
 ```json
 {
   "item.gang_badge.equip": {
-    "subtitle": "subtitles.petassegang_addons.item.gang_badge.equip",
+    "subtitle": "subtitles.petasse_gang_additions.item.gang_badge.equip",
     "sounds": [
       {
-        "name": "petassegang_addons:item/gang_badge_equip",
+        "name": "petasse_gang_additions:item/gang_badge_equip",
         "volume": 1.0,
         "pitch": 1.0,
         "weight": 1
@@ -52,15 +52,15 @@ assets/petassegang_addons/sounds/
     ]
   },
   "block.gangite.break": {
-    "subtitle": "subtitles.petassegang_addons.block.gangite.break",
+    "subtitle": "subtitles.petasse_gang_additions.block.gangite.break",
     "sounds": [
-      { "name": "petassegang_addons:block/gangite_break" }
+      { "name": "petasse_gang_additions:block/gangite_break" }
     ]
   }
 }
 ```
 
-La clé (ex: `"item.gang_badge.equip"`) devient la partie après `petassegang_addons.` dans le `SoundEvent`.
+La clé (ex: `"item.gang_badge.equip"`) devient la partie après `petasse_gang_additions.` dans le `SoundEvent`.
 
 ---
 
@@ -96,7 +96,7 @@ public final class ModSounds {
 }
 ```
 
-Ajouter `ModSounds.register(modEventBus)` dans `PetasseGangAddonsMod` constructor.
+Ajouter `ModSounds.register(modEventBus)` dans `PeTaSsEgAnGAdditionsMod` constructor.
 
 ---
 
@@ -118,20 +118,20 @@ level.playSound(null, player.blockPosition(),
 
 ```json
 // en_us.json
-"subtitles.petassegang_addons.item.gang_badge.equip": "Gang Badge equipped",
+"subtitles.petasse_gang_additions.item.gang_badge.equip": "Gang Badge equipped",
 
 // fr_fr.json
-"subtitles.petassegang_addons.item.gang_badge.equip": "Badge de Gang équipé",
+"subtitles.petasse_gang_additions.item.gang_badge.equip": "Badge de Gang équipé",
 ```
 
 ---
 
 ## Checklist finale
 
-- [ ] Fichier `.ogg` placé dans `assets/petassegang_addons/sounds/`
+- [ ] Fichier `.ogg` placé dans `assets/petasse_gang_additions/sounds/`
 - [ ] `sounds.json` créé/mis à jour
 - [ ] `init/ModSounds.java` — RegistryObject ajouté
-- [ ] `PetasseGangAddonsMod` — `ModSounds.register(bus)` appelé
+- [ ] `PeTaSsEgAnGAdditionsMod` — `ModSounds.register(bus)` appelé
 - [ ] Son appelé depuis le code approprié
 - [ ] Sous-titres ajoutés en EN + FR
 - [ ] `docs/CHANGELOG.md` mis à jour

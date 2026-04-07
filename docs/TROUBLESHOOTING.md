@@ -1,4 +1,4 @@
-# Troubleshooting — PétasseGang Addons
+# Troubleshooting — PeTaSsE_gAnG_Additions
 
 ---
 
@@ -37,6 +37,38 @@ gradle wrapper --gradle-version 9.3.0
 
 ## Runtime (in-game)
 
+### `The Mod File build/resources/main has mods that were not found`
+**Cause :** Le `ClasspathLocator` de FML crée un `SecureJar` uniquement depuis le répertoire contenant `META-INF/mods.toml` (`build/resources/main`). Sans configuration spéciale, les classes compilées sont dans `build/classes/java/main` — répertoire séparé que Forge ne voit pas.
+
+**Fix dans `build.gradle`** (déjà appliqué) :
+```groovy
+sourceSets {
+    main {
+        output.resourcesDir = compileJava.destinationDirectory
+    }
+}
+```
+Cela force `processResources` à écrire `mods.toml` dans le même répertoire que les classes compilées.
+
+**Symptôme sans le fix :** l'écran rouge Minecraft avec "1 error has occurred during loading".
+
+---
+
+### `NullPointerException: Item id not set` au register
+**Cause :** En MC 26.1, le constructeur `Item(Properties)` appelle `Properties.itemIdOrThrow()`. Sans `setId()`, NPE au moment de l'enregistrement.
+
+**Fix dans `ModItems.java`** (déjà appliqué) :
+```java
+ITEMS.register("gang_badge", () -> new GangBadgeItem(
+    new Item.Properties()
+        .setId(ITEMS.key("gang_badge"))  // OBLIGATOIRE en MC 26.1
+        .stacksTo(1)
+        .rarity(Rarity.EPIC)
+));
+```
+
+---
+
 ### Le mod n'apparaît pas dans la liste des mods
 - Vérifie que `mods.toml` a les bonnes valeurs (`modId`, `loaderVersion`)
 - Vérifie que le JAR est dans le dossier `mods/`
@@ -52,7 +84,7 @@ gradle wrapper --gradle-version 9.3.0
 - Vérifie que `ModCreativeTab.PETASSEGANG_TAB` est non-null (test `RegistryTest`)
 
 ### Texture `gang_badge` manquante (carré violet)
-- Vérifie que `gang_badge.png` est dans `assets/petassegang_addons/textures/item/`
+- Vérifie que `gang_badge.png` est dans `assets/petasse_gang_additions/textures/item/`
 - Vérifie que `gang_badge.json` (modèle) référence le bon chemin de texture
 - Rebuild : `./gradlew build`
 

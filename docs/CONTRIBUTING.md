@@ -1,4 +1,4 @@
-# Contributing — PétasseGang Addons
+# Contributing — PeTaSsE_gAnG_Additions
 
 Guide de développement pour les membres de la gang.
 

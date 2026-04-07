@@ -1,4 +1,4 @@
-# Setup — PétasseGang Addons
+# Setup — PeTaSsE_gAnG_Additions
 
 ## Prérequis
 
@@ -42,8 +42,8 @@ java -version
 ## 2. Cloner le repo
 
 ```bash
-git clone https://github.com/PetasseGang/petassegang_addons.git
-cd petassegang_addons
+git clone https://github.com/PetasseGang/petasse_gang_additions.git
+cd petasse_gang_additions
 ```
 
 ---
@@ -72,16 +72,25 @@ MC 26.1 (Forge 62.0.x) qui contient déjà le wrapper.
 - **Extension Pack for Java** (Microsoft)
 - **Gradle for Java** (Microsoft)
 
-### Générer les run configs (ForgeGradle 7)
+### Lancer le client Minecraft (méthode recommandée)
 
-> **FG7 note :** ForgeGradle 7 génère des configs Eclipse (`.launch`), pas de `launch.json` VS Code direct.
+Le projet dispose d'une tâche VS Code préconfigurée :
+
+**Ctrl+Shift+B** → sélectionner **runClient**
+
+Ou depuis le terminal (PowerShell) :
+```powershell
+$env:JAVA_HOME="C:\Program Files\Java\jdk-25.0.2"; ./gradlew runClient
+```
+
+> **Note FG7 :** Les fichiers `.launch` générés par `genEclipseRuns` ne fonctionnent pas directement dans VS Code (containers classpath Eclipse-only). Toujours passer par Gradle ou la tâche VS Code.
+
+### Régénérer les run configs (optionnel)
 
 ```bash
 ./gradlew genEclipseRuns
 ```
-
-Pour lancer via VS Code : installez l'extension **Debugger for Java** (Microsoft) + **Extension Pack for Java**.
-Les `.launch` générés apparaissent dans Run & Debug (Ctrl+Shift+D) sous "Java".
+Les `.launch` sont ignorés par git (`.gitignore`). À régénérer après un `clean`.
 
 ### Vérifier l'import Gradle
 VS Code devrait automatiquement détecter `build.gradle` et proposer d'importer le projet.
@@ -101,7 +110,7 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 # Lancer le serveur dédié
 ./gradlew runServer  # ou via IDE après genEclipseRuns
 
-# Build (produit build/libs/petassegang_addons-0.1.0.jar)
+# Build (produit build/libs/petasse_gang_additions-0.1.0.jar)
 ./gradlew build
 
 # Tests unitaires
@@ -125,7 +134,7 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 ## 6. Installer le mod sur le serveur
 
 1. Build : `./gradlew build`
-2. Copie `build/libs/petassegang_addons-0.1.0.jar` dans le dossier `mods/` du serveur
+2. Copie `build/libs/petasse_gang_additions-0.1.0.jar` dans le dossier `mods/` du serveur
 3. Le serveur et TOUS les clients doivent avoir le même JAR
 4. Redémarre le serveur
 

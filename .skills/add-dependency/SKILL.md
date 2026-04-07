@@ -1,6 +1,6 @@
 ---
 name: add-dependency
-description: "Ajouter une dépendance externe, une librairie, un mod API, ou un framework au mod PétasseGang Addons. Utilise ce skill dès qu'on veut intégrer une librairie Java, un mod API (JEI, Curios, Patchouli, GeckoLib, etc.), ou toute dépendance Maven/CurseForge. Déclenche pour 'ajoute une lib', 'ajoute une dépendance', 'intègre JEI', 'ajoute GeckoLib', 'librairie', 'dépendance', 'API', 'framework', 'intégration', 'import externe', 'dependency'."
+description: "Ajouter une dépendance externe, une librairie, un mod API, ou un framework au mod PeTaSsE_gAnG_Additions. Utilise ce skill dès qu'on veut intégrer une librairie Java, un mod API (JEI, Curios, Patchouli, GeckoLib, etc.), ou toute dépendance Maven/CurseForge. Déclenche pour 'ajoute une lib', 'ajoute une dépendance', 'intègre JEI', 'ajoute GeckoLib', 'librairie', 'dépendance', 'API', 'framework', 'intégration', 'import externe', 'dependency'."
 ---
 
 # Skill — Ajouter une Dépendance Externe
@@ -124,7 +124,7 @@ implementation fg.deobf("groupe:artefact:version")
 Ajouter dans `src/main/resources/META-INF/mods.toml` :
 
 ```toml
-[[dependencies.petassegang_addons]]
+[[dependencies.petasse_gang_additions]]
     modId        = "nom_du_mod"
     mandatory    = false          # true si requis, false si optionnel
     versionRange = "[VERSION,)"
@@ -154,7 +154,7 @@ public final class JEICompat {
 }
 ```
 
-Dans `PetasseGangAddonsMod.commonSetup()` :
+Dans `PeTaSsEgAnGAdditionsMod.commonSetup()` :
 
 ```java
 import net.minecraftforge.fml.ModList;

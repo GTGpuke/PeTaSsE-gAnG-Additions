@@ -1,4 +1,4 @@
-# Entities — PétasseGang Addons
+# Entities — PeTaSsE_gAnG_Additions
 
 Catalogue de toutes les entités/mobs du mod.
 
@@ -14,14 +14,14 @@ Catalogue de toutes les entités/mobs du mod.
 
 | Propriété | Valeur |
 |-----------|--------|
-| ID complet | `petassegang_addons:nom_du_mob` |
+| ID complet | `petasse_gang_additions:nom_du_mob` |
 | Classe | `com.petassegang.addons.entity.NomDuMobEntity` |
 | Renderer | `com.petassegang.addons.client.renderer.NomDuMobRenderer` |
 | Type | Hostile / Passive / Neutral / Boss |
 | HP | X |
 | Damage | X |
 | Spawn biome | ... |
-| Spawn egg | `petassegang_addons:nom_du_mob_spawn_egg` |
+| Spawn egg | `petasse_gang_additions:nom_du_mob_spawn_egg` |
 
 ### Description
 ...

@@ -1,4 +1,4 @@
-# Dimensions — PétasseGang Addons
+# Dimensions — PeTaSsE_gAnG_Additions
 
 Catalogue de toutes les dimensions custom du mod.
 
@@ -14,10 +14,10 @@ Catalogue de toutes les dimensions custom du mod.
 
 | Propriété | Valeur |
 |-----------|--------|
-| ID complet | `petassegang_addons:nom_de_la_dimension` |
+| ID complet | `petasse_gang_additions:nom_de_la_dimension` |
 | Portail | bloc `nom_du_portail_block` |
 | Biome(s) | ... |
-| Génération | `data/petassegang_addons/worldgen/` |
+| Génération | `data/petasse_gang_additions/worldgen/` |
 | Gravité | normale / réduite / zéro |
 | Ciel | normal / néant / custom |
 
@@ -26,5 +26,5 @@ Catalogue de toutes les dimensions custom du mod.
 
 ### Accès
 ```
-/execute in petassegang_addons:nom_de_la_dimension run teleport @s 0 64 0
+/execute in petasse_gang_additions:nom_de_la_dimension run teleport @s 0 64 0
 ```

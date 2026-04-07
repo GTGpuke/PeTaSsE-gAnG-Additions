@@ -4,7 +4,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.RegistryObject;
 
@@ -12,7 +12,7 @@ import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.util.ModConstants;
 
 /**
- * Onglet créatif personnalisé pour PétasseGang Addons.
+ * Onglet créatif personnalisé pour PeTaSsE_gAnG_Additions.
  *
  * <p>Tous les items du mod sont ajoutés ici via {@link #displayItems}.
  * Lors de l'ajout d'un nouvel item, l'ajouter dans le consumer {@code displayItems}.
@@ -26,7 +26,7 @@ public final class ModCreativeTab {
     public static final RegistryObject<CreativeModeTab> PETASSEGANG_TAB =
             CREATIVE_MODE_TABS.register("petassegang", () ->
                     CreativeModeTab.builder()
-                            .title(Component.translatable("itemGroup.petassegang_addons.petassegang"))
+                            .title(Component.translatable("itemGroup.petasse_gang_additions.petassegang"))
                             .icon(() -> new ItemStack(ModItems.GANG_BADGE.get()))
                             .displayItems(ModCreativeTab::displayItems)
                             .build()
@@ -44,10 +44,10 @@ public final class ModCreativeTab {
 
     /**
      * Enregistre le DeferredRegister sur le bus d'événements du mod.
-     * Appelé une seule fois depuis le constructeur de {@code PetasseGangAddonsMod}.
+     * Appelé une seule fois depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
      */
-    public static void register(IEventBus modEventBus) {
-        CREATIVE_MODE_TABS.register(modEventBus);
+    public static void register(BusGroup modBusGroup) {
+        CREATIVE_MODE_TABS.register(modBusGroup);
     }
 
     private ModCreativeTab() {

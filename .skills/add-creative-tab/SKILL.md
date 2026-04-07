@@ -1,6 +1,6 @@
 ---
 name: add-creative-tab
-description: "Ajouter ou modifier un onglet créatif dans PétasseGang Addons. Déclenche pour 'onglet créatif', 'creative tab', 'catégorie d'items', 'nouvel onglet', 'déplacer item dans tab', 'changer l'icône du tab'."
+description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions. Déclenche pour 'onglet créatif', 'creative tab', 'catégorie d'items', 'nouvel onglet', 'déplacer item dans tab', 'changer l'icône du tab'."
 ---
 
 # Skill — Ajouter / Modifier un Creative Tab
@@ -47,7 +47,7 @@ private static void displayItems(CreativeModeTab.ItemDisplayParameters params,
 public static final RegistryObject<CreativeModeTab> MY_NEW_TAB =
         CREATIVE_MODE_TABS.register("my_tab", () ->
                 CreativeModeTab.builder()
-                        .title(Component.translatable("itemGroup.petassegang_addons.my_tab"))
+                        .title(Component.translatable("itemGroup.petasse_gang_additions.my_tab"))
                         .icon(() -> new ItemStack(ModItems.MY_ICON_ITEM.get()))
                         // Positionner après le tab PétasseGang :
                         .withTabsBefore(ModCreativeTab.PETASSEGANG_TAB.getKey())
@@ -79,10 +79,10 @@ public static final RegistryObject<CreativeModeTab> MY_NEW_TAB =
 
 ```json
 // en_us.json
-"itemGroup.petassegang_addons.my_tab": "My Tab Name",
+"itemGroup.petasse_gang_additions.my_tab": "My Tab Name",
 
 // fr_fr.json
-"itemGroup.petassegang_addons.my_tab": "Nom de Mon Onglet",
+"itemGroup.petasse_gang_additions.my_tab": "Nom de Mon Onglet",
 ```
 
 ---

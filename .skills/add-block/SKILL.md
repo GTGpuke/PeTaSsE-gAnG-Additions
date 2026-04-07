@@ -1,6 +1,6 @@
 ---
 name: add-block
-description: "Ajouter un bloc au mod PétasseGang Addons. Déclenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc décoratif', 'bloc fonctionnel', 'ore', 'block'."
+description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions. Déclenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc décoratif', 'bloc fonctionnel', 'ore', 'block'."
 ---
 
 # Skill — Ajouter un Bloc
@@ -94,7 +94,7 @@ public final class ModBlocks {
 }
 ```
 
-Ajouter `ModBlocks.register(modEventBus)` dans `PetasseGangAddonsMod` constructor.
+Ajouter `ModBlocks.register(modEventBus)` dans `PeTaSsEgAnGAdditionsMod` constructor.
 
 ---
 
@@ -104,7 +104,7 @@ Ajouter `ModBlocks.register(modEventBus)` dans `PetasseGangAddonsMod` constructo
 // Item permettant de tenir/poser le bloc dans l'inventaire
 public static final RegistryObject<Item> MY_BLOCK_ITEM = ITEMS.register(
         "my_block",
-        () -> new BlockItem(ModBlocks.MY_BLOCK.get(), new Item.Properties())
+        () -> new BlockItem(ModBlocks.MY_BLOCK.get(), new Item.Properties().setId(ITEMS.key("my_block"))) // OBLIGATOIRE en MC 26.1
 );
 ```
 
@@ -112,12 +112,12 @@ public static final RegistryObject<Item> MY_BLOCK_ITEM = ITEMS.register(
 
 ### 5. Blockstate JSON
 
-**Fichier :** `src/main/resources/assets/petassegang_addons/blockstates/my_block.json`
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/blockstates/my_block.json`
 
 ```json
 {
   "variants": {
-    "": { "model": "petassegang_addons:block/my_block" }
+    "": { "model": "petasse_gang_additions:block/my_block" }
   }
 }
 ```
@@ -126,20 +126,20 @@ public static final RegistryObject<Item> MY_BLOCK_ITEM = ITEMS.register(
 
 ### 6. Modèles JSON
 
-**Bloc :** `assets/petassegang_addons/models/block/my_block.json`
+**Bloc :** `assets/petasse_gang_additions/models/block/my_block.json`
 ```json
 {
   "parent": "block/cube_all",
   "textures": {
-    "all": "petassegang_addons:block/my_block"
+    "all": "petasse_gang_additions:block/my_block"
   }
 }
 ```
 
-**Item :** `assets/petassegang_addons/models/item/my_block.json`
+**Item :** `assets/petasse_gang_additions/models/item/my_block.json`
 ```json
 {
-  "parent": "petassegang_addons:block/my_block"
+  "parent": "petasse_gang_additions:block/my_block"
 }
 ```
 
@@ -147,13 +147,13 @@ public static final RegistryObject<Item> MY_BLOCK_ITEM = ITEMS.register(
 
 ### 7. Texture bloc
 
-**Fichier :** `assets/petassegang_addons/textures/block/my_block.png` (16x16)
+**Fichier :** `assets/petasse_gang_additions/textures/block/my_block.png` (16x16)
 
 ---
 
 ### 8. Loot table
 
-**Fichier :** `data/petassegang_addons/loot_tables/blocks/my_block.json`
+**Fichier :** `data/petasse_gang_additions/loot_tables/blocks/my_block.json`
 
 ```json
 {
@@ -162,7 +162,7 @@ public static final RegistryObject<Item> MY_BLOCK_ITEM = ITEMS.register(
     "rolls": 1,
     "entries": [{
       "type": "minecraft:item",
-      "name": "petassegang_addons:my_block"
+      "name": "petasse_gang_additions:my_block"
     }],
     "conditions": [{
       "condition": "minecraft:survives_explosion"
@@ -185,7 +185,7 @@ Ajouter `ModBlocks.MY_BLOCK` et `ModItems.MY_BLOCK_ITEM` dans `docs/BLOCKS.md`.
 - [ ] `block/MyBlock.java` (si custom)
 - [ ] `init/ModBlocks.java` — RegistryObject ajouté
 - [ ] `init/ModItems.java` — BlockItem ajouté
-- [ ] `PetasseGangAddonsMod` — `ModBlocks.register(bus)` appelé
+- [ ] `PeTaSsEgAnGAdditionsMod` — `ModBlocks.register(bus)` appelé
 - [ ] `creative/ModCreativeTab.java` — output.accept ajouté
 - [ ] `blockstates/my_block.json`
 - [ ] `models/block/my_block.json` + `models/item/my_block.json`

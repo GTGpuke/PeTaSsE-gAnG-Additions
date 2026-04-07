@@ -1,15 +1,15 @@
 ---
 name: project-conventions
-description: "Rappelle les conventions du projet PétasseGang Addons : Mod ID, structure des packages, nommage, patterns DeferredRegister, imports standards, séparation client/serveur, règles qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture', 'comment organiser'."
+description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : Mod ID, structure des packages, nommage, patterns DeferredRegister, imports standards, séparation client/serveur, règles qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture', 'comment organiser'."
 ---
 
-# Conventions du projet PétasseGang Addons
+# Conventions du projet PeTaSsE_gAnG_Additions
 
 ## Identifiants clés
 
 | Constante | Valeur |
 |-----------|--------|
-| MOD_ID | `petassegang_addons` |
+| MOD_ID | `petasse_gang_additions` |
 | Package racine | `com.petassegang.addons` |
 | Version MC | `26.1` |
 | Version Forge | `62.0.x` |
@@ -19,7 +19,7 @@ description: "Rappelle les conventions du projet PétasseGang Addons : Mod ID, s
 
 ```
 com.petassegang.addons/
-├── PetasseGangAddonsMod.java   ← @Mod, lifecycle, registration wiring
+├── PeTaSsEgAnGAdditionsMod.java   ← @Mod, lifecycle, registration wiring
 ├── config/ModConfig.java        ← ForgeConfigSpec
 ├── creative/ModCreativeTab.java ← creative tab DeferredRegister
 ├── init/ModItems.java           ← DeferredRegister<Item>
@@ -41,7 +41,7 @@ com.petassegang.addons/
 | Méthode | camelCase | `appendHoverText` |
 | Constante | UPPER_SNAKE | `GANG_BADGE`, `MOD_ID` |
 | Resource ID | lowercase_snake | `gang_badge` |
-| Lang key item | `item.<mod_id>.<id>` | `item.petassegang_addons.gang_badge` |
+| Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
 | Lang key block | `block.<mod_id>.<id>` | |
 | Lang key tab | `itemGroup.<mod_id>.<id>` | |
 
@@ -81,7 +81,7 @@ import net.minecraftforge.registries.RegistryObject;
 ```java
 // Dans @Mod constructor :
 if (FMLEnvironment.dist == Dist.CLIENT) {
-    modEventBus.addListener(this::clientSetup);
+    modBusGroup.addListener(this::clientSetup);
 }
 // Dans clientSetup : registrations client (renderers, screens)
 // Tout ce qui est CLIENT-only doit être dans client/ package

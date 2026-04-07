@@ -1,4 +1,4 @@
-# Testing — PétasseGang Addons
+# Testing — PeTaSsE_gAnG_Additions
 
 ## Vue d'ensemble
 

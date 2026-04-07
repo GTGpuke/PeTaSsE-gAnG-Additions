@@ -1,4 +1,4 @@
-# Rapport d'Audit — PétasseGang Addons
+# Rapport d'Audit — PeTaSsE_gAnG_Additions
 
 **Date :** 2026-04-06  
 **Version auditée :** 0.1.0  
@@ -27,7 +27,7 @@
 **Résultat :** ✅ Conforme après corrections
 
 Tous les fichiers requis sont présents :
-- Sources Java (6 fichiers) : `PetasseGangAddonsMod.java`, `GangBadgeItem.java`, `ModItems.java`, `ModCreativeTab.java`, `ModConfig.java`, `ModConstants.java`
+- Sources Java (6 fichiers) : `PeTaSsEgAnGAdditionsMod.java`, `GangBadgeItem.java`, `ModItems.java`, `ModCreativeTab.java`, `ModConfig.java`, `ModConstants.java`
 - Resources : `mods.toml`, `pack.mcmeta`, `en_us.json`, `fr_fr.json`, `gang_badge.json`, `gang_badge.png`
 - Tests (5 fichiers) : `ModConstantsTest.java`, `GangBadgeItemTest.java`, `RegistryTest.java`, `ModItemsTest.java`, `PetasseGangGameTests.java`
 - CI/CD (3 workflows) : `build.yml`, `test.yml`, `release.yml`
@@ -67,7 +67,7 @@ Tous les fichiers requis sont présents :
 | Fichier | Problème | Correction |
 |---------|----------|------------|
 | `GangBadgeItem.java` | `TooltipContext` utilisé sans import | `import net.minecraft.world.item.Item.TooltipContext;` ajouté |
-| `PetasseGangAddonsMod.java` | Import inutilisé `FMLJavaModLoadingContext` | Supprimé |
+| `PeTaSsEgAnGAdditionsMod.java` | Import inutilisé `FMLJavaModLoadingContext` | Supprimé |
 | `ModConfig.java` | Import inutilisé `ModConstants` | Supprimé |
 
 **Optimisations appliquées :**
@@ -152,7 +152,7 @@ test {
 | `docs/ARCHITECTURE.md` | Gradle `9.1.0` | `9.3.0` |
 | `docs/CICD.md` | Gradle `9.1.0` | `9.3.0` |
 | `docs/TROUBLESHOOTING.md` | Gradle `9.1.0` | `9.3.0` |
-| `gradle.properties` | `mod_name=PetasseGang Addons` (accent manquant) | `mod_name=PétasseGang Addons` |
+| `gradle.properties` | `mod_name=PetasseGang Addons` (accent manquant) | `mod_name=PeTaSsE_gAnG_Additions` |
 
 ---
 
@@ -182,8 +182,8 @@ test {
 ```properties
 minecraft_version=26.1
 forge_version=62.0.0
-mod_id=petassegang_addons
-mod_name=PétasseGang Addons          # ← accent corrigé
+mod_id=petasse_gang_additions
+mod_name=PeTaSsE_gAnG_Additions          # ← accent corrigé
 mod_version=0.1.0
 mod_group=com.petassegang.addons
 java_version=25
@@ -223,9 +223,9 @@ BUILD FAILED in 10s
 | `gradle/wrapper/gradle-wrapper.properties` | `9.1.0` → `9.3.0` |
 | `settings.gradle` | Suppression du foojay toolchain resolver |
 | `build.gradle` | Suppression `copyIdeResources`, `workingDirectory()` → `workingDir =`, `programArguments()` → `args =`, suppression `minecraft "..."` dans dependencies, suppression `reobfJar`, suppression `-Werror`, ajout section DÉPENDANCES EXTERNES documentée |
-| `gradle.properties` | `PetasseGang Addons` → `PétasseGang Addons` |
+| `gradle.properties` | `PetasseGang Addons` → `PeTaSsE_gAnG_Additions` |
 | `src/main/java/.../item/GangBadgeItem.java` | Ajout `import TooltipContext`, composants statiques pré-alloués |
-| `src/main/java/.../PetasseGangAddonsMod.java` | Suppression import inutilisé `FMLJavaModLoadingContext` |
+| `src/main/java/.../PeTaSsEgAnGAdditionsMod.java` | Suppression import inutilisé `FMLJavaModLoadingContext` |
 | `src/main/java/.../config/ModConfig.java` | Suppression import inutilisé `ModConstants` |
 | `.github/workflows/build.yml` | Gradle `9.3.0`, `chmod +x gradlew` |
 | `.github/workflows/test.yml` | Gradle `9.3.0`, `chmod +x gradlew`, wrapper-validation |
@@ -288,7 +288,7 @@ Les workflows CI utilisent `gradle/actions/wrapper-validation@v3`. Cela requiert
 
 ## Conclusion
 
-Le projet PétasseGang Addons est **structurellement complet et correctement configuré** pour Minecraft 26.1 / Forge 62.0.x / ForgeGradle 7. Les 12 erreurs critiques (principalement liées aux changements d'API de ForgeGradle 7 par rapport à FG6) ont été corrigées. Le code Java compilera sans erreur une fois Java 25 installé.
+Le projet PeTaSsE_gAnG_Additions est **structurellement complet et correctement configuré** pour Minecraft 26.1 / Forge 62.0.x / ForgeGradle 7. Les 12 erreurs critiques (principalement liées aux changements d'API de ForgeGradle 7 par rapport à FG6) ont été corrigées. Le code Java compilera sans erreur une fois Java 25 installé.
 
 **Le seul bloqueur est externe :** Java 25 doit être installé sur la machine de développement. Cette installation débloquera immédiatement le build, les tests, et `genEclipseRuns` pour VS Code.
 

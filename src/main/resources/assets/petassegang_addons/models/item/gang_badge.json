@@ -1,6 +1,0 @@
-{
-  "parent": "item/generated",
-  "textures": {
-    "layer0": "petassegang_addons:item/gang_badge"
-  }
-}

@@ -1,7 +1,6 @@
 package com.petassegang.addons;
 
 import com.petassegang.addons.config.ModConfig;
-import net.minecraftforge.common.ForgeConfigSpec;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

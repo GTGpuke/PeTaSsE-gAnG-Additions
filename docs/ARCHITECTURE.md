@@ -1,4 +1,4 @@
-# Architecture — PétasseGang Addons
+# Architecture — PeTaSsE_gAnG_Additions
 
 ## Stack technique
 
@@ -18,7 +18,7 @@
 ```
 com.petassegang.addons/
 │
-├── PetasseGangAddonsMod.java      ← @Mod entry-point, lifecycle wiring
+├── PeTaSsEgAnGAdditionsMod.java      ← @Mod entry-point, lifecycle wiring
 │
 ├── config/
 │   └── ModConfig.java             ← ForgeConfigSpec (SERVER + CLIENT)
@@ -121,11 +121,11 @@ JVM load → static fields créés (RegistryObject wrappé, pas encore rempli)
 | Méthode | camelCase | `appendHoverText()` |
 | Constante | UPPER_SNAKE_CASE | `MOD_ID`, `GANG_BADGE` |
 | Package | lowercase | `com.petassegang.addons.item` |
-| Mod ID | lowercase_snake | `petassegang_addons` |
-| Resource path | lowercase_snake | `gang_badge`, `petassegang_addons` |
-| Lang key item | `item.<mod_id>.<id>` | `item.petassegang_addons.gang_badge` |
-| Lang key block | `block.<mod_id>.<id>` | `block.petassegang_addons.example_block` |
-| Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petassegang_addons.petassegang` |
+| Mod ID | lowercase_snake | `petasse_gang_additions` |
+| Resource path | lowercase_snake | `gang_badge`, `petasse_gang_additions` |
+| Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
+| Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.example_block` |
+| Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petasse_gang_additions.petassegang` |
 
 ---
 

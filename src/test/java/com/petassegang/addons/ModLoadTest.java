@@ -14,9 +14,9 @@ import static org.junit.jupiter.api.Assertions.*;
 class ModLoadTest {
 
     @Test
-    @DisplayName("MOD_ID est égal à 'petassegang_addons'")
+    @DisplayName("MOD_ID est égal à 'petasse_gang_additions'")
     void testModId() {
-        assertEquals("petassegang_addons", ModConstants.MOD_ID,
+        assertEquals("petasse_gang_additions", ModConstants.MOD_ID,
                 "MOD_ID doit correspondre à la valeur déclarée dans mods.toml.");
     }
 

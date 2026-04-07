@@ -1,6 +1,6 @@
 ---
 name: add-dimension
-description: "Ajouter une dimension au mod PétasseGang Addons. Déclenche pour 'dimension', 'monde', 'portail', 'téléportation', 'monde custom', 'realm', 'dimension custom'."
+description: "Ajouter une dimension au mod PeTaSsE_gAnG_Additions. Déclenche pour 'dimension', 'monde', 'portail', 'téléportation', 'monde custom', 'realm', 'dimension custom'."
 ---
 
 # Skill — Ajouter une Dimension
@@ -33,7 +33,7 @@ Les dimensions dans Forge modernes sont entièrement définies par des fichiers 
 
 **Structure :**
 ```
-data/petassegang_addons/
+data/petasse_gang_additions/
 ├── dimension/
 │   └── gang_realm.json           ← définit la dimension
 ├── dimension_type/
@@ -51,7 +51,7 @@ data/petassegang_addons/
 
 ### 3. dimension_type JSON
 
-**Fichier :** `data/petassegang_addons/dimension_type/gang_realm_type.json`
+**Fichier :** `data/petasse_gang_additions/dimension_type/gang_realm_type.json`
 
 ```json
 {
@@ -81,11 +81,11 @@ data/petassegang_addons/
 
 ### 4. dimension JSON
 
-**Fichier :** `data/petassegang_addons/dimension/gang_realm.json`
+**Fichier :** `data/petasse_gang_additions/dimension/gang_realm.json`
 
 ```json
 {
-  "type": "petassegang_addons:gang_realm_type",
+  "type": "petasse_gang_additions:gang_realm_type",
   "generator": {
     "type": "minecraft:noise",
     "biome_source": {
@@ -109,7 +109,7 @@ if (!level.isClientSide()) {
     ServerPlayer serverPlayer = (ServerPlayer) player;
     ResourceKey<Level> dimensionKey = ResourceKey.create(
         Registries.DIMENSION,
-        new ResourceLocation("petassegang_addons", "gang_realm")
+        new ResourceLocation("petasse_gang_additions", "gang_realm")
     );
     ServerLevel targetLevel = serverPlayer.server.getLevel(dimensionKey);
     if (targetLevel != null) {
@@ -131,10 +131,10 @@ Aucune registration Java supplémentaire nécessaire pour une dimension basique.
 
 ## Checklist finale
 
-- [ ] `data/petassegang_addons/dimension_type/my_dim.json`
-- [ ] `data/petassegang_addons/dimension/my_dim.json`
+- [ ] `data/petasse_gang_additions/dimension_type/my_dim.json`
+- [ ] `data/petasse_gang_additions/dimension/my_dim.json`
 - [ ] Biome custom si nécessaire
 - [ ] Portail/téléportation si souhaité
 - [ ] Lang key pour le nom de la dimension
 - [ ] `docs/DIMENSIONS.md` + `CHANGELOG.md` mis à jour
-- [ ] Testé en jeu : `/execute in petassegang_addons:my_dim run teleport @s 0 64 0`
+- [ ] Testé en jeu : `/execute in petasse_gang_additions:my_dim run teleport @s 0 64 0`

@@ -1,4 +1,4 @@
-# Items — PétasseGang Addons
+# Items — PeTaSsE_gAnG_Additions
 
 Catalogue de tous les items du mod.
 
@@ -8,7 +8,7 @@ Catalogue de tous les items du mod.
 
 | Propriété | Valeur |
 |-----------|--------|
-| ID complet | `petassegang_addons:gang_badge` |
+| ID complet | `petasse_gang_additions:gang_badge` |
 | Classe | `com.petassegang.addons.item.GangBadgeItem` |
 | Rareté | EPIC (nom violet) |
 | Stack max | 1 |
@@ -25,7 +25,7 @@ Gang Badge
 
 ### Obtenir en jeu
 ```
-/give @p petassegang_addons:gang_badge
+/give @p petasse_gang_additions:gang_badge
 ```
 
 ### Fichiers associés

@@ -12,4 +12,4 @@ pluginManagement {
 // Auto-provisioning via foojay is NOT used because JvmVendorSpec.IBM_SEMERU
 // was removed in Gradle 9.x, breaking the foojay resolver.
 
-rootProject.name = 'petassegang_addons'
+rootProject.name = 'petasse_gang_additions'

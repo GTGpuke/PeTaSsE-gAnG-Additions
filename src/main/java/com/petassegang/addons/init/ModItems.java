@@ -2,7 +2,7 @@ package com.petassegang.addons.init;
 
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
-import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -11,14 +11,13 @@ import com.petassegang.addons.item.GangBadgeItem;
 import com.petassegang.addons.util.ModConstants;
 
 /**
- * Registre central des items pour PétasseGang Addons.
+ * Registre central des items pour PeTaSsE_gAnG_Additions.
  *
- * <p>Tous les items doivent être déclarés ici en tant que champs {@link RegistryObject}
- * via {@link DeferredRegister}. Appeler {@link #register(IEventBus)} une seule fois
- * depuis le constructeur du mod principal.
- *
- * <p><b>Ajouter un nouvel item :</b> ajouter un champ {@code RegistryObject<Item>}
- * en suivant le pattern GANG_BADGE, puis l'ajouter à l'onglet créatif dans {@link com.petassegang.addons.creative.ModCreativeTab}.
+ * <p>Tous les items doivent être déclarés ici via {@link DeferredRegister}.
+ * En MC 26.1, {@link Item.Properties#setId} doit être appelé avec la
+ * {@link net.minecraft.resources.ResourceKey} de l'item avant sa construction.
+ * Appeler {@link #register(BusGroup)} une seule fois depuis le constructeur
+ * du mod principal.
  */
 public final class ModItems {
 
@@ -31,10 +30,11 @@ public final class ModItems {
      * Badge de la Gang — jeton officiel d'appartenance à la PétasseGang.
      * Taille de pile 1, rareté EPIC (brillance d'enchantement toujours visible).
      */
-    public static final RegistryObject<Item> GANG_BADGE = ITEMS.register(
+    public static final RegistryObject<GangBadgeItem> GANG_BADGE = ITEMS.register(
             "gang_badge",
             () -> new GangBadgeItem(
                     new Item.Properties()
+                            .setId(ITEMS.key("gang_badge"))
                             .stacksTo(1)
                             .rarity(Rarity.EPIC)
             )
@@ -44,10 +44,10 @@ public final class ModItems {
 
     /**
      * Enregistre le DeferredRegister sur le bus d'événements du mod.
-     * Doit être appelé exactement une fois, depuis le constructeur de {@code PetasseGangAddonsMod}.
+     * Doit être appelé exactement une fois, depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
      */
-    public static void register(IEventBus modEventBus) {
-        ITEMS.register(modEventBus);
+    public static void register(BusGroup modBusGroup) {
+        ITEMS.register(modBusGroup);
     }
 
     private ModItems() {

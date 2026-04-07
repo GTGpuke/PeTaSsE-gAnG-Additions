@@ -1,5 +1,5 @@
 // ============================================================
-//  PétasseGang Addons — build.gradle
+//  PeTaSsE_gAnG_Additions — build.gradle
 //  Forge ${forge_version} for Minecraft ${minecraft_version}
 // ============================================================
 
@@ -22,65 +22,55 @@ java {
 
 // ── Minecraft / ForgeGradle configuration ────────────────────
 minecraft {
-    // Forge version for MC 26.1 (FG7 declares it here, not in dependencies)
-    version = "${minecraft_version}-${forge_version}"
-
     // MC 26.1 ships fully deobfuscated — official mappings required
     mappings channel: 'official', version: minecraft_version
 
+    // FG7.0.19 : runs déclarés via register(), workingDir via layout.projectDirectory
     runs {
         configureEach {
-            systemProperty 'forge.logging.markers', 'REGISTRIES'
-            systemProperty 'forge.logging.console.level', 'debug'
+            workingDir = layout.projectDirectory.dir('run')
+            systemProperty 'forge.logging.markers',              'REGISTRIES'
+            systemProperty 'forge.logging.console.level',        'debug'
+            systemProperty 'eventbus.api.strictRuntimeChecks',   'true'
         }
 
         // ---- Client ----------------------------------------
-        client {
-            workingDir = project.file('run')
+        register('client') {
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
-            mods {
-                "${mod_id}" { source sourceSets.main }
-            }
         }
 
         // ---- Server ----------------------------------------
-        server {
-            workingDir = project.file('run/server')
+        register('server') {
+            workingDir = layout.projectDirectory.dir('run/server')
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
-            mods {
-                "${mod_id}" { source sourceSets.main }
-            }
+            args '--nogui'
         }
 
         // ---- Game Test Server (in-game tests) ---------------
-        gameTestServer {
-            workingDir = project.file('run/gametest')
+        register('gameTestServer') {
+            workingDir = layout.projectDirectory.dir('run/gametest')
             systemProperty 'forge.enabledGameTestNamespaces', mod_id
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                    source sourceSets.test
-                }
-            }
         }
 
         // ---- Data generation --------------------------------
-        data {
-            workingDir = project.file('run/data')
-            args = ['--mod', mod_id, '--all',
-                    '--output', file('src/generated/resources/').absolutePath,
-                    '--existing', file('src/main/resources/').absolutePath]
-            mods {
-                "${mod_id}" { source sourceSets.main }
-            }
+        register('data') {
+            workingDir = layout.projectDirectory.dir('run/data')
+            args '--mod', mod_id, '--all',
+                 '--output', layout.projectDirectory.dir('src/generated/resources'),
+                 '--existing', layout.projectDirectory.dir('src/main/resources')
         }
     }
 }
 
 // ── Source sets ──────────────────────────────────────────────
+// FG7 / ClasspathLocator crée un SecureJar uniquement depuis le répertoire
+// contenant META-INF/mods.toml. Pour que FML trouve la classe @Mod, les
+// ressources et les classes compilées doivent être dans le même répertoire.
 sourceSets {
     main {
         resources.srcDirs = ['src/main/resources', 'src/generated/resources']
+        // Fusionner la sortie des ressources avec celle des classes.
+        output.resourcesDir = compileJava.destinationDirectory
     }
     test {
         java.srcDirs   = ['src/test/java']
@@ -90,40 +80,16 @@ sourceSets {
 
 // ── Repositories ─────────────────────────────────────────────
 repositories {
+    minecraft.mavenizer(it)       // Sortie Mavenizer — priorité maximale obligatoire
+    maven fg.forgeMaven           // https://maven.minecraftforge.net
+    maven fg.minecraftLibsMaven   // Bibliothèques Mojang
     mavenCentral()
-    maven {
-        name = 'MinecraftForge'
-        url  = 'https://maven.minecraftforge.net'
-    }
 }
 
 // ── Dependencies ─────────────────────────────────────────────
 dependencies {
-    // ============================================================
-    // DÉPENDANCES EXTERNES — Ajoutez vos librairies ici
-    // ============================================================
-    //
-    // Mod Forge (doit être deobfusqué avec fg.deobf) :
-    //   implementation fg.deobf("curse.maven:mod-slug-FILEID:FILEID")
-    //   compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION:api")
-    //   runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION")
-    //
-    // Librairie Java classique (Maven Central) :
-    //   implementation "com.google.code.gson:gson:2.11.0"
-    //   implementation "org.apache.commons:commons-lang3:3.14.0"
-    //
-    // Librairie embarquée dans le JAR final (JarJar) :
-    //   jarJar(group: "com.example", name: "lib", version: "[1.0,2.0)")
-    //
-    // API compile-only (pas présente au runtime joueur) :
-    //   compileOnly "some.api:api:1.0"
-    //
-    // Dépendances populaires commentées prêtes à décommenter :
-    //   compileOnly fg.deobf("software.bernie.geckolib:geckolib-forge-${minecraft_version}:VERSION")       // GeckoLib (mobs animés)
-    //   compileOnly fg.deobf("top.theillusivec4.curios:curios-forge:VERSION:api")                         // Curios (slots custom)
-    //   runtimeOnly fg.deobf("top.theillusivec4.curios:curios-forge:VERSION")
-    //   compileOnly fg.deobf("vazkii.patchouli:Patchouli:${minecraft_version}-VERSION:api")               // Patchouli (livres in-game)
-    // ============================================================
+    // FG7.0.19 : la dépendance Forge va ici via minecraft.dependency()
+    implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
 
     // ---- Tests (JUnit 5) -----------------------------------
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.3'

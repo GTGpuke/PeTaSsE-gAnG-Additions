@@ -1,0 +1,12 @@
+{
+  "item.petasse_gang_additions.gang_badge": "Gang Badge",
+  "itemGroup.petasse_gang_additions.petassegang": "PétasseGang",
+
+  "tooltip.petasse_gang_additions.gang_badge.member": "PétasseGang Official Member",
+  "tooltip.petasse_gang_additions.gang_badge.flavour": "Don't lose it, there's no replacement",
+
+  "config.petasse_gang_additions.title": "PeTaSsE_gAnG_Additions Config",
+  "config.petasse_gang_additions.items": "Items",
+  "config.petasse_gang_additions.items.enableGangBadge": "Enable Gang Badge",
+  "config.petasse_gang_additions.items.enableGangBadge.tooltip": "Set to false to disable the Gang Badge item entirely."
+}

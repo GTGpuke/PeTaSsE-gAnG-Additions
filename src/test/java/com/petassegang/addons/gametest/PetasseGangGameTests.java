@@ -3,13 +3,13 @@ package com.petassegang.addons.gametest;
 import com.petassegang.addons.creative.ModCreativeTab;
 import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.util.ModConstants;
-import net.minecraft.gametest.framework.GameTest;
 import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraftforge.gametest.GameTestHolder;
-import net.minecraftforge.gametest.PrefixGameTestTemplate;
+import net.minecraftforge.gametest.GameTest;
+import net.minecraftforge.gametest.GameTestDontPrefix;
+import net.minecraftforge.gametest.GameTestNamespace;
 
 /**
- * In-game Forge GameTests for PétasseGang Addons.
+ * In-game Forge GameTests for PeTaSsE_gAnG_Additions.
  *
  * <p>Run with: {@code ./gradlew runGameTestServer}
  *
@@ -17,14 +17,14 @@ import net.minecraftforge.gametest.PrefixGameTestTemplate;
  * The test passes when {@link GameTestHelper#succeed()} is called,
  * and fails if an assertion throws or the timeout is exceeded.
  */
-@GameTestHolder(ModConstants.MOD_ID)
-@PrefixGameTestTemplate(false)
+@GameTestNamespace(ModConstants.MOD_ID)
+@GameTestDontPrefix
 public class PetasseGangGameTests {
 
     /**
      * Verifies that the Gang Badge item has been registered in the item registry.
      */
-    @GameTest(template = "petassegang_addons:empty")
+    @GameTest(structure = "petasse_gang_additions:empty")
     public static void gangBadgeItemIsRegistered(GameTestHelper helper) {
         helper.assertTrue(
                 ModItems.GANG_BADGE.isPresent(),
@@ -40,7 +40,7 @@ public class PetasseGangGameTests {
     /**
      * Verifies that the PétasseGang creative tab is registered.
      */
-    @GameTest(template = "petassegang_addons:empty")
+    @GameTest(structure = "petasse_gang_additions:empty")
     public static void creativeTabIsRegistered(GameTestHelper helper) {
         helper.assertTrue(
                 ModCreativeTab.PETASSEGANG_TAB.isPresent(),

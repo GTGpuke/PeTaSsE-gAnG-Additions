@@ -1,4 +1,4 @@
-# CI/CD — PétasseGang Addons
+# CI/CD — PeTaSsE_gAnG_Additions
 
 ## Vue d'ensemble des workflows
 
@@ -20,7 +20,7 @@
 3. `./gradlew build`
 4. Upload du JAR comme artifact GitHub (conservé 14 jours)
 
-**Artifact :** `petassegang_addons-{sha}` → contient les JARs compilés.
+**Artifact :** `petasse_gang_additions-{sha}` → contient les JARs compilés.
 
 ---
 
@@ -74,8 +74,8 @@ git push origin v0.2.0
 ## Badges pour le README
 
 ```markdown
-[![Build](https://github.com/PetasseGang/petassegang_addons/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petassegang_addons/actions/workflows/build.yml)
-[![Tests](https://github.com/PetasseGang/petassegang_addons/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petassegang_addons/actions/workflows/test.yml)
+[![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
+[![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
 ```
 
 ---

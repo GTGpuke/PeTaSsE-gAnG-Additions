@@ -1,6 +1,6 @@
 ---
 name: add-item
-description: "Ajouter un nouvel item au mod PétasseGang Addons. Utilise ce skill dès qu'on veut créer un item, outil, arme, consommable, ou objet. Déclenche pour 'ajoute', 'crée', 'nouveau' + 'item', 'objet', 'outil', 'arme', 'nourriture', 'carte', 'clé', 'badge', 'épée', 'pioche', 'hache', 'arc'."
+description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions. Utilise ce skill dès qu'on veut créer un item, outil, arme, consommable, ou objet. Déclenche pour 'ajoute', 'crée', 'nouveau' + 'item', 'objet', 'outil', 'arme', 'nourriture', 'carte', 'clé', 'badge', 'épée', 'pioche', 'hache', 'arc'."
 ---
 
 # Skill — Ajouter un Item
@@ -74,7 +74,7 @@ public class MyItem extends Item {
 
 **Pour un item simple sans comportement custom :** inutile de créer une classe, utiliser directement `Item` dans ModItems :
 ```java
-() -> new Item(new Item.Properties().stacksTo(64))
+() -> new Item(new Item.Properties().setId(ITEMS.key("my_item_id")).stacksTo(64))
 ```
 
 ---
@@ -89,8 +89,9 @@ public static final RegistryObject<Item> MY_ITEM = ITEMS.register(
         "my_item_id",
         () -> new MyItem(
                 new Item.Properties()
-                        .stacksTo(1)          // ou 64
-                        .rarity(Rarity.RARE)  // COMMON / UNCOMMON / RARE / EPIC
+                        .setId(ITEMS.key("my_item_id")) // OBLIGATOIRE en MC 26.1
+                        .stacksTo(1)                    // ou 64
+                        .rarity(Rarity.RARE)            // COMMON / UNCOMMON / RARE / EPIC
         )
 );
 ```
@@ -110,13 +111,13 @@ output.accept(ModItems.MY_ITEM.get());
 
 ### 5. Créer le modèle JSON
 
-**Fichier :** `src/main/resources/assets/petassegang_addons/models/item/my_item_id.json`
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/models/item/my_item_id.json`
 
 ```json
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "petassegang_addons:item/my_item_id"
+    "layer0": "petasse_gang_additions:item/my_item_id"
   }
 }
 ```
@@ -127,7 +128,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ### 6. Ajouter la texture
 
-**Fichier :** `src/main/resources/assets/petassegang_addons/textures/item/my_item_id.png`
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/textures/item/my_item_id.png`
 
 - Format : PNG, 16×16 px, RGBA
 - Crée la texture dans ton éditeur préféré (Aseprite, GIMP, Pixilart…)
@@ -138,28 +139,28 @@ Add-Type -AssemblyName System.Drawing
 $bmp = New-Object System.Drawing.Bitmap(16, 16)
 $g = [System.Drawing.Graphics]::FromImage($bmp)
 $g.Clear([System.Drawing.Color]::FromArgb(255, 128, 0, 255))  # Violet
-$bmp.Save("src\main\resources\assets\petassegang_addons\textures\item\my_item_id.png", [System.Drawing.Imaging.ImageFormat]::Png)
+$bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_item_id.png", [System.Drawing.Imaging.ImageFormat]::Png)
 ```
 
 ---
 
 ### 7. Ajouter les traductions
 
-**Fichier :** `src/main/resources/assets/petassegang_addons/lang/en_us.json`
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/en_us.json`
 ```json
-"item.petassegang_addons.my_item_id": "My Item Name",
+"item.petasse_gang_additions.my_item_id": "My Item Name",
 ```
 
-**Fichier :** `src/main/resources/assets/petassegang_addons/lang/fr_fr.json`
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json`
 ```json
-"item.petassegang_addons.my_item_id": "Nom de Mon Objet",
+"item.petasse_gang_additions.my_item_id": "Nom de Mon Objet",
 ```
 
 ---
 
 ### 8. Ajouter une recette (optionnel)
 
-**Fichier :** `data/petassegang_addons/recipes/my_item_id.json`
+**Fichier :** `data/petasse_gang_additions/recipes/my_item_id.json`
 
 ```json
 {
@@ -175,7 +176,7 @@ $bmp.Save("src\main\resources\assets\petassegang_addons\textures\item\my_item_id
     "C": { "item": "minecraft:nether_star" }
   },
   "result": {
-    "id": "petassegang_addons:my_item_id",
+    "id": "petasse_gang_additions:my_item_id",
     "count": 1
   }
 }

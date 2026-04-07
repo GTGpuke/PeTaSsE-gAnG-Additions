@@ -49,7 +49,7 @@ Pour CHAQUE fichier Java créé ou modifié :
 
 **Contenu visible en jeu (tooltips, GUI, noms d'items, etc.) :**
 - [ ] JAMAIS de texte en dur dans le code — toujours passer par `Component.translatable("clé")`
-- [ ] Les clés de traduction sont cohérentes avec la convention : `item.petassegang_addons.nom_item`
+- [ ] Les clés de traduction sont cohérentes avec la convention : `item.petasse_gang_additions.nom_item`
 - [ ] La traduction anglaise existe dans `en_us.json`
 - [ ] La traduction française existe dans `fr_fr.json`
 - [ ] Les deux traductions sont correctes, naturelles et cohérentes
@@ -131,8 +131,8 @@ Pour chaque texture créée ou modifiée :
 - [ ] Le style général est cohérent avec les textures déjà existantes dans le mod
   - Comparer visuellement avec les textures existantes :
 ```bash
-  ls src/main/resources/assets/petassegang_addons/textures/item/
-  ls src/main/resources/assets/petassegang_addons/textures/block/ 2>/dev/null
+  ls src/main/resources/assets/petasse_gang_additions/textures/item/
+  ls src/main/resources/assets/petasse_gang_additions/textures/block/ 2>/dev/null
 ```
 - [ ] Si le mod a un thème visuel établi, la nouvelle texture le respecte
 
@@ -143,10 +143,10 @@ Pour chaque texture créée ou modifiée :
   grep -rohn 'translatable("[^"]*"' src/main/java/ | sed 's/.*translatable("//;s/".*//' | sort -u > /tmp/keys_code.txt
 
   # Extraire les clés de en_us.json
-  python3 -c "import json; [print(k) for k in json.load(open('src/main/resources/assets/petassegang_addons/lang/en_us.json')).keys()]" | sort -u > /tmp/keys_en.txt
+  python3 -c "import json; [print(k) for k in json.load(open('src/main/resources/assets/petasse_gang_additions/lang/en_us.json')).keys()]" | sort -u > /tmp/keys_en.txt
 
   # Extraire les clés de fr_fr.json
-  python3 -c "import json; [print(k) for k in json.load(open('src/main/resources/assets/petassegang_addons/lang/fr_fr.json')).keys()]" | sort -u > /tmp/keys_fr.txt
+  python3 -c "import json; [print(k) for k in json.load(open('src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json')).keys()]" | sort -u > /tmp/keys_fr.txt
 
   # Trouver les clés manquantes
   echo "=== Clés manquantes dans en_us.json ==="
@@ -160,8 +160,8 @@ Pour chaque texture créée ou modifiée :
 
 ### 2.5 Blockstates et loot tables
 - [ ] Chaque block a un blockstate JSON correspondant
-- [ ] Chaque block a une loot table dans `data/petassegang_addons/loot_tables/blocks/`
-- [ ] Les recettes dans `data/petassegang_addons/recipes/` sont valides
+- [ ] Chaque block a une loot table dans `data/petasse_gang_additions/loot_tables/blocks/`
+- [ ] Les recettes dans `data/petasse_gang_additions/recipes/` sont valides
 
 ---
 
@@ -408,17 +408,17 @@ git ls-files --others --ignored --exclude-standard 2>/dev/null
 ### 8.2 Resources orphelines
 ```bash
 # Textures sans modèle associé
-for f in src/main/resources/assets/petassegang_addons/textures/item/*.png; do
+for f in src/main/resources/assets/petasse_gang_additions/textures/item/*.png; do
   name=$(basename "$f" .png)
-  if [ ! -f "src/main/resources/assets/petassegang_addons/models/item/$name.json" ]; then
+  if [ ! -f "src/main/resources/assets/petasse_gang_additions/models/item/$name.json" ]; then
     echo "⚠️  Texture sans modèle : $f"
   fi
 done
 
 # Modèles sans texture associée
-for f in src/main/resources/assets/petassegang_addons/models/item/*.json; do
+for f in src/main/resources/assets/petasse_gang_additions/models/item/*.json; do
   name=$(basename "$f" .json)
-  if [ ! -f "src/main/resources/assets/petassegang_addons/textures/item/$name.png" ]; then
+  if [ ! -f "src/main/resources/assets/petasse_gang_additions/textures/item/$name.png" ]; then
     echo "⚠️  Modèle sans texture : $f"
   fi
 done
@@ -459,7 +459,7 @@ done
 ### 9.1 Taille du JAR
 ```bash
 ./gradlew build -q
-ls -lh build/libs/petassegang_addons-*.jar
+ls -lh build/libs/petasse_gang_additions-*.jar
 ```
 - [ ] La taille du JAR est raisonnable (pas de fichiers volumineux inclus par erreur)
 - [ ] Pas de dépendances embarquées inutilement
@@ -530,7 +530,7 @@ Avant de confirmer que c'est prêt à push, vérifie une dernière fois :
 Après l'audit complet, affiche un rapport synthétique :
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║              RAPPORT PRÉ-PUSH — PétasseGang Addons         ║
+║              RAPPORT PRÉ-PUSH — PeTaSsE_gAnG_Additions         ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
 ║  Feature : [nom de la feature]                               ║

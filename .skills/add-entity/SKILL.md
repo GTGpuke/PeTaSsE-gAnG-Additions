@@ -1,6 +1,6 @@
 ---
 name: add-entity
-description: "Ajouter une entité/mob au mod PétasseGang Addons. Déclenche pour 'mob', 'entité', 'monstre', 'boss', 'NPC', 'créature', 'animal', 'pet', 'entity'."
+description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions. Déclenche pour 'mob', 'entité', 'monstre', 'boss', 'NPC', 'créature', 'animal', 'pet', 'entity'."
 ---
 
 # Skill — Ajouter une Entité / Mob
@@ -108,7 +108,7 @@ public final class ModEntities {
 
 ### 4. Enregistrer les attributs
 
-Dans `PetasseGangAddonsMod.commonSetup()` (via `FMLCommonSetupEvent`), ou via un `EntityAttributeCreationEvent` :
+Dans `PeTaSsEgAnGAdditionsMod.commonSetup()` (via `FMLCommonSetupEvent`), ou via un `EntityAttributeCreationEvent` :
 
 ```java
 @SubscribeEvent
@@ -134,7 +134,7 @@ import net.minecraft.resources.ResourceLocation;
 public class MyEntityRenderer extends MobRenderer<MyEntity, MyEntityModel<MyEntity>> {
 
     private static final ResourceLocation TEXTURE =
-            new ResourceLocation("petassegang_addons", "textures/entity/my_entity.png");
+            new ResourceLocation("petasse_gang_additions", "textures/entity/my_entity.png");
 
     public MyEntityRenderer(EntityRendererProvider.Context context) {
         super(context, new MyEntityModel<>(context.bakeLayer(MyEntityModel.LAYER_LOCATION)), 0.5f);
@@ -157,7 +157,7 @@ EntityRenderers.register(ModEntities.MY_ENTITY.get(), MyEntityRenderer::new);
 ### 6. Fichiers ressources
 
 - `textures/entity/my_entity.png` — texture du mob
-- `lang/en_us.json` : `"entity.petassegang_addons.my_entity": "My Entity"`
+- `lang/en_us.json` : `"entity.petasse_gang_additions.my_entity": "My Entity"`
 - `lang/fr_fr.json` : traduction FR
 
 ---
@@ -167,7 +167,7 @@ EntityRenderers.register(ModEntities.MY_ENTITY.get(), MyEntityRenderer::new);
 - [ ] `entity/MyEntity.java`
 - [ ] `init/ModEntities.java` — RegistryObject ajouté
 - [ ] Attributs enregistrés
-- [ ] `PetasseGangAddonsMod` — `ModEntities.register(bus)` + renderer
+- [ ] `PeTaSsEgAnGAdditionsMod` — `ModEntities.register(bus)` + renderer
 - [ ] `client/renderer/MyEntityRenderer.java`
 - [ ] `textures/entity/my_entity.png`
 - [ ] Lang keys EN + FR

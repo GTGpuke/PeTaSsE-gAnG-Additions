@@ -16,16 +16,19 @@ build/
 .claude
 out/
 
-# ── IDE — Eclipse ────────────────────────────────────────────
+# ── IDE — Eclipse / ForgeGradle run configs ──────────────────
 .project
 .classpath
 .settings/
 bin/
+# Générés par `./gradlew genEclipseRuns` — non versionnés
+*.launch
 
 # ── IDE — VS Code ────────────────────────────────────────────
 .vscode/
 !.vscode/launch.json
 !.vscode/settings.json
+!.vscode/tasks.json
 !.vscode/extensions.json
 *.code-workspace
 
