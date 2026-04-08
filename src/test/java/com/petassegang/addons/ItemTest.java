@@ -61,4 +61,17 @@ class ItemTest {
     void testItemConstructionNotNull() {
         assertNotNull(item, "Le constructeur de GangBadgeItem ne doit pas retourner null.");
     }
+
+    @Test
+    @DisplayName("GangBadgeItem override la méthode use()")
+    void testUseMethodOverridden() throws NoSuchMethodException {
+        var method = GangBadgeItem.class.getDeclaredMethod("use",
+                net.minecraft.world.level.Level.class,
+                net.minecraft.world.entity.player.Player.class,
+                net.minecraft.world.InteractionHand.class);
+        assertNotNull(method,
+                "GangBadgeItem doit surcharger use() pour gérer le clic droit.");
+        assertEquals(net.minecraft.world.InteractionResult.class, method.getReturnType(),
+                "use() doit retourner InteractionResult.");
+    }
 }

@@ -109,7 +109,24 @@ output.accept(ModItems.MY_ITEM.get());
 
 ---
 
-### 5. Créer le modèle JSON
+### 5. Créer la définition d'item (OBLIGATOIRE en MC 26.1)
+
+**Fichier :** `src/main/resources/assets/petasse_gang_additions/items/my_item_id.json`
+
+```json
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "petasse_gang_additions:item/my_item_id"
+  }
+}
+```
+
+> **MC 26.1 exige ce fichier.** Sans lui, l'item s'affiche comme un carré violet/noir même si la texture et le modèle existent.
+
+---
+
+### 6. Créer le modèle JSON
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/models/item/my_item_id.json`
 
@@ -126,7 +143,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ---
 
-### 6. Ajouter la texture
+### 7. Ajouter la texture
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/textures/item/my_item_id.png`
 
@@ -144,7 +161,7 @@ $bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_ite
 
 ---
 
-### 7. Ajouter les traductions
+### 8. Ajouter les traductions
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/en_us.json`
 ```json
@@ -158,7 +175,7 @@ $bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_ite
 
 ---
 
-### 8. Ajouter une recette (optionnel)
+### 9. Ajouter une recette (optionnel)
 
 **Fichier :** `data/petasse_gang_additions/recipes/my_item_id.json`
 
@@ -184,7 +201,7 @@ $bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_ite
 
 ---
 
-### 9. Écrire le test
+### 10. Écrire le test
 
 **Fichier :** `src/test/java/com/petassegang/addons/ItemTest.java`
 
@@ -207,7 +224,7 @@ void testMyItemRegistryObjectNotNull() {
 
 ---
 
-### 10. Mettre à jour la documentation
+### 11. Mettre à jour la documentation
 
 - [ ] `docs/ITEMS.md` — ajouter la fiche de l'item
 - [ ] `docs/CHANGELOG.md` — ajouter sous `### Added`
@@ -221,6 +238,7 @@ void testMyItemRegistryObjectNotNull() {
 - [ ] Classe `item/MyItem.java` créée (ou pas nécessaire si item simple)
 - [ ] `init/ModItems.java` — `RegistryObject` ajouté
 - [ ] `creative/ModCreativeTab.java` — `output.accept()` ajouté
+- [ ] `items/my_item_id.json` créé (OBLIGATOIRE MC 26.1 — sinon carré violet)
 - [ ] `models/item/my_item_id.json` créé
 - [ ] `textures/item/my_item_id.png` créé (16x16)
 - [ ] `lang/en_us.json` mis à jour

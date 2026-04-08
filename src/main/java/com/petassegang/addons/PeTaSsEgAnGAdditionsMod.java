@@ -11,7 +11,9 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.creative.ModCreativeTab;
+import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModItems;
+import com.petassegang.addons.network.ModNetworking;
 import com.petassegang.addons.util.ModConstants;
 
 /**
@@ -29,15 +31,24 @@ import com.petassegang.addons.util.ModConstants;
 @Mod(ModConstants.MOD_ID)
 public class PeTaSsEgAnGAdditionsMod {
 
+    /**
+     * Constructeur du mod — enregistre les DeferredRegisters et s'abonne aux événements.
+     *
+     * @param context contexte de chargement du mod fourni par Forge
+     */
     public PeTaSsEgAnGAdditionsMod(FMLJavaModLoadingContext context) {
         ModConstants.LOGGER.info("Initialisation de {} v{}", ModConstants.MOD_NAME,
                 PeTaSsEgAnGAdditionsMod.class.getPackage().getImplementationVersion());
 
         BusGroup modBusGroup = context.getModBusGroup();
 
-        // Enregistrement des DeferredRegisters des items et de l'onglet créatif.
+        // Enregistrement des DeferredRegisters des blocs, items et de l'onglet créatif.
+        ModBlocks.register(modBusGroup);
         ModItems.register(modBusGroup);
         ModCreativeTab.register(modBusGroup);
+
+        // Enregistrement du canal réseau et des packets.
+        ModNetworking.register();
 
         // Abonnement aux événements de cycle de vie.
         FMLCommonSetupEvent.getBus(modBusGroup).addListener(this::commonSetup);

@@ -83,9 +83,23 @@ ITEMS.register("gang_badge", () -> new GangBadgeItem(
 - Vérifie que `ModCreativeTab.register(modEventBus)` est appelé dans le constructeur `@Mod`
 - Vérifie que `ModCreativeTab.PETASSEGANG_TAB` est non-null (test `RegistryTest`)
 
-### Texture `gang_badge` manquante (carré violet)
-- Vérifie que `gang_badge.png` est dans `assets/petasse_gang_additions/textures/item/`
-- Vérifie que `gang_badge.json` (modèle) référence le bon chemin de texture
+### Texture manquante (carré violet/noir) sur un item
+
+**Cause principale (MC 26.1) :** Le fichier `assets/[namespace]/items/[item_id].json` est absent. En MC 26.1, chaque item doit avoir ce fichier de définition pour que le moteur sache comment le rendre — même si la texture et le modèle existent.
+
+**Fix :** Créer `assets/petasse_gang_additions/items/gang_badge.json` :
+```json
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "petasse_gang_additions:item/gang_badge"
+  }
+}
+```
+
+**Autres causes possibles :**
+- `gang_badge.png` absent de `assets/petasse_gang_additions/textures/item/`
+- `gang_badge.json` (modèle) avec un chemin de texture incorrect
 - Rebuild : `./gradlew build`
 
 ---
@@ -96,6 +110,21 @@ ITEMS.register("gang_badge", () -> new GangBadgeItem(
 **Cause :** MC classes pas sur le classpath de test.
 - Les tests JUnit qui instancient des classes MC nécessitent le classpath ForgeGradle.
 - Utilise `./gradlew test` et non le runner JUnit de l'IDE directement.
+
+### `ClassNotFoundException` sur toutes les classes de test (Windows)
+**Cause :** Le chemin du projet contient un caractère accentué (`Développement`). Gradle écrit le classpath du worker de test dans un `@argfile` Java ; sous Windows, le launcher JVM lit ce fichier avec l'encodage système (CP1252) et non UTF-8, ce qui corrompt le chemin vers `build/classes/java/test`.
+
+**Symptôme :** `Could not execute test class 'com.petassegang.addons.ConfigTest'` → `ClassNotFoundException`.
+
+**Contournement :** Ne pas mettre le projet dans un répertoire au nom accentué :
+```
+✅  C:\Dev\PeTaSsE-gAnG-Additions\
+❌  C:\Projets\Développement\Java\PeTaSsE-gAnG-Additions\
+```
+Ou utiliser la cible partielle pour compiler et packager sans tests :
+```bash
+./gradlew build -x test
+```
 
 ### Tests qui passent localement mais échouent en CI
 - Vérifier que le cache Gradle CI est à jour (Actions → Caches → supprimer si corrompu)

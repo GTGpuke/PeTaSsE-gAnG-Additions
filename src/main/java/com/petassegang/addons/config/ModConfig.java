@@ -15,11 +15,15 @@ public final class ModConfig {
 
     // ── Configuration serveur ─────────────────────────────────────────────────
 
+    /** Spécification Forge de la configuration serveur. */
     public static final ForgeConfigSpec SERVER_SPEC;
+
+    /** Active ou désactive le Gang Badge via la config serveur. */
     public static final ForgeConfigSpec.BooleanValue ENABLE_GANG_BADGE;
 
     // ── Configuration client ──────────────────────────────────────────────────
 
+    /** Spécification Forge de la configuration client. */
     public static final ForgeConfigSpec CLIENT_SPEC;
 
     static {

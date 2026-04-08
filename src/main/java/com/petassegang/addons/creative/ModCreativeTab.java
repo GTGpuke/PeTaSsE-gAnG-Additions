@@ -19,6 +19,7 @@ import com.petassegang.addons.util.ModConstants;
  */
 public final class ModCreativeTab {
 
+    /** DeferredRegister pour les onglets créatifs du mod. */
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ModConstants.MOD_ID);
 
@@ -39,12 +40,19 @@ public final class ModCreativeTab {
     private static void displayItems(CreativeModeTab.ItemDisplayParameters params,
                                      CreativeModeTab.Output output) {
         output.accept(ModItems.GANG_BADGE.get());
+        output.accept(ModItems.CURSED_SNACK.get());
+        output.accept(ModItems.CURSED_LOG.get());
+        output.accept(ModItems.CURSED_PLANKS.get());
+        output.accept(ModItems.CURSED_LEAVES.get());
+        output.accept(ModItems.CURSED_SAPLING.get());
         // AJOUTER LES NOUVEAUX ITEMS EN DESSOUS DE CETTE LIGNE
     }
 
     /**
      * Enregistre le DeferredRegister sur le bus d'événements du mod.
      * Appelé une seule fois depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
+     *
+     * @param modBusGroup le groupe de bus d'événements du mod
      */
     public static void register(BusGroup modBusGroup) {
         CREATIVE_MODE_TABS.register(modBusGroup);

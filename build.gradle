@@ -102,6 +102,8 @@ dependencies {
 test {
     useJUnitPlatform()
     maxHeapSize = '1G'
+    // Forcer UTF-8 explicitement — nécessaire sur Windows avec un chemin de projet accentué.
+    jvmArgs '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8'
     testLogging {
         events 'passed', 'failed', 'skipped'
         showStandardStreams = false
@@ -128,7 +130,10 @@ jar {
 }
 
 // Token substitution in mods.toml
+// doNotTrackState : le répertoire de sortie est partagé avec compileJava (fix FML ClasspathLocator).
+// Sans cette option, Gradle supprime les .class lors d'un build incrémental de ressources seules.
 processResources {
+    doNotTrackState("Répertoire de sortie partagé avec compileJava — évite la suppression des classes compilées.")
     def props = [
         mod_id               : mod_id,
         mod_name             : mod_name,

@@ -5,6 +5,19 @@
   "tooltip.petasse_gang_additions.gang_badge.member": "Membre Officiel de la PétasseGang",
   "tooltip.petasse_gang_additions.gang_badge.flavour": "Ne le perds pas, il n'y a pas de remplacement.",
 
+  "item.petasse_gang_additions.cursed_snack": "Casse-croûte Maudit",
+  "tooltip.petasse_gang_additions.cursed_snack.warning": "T'aurais pas dû manger ça.",
+
+  "block.petasse_gang_additions.cursed_log": "Tronc Maudit",
+  "block.petasse_gang_additions.cursed_leaves": "Feuilles Maudites",
+  "block.petasse_gang_additions.cursed_sapling": "Pousse Maudite",
+  "block.petasse_gang_additions.cursed_planks": "Planches Maudites",
+
+  "item.petasse_gang_additions.cursed_log": "Tronc Maudit",
+  "item.petasse_gang_additions.cursed_leaves": "Feuilles Maudites",
+  "item.petasse_gang_additions.cursed_sapling": "Pousse Maudite",
+  "item.petasse_gang_additions.cursed_planks": "Planches Maudites",
+
   "config.petasse_gang_additions.title": "Config PeTaSsE_gAnG_Additions",
   "config.petasse_gang_additions.items": "Objets",
   "config.petasse_gang_additions.items.enableGangBadge": "Activer le Badge de la Gang",

@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/leaves",
+  "textures": {
+    "all": "petasse_gang_additions:block/cursed_leaves"
+  }
+}

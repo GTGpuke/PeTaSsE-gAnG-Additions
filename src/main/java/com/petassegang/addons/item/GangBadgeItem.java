@@ -5,11 +5,21 @@ import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Item.TooltipContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.component.TooltipDisplay;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.network.PacketDistributor;
+
+import com.petassegang.addons.network.ModNetworking;
+import com.petassegang.addons.network.packet.GangBadgeActivatePacket;
 
 /**
  * Le Badge de la Gang — jeton officiel d'appartenance à la PétasseGang.
@@ -30,12 +40,40 @@ public class GangBadgeItem extends Item {
     private static final Component TOOLTIP_FLAVOUR = Component.translatable("tooltip.petasse_gang_additions.gang_badge.flavour")
             .setStyle(Style.EMPTY.withColor(ChatFormatting.GRAY).withItalic(true));
 
+    /**
+     * Crée une instance du Gang Badge avec les propriétés spécifiées.
+     *
+     * @param properties les propriétés de l'item (stack size, rareté, id)
+     */
     public GangBadgeItem(Properties properties) {
         super(properties);
     }
 
     /**
+     * Clic droit : joue un son de chat et déclenche l'animation du totem.
+     * Aucune consommation de l'item.
+     */
+    @Override
+    public InteractionResult use(Level level, Player player, InteractionHand hand) {
+        if (!level.isClientSide()) {
+            // Son de chat (pitch abaissé pour sonner adulte).
+            level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    SoundEvents.CAT_AMBIENT_BABY, SoundSource.PLAYERS, 1.0F, 0.6F);
+            // Packet custom : affiche l'animation d'activation avec la texture du badge,
+            // pas celle du totem vanilla (event 35 utilise findTotem() hardcodé côté client).
+            ModNetworking.CHANNEL.send(
+                    new GangBadgeActivatePacket(),
+                    PacketDistributor.PLAYER.with((ServerPlayer) player));
+        }
+        return InteractionResult.SUCCESS;
+    }
+
+    /**
      * Ajoute les lignes de tooltip personnalisées à l'item survolé.
+     *
+     * <p>Méthode marquée {@code @Deprecated} en MC 26.1 sans remplacement stable —
+     * les items vanilla (ex. {@code SmithingTemplateItem}) l'utilisent encore.
+     * À migrer vers {@link net.minecraft.world.item.component.TooltipProvider} quand l'API sera stabilisée.
      *
      * @param stack          la pile d'items survolée
      * @param context        contexte du tooltip (accès au monde)
@@ -43,6 +81,7 @@ public class GangBadgeItem extends Item {
      * @param tooltipConsumer consumer auquel passer chaque ligne de tooltip
      * @param flag           indique si les tooltips avancés sont activés
      */
+    @SuppressWarnings("deprecation") // Méthode dépréciée en MC 26.1 sans remplacement stable — les items vanilla l'utilisent encore.
     @Override
     public void appendHoverText(ItemStack stack,
                                 TooltipContext context,

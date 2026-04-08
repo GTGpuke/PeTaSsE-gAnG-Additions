@@ -5,6 +5,19 @@
   "tooltip.petasse_gang_additions.gang_badge.member": "PétasseGang Official Member",
   "tooltip.petasse_gang_additions.gang_badge.flavour": "Don't lose it, there's no replacement",
 
+  "item.petasse_gang_additions.cursed_snack": "Cursed Snack",
+  "tooltip.petasse_gang_additions.cursed_snack.warning": "Maybe don't eat that.",
+
+  "block.petasse_gang_additions.cursed_log": "Cursed Log",
+  "block.petasse_gang_additions.cursed_leaves": "Cursed Leaves",
+  "block.petasse_gang_additions.cursed_sapling": "Cursed Sapling",
+  "block.petasse_gang_additions.cursed_planks": "Cursed Planks",
+
+  "item.petasse_gang_additions.cursed_log": "Cursed Log",
+  "item.petasse_gang_additions.cursed_leaves": "Cursed Leaves",
+  "item.petasse_gang_additions.cursed_sapling": "Cursed Sapling",
+  "item.petasse_gang_additions.cursed_planks": "Cursed Planks",
+
   "config.petasse_gang_additions.title": "PeTaSsE_gAnG_Additions Config",
   "config.petasse_gang_additions.items": "Items",
   "config.petasse_gang_additions.items.enableGangBadge": "Enable Gang Badge",

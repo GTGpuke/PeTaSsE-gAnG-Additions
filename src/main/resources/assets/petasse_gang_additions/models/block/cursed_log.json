@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/cube_column",
+  "textures": {
+    "end": "petasse_gang_additions:block/cursed_log_top",
+    "side": "petasse_gang_additions:block/cursed_log"
+  }
+}

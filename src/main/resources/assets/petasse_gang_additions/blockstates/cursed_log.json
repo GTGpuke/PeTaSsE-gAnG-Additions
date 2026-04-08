@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "petasse_gang_additions:block/cursed_log", "x": 90, "y": 90 },
+    "axis=y": { "model": "petasse_gang_additions:block/cursed_log" },
+    "axis=z": { "model": "petasse_gang_additions:block/cursed_log", "x": 90 }
+  }
+}

@@ -11,7 +11,10 @@ import org.slf4j.LoggerFactory;
  */
 public final class ModConstants {
 
+    /** Identifiant unique du mod, doit correspondre à la valeur dans {@code mods.toml}. */
     public static final String MOD_ID   = "petasse_gang_additions";
+
+    /** Nom d'affichage du mod, utilisé dans les messages de log. */
     public static final String MOD_NAME = "PeTaSsE_gAnG_Additions";
 
     /** Logger SLF4J partagé — à utiliser partout à la place de nouveaux loggers. */
