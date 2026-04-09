@@ -47,7 +47,7 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 | `finalizedBy 'reobfJar'` | supprimé (MC 26.1 est déobfusqué) |
 | `copyIdeResources true` | supprimé (n'existe pas en FG7) |
 | `genVSCodeRuns` | n'existe pas — utiliser `genEclipseRuns` |
-| `runClient` (task Gradle) | n'existe pas comme task directe — passer par IDE après `genEclipseRuns` |
+| `runClient` (task Gradle) | disponible dans ce dépôt — le lancer via `./gradlew runClient` ou la tâche VS Code dédiée |
 
 ### Gradle 9.x
 - **Foojay toolchain resolver absent** : `JvmVendorSpec.IBM_SEMERU` retiré en Gradle 9.x → crash au démarrage. Ne jamais réajouter ce plugin dans `settings.gradle`.
@@ -83,7 +83,7 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 
 ```bash
 ./gradlew genEclipseRuns   # Générer les run configs IDE (une seule fois)
-./gradlew build            # Build → build/libs/petasse_gang_additions-0.1.0.jar
+./gradlew build            # Build → build/libs/petasse_gang_additions-0.3.0.jar
 ./gradlew test             # Tests JUnit 5
 ./gradlew runGameTestServer # Tests in-game Forge
 ./gradlew runData          # Data generation

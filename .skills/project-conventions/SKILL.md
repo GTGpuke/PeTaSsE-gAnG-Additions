@@ -55,24 +55,30 @@ public static final DeferredRegister<Foo> FOOS =
 public static final RegistryObject<Foo> MY_FOO = FOOS.register(
     "my_foo", () -> new MyFoo(/* properties */));
 
-public static void register(IEventBus bus) { FOOS.register(bus); }
+public static void register(BusGroup modBusGroup) { FOOS.register(modBusGroup); }
 ```
 
 ## Imports standards
 
 ```java
-import com.petassegang.addons.util.ModConstants;
-import net.minecraftforge.eventbus.api.IEventBus;
+import java.util.List;
+
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.Item;
+
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
+
+import com.petassegang.addons.util.ModConstants;
 ```
 
 ## Règles qualité
 
 - Zéro import wildcard (`import java.util.*` interdit)
 - Zéro allocation dans hot-paths (tick, render) — utiliser `static final`
-- Commentaires en anglais
+- Commentaires, logs et messages d'erreur en français, avec majuscule et point
 - Logger uniquement via `ModConstants.LOGGER`
 - Code CLIENT-only → `client/` package + guard `FMLEnvironment.dist`
 
@@ -81,7 +87,7 @@ import net.minecraftforge.registries.RegistryObject;
 ```java
 // Dans @Mod constructor :
 if (FMLEnvironment.dist == Dist.CLIENT) {
-    modBusGroup.addListener(this::clientSetup);
+    FMLClientSetupEvent.getBus(modBusGroup).addListener(this::clientSetup);
 }
 // Dans clientSetup : registrations client (renderers, screens)
 // Tout ce qui est CLIENT-only doit être dans client/ package

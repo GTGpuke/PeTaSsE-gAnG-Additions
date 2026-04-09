@@ -25,7 +25,7 @@ cd petasse_gang_additions
 
 # 3. Build
 ./gradlew build
-# → build/libs/petasse_gang_additions-0.1.0.jar
+# → build/libs/petasse_gang_additions-0.3.0.jar
 ```
 
 > **Première fois ?** Voir [docs/SETUP.md](docs/SETUP.md) pour l'installation complète de Java 25 et la configuration VS Code.
@@ -98,7 +98,7 @@ Il suffit de décrire ce que tu veux :
 ./gradlew build
 
 # Artefact :
-build/libs/petasse_gang_additions-0.1.0.jar
+build/libs/petasse_gang_additions-0.3.0.jar
 ```
 
 Pour installer sur le serveur : copier le JAR dans le dossier `mods/` du serveur.
@@ -114,8 +114,8 @@ Tous les clients doivent avoir le même JAR.
 
 Pour créer une release :
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.3.0
+git push origin v0.3.0
 ```
 
 Voir [docs/CICD.md](docs/CICD.md) pour les détails.

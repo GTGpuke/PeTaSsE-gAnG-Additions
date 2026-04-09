@@ -74,7 +74,7 @@ package com.petassegang.addons.init;
 import com.petassegang.addons.util.ModConstants;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -90,13 +90,13 @@ public final class ModSounds {
                             new ResourceLocation(ModConstants.MOD_ID, "item.gang_badge.equip")
                     ));
 
-    public static void register(IEventBus bus) { SOUND_EVENTS.register(bus); }
+    public static void register(BusGroup modBusGroup) { SOUND_EVENTS.register(modBusGroup); }
 
     private ModSounds() { throw new UnsupportedOperationException("Registry class"); }
 }
 ```
 
-Ajouter `ModSounds.register(modEventBus)` dans `PeTaSsEgAnGAdditionsMod` constructor.
+Ajouter `ModSounds.register(modBusGroup)` dans le constructeur de `PeTaSsEgAnGAdditionsMod`.
 
 ---
 

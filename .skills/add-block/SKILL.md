@@ -70,7 +70,7 @@ import com.petassegang.addons.util.ModConstants;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.eventbus.api.bus.BusGroup;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
@@ -88,13 +88,13 @@ public final class ModBlocks {
                     .requiresCorrectToolForDrops())
     );
 
-    public static void register(IEventBus bus) { BLOCKS.register(bus); }
+    public static void register(BusGroup modBusGroup) { BLOCKS.register(modBusGroup); }
 
     private ModBlocks() { throw new UnsupportedOperationException("Registry class"); }
 }
 ```
 
-Ajouter `ModBlocks.register(modEventBus)` dans `PeTaSsEgAnGAdditionsMod` constructor.
+Ajouter `ModBlocks.register(modBusGroup)` dans le constructeur de `PeTaSsEgAnGAdditionsMod`.
 
 ---
 

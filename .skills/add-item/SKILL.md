@@ -38,21 +38,23 @@ Avant de coder, détermine :
 ```java
 package com.petassegang.addons.item;
 
+import java.util.List;
+
+import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Item.TooltipContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-
-import java.util.List;
 
 /**
  * [Nom de l'item] — [Description courte].
  */
 public class MyItem extends Item {
 
-    // Pré-allouer les tooltips si nécessaire (jamais dans appendHoverText !)
-    private static final Component TOOLTIP_LINE = Component.literal("My tooltip")
-            .withStyle(style -> style.withColor(0xFFD700));
+    private static final String TOOLTIP_KEY = "item.petasse_gang_additions.my_item_id.tooltip";
+    private static final Component TOOLTIP_LINE =
+            Component.translatable(TOOLTIP_KEY).withStyle(ChatFormatting.GOLD);
 
     public MyItem(Properties properties) {
         super(properties);
@@ -66,9 +68,9 @@ public class MyItem extends Item {
         tooltip.add(TOOLTIP_LINE);
     }
 
-    // Override isFoil() → true pour le glint enchantement
-    // Override getUseDuration() pour les consommables
-    // Override finishUsingItem() pour l'effet au consommation
+    // Override isFoil() → true pour le glint enchantement.
+    // Override getUseDuration() pour les consommables.
+    // Override finishUsingItem() pour l'effet à la consommation.
 }
 ```
 
@@ -166,11 +168,13 @@ $bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_ite
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/en_us.json`
 ```json
 "item.petasse_gang_additions.my_item_id": "My Item Name",
+"item.petasse_gang_additions.my_item_id.tooltip": "My item description."
 ```
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json`
 ```json
 "item.petasse_gang_additions.my_item_id": "Nom de Mon Objet",
+"item.petasse_gang_additions.my_item_id.tooltip": "Description de mon objet."
 ```
 
 ---

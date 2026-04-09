@@ -65,7 +65,7 @@ test(item): add GangBadgeItem tooltip assertions
 | Longueur de ligne | 120 chars max |
 | Imports | Pas de wildcard (`import java.util.*` interdit) |
 | Javadoc | Classes publiques + méthodes publiques non triviales |
-| Commentaires | En anglais |
+| Commentaires | En français, avec majuscule et point |
 | Logs | Via `ModConstants.LOGGER` uniquement |
 | Nulls | Jamais sans commentaire justifiant pourquoi c'est safe |
 

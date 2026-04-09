@@ -110,7 +110,7 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 # Lancer le serveur dédié
 ./gradlew runServer  # ou via IDE après genEclipseRuns
 
-# Build (produit build/libs/petasse_gang_additions-0.1.0.jar)
+# Build (produit build/libs/petasse_gang_additions-0.3.0.jar)
 ./gradlew build
 
 # Tests unitaires
@@ -134,7 +134,7 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 ## 6. Installer le mod sur le serveur
 
 1. Build : `./gradlew build`
-2. Copie `build/libs/petasse_gang_additions-0.1.0.jar` dans le dossier `mods/` du serveur
+2. Copie `build/libs/petasse_gang_additions-0.3.0.jar` dans le dossier `mods/` du serveur
 3. Le serveur et TOUS les clients doivent avoir le même JAR
 4. Redémarre le serveur
 
