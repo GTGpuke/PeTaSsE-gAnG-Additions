@@ -68,7 +68,7 @@ public class CursedSnackItem extends Item {
      * @param flag            tooltips avancés activés ou non
      */
     // Méthode dépréciée en MC 26.1 sans remplacement stable — les items vanilla l'utilisent encore.
-    @SuppressWarnings("deprecation")
+    @SuppressWarnings("deprecation") // Methode deprecatee en MC 26.1 sans remplacement stable cote item.
     @Override
     public void appendHoverText(ItemStack stack,
                                 TooltipContext context,

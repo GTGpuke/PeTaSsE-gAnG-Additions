@@ -1,13 +1,18 @@
 package com.petassegang.addons;
 
-import com.petassegang.addons.item.CursedSnackItem;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.food.FoodProperties;
 import net.minecraft.world.item.Item;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.petassegang.addons.item.CursedSnackItem;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Teste les propriétés de CursedSnackItem.
@@ -21,6 +26,8 @@ class CursedSnackTest {
     void setUp() {
         item = new CursedSnackItem(
                 new Item.Properties()
+                        .setId(ResourceKey.create(Registries.ITEM,
+                                Identifier.fromNamespaceAndPath("test", "cursed_snack")))
                         .stacksTo(16)
                         .food(new FoodProperties.Builder()
                                 .nutrition(0)

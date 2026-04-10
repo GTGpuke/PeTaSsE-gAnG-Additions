@@ -17,7 +17,7 @@ Catalogue de tous les items du mod.
 
 ### Comportement au clic droit
 
-Clic droit → son de chat + animation du totem (overlay visuel).  
+Clic droit → son de chat + animation du totem (overlay visuel).
 L'item **n'est pas consommé**.
 
 ### Tooltip

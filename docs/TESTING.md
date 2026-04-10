@@ -11,6 +11,10 @@
 
 ## Tests unitaires (JUnit 5)
 
+> **Note Windows :** Si le chemin du projet contient un caractere accentue comme `Developpement`,
+> le worker de test Gradle peut ne pas charger les classes de test correctement.
+> Voir [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
 ```bash
 # Lancer tous les tests
 ./gradlew test
@@ -49,14 +53,18 @@ La console affiche `PASSED` ou `FAILED` pour chaque test.
 
 ## Structure des tests
 
-```
+```text
 src/test/java/com/petassegang/addons/
-├── ModLoadTest.java        ← Constantes MOD_ID, LOGGER
-├── RegistryTest.java       ← DeferredRegister et RegistryObject non-null
-├── ItemTest.java           ← Propriétés de chaque Item (isFoil, rarity, stackSize)
-├── ConfigTest.java         ← ForgeConfigSpec valeurs par défaut
+├── ModLoadTest.java
+├── RegistryTest.java
+├── ItemTest.java
+├── ConfigTest.java
+├── CursedSnackTest.java
+├── CursedTreeTest.java
+├── BackroomsLevelZeroLayoutTest.java
+├── BackroomsLevelZeroRegistryTest.java
 └── gametest/
-    └── PetasseGangGameTests.java  ← Tests in-game (registry, creative tab)
+    └── PetasseGangGameTests.java
 ```
 
 ---
@@ -69,7 +77,9 @@ src/test/java/com/petassegang/addons/
 @Test
 @DisplayName("FooItem stack size is 64")
 void testFooItemStackSize() {
-    FooItem item = new FooItem(new Item.Properties().stacksTo(64));
+    FooItem item = new FooItem(new Item.Properties()
+            .setId(ITEMS.key("foo_item"))
+            .stacksTo(64));
     assertEquals(64, item.getDefaultMaxStackSize());
 }
 ```

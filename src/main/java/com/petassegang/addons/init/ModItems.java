@@ -11,17 +11,15 @@ import net.minecraftforge.registries.RegistryObject;
 
 import com.petassegang.addons.item.CursedSnackItem;
 import com.petassegang.addons.item.GangBadgeItem;
-import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.util.ModConstants;
 
 /**
  * Registre central des items pour PeTaSsE_gAnG_Additions.
  *
- * <p>Tous les items doivent être déclarés ici via {@link DeferredRegister}.
- * En MC 26.1, {@link Item.Properties#setId} doit être appelé avec la
+ * <p>Tous les items doivent etre declares ici via {@link DeferredRegister}.
+ * En MC 26.1, {@link Item.Properties#setId} doit etre appele avec la
  * {@link net.minecraft.resources.ResourceKey} de l'item avant sa construction.
- * Appeler {@link #register(BusGroup)} une seule fois depuis le constructeur
- * du mod principal.
+ * Appeler {@link #register(BusGroup)} une seule fois depuis le constructeur du mod principal.
  */
 public final class ModItems {
 
@@ -29,11 +27,37 @@ public final class ModItems {
     public static final DeferredRegister<Item> ITEMS =
             DeferredRegister.create(ForgeRegistries.ITEMS, ModConstants.MOD_ID);
 
-    // ── Enregistrements des items ─────────────────────────────────────────────
+    /** Item pour le papier peint jauni du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALLPAPER = ITEMS.register(
+            "level_zero_wallpaper",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALLPAPER.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_wallpaper")))
+    );
+
+    /** Item pour la moquette humide du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_DAMP_CARPET = ITEMS.register(
+            "level_zero_damp_carpet",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_DAMP_CARPET.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_damp_carpet")))
+    );
+
+    /** Item pour la dalle de plafond du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_CEILING_TILE = ITEMS.register(
+            "level_zero_ceiling_tile",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_CEILING_TILE.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_ceiling_tile")))
+    );
+
+    /** Item pour le neon fluorescent du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_FLUORESCENT_LIGHT = ITEMS.register(
+            "level_zero_fluorescent_light",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_fluorescent_light")))
+    );
 
     /**
-     * Badge de la Gang — jeton officiel d'appartenance à la PétasseGang.
-     * Taille de pile 1, rareté EPIC (brillance d'enchantement toujours visible).
+     * Badge de la Gang, jeton officiel d'appartenance a la PetasseGang.
+     * Taille de pile 1, rarete EPIC.
      */
     public static final RegistryObject<GangBadgeItem> GANG_BADGE = ITEMS.register(
             "gang_badge",
@@ -45,11 +69,9 @@ public final class ModItems {
             )
     );
 
-    // ── Casse-croûte Maudit ───────────────────────────────────────────────────
-
     /**
-     * Casse-croûte Maudit — consommable qui retire 2 points de nourriture.
-     * Toujours mangeable, même le ventre plein.
+     * Casse-croute Maudit, consommable qui retire 2 points de nourriture.
+     * Toujours mangeable, meme le ventre plein.
      */
     public static final RegistryObject<CursedSnackItem> CURSED_SNACK = ITEMS.register(
             "cursed_snack",
@@ -64,8 +86,6 @@ public final class ModItems {
                                     .build())
             )
     );
-
-    // ── Arbre Maudit (BlockItems) ─────────────────────────────────────────────
 
     /** Item pour le tronc de l'Arbre Maudit. */
     public static final RegistryObject<BlockItem> CURSED_LOG = ITEMS.register(
@@ -95,13 +115,10 @@ public final class ModItems {
                     new Item.Properties().setId(ITEMS.key("cursed_planks")))
     );
 
-    // ── Méthode d'enregistrement ──────────────────────────────────────────────
-
     /**
-     * Enregistre le DeferredRegister sur le bus d'événements du mod.
-     * Doit être appelé exactement une fois, depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
+     * Enregistre le DeferredRegister sur le bus d'evenements du mod.
      *
-     * @param modBusGroup le groupe de bus d'événements du mod
+     * @param modBusGroup le groupe de bus d'evenements du mod
      */
     public static void register(BusGroup modBusGroup) {
         ITEMS.register(modBusGroup);

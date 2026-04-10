@@ -34,22 +34,32 @@ cd petasse_gang_additions
 
 ## Structure du projet
 
-```
+```text
 petasse_gang_additions/
 ├── src/main/java/com/petassegang/addons/
-│   ├── PeTaSsEgAnGAdditionsMod.java   ← entry-point @Mod
-│   ├── init/ModItems.java          ← registres items
-│   ├── item/GangBadgeItem.java     ← Gang Badge (premier item)
+│   ├── PeTaSsEgAnGAdditionsMod.java
+│   ├── config/
 │   ├── creative/ModCreativeTab.java
-│   ├── config/ModConfig.java
+│   ├── init/
+│   │   ├── ModBlocks.java
+│   │   ├── ModChunkGenerators.java
+│   │   └── ModItems.java
+│   ├── item/
+│   ├── network/
+│   ├── world/backrooms/
+│   │   ├── BackroomsConstants.java
+│   │   └── level0/
+│   │       ├── LevelZeroChunkGenerator.java
+│   │       └── LevelZeroLayout.java
 │   └── util/ModConstants.java
 ├── src/main/resources/
 │   ├── META-INF/mods.toml
-│   └── assets/petasse_gang_additions/  ← textures, modèles, lang
-├── src/test/                       ← JUnit 5 + GameTests
-├── .github/workflows/              ← CI/CD GitHub Actions
-├── .skills/                        ← Skills Claude Code
-└── docs/                           ← Documentation complète
+│   ├── assets/petasse_gang_additions/
+│   └── data/petasse_gang_additions/
+├── src/test/                         ← JUnit 5 + GameTests
+├── .github/workflows/                ← CI/CD GitHub Actions
+├── .skills/                          ← Skills Claude Code
+└── docs/                             ← Documentation complète
 ```
 
 ---

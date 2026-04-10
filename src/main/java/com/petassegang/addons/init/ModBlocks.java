@@ -6,6 +6,7 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.RotatedPillarBlock;
 import net.minecraft.world.level.block.SaplingBlock;
 import net.minecraft.world.level.block.TintedParticleLeavesBlock;
@@ -21,7 +22,7 @@ import com.petassegang.addons.util.ModConstants;
 /**
  * Registre central des blocs pour PeTaSsE_gAnG_Additions.
  *
- * <p>Tous les blocs sont déclarés ici via {@link DeferredRegister}.
+ * <p>Tous les blocs sont declares ici via {@link DeferredRegister}.
  * Les {@link net.minecraft.world.item.BlockItem} correspondants sont dans {@link ModItems}.
  * Appeler {@link #register(BusGroup)} une seule fois depuis le constructeur du mod principal.
  */
@@ -31,9 +32,40 @@ public final class ModBlocks {
     public static final DeferredRegister<Block> BLOCKS =
             DeferredRegister.create(ForgeRegistries.BLOCKS, ModConstants.MOD_ID);
 
-    // ── Arbre Maudit ─────────────────────────────────────────────────────────
+    /** Papier peint jauni du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER = BLOCKS.register(
+            "level_zero_wallpaper",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.END_STONE)
+                    .setId(BLOCKS.key("level_zero_wallpaper")))
+    );
 
-    /** Générateur d'arbre Maudit — pousse en utilisant la ConfiguredFeature personnalisée. */
+    /** Moquette humide du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_DAMP_CARPET = BLOCKS.register(
+            "level_zero_damp_carpet",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.YELLOW_WOOL)
+                    .setId(BLOCKS.key("level_zero_damp_carpet")))
+    );
+
+    /** Dalle de plafond du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_CEILING_TILE = BLOCKS.register(
+            "level_zero_ceiling_tile",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.CALCITE)
+                    .setId(BLOCKS.key("level_zero_ceiling_tile")))
+    );
+
+    /** Neon fluorescent du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_FLUORESCENT_LIGHT = BLOCKS.register(
+            "level_zero_fluorescent_light",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.SEA_LANTERN)
+                    .lightLevel(state -> 15)
+                    .setId(BLOCKS.key("level_zero_fluorescent_light")))
+    );
+
+    /** Generateur d'arbre Maudit, pousse en utilisant la ConfiguredFeature personnalisee. */
     public static final TreeGrower CURSED_TREE_GROWER = new TreeGrower(
             "cursed",
             Optional.empty(),
@@ -43,27 +75,27 @@ public final class ModBlocks {
             Optional.empty()
     );
 
-    /** Tronc de l'Arbre Maudit — s'oriente selon l'axe de placement (X/Y/Z). */
+    /** Tronc de l'Arbre Maudit, s'oriente selon l'axe de placement. */
     public static final RegistryObject<RotatedPillarBlock> CURSED_LOG = BLOCKS.register(
             "cursed_log",
             () -> new RotatedPillarBlock(BlockBehaviour.Properties
-                    .ofFullCopy(net.minecraft.world.level.block.Blocks.OAK_LOG)
+                    .ofFullCopy(Blocks.OAK_LOG)
                     .setId(BLOCKS.key("cursed_log")))
     );
 
-    /** Feuilles de l'Arbre Maudit — transparentes, disparaissent sans tronc adjacent. */
+    /** Feuilles de l'Arbre Maudit, transparentes et persistantes autour du tronc. */
     public static final RegistryObject<TintedParticleLeavesBlock> CURSED_LEAVES = BLOCKS.register(
             "cursed_leaves",
             () -> new TintedParticleLeavesBlock(0.02f, BlockBehaviour.Properties
-                    .ofFullCopy(net.minecraft.world.level.block.Blocks.OAK_LEAVES)
+                    .ofFullCopy(Blocks.OAK_LEAVES)
                     .setId(BLOCKS.key("cursed_leaves")))
     );
 
-    /** Pousse de l'Arbre Maudit — pousse en utilisant la structure du chêne. */
+    /** Pousse de l'Arbre Maudit. */
     public static final RegistryObject<SaplingBlock> CURSED_SAPLING = BLOCKS.register(
             "cursed_sapling",
             () -> new SaplingBlock(CURSED_TREE_GROWER, BlockBehaviour.Properties
-                    .ofFullCopy(net.minecraft.world.level.block.Blocks.OAK_SAPLING)
+                    .ofFullCopy(Blocks.OAK_SAPLING)
                     .setId(BLOCKS.key("cursed_sapling")))
     );
 
@@ -71,17 +103,14 @@ public final class ModBlocks {
     public static final RegistryObject<Block> CURSED_PLANKS = BLOCKS.register(
             "cursed_planks",
             () -> new Block(BlockBehaviour.Properties
-                    .ofFullCopy(net.minecraft.world.level.block.Blocks.OAK_PLANKS)
+                    .ofFullCopy(Blocks.OAK_PLANKS)
                     .setId(BLOCKS.key("cursed_planks")))
     );
 
-    // ── Méthode d'enregistrement ──────────────────────────────────────────────
-
     /**
-     * Enregistre le DeferredRegister sur le bus d'événements du mod.
-     * Doit être appelé exactement une fois, depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
+     * Enregistre le DeferredRegister sur le bus d'evenements du mod.
      *
-     * @param modBusGroup le groupe de bus d'événements du mod
+     * @param modBusGroup le groupe de bus d'evenements du mod
      */
     public static void register(BusGroup modBusGroup) {
         BLOCKS.register(modBusGroup);

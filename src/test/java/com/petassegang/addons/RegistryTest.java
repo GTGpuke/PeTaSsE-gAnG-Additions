@@ -5,7 +5,7 @@ import com.petassegang.addons.init.ModItems;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
  * Vérifie que tous les DeferredRegister et RegistryObject sont non-null

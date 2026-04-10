@@ -1,0 +1,7 @@
+{
+  "type": "petasse_gang_additions:backrooms_level_0_type",
+  "generator": {
+    "type": "petasse_gang_additions:backrooms_level_zero",
+    "biome": "minecraft:the_void"
+  }
+}

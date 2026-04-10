@@ -1,10 +1,64 @@
-# Blocks — PeTaSsE_gAnG_Additions
+# Blocks - PeTaSsE_gAnG_Additions
 
 Catalogue de tous les blocs du mod.
 
-> Aucun bloc pour l'instant. Pour ajouter un bloc, dis à Claude Code :
-> "Ajoute un bloc [description]"
-> Ou suis le skill `/.skills/add-block/SKILL.md`.
+---
+
+## Backrooms - Level 0
+
+Ensemble de 4 blocs servant de palette visuelle au premier niveau des Backrooms.
+
+### Level 0 Wallpaper (`level_zero_wallpaper`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_wallpaper` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 3.0 |
+| Blast resistance | 3.0 |
+| Luminosite | 0 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper.json` |
+
+Mur principal du Level 0.
+
+### Level 0 Damp Carpet (`level_zero_damp_carpet`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_damp_carpet` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 0.8 |
+| Blast resistance | 0.8 |
+| Luminosite | 0 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_damp_carpet.json` |
+
+Sol humide du Level 0.
+
+### Level 0 Ceiling Tile (`level_zero_ceiling_tile`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_ceiling_tile` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 0.75 |
+| Blast resistance | 0.75 |
+| Luminosite | 0 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_ceiling_tile.json` |
+
+Plafond du Level 0.
+
+### Level 0 Fluorescent Light (`level_zero_fluorescent_light`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_fluorescent_light` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 0.3 |
+| Blast resistance | 0.3 |
+| Luminosite | 15 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_fluorescent_light.json` |
+
+Bloc lumineux place au plafond dans les zones ouvertes.
 
 ---
 
@@ -12,7 +66,7 @@ Catalogue de tous les blocs du mod.
 
 ### NomDuBloc (`nom_du_bloc`)
 
-| Propriété | Valeur |
+| Propriete | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:nom_du_bloc` |
 | Classe | `com.petassegang.addons.block.NomDuBlocBlock` |
@@ -20,13 +74,14 @@ Catalogue de tous les blocs du mod.
 | Blast resistance | X.X |
 | Harvest tool | pickaxe / axe / shovel / none |
 | Harvest level | 0 / 1 / 2 / 3 |
-| Luminosité | 0-15 |
-| Loot table | `data/petasse_gang_additions/loot_tables/blocks/nom_du_bloc.json` |
+| Luminosite | 0-15 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/nom_du_bloc.json` |
 
 ### Description
 ...
 
 ### Obtenir en jeu
-```
+
+```mcfunction
 /give @p petasse_gang_additions:nom_du_bloc
 ```

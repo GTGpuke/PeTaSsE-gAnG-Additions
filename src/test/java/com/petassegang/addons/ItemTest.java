@@ -1,6 +1,8 @@
 package com.petassegang.addons;
 
-import com.petassegang.addons.item.GangBadgeItem;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Rarity;
@@ -8,7 +10,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.petassegang.addons.item.GangBadgeItem;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Teste les propriétés de GangBadgeItem.
@@ -28,6 +34,8 @@ class ItemTest {
     void setUp() {
         item = new GangBadgeItem(
                 new Item.Properties()
+                        .setId(ResourceKey.create(Registries.ITEM,
+                                Identifier.fromNamespaceAndPath("test", "gang_badge")))
                         .stacksTo(1)
                         .rarity(Rarity.EPIC)
         );

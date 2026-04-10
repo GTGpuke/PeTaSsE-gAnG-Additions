@@ -1,4 +1,4 @@
-# Architecture — PeTaSsE_gAnG_Additions
+# Architecture - PeTaSsE_gAnG_Additions
 
 ## Stack technique
 
@@ -15,145 +15,142 @@
 
 ## Arborescence des packages
 
-```
+```text
 com.petassegang.addons/
-│
-├── PeTaSsEgAnGAdditionsMod.java      ← @Mod entry-point, lifecycle wiring
-│
-├── config/
-│   └── ModConfig.java             ← ForgeConfigSpec (SERVER + CLIENT)
-│
-├── creative/
-│   └── ModCreativeTab.java        ← Creative tab DeferredRegister
-│
-├── init/                          ← Registres (un fichier par type)
-│   └── ModItems.java              ← DeferredRegister<Item>
-│   (futur: ModBlocks, ModEntities, ModSounds, ModDimensions…)
-│
-├── item/                          ← Classes d'items custom
-│   └── GangBadgeItem.java
-│
-├── block/                         ← (futur) Classes de blocs custom
-├── entity/                        ← (futur) Classes d'entités custom
-├── world/                         ← (futur) Génération monde / dimensions
-├── network/                       ← (futur) Packets réseau
-├── client/                        ← (futur) Renderers, GUI — @OnlyIn(CLIENT)
-│
-└── util/
-    └── ModConstants.java          ← MOD_ID, MOD_NAME, LOGGER central
+|
+|-- PeTaSsEgAnGAdditionsMod.java      <- @Mod entry-point, lifecycle wiring
+|
+|-- config/
+|   `-- ModConfig.java                <- ForgeConfigSpec (SERVER + CLIENT)
+|
+|-- creative/
+|   `-- ModCreativeTab.java           <- Creative tab DeferredRegister
+|
+|-- init/                             <- Registres (un fichier par type)
+|   |-- ModBlocks.java                <- DeferredRegister<Block>
+|   |-- ModChunkGenerators.java       <- DeferredRegister<MapCodec<? extends ChunkGenerator>>
+|   `-- ModItems.java                 <- DeferredRegister<Item>
+|
+|-- item/                             <- Classes d'items custom
+|   |-- CursedSnackItem.java
+|   `-- GangBadgeItem.java
+|
+|-- block/                            <- Classes de blocs custom si necessaire
+|-- entity/                           <- Futur contenu d'entites custom
+|-- network/                          <- Packets reseau
+|-- world/
+|   `-- backrooms/
+|       |-- BackroomsConstants.java   <- IDs et hauteurs du Level 0
+|       `-- level0/
+|           |-- LevelZeroChunkGenerator.java <- Generation monocouche
+|           `-- LevelZeroLayout.java         <- Traduction deterministe du script Python
+|-- client/                           <- Handlers, renderers, GUI
+|
+`-- util/
+    `-- ModConstants.java             <- MOD_ID, MOD_NAME, LOGGER central
 ```
 
 ---
 
 ## Pattern DeferredRegister
 
-Tous les objets Minecraft (items, blocs, entités…) sont enregistrés via
-`DeferredRegister` pour garantir que l'enregistrement se fait au bon moment
-dans le cycle de vie de Forge.
+Tous les objets Minecraft sont enregistres via `DeferredRegister` pour garantir
+que l'enregistrement se fait au bon moment dans le cycle de vie de Forge.
 
 ```java
-// 1. Déclarer le registre (static final dans ModItems)
 public static final DeferredRegister<Item> ITEMS =
         DeferredRegister.create(ForgeRegistries.ITEMS, ModConstants.MOD_ID);
 
-// 2. Déclarer les objets
 public static final RegistryObject<Item> GANG_BADGE = ITEMS.register(
         "gang_badge", () -> new GangBadgeItem(new Item.Properties()...));
 
-// 3. Connecter à l'event bus (dans le constructeur @Mod)
-ModItems.register(modEventBus);  // → appelle ITEMS.register(modEventBus)
+ModItems.register(modEventBus);
 ```
 
 Flow complet :
-```
-JVM load → static fields créés (RegistryObject wrappé, pas encore rempli)
-         → @Mod constructor → DeferredRegister.register(bus)
-         → Forge fire RegistryEvent → RegistryObject rempli
-         → FMLCommonSetupEvent → commonSetup()
-         → Monde chargé
+
+```text
+JVM load -> static fields crees
+         -> @Mod constructor -> DeferredRegister.register(bus)
+         -> Forge fire RegistryEvent -> RegistryObject rempli
+         -> FMLCommonSetupEvent -> commonSetup()
+         -> Monde charge
 ```
 
 ---
 
 ## Cycle de vie du mod
 
-```
+```text
 1. Chargement JVM
-   └── static initialisers (DeferredRegister, ForgeConfigSpec)
+   `-- static initialisers (DeferredRegister, ForgeConfigSpec)
 
-2. @Mod constructor  [Forge appelle ça]
-   ├── register DeferredRegisters to modEventBus
-   ├── addListener(commonSetup)
-   ├── addListener(clientSetup)  [CLIENT dist seulement]
-   └── registerConfig(SERVER, CLIENT)
+2. @Mod constructor
+   |-- register DeferredRegisters to modEventBus
+   |-- addListener(commonSetup)
+   |-- addListener(clientSetup) [CLIENT seulement]
+   `-- registerConfig(SERVER, CLIENT)
 
-3. RegistryEvents  [Forge fire automatiquement]
-   └── Tous les RegistryObject sont résolus
+3. RegistryEvents
+   `-- Tous les RegistryObject sont resolus
 
 4. FMLCommonSetupEvent
-   └── Logique partagée client/serveur (cross-refs entre registres, etc.)
+   `-- Logique partagee client/serveur
 
-5. FMLClientSetupEvent  [CLIENT seulement]
-   └── Renderers, key bindings, overlay screens
+5. FMLClientSetupEvent [CLIENT seulement]
+   `-- Renderers, key bindings, overlays
 
-6. Monde chargé / Serveur démarré
+6. Monde charge / Serveur demarre
 ```
 
 ---
 
-## Séparation client / serveur
+## Separation client / serveur
 
-| Règle | Détail |
+| Regle | Detail |
 |-------|--------|
 | Tout code dans `item/`, `block/`, `init/` | Compatible dedicated server |
 | `@OnlyIn(Dist.CLIENT)` | Pour renderers, GUI, particles |
 | `FMLEnvironment.dist == Dist.CLIENT` | Guard dans le constructeur avant clientSetup |
-| Package `client/` | Tout ce qui est CLIENT-only |
-| Jamais de `Minecraft.getInstance()` hors CLIENT | NPE sur serveur dédié |
+| Package `client/` | Tout ce qui est client-only |
+| Jamais de `Minecraft.getInstance()` hors CLIENT | Evite les crashs serveur |
 
 ---
 
 ## Conventions de nommage
 
 | Type | Convention | Exemple |
-|------|-----------|---------|
+|------|------------|---------|
 | Classe | PascalCase | `GangBadgeItem` |
-| Méthode | camelCase | `appendHoverText()` |
+| Methode | camelCase | `appendHoverText()` |
 | Constante | UPPER_SNAKE_CASE | `MOD_ID`, `GANG_BADGE` |
 | Package | lowercase | `com.petassegang.addons.item` |
 | Mod ID | lowercase_snake | `petasse_gang_additions` |
-| Resource path | lowercase_snake | `gang_badge`, `petasse_gang_additions` |
+| Resource path | lowercase_snake | `gang_badge` |
 | Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
 | Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.example_block` |
 | Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petasse_gang_additions.petassegang` |
 
 ---
 
-## Flow d'enregistrement — Checklist par type de contenu
+## Flow d'enregistrement
 
 ### Item
-1. `item/MyCustomItem.java` — classe étendant `Item`
-2. `init/ModItems.java` — ajouter `RegistryObject<Item> MY_ITEM = ITEMS.register(...)`
-3. `creative/ModCreativeTab.java` — `output.accept(ModItems.MY_ITEM.get())`
-4. `assets/.../models/item/my_item.json` — modèle
-5. `assets/.../textures/item/my_item.png` — texture 16x16
-6. `lang/en_us.json` + `fr_fr.json` — traductions
-7. `data/.../recipes/my_item.json` — recette (optionnel)
-8. `src/test/.../ItemTest.java` — tests de propriétés
+1. `item/MyCustomItem.java`
+2. `init/ModItems.java`
+3. `creative/ModCreativeTab.java`
+4. `assets/.../models/item/my_item.json`
+5. `assets/.../textures/item/my_item.png`
+6. `lang/en_us.json` + `fr_fr.json`
+7. `data/.../recipes/my_item.json` si necessaire
+8. `src/test/.../ItemTest.java`
 
 ### Block
-1. `block/MyCustomBlock.java` — classe étendant `Block`
-2. `init/ModBlocks.java` — `DeferredRegister<Block>` + `RegistryObject`
-3. Item de bloc dans `ModItems.java` — `BlockItem` wrapping the block
+1. `block/MyCustomBlock.java`
+2. `init/ModBlocks.java`
+3. Item de bloc dans `ModItems.java`
 4. `assets/.../blockstates/my_block.json`
 5. `assets/.../models/block/my_block.json` + `models/item/my_block.json`
 6. `assets/.../textures/block/my_block.png`
-7. `data/.../loot_tables/blocks/my_block.json`
+7. `data/.../loot_table/blocks/my_block.json`
 8. Lang keys + recette
-
-### Entity
-1. `entity/MyEntityType.java` — `EntityType.Builder`
-2. `init/ModEntities.java` — `DeferredRegister<EntityType<?>>`
-3. `client/renderer/MyEntityRenderer.java` — `@OnlyIn(CLIENT)`
-4. Registrer renderer dans `clientSetup`
-5. Lang key + spawn egg (optionnel)

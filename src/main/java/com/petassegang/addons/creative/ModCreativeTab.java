@@ -12,18 +12,15 @@ import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.util.ModConstants;
 
 /**
- * Onglet créatif personnalisé pour PeTaSsE_gAnG_Additions.
- *
- * <p>Tous les items du mod sont ajoutés ici via {@link #displayItems}.
- * Lors de l'ajout d'un nouvel item, l'ajouter dans le consumer {@code displayItems}.
+ * Onglet creatif personnalise pour PeTaSsE_gAnG_Additions.
  */
 public final class ModCreativeTab {
 
-    /** DeferredRegister pour les onglets créatifs du mod. */
+    /** DeferredRegister pour les onglets creatifs du mod. */
     public static final DeferredRegister<CreativeModeTab> CREATIVE_MODE_TABS =
             DeferredRegister.create(Registries.CREATIVE_MODE_TAB, ModConstants.MOD_ID);
 
-    /** L'onglet créatif principal de la PétasseGang. */
+    /** L'onglet creatif principal de la PetasseGang. */
     public static final RegistryObject<CreativeModeTab> PETASSEGANG_TAB =
             CREATIVE_MODE_TABS.register("petassegang", () ->
                     CreativeModeTab.builder()
@@ -34,25 +31,26 @@ public final class ModCreativeTab {
             );
 
     /**
-     * Peuple l'onglet créatif avec tous les items enregistrés.
-     * Ajouter les nouveaux items ici dans l'ordre d'affichage souhaité.
+     * Peuple l'onglet creatif avec tous les items enregistres.
      */
     private static void displayItems(CreativeModeTab.ItemDisplayParameters params,
                                      CreativeModeTab.Output output) {
         output.accept(ModItems.GANG_BADGE.get());
         output.accept(ModItems.CURSED_SNACK.get());
+        output.accept(ModItems.LEVEL_ZERO_WALLPAPER.get());
+        output.accept(ModItems.LEVEL_ZERO_DAMP_CARPET.get());
+        output.accept(ModItems.LEVEL_ZERO_CEILING_TILE.get());
+        output.accept(ModItems.LEVEL_ZERO_FLUORESCENT_LIGHT.get());
         output.accept(ModItems.CURSED_LOG.get());
         output.accept(ModItems.CURSED_PLANKS.get());
         output.accept(ModItems.CURSED_LEAVES.get());
         output.accept(ModItems.CURSED_SAPLING.get());
-        // AJOUTER LES NOUVEAUX ITEMS EN DESSOUS DE CETTE LIGNE
     }
 
     /**
-     * Enregistre le DeferredRegister sur le bus d'événements du mod.
-     * Appelé une seule fois depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
+     * Enregistre le DeferredRegister sur le bus d'evenements du mod.
      *
-     * @param modBusGroup le groupe de bus d'événements du mod
+     * @param modBusGroup le groupe de bus d'evenements du mod
      */
     public static void register(BusGroup modBusGroup) {
         CREATIVE_MODE_TABS.register(modBusGroup);

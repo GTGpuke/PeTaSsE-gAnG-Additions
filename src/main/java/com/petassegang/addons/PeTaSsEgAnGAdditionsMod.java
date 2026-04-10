@@ -12,27 +12,28 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.creative.ModCreativeTab;
 import com.petassegang.addons.init.ModBlocks;
+import com.petassegang.addons.init.ModChunkGenerators;
 import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.network.ModNetworking;
 import com.petassegang.addons.util.ModConstants;
 
 /**
- * Point d'entrée du mod PeTaSsE_gAnG_Additions.
+ * Point d'entree du mod PeTaSsE_gAnG_Additions.
  *
- * <p>Responsabilités :
+ * <p>Responsabilites :
  * <ol>
- *   <li>Enregistrer tous les DeferredRegisters sur le bus d'événements du mod.</li>
- *   <li>S'abonner aux événements de cycle de vie (commonSetup, clientSetup).</li>
+ *   <li>Enregistrer tous les DeferredRegisters sur le bus d'evenements du mod.</li>
+ *   <li>S'abonner aux evenements de cycle de vie (commonSetup, clientSetup).</li>
  *   <li>Enregistrer les configurations Forge.</li>
  * </ol>
  *
- * <p>Ne pas ajouter de logique de jeu ici — déléguer aux classes appropriées.
+ * <p>Ne pas ajouter de logique de jeu ici, deleguer aux classes appropriees.
  */
 @Mod(ModConstants.MOD_ID)
 public class PeTaSsEgAnGAdditionsMod {
 
     /**
-     * Constructeur du mod — enregistre les DeferredRegisters et s'abonne aux événements.
+     * Constructeur du mod, enregistre les DeferredRegisters et s'abonne aux evenements.
      *
      * @param context contexte de chargement du mod fourni par Forge
      */
@@ -42,39 +43,34 @@ public class PeTaSsEgAnGAdditionsMod {
 
         BusGroup modBusGroup = context.getModBusGroup();
 
-        // Enregistrement des DeferredRegisters des blocs, items et de l'onglet créatif.
+        ModChunkGenerators.register(modBusGroup);
         ModBlocks.register(modBusGroup);
         ModItems.register(modBusGroup);
         ModCreativeTab.register(modBusGroup);
 
-        // Enregistrement du canal réseau et des packets.
         ModNetworking.register();
 
-        // Abonnement aux événements de cycle de vie.
         FMLCommonSetupEvent.getBus(modBusGroup).addListener(this::commonSetup);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
             FMLClientSetupEvent.getBus(modBusGroup).addListener(this::clientSetup);
         }
 
-        // Enregistrement des configurations serveur et client.
         context.registerConfig(Type.SERVER, ModConfig.SERVER_SPEC);
         context.registerConfig(Type.CLIENT, ModConfig.CLIENT_SPEC);
     }
 
     /**
-     * Phase de configuration commune (client + serveur).
-     * S'exécute après les événements de registre, avant le chargement du monde.
+     * Phase de configuration commune.
      */
     private void commonSetup(FMLCommonSetupEvent event) {
-        ModConstants.LOGGER.debug("Configuration commune terminée pour {}.", ModConstants.MOD_ID);
+        ModConstants.LOGGER.debug("Configuration commune terminee pour {}.", ModConstants.MOD_ID);
     }
 
     /**
      * Phase de configuration client uniquement.
-     * Utiliser pour enregistrer les renderers, raccourcis clavier, écrans, etc.
      */
     private void clientSetup(FMLClientSetupEvent event) {
-        ModConstants.LOGGER.debug("Configuration client terminée pour {}.", ModConstants.MOD_ID);
+        ModConstants.LOGGER.debug("Configuration client terminee pour {}.", ModConstants.MOD_ID);
     }
 }
