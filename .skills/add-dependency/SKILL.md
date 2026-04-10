@@ -17,20 +17,20 @@ description: "Ajouter une dépendance externe, une librairie, un mod API, ou un 
 
 ## Types de dépendances
 
-### Type A — Mod Forge (deobfusqué avec `fg.deobf`)
+### Type A — Mod Forge (soft ou hard dependency)
 
-Quand tu intègres un autre mod comme dépendance. Doit être deobfusqué pour que le classpath soit cohérent.
+MC 26.1 / Forge 62 est **fully deobfuscated** — plus besoin de `fg.deobf()`.
 
 ```groovy
-// API compile-only (tu codes contre l'API, le joueur doit installer le mod séparément)
-compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION:api")
+// API compile-only (le joueur installe le mod séparément)
+compileOnly "mezz.jei:jei-${minecraft_version}-forge:VERSION:api"
 
 // Mod complet aussi au runtime (dev/test local)
-runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION")
+runtimeOnly "mezz.jei:jei-${minecraft_version}-forge:VERSION"
 
 // Les deux ensemble (le plus courant)
-compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION:api")
-runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION")
+compileOnly "mezz.jei:jei-${minecraft_version}-forge:VERSION:api"
+runtimeOnly "mezz.jei:jei-${minecraft_version}-forge:VERSION"
 ```
 
 ### Type B — Librairie Java (Maven Central)
@@ -40,19 +40,25 @@ Libs Java pures déjà présentes dans le classpath Forge ou à inclure.
 ```groovy
 implementation "com.google.code.gson:gson:2.11.0"
 implementation "org.apache.commons:commons-lang3:3.14.0"
-implementation "com.github.ben-manes.caffeine:caffeine:3.1.8"
 ```
 
-### Type C — Librairie embarquée dans le JAR (JarJar)
+### Type C — Librairie embarquée dans le JAR (JiJ — Jar-in-Jar)
 
 Quand la lib doit voyager avec le JAR et ne pas être installée séparément.
+Forge l'extrait et la charge automatiquement.
 
 ```groovy
-// Activer JarJar dans les plugins :
-// plugins { id 'net.minecraftforge.jarjar' }
+// Activer JiJ une fois dans build.gradle (hors du bloc dependencies) :
+jarJar.enable()
 
-jarJar(group: "com.example", name: "lib", version: "[1.0,2.0)")
+// Dans le bloc dependencies {} :
+jarJar(group: "com.example", name: "lib", version: "[1.0,2.0)") {
+    jarJar.pin(it, "1.0.0")  // version exacte à embarquer
+}
 ```
+
+> **Note FG7 :** `jarJar.enable()` s'appelle directement — pas de plugin supplémentaire.
+> Ne PAS ajouter `id 'net.minecraftforge.jarjar'` dans les plugins.
 
 ### Type D — Compile-only
 
@@ -60,21 +66,24 @@ Pour les annotations processors ou les APIs qui ne doivent pas être dans le JAR
 
 ```groovy
 compileOnly "org.jetbrains:annotations:24.0.0"
-compileOnly annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 ```
 
 ---
 
 ## Mods populaires — Coordonnées prêtes à l'emploi
 
+> MC 26.1 est fully deobfuscated — pas de `fg.deobf()`. Les mods embarqués utilisent `jarJar(...)`.
+
 | Mod | Usage | Type | Coordonnées (adapter VERSION) |
 |-----|-------|------|-------------------------------|
-| **JEI** | Recettes in-game | compileOnly + runtimeOnly | `mezz.jei:jei-${minecraft_version}-forge:VERSION:api` / `mezz.jei:jei-${minecraft_version}-forge:VERSION` |
-| **GeckoLib** | Mobs/items animés (modèles 3D) | implementation | `software.bernie.geckolib:geckolib-forge-${minecraft_version}:VERSION` |
-| **Curios** | Slots d'équipement custom | compileOnly + runtimeOnly | `top.theillusivec4.curios:curios-forge:VERSION:api` / `top.theillusivec4.curios:curios-forge:VERSION` |
-| **Patchouli** | Livres de doc in-game | compileOnly + runtimeOnly | `vazkii.patchouli:Patchouli:${minecraft_version}-VERSION:api` |
-| **Jade** | Info-bulles sur les blocs | compileOnly | `snownee.jade:Jade-${minecraft_version}-forge:VERSION:api` |
-| **The One Probe** | Informations sur blocs/entités | compileOnly | `mcjty.theoneprobe:theoneprobe-${minecraft_version}:VERSION:api` |
+| **JEI** | Recettes in-game | compileOnly + runtimeOnly | `mezz.jei:jei-26.1-forge:VERSION:api` |
+| **GeckoLib** | Mobs/items animés (JiJ) | jarJar | `software.bernie.geckolib:geckolib-forge-26.1:VERSION` |
+| **Patchouli** | Livres de doc in-game (JiJ) | jarJar | `vazkii.patchouli:Patchouli:VERSION` |
+| **FancyMenu** | Menus custom (JiJ) | jarJar | `de.keksuccino:fancymenu:VERSION` |
+| **Konkrete** | Utilitaire FancyMenu (JiJ) | jarJar | `de.keksuccino:konkrete:VERSION` |
+| **Fusion** | Textures connectées (JiJ) | jarJar | `com.supermartijn642:fusion:VERSION` |
+| **Curios** | Slots d'équipement custom | compileOnly + runtimeOnly | `top.theillusivec4.curios:curios-forge:VERSION:api` |
+| **Jade** | Info-bulles sur les blocs | compileOnly | `snownee.jade:Jade-26.1-forge:VERSION:api` |
 
 ---
 
@@ -101,12 +110,18 @@ Si via CurseForge Maven, ajouter le repository dans `build.gradle` :
 
 ```groovy
 repositories {
-    mavenCentral()
-    maven { name = 'MinecraftForge';  url = 'https://maven.minecraftforge.net' }
-    maven { name = 'CurseMaven';      url = 'https://cursemaven.com' }          // ← ajouter si besoin
-    maven { name = 'ModMaven';        url = 'https://modmaven.dev' }            // ← alternative
-    maven { name = 'BlameJared';      url = 'https://maven.blamejared.com' }    // ← JEI, Patchouli
-    maven { name = 'TheillusiveC4';   url = 'https://maven.theillusivec4.top' } // ← Curios
+    // Déjà présents dans le projet :
+    // minecraft.mavenizer(it), fg.forgeMaven, fg.minecraftLibsMaven, mavenCentral()
+    // GeckoLib, BlameJared (Patchouli/JEI), Keksuccino (FancyMenu/Konkrete), Supermartijn642 (Fusion)
+
+    // À ajouter selon le besoin :
+    maven { name = 'CurseMaven';      url = 'https://cursemaven.com' }
+    maven { name = 'ModMaven';        url = 'https://modmaven.dev' }
+    maven { name = 'BlameJared';      url = 'https://maven.blamejared.com' }
+    maven { name = 'TheillusiveC4';   url = 'https://maven.theillusivec4.top' }  // Curios
+    maven { name = 'GeckoLib';        url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+    maven { name = 'Keksuccino';      url = 'https://maven.keksuccino.de/' }
+    maven { name = 'Supermartijn642'; url = 'https://maven.supermartijn642.com/releases/' }
 }
 ```
 

@@ -30,3 +30,57 @@ license     = "MIT"
     versionRange = "${minecraft_version_range}"
     ordering     = "NONE"
     side         = "BOTH"
+
+# ── Dépendances embarquées (JiJ) ──────────────────────────────
+# Chargées automatiquement par Forge depuis le JAR du mod.
+
+[[dependencies.${mod_id}]]
+    modId        = "geckolib"
+    mandatory    = true
+    versionRange = "[4.4,5.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "patchouli"
+    mandatory    = true
+    versionRange = "[1.0-SNAPSHOT,2.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "konkrete"
+    mandatory    = true
+    versionRange = "[1.6,2.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "fancymenu"
+    mandatory    = true
+    versionRange = "[3.2,4.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "fusion"
+    mandatory    = true
+    versionRange = "[1.1,2.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+# ── Dépendances optionnelles (soft-dep) ───────────────────────
+
+[[dependencies.${mod_id}]]
+    modId        = "imm_ptl_core"
+    mandatory    = false
+    versionRange = "*"
+    ordering     = "NONE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "oculus"
+    mandatory    = false
+    versionRange = "*"
+    ordering     = "NONE"
+    side         = "BOTH"

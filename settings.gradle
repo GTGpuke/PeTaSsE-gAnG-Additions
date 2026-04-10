@@ -6,6 +6,10 @@ pluginManagement {
             url  = 'https://maven.minecraftforge.net'
         }
     }
+    plugins {
+        // JarJar Gradle plugin — séparé de ForgeGradle en FG7
+        id 'net.minecraftforge.jarjar' version '0.2.3'
+    }
 }
 
 // Note: Java 25 must be installed manually and JAVA_HOME must point to it.

@@ -5,6 +5,7 @@
 
 plugins {
     id 'net.minecraftforge.gradle' version '[7.0,8.0)'
+    id 'net.minecraftforge.jarjar'
     id 'java-library'
 }
 
@@ -84,12 +85,80 @@ repositories {
     maven fg.forgeMaven           // https://maven.minecraftforge.net
     maven fg.minecraftLibsMaven   // Bibliothèques Mojang
     mavenCentral()
+
+    // GeckoLib — animations 3D pour les mobs des Backrooms
+    maven {
+        name = 'GeckoLib'
+        url  = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+    }
+
+    // Patchouli — livre/guide in-game (lore Backrooms)
+    maven {
+        name = 'BlameJared'
+        url  = 'https://maven.blamejared.com/'
+    }
+
+    // Konkrete + FancyMenu — menus ambiance Backrooms
+    maven {
+        name = 'Keksuccino'
+        url  = 'https://maven.keksuccino.de/'
+    }
+
+    // Fusion — textures connectées (papier peint / moquette Backrooms)
+    maven {
+        name = 'Supermartijn642'
+        url  = 'https://maven.supermartijn642.com/releases/'
+    }
 }
+
+// ── Jar-in-Jar ───────────────────────────────────────────────
+// Embarque les bibliothèques obligatoires dans le JAR du mod.
+// Les joueurs n'ont pas à les télécharger séparément.
+// Enregistre le conteneur JiJ lié à la tâche 'jar' principale.
+jarJar.register()
 
 // ── Dependencies ─────────────────────────────────────────────
 dependencies {
     // FG7.0.19 : la dépendance Forge va ici via minecraft.dependency()
     implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
+
+    // ---- JiJ — Bibliothèques embarquées (Backrooms) --------
+    // Syntaxe jarjar-gradle 0.2.3 : add('jarJar', dep) + jarJar.configure(dep) { setVersion; setRange }
+    // TODO: décommenter quand les versions pour MC 26.1 sont disponibles sur les repos
+
+    // GeckoLib : animations 3D pour les mobs des Backrooms
+    // def geckolibDep = create(group: 'software.bernie.geckolib', name: 'geckolib-forge-26.1', version: '[4.4,5.0)')
+    // jarJar.configure(geckolibDep) { it.setVersion('4.4.0'); it.setRange('[4.4,5.0)') }
+    // add('jarJar', geckolibDep)
+
+    // Patchouli : livre/guide in-game (lore Backrooms)
+    // def patchouliDep = create(group: 'vazkii.patchouli', name: 'Patchouli', version: '[1.0-SNAPSHOT,2.0)')
+    // jarJar.configure(patchouliDep) { it.setVersion('1.0-SNAPSHOT'); it.setRange('[1.0-SNAPSHOT,2.0)') }
+    // add('jarJar', patchouliDep)
+
+    // Konkrete : bibliothèque utilitaire requise par FancyMenu
+    // def konkreteDep = create(group: 'de.keksuccino', name: 'konkrete', version: '[1.6,2.0)')
+    // jarJar.configure(konkreteDep) { it.setVersion('1.6.0'); it.setRange('[1.6,2.0)') }
+    // add('jarJar', konkreteDep)
+
+    // FancyMenu : personnalisation des menus MC (ambiance Backrooms) — Licence DSMSLv3
+    // def fancymenuDep = create(group: 'de.keksuccino', name: 'fancymenu', version: '[3.2,4.0)')
+    // jarJar.configure(fancymenuDep) { it.setVersion('3.2.0'); it.setRange('[3.2,4.0)') }
+    // add('jarJar', fancymenuDep)
+
+    // Fusion : textures connectées (papier peint / moquette Backrooms)
+    // def fusionDep = create(group: 'com.supermartijn642', name: 'fusion', version: '[1.1,2.0)')
+    // jarJar.configure(fusionDep) { it.setVersion('1.1.0'); it.setRange('[1.1,2.0)') }
+    // add('jarJar', fusionDep)
+
+    // ---- Soft deps — compilés mais non embarqués -----------
+    // Présence vérifiée en runtime via ModList.get().isLoaded("mod_id")
+
+    // Immersive Portals : portails sans écran de chargement
+    // compileOnly 'org.example:immersiveportals:TODO'
+
+    // Oculus : support shaders (brume, bloom Backrooms)
+    // compileOnly 'org.example:oculus:TODO'
 
     // ---- Tests (JUnit 5) -----------------------------------
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.3'

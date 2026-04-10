@@ -160,7 +160,7 @@ Pour chaque texture créée ou modifiée :
 
 ### 2.5 Blockstates et loot tables
 - [ ] Chaque block a un blockstate JSON correspondant
-- [ ] Chaque block a une loot table dans `data/petasse_gang_additions/loot_tables/blocks/`
+- [ ] Chaque block a une loot table dans `data/petasse_gang_additions/loot_table/blocks/` (sans 's' — MC 26.1)
 - [ ] Les recettes dans `data/petasse_gang_additions/recipes/` sont valides
 
 ---

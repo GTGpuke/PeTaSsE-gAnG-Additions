@@ -11,6 +11,20 @@
 | Tests | JUnit 5 + Forge GameTest |
 | CI/CD | GitHub Actions |
 
+### Bibliothèques embarquées (JiJ)
+
+Ces bibliothèques voyagent dans le JAR du mod — les joueurs n'ont pas à les installer séparément.
+
+| Bibliothèque | Rôle | Repository |
+|-------------|------|------------|
+| GeckoLib | Animations 3D (mobs Backrooms) | cloudsmith.io/geckolib3 |
+| Patchouli | Livre/guide in-game (lore Backrooms) | maven.blamejared.com |
+| Konkrete | Utilitaire requis par FancyMenu | maven.keksuccino.de |
+| FancyMenu | Personnalisation menus MC | maven.keksuccino.de |
+| Fusion | Textures connectées (papier peint Backrooms) | maven.supermartijn642.com |
+
+Voir [docs/DEPENDENCIES.md](DEPENDENCIES.md) pour les coordonnées Maven complètes et les notes de licence.
+
 ---
 
 ## Arborescence des packages
