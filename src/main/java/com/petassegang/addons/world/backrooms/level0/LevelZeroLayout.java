@@ -132,15 +132,23 @@ public final class LevelZeroLayout {
 
     private static SectorData getSector(int sectorX, int sectorZ, long layoutSeed) {
         long cacheKey = mix(layoutSeed, sectorX, sectorZ, 0x534543544F52L);
+
+        // Lecture rapide — verrou court, ne bloque pas la génération.
         synchronized (SECTOR_CACHE) {
             SectorData cached = SECTOR_CACHE.get(cacheKey);
             if (cached != null) {
                 return cached;
             }
+        }
 
-            SectorData generated = generateSector(sectorX, sectorZ, layoutSeed);
-            SECTOR_CACHE.put(cacheKey, generated);
-            return generated;
+        // Génération hors du verrou — déterministe : si deux threads génèrent le même
+        // secteur en parallèle, ils produisent exactement le même résultat.
+        SectorData generated = generateSector(sectorX, sectorZ, layoutSeed);
+
+        // Écriture dans le cache — computeIfAbsent conserve la version d'un autre thread
+        // si plusieurs générations parallèles se sont terminées entre-temps.
+        synchronized (SECTOR_CACHE) {
+            return SECTOR_CACHE.computeIfAbsent(cacheKey, k -> generated);
         }
     }
 
@@ -163,7 +171,14 @@ public final class LevelZeroLayout {
                 }
 
                 int frontierIndex = random.nextInt(frontier.size());
-                long encoded = frontier.remove(frontierIndex);
+                // Swap-and-pop O(1) : échange avec le dernier élément puis supprime la fin.
+                // L'ordre dans la frontier n'a pas d'importance — l'index est tiré aléatoirement.
+                long encoded = frontier.get(frontierIndex);
+                int lastIndex = frontier.size() - 1;
+                if (frontierIndex != lastIndex) {
+                    frontier.set(frontierIndex, frontier.get(lastIndex));
+                }
+                frontier.remove(lastIndex);
                 int x = decodeX(encoded);
                 int z = decodeZ(encoded);
                 int currentIndex = cellIndex(x, z);

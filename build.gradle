@@ -171,7 +171,10 @@ dependencies {
 test {
     useJUnitPlatform()
     maxHeapSize = '1G'
-    // Forcer UTF-8 explicitement — nécessaire sur Windows avec un chemin de projet accentué.
+    // Forcer UTF-8 avant le parsing de l'@argfile JVM — nécessaire sur Windows quand le
+    // chemin du projet contient un caractère accentué (ex : "Développement"). JDK_JAVA_OPTIONS
+    // est lu par le launcher natif avant l'argfile, contrairement à -Dfile.encoding.
+    environment 'JDK_JAVA_OPTIONS', '-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8'
     jvmArgs '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8'
     testLogging {
         events 'passed', 'failed', 'skipped'
