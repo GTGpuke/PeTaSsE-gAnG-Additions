@@ -11,9 +11,9 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 - **Backrooms - Level 0** : retour d'une premiere implémentation monocouche basee sur la structure du script Python de reference, avec dimension dediee, generateur custom, palette de 4 blocs et traductions FR/EN.
 - **Tests Backrooms** : `BackroomsLevelZeroLayoutTest` et `BackroomsLevelZeroRegistryTest` pour verifier les invariants de base du layout et des registres.
-- **Dépendances JiJ** : GeckoLib, Patchouli, Konkrete, FancyMenu, Fusion embarquées dans le JAR via `jarJar.enable()` — les joueurs n'ont pas à les installer séparément.
+- **Infrastructure JiJ** : plugin `net.minecraftforge.jarjar`, repositories Backrooms et structure `jarJar.register()` ajoutés dans le build.
 - **Dépendances optionnelles** : Immersive Portals et Oculus déclarés en soft-dep dans `mods.toml`.
-- **`docs/DEPENDENCIES.md`** : documentation complète des dépendances (coordonnées Maven, licences, versions).
+- **`docs/DEPENDENCIES.md`** : documentation de référence des dépendances Backrooms, de leur mode d'inclusion et de leur état actuel.
 
 ## [0.3.0] - 2026-04-09
 
