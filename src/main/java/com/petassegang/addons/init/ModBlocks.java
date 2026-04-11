@@ -40,12 +40,28 @@ public final class ModBlocks {
                     .setId(BLOCKS.key("level_zero_wallpaper")))
     );
 
+    /** Papier peint blanc vieilli du second biome du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER_AGED = BLOCKS.register(
+            "level_zero_wallpaper_aged",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.END_STONE)
+                    .setId(BLOCKS.key("level_zero_wallpaper_aged")))
+    );
+
     /** Moquette humide du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_DAMP_CARPET = BLOCKS.register(
             "level_zero_damp_carpet",
             () -> new Block(BlockBehaviour.Properties
                     .ofFullCopy(Blocks.YELLOW_WOOL)
                     .setId(BLOCKS.key("level_zero_damp_carpet")))
+    );
+
+    /** Moquette rouge du second biome du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_DAMP_CARPET_AGED = BLOCKS.register(
+            "level_zero_damp_carpet_aged",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.YELLOW_WOOL)
+                    .setId(BLOCKS.key("level_zero_damp_carpet_aged")))
     );
 
     /** Dalle de plafond du Level 0. */

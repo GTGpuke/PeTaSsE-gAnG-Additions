@@ -34,11 +34,25 @@ public final class ModItems {
                     new Item.Properties().setId(ITEMS.key("level_zero_wallpaper")))
     );
 
+    /** Item pour le papier peint blanc du second biome du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALLPAPER_AGED = ITEMS.register(
+            "level_zero_wallpaper_aged",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_wallpaper_aged")))
+    );
+
     /** Item pour la moquette humide du Level 0. */
     public static final RegistryObject<BlockItem> LEVEL_ZERO_DAMP_CARPET = ITEMS.register(
             "level_zero_damp_carpet",
             () -> new BlockItem(ModBlocks.LEVEL_ZERO_DAMP_CARPET.get(),
                     new Item.Properties().setId(ITEMS.key("level_zero_damp_carpet")))
+    );
+
+    /** Item pour la moquette rouge du second biome du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_DAMP_CARPET_AGED = ITEMS.register(
+            "level_zero_damp_carpet_aged",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_damp_carpet_aged")))
     );
 
     /** Item pour la dalle de plafond du Level 0. */

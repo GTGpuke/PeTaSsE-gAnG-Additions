@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/cube_all",
+  "textures": {
+    "all": "petasse_gang_additions:block/level_zero_wallpaper_aged"
+  }
+}

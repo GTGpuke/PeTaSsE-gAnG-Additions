@@ -38,7 +38,9 @@ public final class ModCreativeTab {
         output.accept(ModItems.GANG_BADGE.get());
         output.accept(ModItems.CURSED_SNACK.get());
         output.accept(ModItems.LEVEL_ZERO_WALLPAPER.get());
+        output.accept(ModItems.LEVEL_ZERO_WALLPAPER_AGED.get());
         output.accept(ModItems.LEVEL_ZERO_DAMP_CARPET.get());
+        output.accept(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED.get());
         output.accept(ModItems.LEVEL_ZERO_CEILING_TILE.get());
         output.accept(ModItems.LEVEL_ZERO_FLUORESCENT_LIGHT.get());
         output.accept(ModItems.CURSED_LOG.get());

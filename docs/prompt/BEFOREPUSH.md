@@ -102,7 +102,7 @@ Pour chaque modèle créé ou modifié :
 ### 2.2 Textures
 Pour chaque texture créée ou modifiée :
 - [ ] Format PNG valide
-- [ ] Dimensions correctes (16x16 pour items/blocks standards, 64x32 ou 64x64 pour entités)
+- [ ] Dimensions correctes (16x16 pour les items et blocs standards, 32x32 autorise pour les blocs du Level 0, 64x32 ou 64x64 pour les entites)
 - [ ] Vérifier avec :
 ```bash
   find src/main/resources -name "*.png" -exec python3 -c "
@@ -118,11 +118,11 @@ Pour chaque texture créée ou modifiée :
 
 ### 2.3 Cohérence artistique Minecraft
 **C'est un point CRITIQUE — le mod doit s'intégrer visuellement dans Minecraft :**
-- [ ] Les textures respectent le style pixel art 16x16 de Minecraft :
+- [ ] Les textures respectent le style pixel art de Minecraft, avec une resolution adaptee a la convention locale du projet :
   - Palette de couleurs cohérente avec le vanilla (pas de couleurs néon ou fluo sauf si c'est voulu)
   - Contours : utiliser des teintes plus sombres de la même couleur (pas de noir pur #000000)
   - Ombrage : lumière venant du haut-gauche (convention Minecraft)
-  - Niveau de détail : proportionnel à la résolution 16x16, pas de détails trop fins qui deviennent du bruit
+  - Niveau de detail : proportionnel a la resolution choisie, sans details trop fins qui deviennent du bruit
   - Pas d'anti-aliasing (les pixels doivent être nets)
 - [ ] Les modèles 3D (si applicable) sont cohérents avec les proportions Minecraft
 - [ ] Les couleurs de rareté utilisées dans les tooltips correspondent aux standards vanilla :
@@ -495,7 +495,7 @@ Avant de confirmer que c'est prêt à push, vérifie une dernière fois :
 
 ### Ressources
 - [ ] Tous les JSON sont valides
-- [ ] Toutes les textures sont des PNG 16x16 (ou taille appropriée)
+- [ ] Toutes les textures sont des PNG a la taille appropriee pour leur usage et leur convention locale
 - [ ] Les textures respectent le style Minecraft et la cohérence visuelle du mod
 - [ ] Toutes les clés de traduction sont présentes en EN et FR
 - [ ] Aucune clé orpheline dans les fichiers de langue

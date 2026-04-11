@@ -9,19 +9,21 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **Backrooms - Level 0** : retour d'une premiere implémentation monocouche basee sur la structure du script Python de reference, avec dimension dediee, generateur custom, palette de 4 blocs et traductions FR/EN.
-- **Tests Backrooms** : `BackroomsLevelZeroLayoutTest` et `BackroomsLevelZeroRegistryTest` pour verifier les invariants de base du layout et des registres.
-- **Infrastructure JiJ** : plugin `net.minecraftforge.jarjar`, repositories Backrooms et structure `jarJar.register()` ajoutés dans le build.
-- **Dépendances optionnelles** : Immersive Portals et Oculus déclarés en soft-dep dans `mods.toml`.
-- **`docs/DEPENDENCIES.md`** : documentation de référence des dépendances Backrooms, de leur mode d'inclusion et de leur état actuel.
+- **Backrooms - Level 0** : retour d'une premiere implementation monocouche basee sur la structure du script Python de reference, avec dimension dediee, generateur custom, palette de 6 blocs et traductions FR/EN.
+- **Biomes cosmetiques du Level 0** : ajout de grandes zones de surfaces qui changent le papier peint et la moquette, avec une variation secondaire a murs blancs et tapis rouges, sans modifier la topologie du labyrinthe.
+- **Textures Level 0** : passage de la palette de blocs du Level 0 en `32x32` pour la direction artistique actuelle du niveau.
+- **Tests Backrooms** : `BackroomsLevelZeroLayoutTest` et `BackroomsLevelZeroRegistryTest` pour verifier les invariants de base du layout, des biomes de surface et des registres.
+- **Infrastructure JiJ** : plugin `net.minecraftforge.jarjar`, repositories Backrooms et structure `jarJar.register()` ajoutes dans le build.
+- **Dependances optionnelles** : Immersive Portals et Oculus declares en soft-dep dans `mods.toml`.
+- **`docs/DEPENDENCIES.md`** : documentation de reference des dependances Backrooms, de leur mode d'inclusion et de leur etat actuel.
 
 ## [0.3.0] - 2026-04-09
 
 ### Added
-- **Arbre Maudit (correction croissance)** : `TreeGrower` custom (`CURSED_TREE_GROWER`) avec `ConfiguredFeature` JSON `cursed_tree` - la pousse genere desormais un arbre avec troncs et feuilles maudits, pas un chene vanilla.
-- **Tag `minecraft:logs`** : `cursed_log` ajoute aux tags block et item `minecraft:logs` - les feuilles maudites persistent correctement autour du tronc.
-- **Loot tables** : tables de butin pour les 4 blocs (`cursed_log`, `cursed_leaves`, `cursed_sapling`, `cursed_planks`) - format MC 26.1 (`loot_table/blocks/`).
-- **Tests** : `CursedSnackTest`, `CursedTreeTest` - couverture des nouvelles classes.
+- **Arbre Maudit (correction croissance)** : `TreeGrower` custom (`CURSED_TREE_GROWER`) avec `ConfiguredFeature` JSON `cursed_tree` ; la pousse genere desormais un arbre avec troncs et feuilles maudits, pas un chene vanilla.
+- **Tag `minecraft:logs`** : `cursed_log` ajoute aux tags block et item `minecraft:logs` ; les feuilles maudites persistent correctement autour du tronc.
+- **Loot tables** : tables de butin pour les 4 blocs (`cursed_log`, `cursed_leaves`, `cursed_sapling`, `cursed_planks`) ; format MC 26.1 (`loot_table/blocks/`).
+- **Tests** : `CursedSnackTest`, `CursedTreeTest` ; couverture des nouvelles classes.
 
 ### Fixed
 - **Noms des BlockItems** : ajout des cles `item.petasse_gang_additions.*` dans `en_us.json` et `fr_fr.json`.
@@ -35,7 +37,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Added
 - **Packet reseau `GangBadgeActivatePacket`** : canal `SimpleChannel` Forge (`ModNetworking`).
 - **Casse-croute Maudit** (`cursed_snack`) : consommable qui retire 2 points de faim ; toujours mangeable.
-- **Arbre Maudit** : 4 blocs au theme violet/or - `cursed_log`, `cursed_leaves`, `cursed_sapling`, `cursed_planks`.
+- **Arbre Maudit** : 4 blocs au theme violet-or ; `cursed_log`, `cursed_leaves`, `cursed_sapling`, `cursed_planks`.
 - **Fichiers `items/` MC 26.1** pour tous les nouveaux items.
 
 ### Fixed
@@ -63,14 +65,14 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ## [0.1.0] - 2026-04-06
 
 ### Added
-- **Gang Badge** (`gang_badge`) - official PetasseGang membership token
-- Custom creative tab "PetasseGang" with Gang Badge icon
-- Server config: `enableGangBadge` (default `true`)
-- French (`fr_fr`) and English (`en_us`) localisation
-- JUnit 5 unit test suite (`ModLoadTest`, `RegistryTest`, `ItemTest`, `ConfigTest`)
-- Forge GameTest integration (`PetasseGangGameTests`)
-- GitHub Actions CI/CD (build, test, release workflows)
-- Full documentation under `/docs`
-- Claude Code skills under `/.skills`
+- **Gang Badge** (`gang_badge`) - official PetasseGang membership token.
+- Custom creative tab "PetasseGang" with Gang Badge icon.
+- Server config: `enableGangBadge` (default `true`).
+- French (`fr_fr`) and English (`en_us`) localisation.
+- JUnit 5 unit test suite (`ModLoadTest`, `RegistryTest`, `ItemTest`, `ConfigTest`).
+- Forge GameTest integration (`PetasseGangGameTests`).
+- GitHub Actions CI/CD (build, test, release workflows).
+- Full documentation under `/docs`.
+- Claude Code skills under `/.skills`.
 
 ---

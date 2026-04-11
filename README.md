@@ -1,6 +1,6 @@
 # PeTaSsE_gAnG_Additions
 
-Custom content mod for the PétasseGang Minecraft server.
+Custom content mod for the PetasseGang Minecraft server.
 
 [![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
 [![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
@@ -12,123 +12,117 @@ Custom content mod for the PétasseGang Minecraft server.
 
 ## Quick Start
 
-**Prérequis :** Java 25, Git. Gradle est fourni via le wrapper (`gradlew`).
+Prerequisites: Java 25 and Git. Gradle is provided via the wrapper.
 
 ```bash
 # 1. Clone
 git clone https://github.com/PetasseGang/petasse_gang_additions.git
 cd petasse_gang_additions
 
-# 2. Lancer le client Minecraft avec le mod
+# 2. Run the dev client
 ./gradlew runClient
-# → ou dans VS Code : Ctrl+Shift+B → "runClient"
 
-# 3. Build
+# 3. Build the mod
 ./gradlew build
-# → build/libs/petasse_gang_additions-0.3.0.jar
 ```
 
-> **Première fois ?** Voir [docs/SETUP.md](docs/SETUP.md) pour l'installation complète de Java 25 et la configuration VS Code.
+First-time setup details are documented in [docs/SETUP.md](docs/SETUP.md).
 
 ---
 
-## Structure du projet
+## Current State
+
+The project currently includes:
+
+- a custom Forge 26.1 setup,
+- a first playable Backrooms Level 0 dimension,
+- a custom monocouche chunk generator inspired by the reference Python script,
+- cosmetic Level 0 surface biomes that change wallpaper and carpet without changing the maze topology,
+- the original Gang Badge and cursed tree content,
+- a JUnit 5 and Forge GameTest test suite.
+
+---
+
+## Project Structure
 
 ```text
 petasse_gang_additions/
-├── src/main/java/com/petassegang/addons/
-│   ├── PeTaSsEgAnGAdditionsMod.java
-│   ├── config/
-│   ├── creative/ModCreativeTab.java
-│   ├── init/
-│   │   ├── ModBlocks.java
-│   │   ├── ModChunkGenerators.java
-│   │   └── ModItems.java
-│   ├── item/
-│   ├── network/
-│   ├── world/backrooms/
-│   │   ├── BackroomsConstants.java
-│   │   └── level0/
-│   │       ├── LevelZeroChunkGenerator.java
-│   │       └── LevelZeroLayout.java
-│   └── util/ModConstants.java
-├── src/main/resources/
-│   ├── META-INF/mods.toml
-│   ├── assets/petasse_gang_additions/
-│   └── data/petasse_gang_additions/
-├── src/test/                         ← JUnit 5 + GameTests
-├── .github/workflows/                ← CI/CD GitHub Actions
-├── .skills/                          ← Skills Claude Code
-└── docs/                             ← Documentation complète
+|- src/main/java/com/petassegang/addons/
+|  |- PeTaSsEgAnGAdditionsMod.java
+|  |- client/
+|  |- config/
+|  |- creative/ModCreativeTab.java
+|  |- init/
+|  |  |- ModBlocks.java
+|  |  |- ModChunkGenerators.java
+|  |  `- ModItems.java
+|  |- item/
+|  |- network/
+|  |- util/ModConstants.java
+|  `- world/backrooms/
+|     |- BackroomsConstants.java
+|     `- level0/
+|        |- LevelZeroChunkGenerator.java
+|        |- LevelZeroLayout.java
+|        `- LevelZeroSurfaceBiome.java
+|- src/main/resources/
+|  |- META-INF/mods.toml
+|  |- assets/petasse_gang_additions/
+|  `- data/petasse_gang_additions/
+|- src/test/
+|- docs/
+`- build.gradle
 ```
 
 ---
 
-## Ajouter du contenu avec Claude Code
-
-Les skills dans `.skills/` guident Claude Code pas-à-pas pour chaque type de contenu.
-Il suffit de décrire ce que tu veux :
-
-```
-"Ajoute un item épée custom appelée GangSword avec un tooltip violet"
-"Crée un bloc de minerai gangite_ore avec une texture dorée"
-"Ajoute un mob PetasseMob qui drop le Gang Badge"
-"Crée une recette craft pour le Gang Badge avec des lingots d'or"
-```
-
-| Skill | Déclenche pour |
-|-------|----------------|
-| `add-item` | item, outil, arme, badge, carte, consommable |
-| `add-block` | bloc, minerai, dalle, mur, porte |
-| `add-entity` | mob, entité, boss, NPC, créature |
-| `add-dimension` | dimension, portail, monde custom |
-| `add-recipe` | recette, craft, fondre, cuisiner |
-| `add-sound` | son, bruit, musique, ambiance |
-| `add-creative-tab` | onglet créatif, catégorie d'items |
-
----
-
-## Tests
+## Main Commands
 
 ```bash
-# Tests unitaires (JUnit 5)
-./gradlew test
-# Rapport : build/reports/tests/test/index.html
+# Compile main sources
+./gradlew compileJava
 
-# Tests in-game (Forge GameTest)
+# Run unit tests
+./gradlew test
+
+# Run the dev client
+./gradlew runClient
+
+# Full build
+./gradlew build
+```
+
+---
+
+## Level 0 Notes
+
+The current Level 0 implementation is built around a deterministic layout pipeline:
+
+- maze generation translated from the reference Python prototype,
+- rectangular rooms,
+- pillar rooms,
+- custom polygon rooms,
+- a `1 logical cell = 3x3 blocks` scale in-world,
+- a low ceiling and strong fluorescent lighting for the intended oppressive feel.
+
+The current cosmetic biome layer only changes surface appearance. It does not change the layout shape.
+
+Level 0 block textures currently follow a dedicated `32x32` convention.
+
+---
+
+## Testing
+
+```bash
+# JUnit 5 tests
+./gradlew test
+
+# Forge GameTests
 ./gradlew runGameTestServer
 ```
 
----
-
-## Build & Distribution
-
-```bash
-# Build le JAR
-./gradlew build
-
-# Artefact :
-build/libs/petasse_gang_additions-0.3.0.jar
-```
-
-Pour installer sur le serveur : copier le JAR dans le dossier `mods/` du serveur.
-Tous les clients doivent avoir le même JAR.
-
----
-
-## CI/CD
-
-- **Push** sur `main`/`develop` → build automatique
-- **Pull Request** → build + tests, bloque si test échoue
-- **Tag `v*.*.*`** → build + GitHub Release + JAR joint automatiquement
-
-Pour créer une release :
-```bash
-git tag v0.3.0
-git push origin v0.3.0
-```
-
-Voir [docs/CICD.md](docs/CICD.md) pour les détails.
+If you are working on Windows and the project path contains accented characters, also check
+[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for known Gradle and encoding edge cases.
 
 ---
 
@@ -136,16 +130,26 @@ Voir [docs/CICD.md](docs/CICD.md) pour les détails.
 
 | Document | Description |
 |----------|-------------|
-| [docs/SETUP.md](docs/SETUP.md) | Installation complète |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture et conventions |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Guide de contribution |
-| [docs/TESTING.md](docs/TESTING.md) | Guide des tests |
-| [docs/ITEMS.md](docs/ITEMS.md) | Catalogue des items |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Résolution de problèmes |
+| [docs/SETUP.md](docs/SETUP.md) | Local setup |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Project architecture and conventions |
+| [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Backrooms dependency plan |
+| [docs/DIMENSIONS.md](docs/DIMENSIONS.md) | Dimension reference |
+| [docs/BLOCKS.md](docs/BLOCKS.md) | Block catalog |
+| [docs/ITEMS.md](docs/ITEMS.md) | Item catalog |
+| [docs/TESTING.md](docs/TESTING.md) | Test guide |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues |
 
 ---
 
-## Licence
+## Build Output
 
-MIT — voir [LICENSE](LICENSE).
+```bash
+build/libs/petasse_gang_additions-<version>.jar
+```
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).

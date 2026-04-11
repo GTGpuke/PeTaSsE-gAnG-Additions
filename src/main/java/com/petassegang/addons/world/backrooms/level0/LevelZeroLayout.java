@@ -36,6 +36,12 @@ public final class LevelZeroLayout {
     private static final int MIN_CUSTOM_ROOM_RADIUS = 1;
     private static final int MAX_CUSTOM_ROOM_RADIUS = 16;
     private static final int LIGHT_INTERVAL = 4;
+
+    /** Identifiant de la variante de base (papier peint jauni, moquette classique). */
+    public static final int SURFACE_VARIANT_BASE = 0;
+    /** Identifiant de la variante alternative (murs blancs, moquette rouge). */
+    public static final int SURFACE_VARIANT_ALTERNATE = 1;
+
     private static final int SECTOR_CACHE_CAPACITY = 4096;
     private static final Map<Long, SectorData> SECTOR_CACHE = new LinkedHashMap<>(SECTOR_CACHE_CAPACITY + 1, 0.75F, true) {
         @Override
@@ -46,10 +52,15 @@ public final class LevelZeroLayout {
 
     private final boolean[] walkable;
     private final boolean[] lighted;
+    private final LevelZeroSurfaceBiome[] surfaceBiomes;
+    private final boolean[] largeRoom;
 
-    private LevelZeroLayout(boolean[] walkable, boolean[] lighted) {
+    private LevelZeroLayout(boolean[] walkable, boolean[] lighted,
+                            LevelZeroSurfaceBiome[] surfaceBiomes, boolean[] largeRoom) {
         this.walkable = walkable;
         this.lighted = lighted;
+        this.surfaceBiomes = surfaceBiomes;
+        this.largeRoom = largeRoom;
     }
 
     /**
@@ -63,6 +74,8 @@ public final class LevelZeroLayout {
     public static LevelZeroLayout generate(int chunkX, int chunkZ, long layoutSeed) {
         boolean[] walkable = new boolean[CHUNK_SIZE * CHUNK_SIZE];
         boolean[] lighted = new boolean[CHUNK_SIZE * CHUNK_SIZE];
+        LevelZeroSurfaceBiome[] surfaceBiomes = new LevelZeroSurfaceBiome[CHUNK_SIZE * CHUNK_SIZE];
+        boolean[] largeRoom = new boolean[CHUNK_SIZE * CHUNK_SIZE];
         int worldMinX = chunkX * CHUNK_SIZE;
         int worldMinZ = chunkZ * CHUNK_SIZE;
 
@@ -73,10 +86,12 @@ public final class LevelZeroLayout {
                 int index = index(localX, localZ);
                 walkable[index] = sampleWalkable(worldX, worldZ, layoutSeed);
                 lighted[index] = walkable[index] && sampleLight(worldX, worldZ, layoutSeed);
+                surfaceBiomes[index] = sampleSurfaceBiome(worldX, worldZ, layoutSeed);
+                largeRoom[index] = sampleLargeRoom(worldX, worldZ, layoutSeed);
             }
         }
 
-        return new LevelZeroLayout(walkable, lighted);
+        return new LevelZeroLayout(walkable, lighted, surfaceBiomes, largeRoom);
     }
 
     /**
@@ -117,6 +132,50 @@ public final class LevelZeroLayout {
         return sector.isWalkable(localCellX, localCellZ);
     }
 
+    /**
+     * Retourne le biome cosmetique de surface a la position locale donnee.
+     *
+     * @param localX coordonnee X locale dans le chunk
+     * @param localZ coordonnee Z locale dans le chunk
+     * @return biome de surface calcule pour cette position
+     */
+    public LevelZeroSurfaceBiome surfaceBiome(int localX, int localZ) {
+        return surfaceBiomes[index(localX, localZ)];
+    }
+
+    /**
+     * Retourne la variante de sol a la position locale donnee.
+     *
+     * @param localX coordonnee X locale dans le chunk
+     * @param localZ coordonnee Z locale dans le chunk
+     * @return identifiant de variante de moquette
+     */
+    public int floorVariant(int localX, int localZ) {
+        return surfaceBiomes[index(localX, localZ)].floorVariant();
+    }
+
+    /**
+     * Retourne la variante de papier peint a la position locale donnee.
+     *
+     * @param localX coordonnee X locale dans le chunk
+     * @param localZ coordonnee Z locale dans le chunk
+     * @return identifiant de variante de papier peint
+     */
+    public int wallpaperVariant(int localX, int localZ) {
+        return surfaceBiomes[index(localX, localZ)].wallpaperVariant();
+    }
+
+    /**
+     * Indique si la position locale appartient a une grande piece.
+     *
+     * @param localX coordonnee X locale dans le chunk
+     * @param localZ coordonnee Z locale dans le chunk
+     * @return {@code true} si la cellule logique est marquee comme grande piece
+     */
+    public boolean isLargeRoom(int localX, int localZ) {
+        return largeRoom[index(localX, localZ)];
+    }
+
     private static boolean sampleLight(int worldX, int worldZ, long layoutSeed) {
         int remainderX = Math.floorMod(worldX, CELL_SCALE);
         int remainderZ = Math.floorMod(worldZ, CELL_SCALE);
@@ -128,6 +187,20 @@ public final class LevelZeroLayout {
         int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
         long seed = mix(layoutSeed, cellX, cellZ, 0x4C49474854L);
         return Math.floorMod(seed, LIGHT_INTERVAL) == 0;
+    }
+
+    private static LevelZeroSurfaceBiome sampleSurfaceBiome(int worldX, int worldZ, long layoutSeed) {
+        int cellX = Math.floorDiv(worldX, CELL_SCALE);
+        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
+        long hash = mix(layoutSeed, cellX, cellZ, 0x5355524641434500L);
+        return Math.floorMod(hash, 5) == 0 ? LevelZeroSurfaceBiome.RED : LevelZeroSurfaceBiome.BASE;
+    }
+
+    private static boolean sampleLargeRoom(int worldX, int worldZ, long layoutSeed) {
+        int cellX = Math.floorDiv(worldX, CELL_SCALE);
+        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
+        long hash = mix(layoutSeed, cellX, cellZ, 0x4C41524745524F4DL);
+        return Math.floorMod(hash, 4) == 0;
     }
 
     private static SectorData getSector(int sectorX, int sectorZ, long layoutSeed) {

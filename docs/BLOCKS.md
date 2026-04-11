@@ -6,7 +6,10 @@ Catalogue de tous les blocs du mod.
 
 ## Backrooms - Level 0
 
-Ensemble de 4 blocs servant de palette visuelle au premier niveau des Backrooms.
+Ensemble de 6 blocs servant de palette visuelle au premier niveau des Backrooms.
+
+Convention visuelle actuelle : les textures de blocs du Level 0 sont en `32x32`.
+Cette exception ne change pas automatiquement la resolution des autres blocs du mod.
 
 ### Level 0 Wallpaper (`level_zero_wallpaper`)
 
@@ -21,6 +24,19 @@ Ensemble de 4 blocs servant de palette visuelle au premier niveau des Backrooms.
 
 Mur principal du Level 0.
 
+### Level 0 White Wallpaper (`level_zero_wallpaper_aged`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_wallpaper_aged` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 3.0 |
+| Blast resistance | 3.0 |
+| Luminosite | 0 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper_aged.json` |
+
+Papier peint blanc reserve aux grandes zones cosmetiques du second biome du Level 0, sans changer le layout.
+
 ### Level 0 Damp Carpet (`level_zero_damp_carpet`)
 
 | Propriete | Valeur |
@@ -33,6 +49,19 @@ Mur principal du Level 0.
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_damp_carpet.json` |
 
 Sol humide du Level 0.
+
+### Level 0 Red Carpet (`level_zero_damp_carpet_aged`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_damp_carpet_aged` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 0.8 |
+| Blast resistance | 0.8 |
+| Luminosite | 0 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_damp_carpet_aged.json` |
+
+Moquette rouge reservee aux grandes zones cosmetiques du second biome du Level 0, sans changer le layout.
 
 ### Level 0 Ceiling Tile (`level_zero_ceiling_tile`)
 

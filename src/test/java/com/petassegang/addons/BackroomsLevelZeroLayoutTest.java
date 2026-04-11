@@ -4,6 +4,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
+import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -61,5 +62,43 @@ class BackroomsLevelZeroLayoutTest {
                     south.isWalkable(localX, 0),
                     "La bordure nord-sud doit rester coherente entre deux chunks voisins.");
         }
+    }
+
+    @Test
+    @DisplayName("Le biome de surface reste deterministe pour un meme chunk")
+    void testSurfaceBiomeIsDeterministic() {
+        LevelZeroLayout first = LevelZeroLayout.generate(12, -3, 556677L);
+        LevelZeroLayout second = LevelZeroLayout.generate(12, -3, 556677L);
+
+        for (int localX = 0; localX < LevelZeroLayout.CHUNK_SIZE; localX += 5) {
+            for (int localZ = 0; localZ < LevelZeroLayout.CHUNK_SIZE; localZ += 5) {
+                assertEquals(first.surfaceBiome(localX, localZ), second.surfaceBiome(localX, localZ),
+                        "Le biome de surface doit rester stable pour un meme seed et un meme chunk.");
+            }
+        }
+    }
+
+    @Test
+    @DisplayName("Le biome de surface pilote bien les variantes de blocs")
+    void testSurfaceBiomeControlsVariants() {
+        LevelZeroLayout layout = LevelZeroLayout.generate(8, 11, 13579L);
+        LevelZeroSurfaceBiome biome = layout.surfaceBiome(7, 7);
+
+        assertEquals(biome.floorVariant(), layout.floorVariant(7, 7),
+                "La variante de moquette doit venir du biome de surface.");
+        assertEquals(biome.wallpaperVariant(), layout.wallpaperVariant(7, 7),
+                "La variante de papier peint doit venir du biome de surface.");
+    }
+
+    @Test
+    @DisplayName("Le marquage de grande piece reste coherent dans une cellule logique")
+    void testLargeRoomFlagStaysCoherentInsideLogicalCell() {
+        LevelZeroLayout layout = LevelZeroLayout.generate(10, 6, 24680L);
+        boolean largeRoom = layout.isLargeRoom(6, 9);
+
+        assertEquals(largeRoom, layout.isLargeRoom(7, 9),
+                "Le marquage de grande piece doit rester stable sur la meme cellule logique.");
+        assertEquals(largeRoom, layout.isLargeRoom(8, 11),
+                "Le marquage de grande piece doit couvrir toute la cellule de trois par trois blocs.");
     }
 }
