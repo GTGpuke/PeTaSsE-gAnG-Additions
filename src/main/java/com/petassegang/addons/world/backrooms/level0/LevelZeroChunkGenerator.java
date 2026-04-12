@@ -1,6 +1,8 @@
 package com.petassegang.addons.world.backrooms.level0;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import com.mojang.serialization.MapCodec;
@@ -75,6 +77,8 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                 chunk.getPos().x(),
                 chunk.getPos().z(),
                 layoutSeed);
+        LayoutSampler sampler = new LayoutSampler(layoutSeed);
+        sampler.putLayout(chunk.getPos().x(), chunk.getPos().z(), layout);
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
         BlockState bedrock = Blocks.BEDROCK.defaultBlockState();
         BlockState subfloor = Blocks.SMOOTH_STONE.defaultBlockState();
@@ -104,8 +108,8 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                     chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_CEILING_Y, localZ), ceilingState, 0);
                 } else {
                     chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_FLOOR_Y, localZ), floor, 0);
-                    boolean exposedWallpaper = isWallpaperExposed(worldX, worldZ, layoutSeed);
-                    int faceMask = exposedWallpaper ? sampleWallpaperFaceMask(worldX, worldZ, layoutSeed) : 0;
+                    boolean exposedWallpaper = sampler.isWallpaperExposed(worldX, worldZ);
+                    int faceMask = exposedWallpaper ? sampler.sampleWallpaperFaceMask(worldX, worldZ) : 0;
                     BlockState wallState = resolveWallState(
                             exposedWallpaper, faceMask, wallpaper, alternateWallpaper, adaptiveWallpaper, wallInsulation);
                     boolean needsBlockEntity = exposedWallpaper && isMixedFaceMask(faceMask);
@@ -172,6 +176,9 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                 Math.floorDiv(x, LevelZeroLayout.CHUNK_SIZE),
                 Math.floorDiv(z, LevelZeroLayout.CHUNK_SIZE),
                 resolveLayoutSeed(randomState));
+        long layoutSeed = resolveLayoutSeed(randomState);
+        LayoutSampler sampler = new LayoutSampler(layoutSeed);
+        sampler.putLayout(Math.floorDiv(x, LevelZeroLayout.CHUNK_SIZE), Math.floorDiv(z, LevelZeroLayout.CHUNK_SIZE), layout);
         int localX = Math.floorMod(x, LevelZeroLayout.CHUNK_SIZE);
         int localZ = Math.floorMod(z, LevelZeroLayout.CHUNK_SIZE);
         boolean walkable = layout.isWalkable(localX, localZ);
@@ -184,9 +191,8 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                             ? ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get().defaultBlockState()
                             : ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState());
         } else {
-            long layoutSeed = resolveLayoutSeed(randomState);
-            boolean exposedWallpaper = isWallpaperExposed(x, z, layoutSeed);
-            int faceMask = exposedWallpaper ? sampleWallpaperFaceMask(x, z, layoutSeed) : 0;
+            boolean exposedWallpaper = sampler.isWallpaperExposed(x, z);
+            int faceMask = exposedWallpaper ? sampler.sampleWallpaperFaceMask(x, z) : 0;
             BlockState wallState = resolveWallState(
                     exposedWallpaper,
                     faceMask,
@@ -244,22 +250,6 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         };
     }
 
-    private static boolean isWallpaperExposed(int worldX, int worldZ, long layoutSeed) {
-        return isWalkableAt(worldX + 1, worldZ, layoutSeed)
-                || isWalkableAt(worldX - 1, worldZ, layoutSeed)
-                || isWalkableAt(worldX, worldZ + 1, layoutSeed)
-                || isWalkableAt(worldX, worldZ - 1, layoutSeed);
-    }
-
-    private static int sampleWallpaperFaceMask(int worldX, int worldZ, long layoutSeed) {
-        int faceMask = 0;
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 0, -1, NORTH_MASK);
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 0, 1, SOUTH_MASK);
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, -1, 0, WEST_MASK);
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 1, 0, EAST_MASK);
-        return faceMask;
-    }
-
     private static BlockState resolveWallState(boolean exposedWallpaper,
                                                int faceMask,
                                                BlockState wallpaper,
@@ -282,38 +272,77 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         return faceMask != 0 && faceMask != FULL_MASK;
     }
 
-    private static int sampleFace(int worldX,
-                                  int worldZ,
-                                  long layoutSeed,
-                                  int stepX,
-                                  int stepZ,
-                                  int maskBit) {
-        for (int distance = 1; distance <= BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 4; distance++) {
-            int sampleX = worldX + stepX * distance;
-            int sampleZ = worldZ + stepZ * distance;
-            if (!isWalkableAt(sampleX, sampleZ, layoutSeed)) {
-                continue;
-            }
-            return LevelZeroSurfaceBiome.sampleAtWorld(sampleX, sampleZ) == LevelZeroSurfaceBiome.RED ? maskBit : 0;
-        }
-
-        int fallbackX = worldX + stepX * BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 2;
-        int fallbackZ = worldZ + stepZ * BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 2;
-        return LevelZeroSurfaceBiome.sampleAtWorld(fallbackX, fallbackZ) == LevelZeroSurfaceBiome.RED ? maskBit : 0;
-    }
-
-    private static boolean isWalkableAt(int worldX, int worldZ, long layoutSeed) {
-        int chunkX = Math.floorDiv(worldX, LevelZeroLayout.CHUNK_SIZE);
-        int chunkZ = Math.floorDiv(worldZ, LevelZeroLayout.CHUNK_SIZE);
-        LevelZeroLayout layout = LevelZeroLayout.generate(chunkX, chunkZ, layoutSeed);
-        int localX = Math.floorMod(worldX, LevelZeroLayout.CHUNK_SIZE);
-        int localZ = Math.floorMod(worldZ, LevelZeroLayout.CHUNK_SIZE);
-        return layout.isWalkable(localX, localZ);
-    }
-
     private static long resolveLayoutSeed(RandomState randomState) {
         return randomState.getOrCreateRandomFactory(BackroomsConstants.LEVEL_ZERO_LAYOUT_RANDOM)
                 .at(0, 0, 0)
                 .nextLong();
+    }
+
+    /**
+     * Echantillonneur local de layout pour eviter de regenerer les memes chunks
+     * a chaque sonde de mur adaptatif.
+     */
+    private static final class LayoutSampler {
+
+        private final long layoutSeed;
+        private final Map<Long, LevelZeroLayout> layouts = new HashMap<>();
+
+        private LayoutSampler(long layoutSeed) {
+            this.layoutSeed = layoutSeed;
+        }
+
+        private void putLayout(int chunkX, int chunkZ, LevelZeroLayout layout) {
+            layouts.put(chunkKey(chunkX, chunkZ), layout);
+        }
+
+        private boolean isWallpaperExposed(int worldX, int worldZ) {
+            return isWalkableAt(worldX + 1, worldZ)
+                    || isWalkableAt(worldX - 1, worldZ)
+                    || isWalkableAt(worldX, worldZ + 1)
+                    || isWalkableAt(worldX, worldZ - 1);
+        }
+
+        private int sampleWallpaperFaceMask(int worldX, int worldZ) {
+            int faceMask = 0;
+            faceMask |= sampleFace(worldX, worldZ, 0, -1, NORTH_MASK);
+            faceMask |= sampleFace(worldX, worldZ, 0, 1, SOUTH_MASK);
+            faceMask |= sampleFace(worldX, worldZ, -1, 0, WEST_MASK);
+            faceMask |= sampleFace(worldX, worldZ, 1, 0, EAST_MASK);
+            return faceMask;
+        }
+
+        private int sampleFace(int worldX, int worldZ, int stepX, int stepZ, int maskBit) {
+            for (int distance = 1; distance <= BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 4; distance++) {
+                int sampleX = worldX + stepX * distance;
+                int sampleZ = worldZ + stepZ * distance;
+                if (!isWalkableAt(sampleX, sampleZ)) {
+                    continue;
+                }
+                return LevelZeroSurfaceBiome.sampleAtWorld(sampleX, sampleZ) == LevelZeroSurfaceBiome.RED ? maskBit : 0;
+            }
+
+            int fallbackX = worldX + stepX * BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 2;
+            int fallbackZ = worldZ + stepZ * BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 2;
+            return LevelZeroSurfaceBiome.sampleAtWorld(fallbackX, fallbackZ) == LevelZeroSurfaceBiome.RED ? maskBit : 0;
+        }
+
+        private boolean isWalkableAt(int worldX, int worldZ) {
+            int chunkX = Math.floorDiv(worldX, LevelZeroLayout.CHUNK_SIZE);
+            int chunkZ = Math.floorDiv(worldZ, LevelZeroLayout.CHUNK_SIZE);
+            LevelZeroLayout layout = layoutAtChunk(chunkX, chunkZ);
+            int localX = Math.floorMod(worldX, LevelZeroLayout.CHUNK_SIZE);
+            int localZ = Math.floorMod(worldZ, LevelZeroLayout.CHUNK_SIZE);
+            return layout.isWalkable(localX, localZ);
+        }
+
+        private LevelZeroLayout layoutAtChunk(int chunkX, int chunkZ) {
+            return layouts.computeIfAbsent(
+                    chunkKey(chunkX, chunkZ),
+                    ignored -> LevelZeroLayout.generate(chunkX, chunkZ, layoutSeed));
+        }
+
+        private static long chunkKey(int chunkX, int chunkZ) {
+            return ((long) chunkX << 32) ^ (chunkZ & 0xFFFFFFFFL);
+        }
     }
 }

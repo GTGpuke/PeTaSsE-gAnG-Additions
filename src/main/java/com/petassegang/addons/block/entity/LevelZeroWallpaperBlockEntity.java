@@ -63,7 +63,7 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
         if (faceMask == UNSET_FACE_MASK) {
             faceMask = LevelZeroWallpaperBlockStateModel.sampleFaceMask(level, worldPosition);
         }
-        refreshClientRender(false);
+        refreshClientRender(true);
     }
 
     @Override
@@ -83,6 +83,17 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
     @Override
     public @NotNull ModelData getModelData() {
         return LevelZeroWallpaperBlockStateModel.createModelData(faceMask);
+    }
+
+    /**
+     * Met a jour le masque de faces stocke puis marque la block entity comme
+     * modifiee.
+     *
+     * @param newFaceMask nouveau masque de faces
+     */
+    public void setFaceMask(int newFaceMask) {
+        faceMask = newFaceMask;
+        setChanged();
     }
 
     @Override
@@ -110,8 +121,8 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
     }
 
     /**
-     * Force la mise a jour visuelle cote client apres reception des donnees
-     * synchronisees.
+     * Force la mise a jour visuelle cote client apres chargement ou reception
+     * des donnees synchronisees.
      */
     private void refreshClientRender(boolean needsBlockUpdate) {
         Level currentLevel = level;

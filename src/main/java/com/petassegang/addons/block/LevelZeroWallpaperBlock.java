@@ -3,6 +3,7 @@ package com.petassegang.addons.block;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.EntityBlock;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -10,6 +11,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.BlockState;
 
 import com.petassegang.addons.block.entity.LevelZeroWallpaperBlockEntity;
+import com.petassegang.addons.client.model.LevelZeroWallpaperBlockStateModel;
 
 /**
  * Bloc de papier peint du Level 0.
@@ -31,5 +33,18 @@ public final class LevelZeroWallpaperBlock extends Block implements EntityBlock 
     @Override
     public @Nullable BlockEntity newBlockEntity(BlockPos pos, BlockState state) {
         return new LevelZeroWallpaperBlockEntity(pos, state);
+    }
+
+    @Override
+    public void onPlace(BlockState state, Level level, BlockPos pos, BlockState oldState, boolean movedByPiston) {
+        super.onPlace(state, level, pos, oldState, movedByPiston);
+        if (level.isClientSide() || state.is(oldState.getBlock())) {
+            return;
+        }
+        BlockEntity blockEntity = level.getBlockEntity(pos);
+        if (blockEntity instanceof LevelZeroWallpaperBlockEntity wallpaperBlockEntity) {
+            wallpaperBlockEntity.setFaceMask(LevelZeroWallpaperBlockStateModel.sampleFaceMask(level, pos));
+            level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
+        }
     }
 }
