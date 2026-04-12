@@ -21,7 +21,7 @@ public enum LevelZeroSurfaceBiome {
     /** Taille d'une region cosmetique en cellules logiques. */
     private static final int REGION_SIZE_CELLS = 48;
     /** Rareté du biome secondaire. */
-    private static final int RED_REGION_MODULO = 12;
+    private static final int RED_REGION_MODULO = 18;
     /** Sel de hash stable pour la carte des biomes cosmetiques. */
     private static final long SURFACE_REGION_SALT = 0x535552464143454CL;
 

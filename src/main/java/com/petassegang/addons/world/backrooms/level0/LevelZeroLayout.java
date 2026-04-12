@@ -42,7 +42,7 @@ public final class LevelZeroLayout {
     /** Identifiant de la variante alternative (murs blancs, moquette rouge). */
     public static final int SURFACE_VARIANT_ALTERNATE = 1;
 
-    private static final int SECTOR_CACHE_CAPACITY = 4096;
+    private static final int SECTOR_CACHE_CAPACITY = 1024;
     private static final Map<Long, SectorData> SECTOR_CACHE = new LinkedHashMap<>(SECTOR_CACHE_CAPACITY + 1, 0.75F, true) {
         @Override
         protected boolean removeEldestEntry(Map.Entry<Long, SectorData> eldest) {
