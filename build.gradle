@@ -187,6 +187,18 @@ test {
 }
 
 // ── JAR manifest ─────────────────────────────────────────────
+tasks.register('benchmarkLevelZeroGeneration', JavaExec) {
+    group = 'verification'
+    description = 'Lance un benchmark deterministe du pipeline de generation du Level 0.'
+    dependsOn testClasses
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.petassegang.addons.LevelZeroPerformanceCheck'
+
+    if (project.hasProperty('levelZeroPerfBudgetMsPerChunk')) {
+        systemProperty 'levelZeroPerfBudgetMsPerChunk', project.property('levelZeroPerfBudgetMsPerChunk')
+    }
+}
+
 jar {
     manifest {
         attributes([

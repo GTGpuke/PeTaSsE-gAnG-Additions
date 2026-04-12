@@ -13,6 +13,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Biomes cosmetiques du Level 0** : ajout de grandes zones de surfaces qui changent le papier peint et la moquette, avec une variation secondaire a murs blancs et tapis rouges, sans modifier la topologie du labyrinthe.
 - **Textures Level 0** : passage de la palette de blocs du Level 0 en `32x32` pour la direction artistique actuelle du niveau.
 - **Papier peint adaptatif du Level 0** : le mur principal peut maintenant afficher une texture differente sur chaque face exposee selon le biome de surface adjacent, sans modifier la topologie du generateur.
+- **Benchmark local du Level 0** : ajout de `LevelZeroPerformanceCheck` et de la tache Gradle `benchmarkLevelZeroGeneration` pour surveiller la range de generation entre revisions.
 - **Tests Backrooms** : `BackroomsLevelZeroLayoutTest` et `BackroomsLevelZeroRegistryTest` pour verifier les invariants de base du layout, des biomes de surface et des registres.
 - **Infrastructure JiJ** : plugin `net.minecraftforge.jarjar`, repositories Backrooms et structure `jarJar.register()` ajoutes dans le build.
 - **Dependances optionnelles** : Immersive Portals et Oculus declares en soft-dep dans `mods.toml`.

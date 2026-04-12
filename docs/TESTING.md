@@ -6,6 +6,7 @@
 |------|-----------|---------|---------|
 | Unit tests | JUnit 5 | `./gradlew test` | `build/reports/tests/test/index.html` |
 | GameTests (in-game) | Forge GameTest | `./gradlew runGameTestServer` | Console + logs |
+| Benchmark perf Level 0 | JavaExec local | `./gradlew benchmarkLevelZeroGeneration` | Console |
 
 ---
 
@@ -48,6 +49,38 @@ Ils vérifient que les items/blocs/entités existent vraiment dans les registres
 
 Les tests sont dans `src/test/java/com/petassegang/addons/gametest/`.
 La console affiche `PASSED` ou `FAILED` pour chaque test.
+
+---
+
+## Benchmark de performance - Level 0
+
+Le Level 0 empile beaucoup de logique de generation et de rendu adaptatif. Avant
+de superposer plusieurs couches de generation, on garde un benchmark local
+deterministe pour verifier qu'une revision reste dans la meme range de cout.
+
+```bash
+# Lancer le benchmark local
+./gradlew benchmarkLevelZeroGeneration
+
+# Lancer avec un budget maximal par chunk
+./gradlew benchmarkLevelZeroGeneration -PlevelZeroPerfBudgetMsPerChunk=0.350
+```
+
+Le benchmark :
+- utilise toujours la meme liste de seeds ;
+- scanne la meme zone de chunks ;
+- affiche le temps moyen total, le temps moyen par chunk et des compteurs
+  utiles (`wallColumns`, `exposedColumns`, `mixedColumns`, `faceSamples`) ;
+- echoue si le budget `levelZeroPerfBudgetMsPerChunk` est depasse.
+
+Cette verification sert surtout a detecter :
+- une regression silencieuse entre deux revisions du generateur ;
+- une explosion du nombre de murs mixtes ;
+- une hausse anormale du nombre de sondes necessaires pour le papier peint adaptatif.
+
+Comme les murs du Level 0 sont fixes et indestructibles en survie, l'objectif
+est de garder un pipeline le plus statique possible : calculer une fois,
+afficher correctement, puis eviter les updates inutiles.
 
 ---
 
