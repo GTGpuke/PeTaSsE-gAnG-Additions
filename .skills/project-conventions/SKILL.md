@@ -11,7 +11,7 @@ description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : mod id
 |-----------|--------|
 | MOD_ID | `petasse_gang_additions` |
 | Package racine | `com.petassegang.addons` |
-| Version mod | `0.4.0` |
+| Version mod | `0.5.0` |
 | Version MC | `26.1` |
 | Version Forge | `62.0.x` |
 | Java | `25` |

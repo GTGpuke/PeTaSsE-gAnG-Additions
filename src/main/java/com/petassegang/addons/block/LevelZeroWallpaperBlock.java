@@ -43,8 +43,9 @@ public final class LevelZeroWallpaperBlock extends Block implements EntityBlock 
         }
         BlockEntity blockEntity = level.getBlockEntity(pos);
         if (blockEntity instanceof LevelZeroWallpaperBlockEntity wallpaperBlockEntity) {
-            wallpaperBlockEntity.setFaceMask(LevelZeroWallpaperBlockStateModel.sampleFaceMask(level, pos));
-            level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
+            if (wallpaperBlockEntity.setFaceMask(LevelZeroWallpaperBlockStateModel.sampleFaceMask(level, pos))) {
+                level.sendBlockUpdated(pos, state, state, Block.UPDATE_CLIENTS);
+            }
         }
     }
 }

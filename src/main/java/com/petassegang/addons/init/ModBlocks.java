@@ -57,14 +57,6 @@ public final class ModBlocks {
                     .setId(BLOCKS.key("level_zero_wallpaper_adaptive")))
     );
 
-    /** Bloc interne d'isolant pour remplir le coeur des murs du Level 0. */
-    public static final RegistryObject<Block> LEVEL_ZERO_WALL_INSULATION = BLOCKS.register(
-            "level_zero_wall_insulation",
-            () -> new Block(BlockBehaviour.Properties
-                    .ofFullCopy(Blocks.END_STONE)
-                    .setId(BLOCKS.key("level_zero_wall_insulation")))
-    );
-
     /** Moquette humide du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_DAMP_CARPET = BLOCKS.register(
             "level_zero_damp_carpet",

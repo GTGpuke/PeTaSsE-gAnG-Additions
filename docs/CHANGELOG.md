@@ -13,7 +13,6 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 - **Biomes cosmetiques du Level 0** : ajout de grandes zones de surfaces qui changent le papier peint et la moquette, avec une variation secondaire a murs blancs et tapis rouges, sans modifier la topologie du labyrinthe.
 - **Textures Level 0** : passage de la palette de blocs du Level 0 en `32x32` pour la direction artistique actuelle du niveau.
 - **Papier peint adaptatif du Level 0** : le mur principal peut maintenant afficher une texture differente sur chaque face exposee selon le biome de surface adjacent, sans modifier la topologie du generateur.
-- **Isolant interne du Level 0** : ajout d'un bloc de remplissage dedie au coeur des murs pour ne garder le papier peint adaptatif que sur les surfaces exposees.
 - **Tests Backrooms** : `BackroomsLevelZeroLayoutTest` et `BackroomsLevelZeroRegistryTest` pour verifier les invariants de base du layout, des biomes de surface et des registres.
 - **Infrastructure JiJ** : plugin `net.minecraftforge.jarjar`, repositories Backrooms et structure `jarJar.register()` ajoutes dans le build.
 - **Dependances optionnelles** : Immersive Portals et Oculus declares en soft-dep dans `mods.toml`.
@@ -21,8 +20,11 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ### Changed
 - **Pipeline du papier peint adaptatif** : le masque des faces est maintenant calcule a la generation, stocke dans la block entity puis synchronise au client, ce qui retire la lecture du monde pendant le rendu.
-- **Interieur des murs du Level 0** : les volumes non exposes utilisent maintenant `level_zero_wall_insulation` au lieu de conserver du papier peint adaptatif enterre.
+- **Interieur des murs du Level 0** : les volumes non exposes utilisent maintenant la `bedrock` vanilla au lieu de conserver un bloc de remplissage dedie.
 - **Optimisation des murs du Level 0** : les colonnes 100 % jaunes et 100 % blanches utilisent maintenant des blocs simples ; seul `level_zero_wallpaper_adaptive` reste rendu via `BlockEntity` sur les transitions mixtes.
+- **Optimisation du generateur Level 0** : les sondes de murs adaptatifs reutilisent maintenant un cache local de layouts par chunk au lieu de regenerer les memes `LevelZeroLayout` en boucle.
+- **Chargement client du papier peint adaptatif** : la `BlockEntity` ne recalcule plus le `faceMask` cote client au `onLoad()`, et n'y force plus de `sendBlockUpdated(...)` systematique. Le recalcul de secours reste limite au serveur pour les cas legacy.
+- **Refreshs du papier peint adaptatif** : les mises a jour visuelles et reseau sont maintenant limitees aux vrais changements de `faceMask`, car les murs du Level 0 sont concus comme des blocs fixes et indestructibles en survie.
 
 ## [0.3.0] - 2026-04-09
 

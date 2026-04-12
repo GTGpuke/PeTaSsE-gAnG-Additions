@@ -85,7 +85,6 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         BlockState wallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState();
         BlockState alternateWallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState();
         BlockState adaptiveWallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState();
-        BlockState wallInsulation = ModBlocks.LEVEL_ZERO_WALL_INSULATION.get().defaultBlockState();
         BlockState ceiling = ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState();
         BlockState light = ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get().defaultBlockState();
         int worldMinX = chunk.getPos().getMinBlockX();
@@ -111,7 +110,7 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                     boolean exposedWallpaper = sampler.isWallpaperExposed(worldX, worldZ);
                     int faceMask = exposedWallpaper ? sampler.sampleWallpaperFaceMask(worldX, worldZ) : 0;
                     BlockState wallState = resolveWallState(
-                            exposedWallpaper, faceMask, wallpaper, alternateWallpaper, adaptiveWallpaper, wallInsulation);
+                            exposedWallpaper, faceMask, wallpaper, alternateWallpaper, adaptiveWallpaper, bedrock);
                     boolean needsBlockEntity = exposedWallpaper && isMixedFaceMask(faceMask);
                     for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
                         chunk.setBlockState(mutablePos.set(localX, y, localZ), wallState, 0);
@@ -199,7 +198,7 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                     ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState(),
                     ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState(),
                     ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState(),
-                    ModBlocks.LEVEL_ZERO_WALL_INSULATION.get().defaultBlockState());
+                    Blocks.BEDROCK.defaultBlockState());
             for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
                 setColumnState(states, y, wallState);
             }

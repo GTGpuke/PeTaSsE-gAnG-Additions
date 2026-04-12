@@ -48,13 +48,6 @@ public final class ModItems {
                     new Item.Properties().setId(ITEMS.key("level_zero_wallpaper_adaptive")))
     );
 
-    /** Item pour l'isolant interne des murs du Level 0. */
-    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALL_INSULATION = ITEMS.register(
-            "level_zero_wall_insulation",
-            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALL_INSULATION.get(),
-                    new Item.Properties().setId(ITEMS.key("level_zero_wall_insulation")))
-    );
-
     /** Item pour la moquette humide du Level 0. */
     public static final RegistryObject<BlockItem> LEVEL_ZERO_DAMP_CARPET = ITEMS.register(
             "level_zero_damp_carpet",

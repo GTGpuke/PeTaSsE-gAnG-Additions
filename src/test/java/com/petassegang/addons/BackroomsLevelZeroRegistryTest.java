@@ -53,8 +53,6 @@ class BackroomsLevelZeroRegistryTest {
                 "Le RegistryObject LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE,
                 "Le RegistryObject LEVEL_ZERO_WALLPAPER_ADAPTIVE doit etre non-null.");
-        assertNotNull(ModBlocks.LEVEL_ZERO_WALL_INSULATION,
-                "Le RegistryObject LEVEL_ZERO_WALL_INSULATION doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_DAMP_CARPET,
                 "Le RegistryObject LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED,
@@ -77,11 +75,6 @@ class BackroomsLevelZeroRegistryTest {
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_adaptive"),
                 ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getId(),
                 "L'identifiant du bloc technique level_zero_wallpaper_adaptive doit etre correct."
-        );
-        assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wall_insulation"),
-                ModBlocks.LEVEL_ZERO_WALL_INSULATION.getId(),
-                "L'identifiant du bloc interne level_zero_wall_insulation doit etre correct."
         );
         assertEquals(
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet"),
@@ -114,8 +107,6 @@ class BackroomsLevelZeroRegistryTest {
                 "Le RegistryObject item LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_WALLPAPER_ADAPTIVE,
                 "Le RegistryObject item LEVEL_ZERO_WALLPAPER_ADAPTIVE doit etre non-null.");
-        assertNotNull(ModItems.LEVEL_ZERO_WALL_INSULATION,
-                "Le RegistryObject item LEVEL_ZERO_WALL_INSULATION doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_DAMP_CARPET,
                 "Le RegistryObject item LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED,
@@ -138,11 +129,6 @@ class BackroomsLevelZeroRegistryTest {
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_adaptive"),
                 ModItems.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getId(),
                 "L'identifiant de l'item level_zero_wallpaper_adaptive doit etre correct."
-        );
-        assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wall_insulation"),
-                ModItems.LEVEL_ZERO_WALL_INSULATION.getId(),
-                "L'identifiant de l'item level_zero_wall_insulation doit etre correct."
         );
         assertEquals(
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet"),

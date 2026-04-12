@@ -6,7 +6,7 @@ Catalogue de tous les blocs du mod.
 
 ## Backrooms - Level 0
 
-Ensemble de 6 blocs servant de palette visuelle au premier niveau des Backrooms.
+Ensemble principal de blocs servant de palette visuelle au premier niveau des Backrooms.
 
 Convention visuelle actuelle : les textures de blocs du Level 0 sont en `32x32`.
 Cette exception ne change pas automatiquement la resolution des autres blocs du mod.
@@ -38,7 +38,8 @@ Le generateur l'utilise directement quand toute la colonne appartient a la varia
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper_aged.json` |
 
 Bloc simple blanc reserve au second biome de surface.
-Il reste cache cote item et sert aussi de source de modele pour les transitions mixtes.
+Il sert aussi de source de modele pour les transitions mixtes.
+Il reste accessible en creatif pour les tests visuels.
 
 ### Level 0 Adaptive Wallpaper (`level_zero_wallpaper_adaptive`)
 
@@ -50,24 +51,12 @@ Il reste cache cote item et sert aussi de source de modele pour les transitions 
 | Blast resistance | 3.0 |
 | Luminosite | 0 |
 
-Bloc technique interne non expose au joueur.
+Bloc technique utilise pour les transitions mixtes.
 Il n'est pose que sur les colonnes de mur vraiment mixtes, quand deux faces visibles doivent afficher des variantes differentes.
 Le `faceMask` y est calcule a la generation, stocke dans une `BlockEntity` synchronisee, puis relu par le modele client.
 Cette separation permet d'eviter de payer le cout du rendu adaptatif sur tous les murs simples.
-
-### Level 0 Wall Insulation (`level_zero_wall_insulation`)
-
-| Propriete | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_wall_insulation` |
-| Classe | `net.minecraft.world.level.block.Block` |
-| Hardness | 3.0 |
-| Blast resistance | 3.0 |
-| Luminosite | 0 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wall_insulation.json` |
-
-Bloc plein utilise pour remplir l'interieur des murs du Level 0.
-Il sert a eviter de garder du papier peint adaptatif dans les zones jamais visibles.
+Le coeur des murs non exposes est maintenant rempli en `minecraft:bedrock`, sans bloc dedie supplementaire.
+Le bloc reste expose en creatif pour les tests techniques.
 
 ### Level 0 Damp Carpet (`level_zero_damp_carpet`)
 

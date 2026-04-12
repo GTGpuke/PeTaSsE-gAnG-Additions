@@ -40,7 +40,6 @@ public final class ModCreativeTab {
         output.accept(ModItems.LEVEL_ZERO_WALLPAPER.get());
         output.accept(ModItems.LEVEL_ZERO_WALLPAPER_AGED.get());
         output.accept(ModItems.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get());
-        output.accept(ModItems.LEVEL_ZERO_WALL_INSULATION.get());
         output.accept(ModItems.LEVEL_ZERO_DAMP_CARPET.get());
         output.accept(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED.get());
         output.accept(ModItems.LEVEL_ZERO_CEILING_TILE.get());

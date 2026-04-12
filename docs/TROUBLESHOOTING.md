@@ -92,10 +92,21 @@ Autres causes possibles :
 - Le `faceMask` est calcule a la generation.
 - Il est stocke uniquement pour les colonnes mixtes dans la `BlockEntity`.
 - Les murs 100 % jaunes et 100 % blancs sont maintenant de simples blocs sans pipeline adaptatif.
-- Le client force maintenant un refresh de `ModelData` au chargement, a la reception du tag de chunk et a la reception du packet reseau.
+- Le coeur des murs non exposes est maintenant rempli en `bedrock`, sans bloc custom supplementaire.
+- Le client ne recalcule plus le `faceMask` au `onLoad()`.
+- Le recalcul de secours au chargement reste limite au serveur pour les anciens cas ou le masque manquerait encore.
+- Le client continue de rafraichir la `ModelData`, mais n'envoie plus de `sendBlockUpdated(...)` systematique au simple chargement.
+- Les updates reseau et visuelles ne sont plus poussees si le `faceMask` n'a pas reellement change.
+
+**Pourquoi ce choix :**
+- Les murs du Level 0 sont penses comme des blocs fixes, indestructibles en survie.
+- Ils n'ont donc pas besoin d'un comportement reactif permanent une fois generes.
+- L'objectif est d'obtenir un affichage correct au chargement, puis de laisser l'etat visuel stable.
+- Cette approche evite des rebuilds de chunks et des refreshs reseau inutiles sur les petites configurations.
 
 **Impact :**
 - Le probleme semble fortement reduit.
+- Cette correction a aussi supprime une source probable de baisse de FPS, car le chargement des chunks mixtes ne declenche plus une tempete de rebuilds visuels cote client.
 - Le pipeline reste plus sensible qu'un bloc vanilla sans rendu adaptatif.
 
 **Contournements utiles :**

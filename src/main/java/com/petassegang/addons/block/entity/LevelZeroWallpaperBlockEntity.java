@@ -60,24 +60,29 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
         if (level == null) {
             return;
         }
-        if (faceMask == UNSET_FACE_MASK) {
+        if (!level.isClientSide() && faceMask == UNSET_FACE_MASK) {
             faceMask = LevelZeroWallpaperBlockStateModel.sampleFaceMask(level, worldPosition);
+            setChanged();
         }
-        refreshClientRender(true);
+        refreshClientRender(false);
     }
 
     @Override
     public void handleUpdateTag(ValueInput tag, HolderLookup.Provider holders) {
         int previousFaceMask = faceMask;
         super.handleUpdateTag(tag, holders);
-        refreshClientRender(previousFaceMask != faceMask);
+        if (previousFaceMask != faceMask) {
+            refreshClientRender(true);
+        }
     }
 
     @Override
     public void onDataPacket(Connection connection, ValueInput data, HolderLookup.Provider lookup) {
         int previousFaceMask = faceMask;
         super.onDataPacket(connection, data, lookup);
-        refreshClientRender(previousFaceMask != faceMask);
+        if (previousFaceMask != faceMask) {
+            refreshClientRender(true);
+        }
     }
 
     @Override
@@ -91,9 +96,13 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
      *
      * @param newFaceMask nouveau masque de faces
      */
-    public void setFaceMask(int newFaceMask) {
+    public boolean setFaceMask(int newFaceMask) {
+        if (faceMask == newFaceMask) {
+            return false;
+        }
         faceMask = newFaceMask;
         setChanged();
+        return true;
     }
 
     @Override
