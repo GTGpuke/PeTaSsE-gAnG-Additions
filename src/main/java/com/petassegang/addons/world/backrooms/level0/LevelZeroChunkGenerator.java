@@ -1,8 +1,6 @@
 package com.petassegang.addons.world.backrooms.level0;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import com.mojang.serialization.MapCodec;
@@ -78,7 +76,6 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                 chunk.getPos().z(),
                 layoutSeed);
         LayoutSampler sampler = new LayoutSampler(layoutSeed);
-        sampler.putLayout(chunk.getPos().x(), chunk.getPos().z(), layout);
         BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
         BlockState bedrock = Blocks.BEDROCK.defaultBlockState();
         BlockState subfloor = Blocks.SMOOTH_STONE.defaultBlockState();
@@ -177,7 +174,6 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                 resolveLayoutSeed(randomState));
         long layoutSeed = resolveLayoutSeed(randomState);
         LayoutSampler sampler = new LayoutSampler(layoutSeed);
-        sampler.putLayout(Math.floorDiv(x, LevelZeroLayout.CHUNK_SIZE), Math.floorDiv(z, LevelZeroLayout.CHUNK_SIZE), layout);
         int localX = Math.floorMod(x, LevelZeroLayout.CHUNK_SIZE);
         int localZ = Math.floorMod(z, LevelZeroLayout.CHUNK_SIZE);
         boolean walkable = layout.isWalkable(localX, localZ);
@@ -284,14 +280,9 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
     private static final class LayoutSampler {
 
         private final long layoutSeed;
-        private final Map<Long, LevelZeroLayout> layouts = new HashMap<>();
 
         private LayoutSampler(long layoutSeed) {
             this.layoutSeed = layoutSeed;
-        }
-
-        private void putLayout(int chunkX, int chunkZ, LevelZeroLayout layout) {
-            layouts.put(chunkKey(chunkX, chunkZ), layout);
         }
 
         private boolean isWallpaperExposed(int worldX, int worldZ) {
@@ -326,22 +317,7 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         }
 
         private boolean isWalkableAt(int worldX, int worldZ) {
-            int chunkX = Math.floorDiv(worldX, LevelZeroLayout.CHUNK_SIZE);
-            int chunkZ = Math.floorDiv(worldZ, LevelZeroLayout.CHUNK_SIZE);
-            LevelZeroLayout layout = layoutAtChunk(chunkX, chunkZ);
-            int localX = Math.floorMod(worldX, LevelZeroLayout.CHUNK_SIZE);
-            int localZ = Math.floorMod(worldZ, LevelZeroLayout.CHUNK_SIZE);
-            return layout.isWalkable(localX, localZ);
-        }
-
-        private LevelZeroLayout layoutAtChunk(int chunkX, int chunkZ) {
-            return layouts.computeIfAbsent(
-                    chunkKey(chunkX, chunkZ),
-                    ignored -> LevelZeroLayout.generate(chunkX, chunkZ, layoutSeed));
-        }
-
-        private static long chunkKey(int chunkX, int chunkZ) {
-            return ((long) chunkX << 32) ^ (chunkZ & 0xFFFFFFFFL);
+            return LevelZeroLayout.isWalkableAtWorld(worldX, worldZ, layoutSeed);
         }
     }
 }

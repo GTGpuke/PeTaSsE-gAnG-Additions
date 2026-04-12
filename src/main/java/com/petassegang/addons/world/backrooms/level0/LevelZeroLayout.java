@@ -78,20 +78,69 @@ public final class LevelZeroLayout {
         boolean[] largeRoom = new boolean[CHUNK_SIZE * CHUNK_SIZE];
         int worldMinX = chunkX * CHUNK_SIZE;
         int worldMinZ = chunkZ * CHUNK_SIZE;
+        int worldMaxX = worldMinX + CHUNK_SIZE - 1;
+        int worldMaxZ = worldMinZ + CHUNK_SIZE - 1;
+        int minCellX = Math.floorDiv(worldMinX, CELL_SCALE);
+        int maxCellX = Math.floorDiv(worldMaxX, CELL_SCALE);
+        int minCellZ = Math.floorDiv(worldMinZ, CELL_SCALE);
+        int maxCellZ = Math.floorDiv(worldMaxZ, CELL_SCALE);
 
-        for (int localX = 0; localX < CHUNK_SIZE; localX++) {
-            int worldX = worldMinX + localX;
-            for (int localZ = 0; localZ < CHUNK_SIZE; localZ++) {
-                int worldZ = worldMinZ + localZ;
-                int index = index(localX, localZ);
-                walkable[index] = sampleWalkable(worldX, worldZ, layoutSeed);
-                lighted[index] = walkable[index] && sampleLight(worldX, worldZ, layoutSeed);
-                surfaceBiomes[index] = sampleSurfaceBiome(worldX, worldZ, layoutSeed);
-                largeRoom[index] = sampleLargeRoom(worldX, worldZ, layoutSeed);
+        for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
+            int cellWorldMinX = cellX * CELL_SCALE;
+            int startLocalX = Math.max(cellWorldMinX - worldMinX, 0);
+            int endLocalX = Math.min(cellWorldMinX + CELL_SCALE - 1 - worldMinX, CHUNK_SIZE - 1);
+
+            for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
+                int cellWorldMinZ = cellZ * CELL_SCALE;
+                int startLocalZ = Math.max(cellWorldMinZ - worldMinZ, 0);
+                int endLocalZ = Math.min(cellWorldMinZ + CELL_SCALE - 1 - worldMinZ, CHUNK_SIZE - 1);
+                boolean cellWalkable = sampleWalkableCell(cellX, cellZ, layoutSeed);
+                LevelZeroSurfaceBiome surfaceBiome = sampleSurfaceBiomeCell(cellX, cellZ);
+                boolean cellLargeRoom = sampleLargeRoomCell(cellX, cellZ, layoutSeed);
+
+                for (int localX = startLocalX; localX <= endLocalX; localX++) {
+                    for (int localZ = startLocalZ; localZ <= endLocalZ; localZ++) {
+                        int index = index(localX, localZ);
+                        walkable[index] = cellWalkable;
+                        surfaceBiomes[index] = surfaceBiome;
+                        largeRoom[index] = cellLargeRoom;
+                    }
+                }
+
+                if (!cellWalkable || !sampleLightCell(cellX, cellZ, layoutSeed)) {
+                    continue;
+                }
+
+                int centerWorldX = cellWorldMinX + CELL_SCALE / 2;
+                int centerWorldZ = cellWorldMinZ + CELL_SCALE / 2;
+                if (centerWorldX < worldMinX || centerWorldX > worldMaxX || centerWorldZ < worldMinZ || centerWorldZ > worldMaxZ) {
+                    continue;
+                }
+
+                int centerLocalX = centerWorldX - worldMinX;
+                int centerLocalZ = centerWorldZ - worldMinZ;
+                lighted[index(centerLocalX, centerLocalZ)] = true;
             }
         }
 
         return new LevelZeroLayout(walkable, lighted, surfaceBiomes, largeRoom);
+    }
+
+    /**
+     * Echantillonne directement la walkability a une position monde.
+     *
+     * <p>Ce point d'entree est utile pour les systemes qui ont seulement besoin
+     * de la forme du labyrinthe, sans payer le cout d'un layout complet.
+     *
+     * @param worldX coordonnee X monde
+     * @param worldZ coordonnee Z monde
+     * @param layoutSeed seed deterministe du niveau
+     * @return {@code true} si la position appartient a une cellule ouverte
+     */
+    public static boolean isWalkableAtWorld(int worldX, int worldZ, long layoutSeed) {
+        int cellX = Math.floorDiv(worldX, CELL_SCALE);
+        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
+        return sampleWalkableCell(cellX, cellZ, layoutSeed);
     }
 
     /**
@@ -116,10 +165,7 @@ public final class LevelZeroLayout {
         return lighted[index(localX, localZ)];
     }
 
-    private static boolean sampleWalkable(int worldX, int worldZ, long layoutSeed) {
-        int cellX = Math.floorDiv(worldX, CELL_SCALE);
-        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
-
+    private static boolean sampleWalkableCell(int cellX, int cellZ, long layoutSeed) {
         if (cellX >= -4 && cellX <= 4 && cellZ >= -4 && cellZ <= 4) {
             return true;
         }
@@ -176,26 +222,16 @@ public final class LevelZeroLayout {
         return largeRoom[index(localX, localZ)];
     }
 
-    private static boolean sampleLight(int worldX, int worldZ, long layoutSeed) {
-        int remainderX = Math.floorMod(worldX, CELL_SCALE);
-        int remainderZ = Math.floorMod(worldZ, CELL_SCALE);
-        if (remainderX != CELL_SCALE / 2 || remainderZ != CELL_SCALE / 2) {
-            return false;
-        }
-
-        int cellX = Math.floorDiv(worldX, CELL_SCALE);
-        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
+    private static boolean sampleLightCell(int cellX, int cellZ, long layoutSeed) {
         long seed = mix(layoutSeed, cellX, cellZ, 0x4C49474854L);
         return Math.floorMod(seed, LIGHT_INTERVAL) == 0;
     }
 
-    private static LevelZeroSurfaceBiome sampleSurfaceBiome(int worldX, int worldZ, long layoutSeed) {
-        return LevelZeroSurfaceBiome.sampleAtWorld(worldX, worldZ);
+    private static LevelZeroSurfaceBiome sampleSurfaceBiomeCell(int cellX, int cellZ) {
+        return LevelZeroSurfaceBiome.sampleAtCell(cellX, cellZ);
     }
 
-    private static boolean sampleLargeRoom(int worldX, int worldZ, long layoutSeed) {
-        int cellX = Math.floorDiv(worldX, CELL_SCALE);
-        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
+    private static boolean sampleLargeRoomCell(int cellX, int cellZ, long layoutSeed) {
         long hash = mix(layoutSeed, cellX, cellZ, 0x4C41524745524F4DL);
         return Math.floorMod(hash, 4) == 0;
     }

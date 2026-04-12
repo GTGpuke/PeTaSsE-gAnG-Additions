@@ -101,7 +101,6 @@ public final class LevelZeroPerformanceCheck {
             for (int chunkX = -CHUNK_RADIUS; chunkX <= CHUNK_RADIUS; chunkX++) {
                 for (int chunkZ = -CHUNK_RADIUS; chunkZ <= CHUNK_RADIUS; chunkZ++) {
                     LevelZeroLayout layout = LevelZeroLayout.generate(chunkX, chunkZ, layoutSeed);
-                    sampler.putLayout(chunkX, chunkZ, layout);
                     scanChunk(layout, sampler, chunkX, chunkZ, stats);
                     stats.generatedChunks++;
                 }
@@ -168,14 +167,9 @@ public final class LevelZeroPerformanceCheck {
     private static final class LayoutSampler {
 
         private final long layoutSeed;
-        private final java.util.Map<Long, LevelZeroLayout> layouts = new java.util.HashMap<>();
 
         private LayoutSampler(long layoutSeed) {
             this.layoutSeed = layoutSeed;
-        }
-
-        private void putLayout(int chunkX, int chunkZ, LevelZeroLayout layout) {
-            layouts.put(chunkKey(chunkX, chunkZ), layout);
         }
 
         private boolean isWallpaperExposed(int worldX, int worldZ) {
@@ -217,22 +211,7 @@ public final class LevelZeroPerformanceCheck {
         }
 
         private boolean isWalkableAt(int worldX, int worldZ) {
-            int chunkX = Math.floorDiv(worldX, LevelZeroLayout.CHUNK_SIZE);
-            int chunkZ = Math.floorDiv(worldZ, LevelZeroLayout.CHUNK_SIZE);
-            LevelZeroLayout layout = layoutAtChunk(chunkX, chunkZ);
-            int localX = Math.floorMod(worldX, LevelZeroLayout.CHUNK_SIZE);
-            int localZ = Math.floorMod(worldZ, LevelZeroLayout.CHUNK_SIZE);
-            return layout.isWalkable(localX, localZ);
-        }
-
-        private LevelZeroLayout layoutAtChunk(int chunkX, int chunkZ) {
-            return layouts.computeIfAbsent(
-                    chunkKey(chunkX, chunkZ),
-                    ignored -> LevelZeroLayout.generate(chunkX, chunkZ, layoutSeed));
-        }
-
-        private static long chunkKey(int chunkX, int chunkZ) {
-            return ((long) chunkX << 32) ^ (chunkZ & 0xFFFFFFFFL);
+            return LevelZeroLayout.isWalkableAtWorld(worldX, worldZ, layoutSeed);
         }
     }
 }
