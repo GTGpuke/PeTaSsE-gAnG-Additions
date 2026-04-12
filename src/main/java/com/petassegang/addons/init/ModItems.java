@@ -34,6 +34,20 @@ public final class ModItems {
                     new Item.Properties().setId(ITEMS.key("level_zero_wallpaper")))
     );
 
+    /** Item pour le papier peint blanc du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALLPAPER_AGED = ITEMS.register(
+            "level_zero_wallpaper_aged",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_wallpaper_aged")))
+    );
+
+    /** Item de test pour le papier peint adaptatif interne du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALLPAPER_ADAPTIVE = ITEMS.register(
+            "level_zero_wallpaper_adaptive",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_wallpaper_adaptive")))
+    );
+
     /** Item pour l'isolant interne des murs du Level 0. */
     public static final RegistryObject<BlockItem> LEVEL_ZERO_WALL_INSULATION = ITEMS.register(
             "level_zero_wall_insulation",
