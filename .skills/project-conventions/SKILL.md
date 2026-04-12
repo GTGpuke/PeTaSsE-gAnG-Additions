@@ -1,36 +1,44 @@
 ---
 name: project-conventions
-description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : Mod ID, structure des packages, nommage, patterns DeferredRegister, imports standards, séparation client/serveur, règles qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture', 'comment organiser'."
+description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : mod id, structure des packages, nommage, patterns DeferredRegister, imports standards, separation client/serveur et regles qualite. Declenche pour 'conventions', 'structure', 'regles', 'comment ajouter', 'architecture' ou 'comment organiser'."
 ---
 
 # Conventions du projet PeTaSsE_gAnG_Additions
 
-## Identifiants clés
+## Identifiants cles
 
 | Constante | Valeur |
 |-----------|--------|
 | MOD_ID | `petasse_gang_additions` |
 | Package racine | `com.petassegang.addons` |
+| Version mod | `0.4.0` |
 | Version MC | `26.1` |
 | Version Forge | `62.0.x` |
 | Java | `25` |
 
 ## Structure des packages
 
-```
+```text
 com.petassegang.addons/
-├── PeTaSsEgAnGAdditionsMod.java   ← @Mod, lifecycle, registration wiring
-├── config/ModConfig.java        ← ForgeConfigSpec
-├── creative/ModCreativeTab.java ← creative tab DeferredRegister
-├── init/ModItems.java           ← DeferredRegister<Item>
-│   (init/ModBlocks, ModEntities, ModSounds…)
-├── item/                        ← classes d'items custom
-├── block/                       ← classes de blocs custom
-├── entity/                      ← classes d'entités custom
-├── world/                       ← génération monde / dimensions
-├── network/                     ← packets
-├── client/                      ← CLIENT-only (renderers, GUI)
-└── util/ModConstants.java       ← MOD_ID, MOD_NAME, LOGGER
+|- PeTaSsEgAnGAdditionsMod.java
+|- block/
+|- client/
+|- config/
+|- creative/ModCreativeTab.java
+|- init/
+|  |- ModBlockEntities.java
+|  |- ModBlocks.java
+|  |- ModChunkGenerators.java
+|  `- ModItems.java
+|- item/
+|- network/
+|- util/ModConstants.java
+`- world/backrooms/
+   |- BackroomsConstants.java
+   `- level0/
+      |- LevelZeroChunkGenerator.java
+      |- LevelZeroLayout.java
+      `- LevelZeroSurfaceBiome.java
 ```
 
 ## Conventions de nommage
@@ -38,64 +46,52 @@ com.petassegang.addons/
 | Type | Convention | Exemple |
 |------|-----------|---------|
 | Classe Java | PascalCase | `GangBadgeItem` |
-| Méthode | camelCase | `appendHoverText` |
-| Constante | UPPER_SNAKE | `GANG_BADGE`, `MOD_ID` |
+| Methode | camelCase | `appendHoverText` |
+| Constante | UPPER_SNAKE_CASE | `GANG_BADGE` |
 | Resource ID | lowercase_snake | `gang_badge` |
 | Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
-| Lang key block | `block.<mod_id>.<id>` | |
-| Lang key tab | `itemGroup.<mod_id>.<id>` | |
+| Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.level_zero_wallpaper` |
+| Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petasse_gang_additions.petassegang` |
 
-## Pattern DeferredRegister (à toujours respecter)
+## Pattern DeferredRegister
 
 ```java
-// Dans init/ModFoos.java
-public static final DeferredRegister<Foo> FOOS =
-    DeferredRegister.create(ForgeRegistries.FOOS, ModConstants.MOD_ID);
+public static final DeferredRegister<Block> BLOCKS =
+        DeferredRegister.create(ForgeRegistries.BLOCKS, ModConstants.MOD_ID);
 
-public static final RegistryObject<Foo> MY_FOO = FOOS.register(
-    "my_foo", () -> new MyFoo(/* properties */));
+public static final RegistryObject<Block> MY_BLOCK = BLOCKS.register(
+        "my_block",
+        () -> new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.STONE))
+);
 
-public static void register(BusGroup modBusGroup) { FOOS.register(modBusGroup); }
+public static void register(BusGroup modBusGroup) {
+    BLOCKS.register(modBusGroup);
+}
 ```
 
 ## Imports standards
 
-```java
-import java.util.List;
+Ordre attendu :
+1. `java`
+2. `javax`
+3. `net.minecraft`
+4. `net.minecraftforge`
+5. `com.petassegang`
 
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.Item;
+## Regles qualite
 
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
+- Zero import wildcard.
+- Zero `System.out` et `printStackTrace`.
+- Commentaires, logs et messages d'erreur en francais, avec majuscule et point.
+- Code client uniquement dans `client/` ou sous garde explicite de dist.
+- Utiliser `Component.translatable(...)` pour tout texte visible en jeu.
+- Les textures de blocs du Level 0 suivent la convention locale `32x32`.
+- Les loot tables MC 26.1 vivent dans `data/<modid>/loot_table/blocks/`.
 
-import com.petassegang.addons.util.ModConstants;
-```
+## Mise a jour obligatoire apres chaque ajout
 
-## Règles qualité
-
-- Zéro import wildcard (`import java.util.*` interdit)
-- Zéro allocation dans hot-paths (tick, render) — utiliser `static final`
-- Commentaires, logs et messages d'erreur en français, avec majuscule et point
-- Logger uniquement via `ModConstants.LOGGER`
-- Code CLIENT-only → `client/` package + guard `FMLEnvironment.dist`
-
-## Séparation client/serveur
-
-```java
-// Dans @Mod constructor :
-if (FMLEnvironment.dist == Dist.CLIENT) {
-    FMLClientSetupEvent.getBus(modBusGroup).addListener(this::clientSetup);
-}
-// Dans clientSetup : registrations client (renderers, screens)
-// Tout ce qui est CLIENT-only doit être dans client/ package
-```
-
-## Mise à jour obligatoire après chaque ajout
-
-- `lang/en_us.json` + `lang/fr_fr.json`
-- `docs/ITEMS.md` (ou BLOCKS.md, etc.)
+- `lang/en_us.json`
+- `lang/fr_fr.json`
 - `docs/CHANGELOG.md`
-- Test correspondant dans `src/test/`
+- La doc metier adaptee : `docs/BLOCKS.md`, `docs/ITEMS.md`, `docs/DIMENSIONS.md`, etc.
+- Le test associe dans `src/test/`

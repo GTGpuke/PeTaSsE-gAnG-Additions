@@ -3,6 +3,9 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.world.level.block.state.BlockState;
+
+import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
 
@@ -88,6 +91,28 @@ class BackroomsLevelZeroLayoutTest {
                 "La variante de moquette doit venir du biome de surface.");
         assertEquals(biome.wallpaperVariant(), layout.wallpaperVariant(7, 7),
                 "La variante de papier peint doit venir du biome de surface.");
+    }
+
+    @Test
+    @DisplayName("Le biome de surface reste stable sur une large region")
+    void testSurfaceBiomeStaysStableAcrossRegion() {
+        LevelZeroSurfaceBiome reference = LevelZeroSurfaceBiome.sampleAtWorld(0, 0);
+        LevelZeroSurfaceBiome neighbor = LevelZeroSurfaceBiome.sampleAtWorld(96, 96);
+
+        assertEquals(reference, neighbor,
+                "Une meme grande region cosmetique ne doit pas se fragmenter en petits carreaux.");
+    }
+
+    @Test
+    @DisplayName("Le biome de surface peut etre retrouve depuis le bloc de sol")
+    void testSurfaceBiomeCanBeRecoveredFromFloorState() {
+        BlockState baseFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET.get().defaultBlockState();
+        BlockState alternateFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.get().defaultBlockState();
+
+        assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.fromFloorState(baseFloor),
+                "La moquette jaune doit correspondre au biome de base.");
+        assertEquals(LevelZeroSurfaceBiome.RED, LevelZeroSurfaceBiome.fromFloorState(alternateFloor),
+                "La moquette rouge doit correspondre au biome alternatif.");
     }
 
     @Test

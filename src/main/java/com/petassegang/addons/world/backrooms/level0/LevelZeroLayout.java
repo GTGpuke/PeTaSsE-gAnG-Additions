@@ -190,10 +190,7 @@ public final class LevelZeroLayout {
     }
 
     private static LevelZeroSurfaceBiome sampleSurfaceBiome(int worldX, int worldZ, long layoutSeed) {
-        int cellX = Math.floorDiv(worldX, CELL_SCALE);
-        int cellZ = Math.floorDiv(worldZ, CELL_SCALE);
-        long hash = mix(layoutSeed, cellX, cellZ, 0x5355524641434500L);
-        return Math.floorMod(hash, 5) == 0 ? LevelZeroSurfaceBiome.RED : LevelZeroSurfaceBiome.BASE;
+        return LevelZeroSurfaceBiome.sampleAtWorld(worldX, worldZ);
     }
 
     private static boolean sampleLargeRoom(int worldX, int worldZ, long layoutSeed) {

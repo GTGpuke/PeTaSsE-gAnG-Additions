@@ -34,11 +34,11 @@ public final class ModItems {
                     new Item.Properties().setId(ITEMS.key("level_zero_wallpaper")))
     );
 
-    /** Item pour le papier peint blanc du second biome du Level 0. */
-    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALLPAPER_AGED = ITEMS.register(
-            "level_zero_wallpaper_aged",
-            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get(),
-                    new Item.Properties().setId(ITEMS.key("level_zero_wallpaper_aged")))
+    /** Item pour l'isolant interne des murs du Level 0. */
+    public static final RegistryObject<BlockItem> LEVEL_ZERO_WALL_INSULATION = ITEMS.register(
+            "level_zero_wall_insulation",
+            () -> new BlockItem(ModBlocks.LEVEL_ZERO_WALL_INSULATION.get(),
+                    new Item.Properties().setId(ITEMS.key("level_zero_wall_insulation")))
     );
 
     /** Item pour la moquette humide du Level 0. */

@@ -6,16 +6,22 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [Unreleased]
+## [0.4.0] - 2026-04-12
 
 ### Added
 - **Backrooms - Level 0** : retour d'une premiere implementation monocouche basee sur la structure du script Python de reference, avec dimension dediee, generateur custom, palette de 6 blocs et traductions FR/EN.
 - **Biomes cosmetiques du Level 0** : ajout de grandes zones de surfaces qui changent le papier peint et la moquette, avec une variation secondaire a murs blancs et tapis rouges, sans modifier la topologie du labyrinthe.
 - **Textures Level 0** : passage de la palette de blocs du Level 0 en `32x32` pour la direction artistique actuelle du niveau.
+- **Papier peint adaptatif du Level 0** : le mur principal peut maintenant afficher une texture differente sur chaque face exposee selon le biome de surface adjacent, sans modifier la topologie du generateur.
+- **Isolant interne du Level 0** : ajout d'un bloc de remplissage dedie au coeur des murs pour ne garder le papier peint adaptatif que sur les surfaces exposees.
 - **Tests Backrooms** : `BackroomsLevelZeroLayoutTest` et `BackroomsLevelZeroRegistryTest` pour verifier les invariants de base du layout, des biomes de surface et des registres.
 - **Infrastructure JiJ** : plugin `net.minecraftforge.jarjar`, repositories Backrooms et structure `jarJar.register()` ajoutes dans le build.
 - **Dependances optionnelles** : Immersive Portals et Oculus declares en soft-dep dans `mods.toml`.
 - **`docs/DEPENDENCIES.md`** : documentation de reference des dependances Backrooms, de leur mode d'inclusion et de leur etat actuel.
+
+### Changed
+- **Pipeline du papier peint adaptatif** : le masque des faces est maintenant calcule a la generation, stocke dans la block entity puis synchronise au client, ce qui retire la lecture du monde pendant le rendu.
+- **Interieur des murs du Level 0** : les volumes non exposes utilisent maintenant `level_zero_wall_insulation` au lieu de conserver du papier peint adaptatif enterre.
 
 ## [0.3.0] - 2026-04-09
 

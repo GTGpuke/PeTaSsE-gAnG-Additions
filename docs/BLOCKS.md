@@ -16,26 +16,41 @@ Cette exception ne change pas automatiquement la resolution des autres blocs du 
 | Propriete | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:level_zero_wallpaper` |
-| Classe | `net.minecraft.world.level.block.Block` |
+| Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
 | Hardness | 3.0 |
 | Blast resistance | 3.0 |
 | Luminosite | 0 |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper.json` |
 
 Mur principal du Level 0.
+Le generateur ne pose plus qu'un seul bloc de mur, puis le rendu client choisit la bonne texture face par face selon le biome de surface adjacent.
 
 ### Level 0 White Wallpaper (`level_zero_wallpaper_aged`)
 
 | Propriete | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:level_zero_wallpaper_aged` |
-| Classe | `net.minecraft.world.level.block.Block` |
+| Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
 | Hardness | 3.0 |
 | Blast resistance | 3.0 |
 | Luminosite | 0 |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper_aged.json` |
 
-Papier peint blanc reserve aux grandes zones cosmetiques du second biome du Level 0, sans changer le layout.
+Bloc support non expose en item, conserve uniquement comme source de modele pour la variante blanche du rendu adaptatif.
+
+### Level 0 Wall Insulation (`level_zero_wall_insulation`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_wall_insulation` |
+| Classe | `net.minecraft.world.level.block.Block` |
+| Hardness | 3.0 |
+| Blast resistance | 3.0 |
+| Luminosite | 0 |
+| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wall_insulation.json` |
+
+Bloc plein utilise pour remplir l'interieur des murs du Level 0.
+Il sert a eviter de garder du papier peint adaptatif dans les zones jamais visibles.
 
 ### Level 0 Damp Carpet (`level_zero_damp_carpet`)
 

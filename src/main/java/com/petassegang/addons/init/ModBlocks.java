@@ -17,6 +17,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
+import com.petassegang.addons.block.LevelZeroWallpaperBlock;
 import com.petassegang.addons.util.ModConstants;
 
 /**
@@ -35,17 +36,25 @@ public final class ModBlocks {
     /** Papier peint jauni du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER = BLOCKS.register(
             "level_zero_wallpaper",
-            () -> new Block(BlockBehaviour.Properties
+            () -> new LevelZeroWallpaperBlock(BlockBehaviour.Properties
                     .ofFullCopy(Blocks.END_STONE)
                     .setId(BLOCKS.key("level_zero_wallpaper")))
     );
 
-    /** Papier peint blanc vieilli du second biome du Level 0. */
+    /** Bloc support non expose pour la variante blanche du papier peint du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER_AGED = BLOCKS.register(
             "level_zero_wallpaper_aged",
-            () -> new Block(BlockBehaviour.Properties
+            () -> new LevelZeroWallpaperBlock(BlockBehaviour.Properties
                     .ofFullCopy(Blocks.END_STONE)
                     .setId(BLOCKS.key("level_zero_wallpaper_aged")))
+    );
+
+    /** Bloc interne d'isolant pour remplir le coeur des murs du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_WALL_INSULATION = BLOCKS.register(
+            "level_zero_wall_insulation",
+            () -> new Block(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.END_STONE)
+                    .setId(BLOCKS.key("level_zero_wall_insulation")))
     );
 
     /** Moquette humide du Level 0. */

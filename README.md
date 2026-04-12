@@ -38,6 +38,8 @@ The project currently includes:
 - a first playable Backrooms Level 0 dimension,
 - a custom monocouche chunk generator inspired by the reference Python script,
 - cosmetic Level 0 surface biomes that change wallpaper and carpet without changing the maze topology,
+- adaptive wallpaper rendering per exposed face using synchronized block entity data,
+- an internal wall insulation block so only exposed wall shells use adaptive wallpaper,
 - the original Gang Badge and cursed tree content,
 - a JUnit 5 and Forge GameTest test suite.
 
@@ -54,6 +56,7 @@ petasse_gang_additions/
 |  |- creative/ModCreativeTab.java
 |  |- init/
 |  |  |- ModBlocks.java
+|  |  |- ModBlockEntities.java
 |  |  |- ModChunkGenerators.java
 |  |  `- ModItems.java
 |  |- item/
@@ -106,6 +109,9 @@ The current Level 0 implementation is built around a deterministic layout pipeli
 - a low ceiling and strong fluorescent lighting for the intended oppressive feel.
 
 The current cosmetic biome layer only changes surface appearance. It does not change the layout shape.
+Wallpaper rendering now adapts per exposed face so a single wall block can blend correctly between adjacent surface biomes.
+The exposed wallpaper face mask is now computed during generation, stored in synchronized block entities, and reused by the client renderer.
+Inner wall mass now uses a dedicated insulation block so adaptive wallpaper stays only on visible surfaces.
 
 Level 0 block textures currently follow a dedicated `32x32` convention.
 

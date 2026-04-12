@@ -11,6 +11,8 @@ import net.minecraftforge.fml.loading.FMLEnvironment;
 
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.creative.ModCreativeTab;
+import com.petassegang.addons.client.model.LevelZeroWallpaperModelHandler;
+import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModChunkGenerators;
 import com.petassegang.addons.init.ModItems;
@@ -44,6 +46,7 @@ public class PeTaSsEgAnGAdditionsMod {
         BusGroup modBusGroup = context.getModBusGroup();
 
         ModChunkGenerators.register(modBusGroup);
+        ModBlockEntities.register(modBusGroup);
         ModBlocks.register(modBusGroup);
         ModItems.register(modBusGroup);
         ModCreativeTab.register(modBusGroup);
@@ -53,6 +56,7 @@ public class PeTaSsEgAnGAdditionsMod {
         FMLCommonSetupEvent.getBus(modBusGroup).addListener(this::commonSetup);
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
+            LevelZeroWallpaperModelHandler.register();
             FMLClientSetupEvent.getBus(modBusGroup).addListener(this::clientSetup);
         }
 

@@ -1,36 +1,30 @@
 ---
 name: add-block
-description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions. Déclenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc décoratif', 'bloc fonctionnel', 'ore', 'block'."
+description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions. Declenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc decoratif', 'bloc fonctionnel', 'ore' ou 'block'."
 ---
 
-# Skill — Ajouter un Bloc
+# Skill - Ajouter un Bloc
 
 ## Quand utiliser ce skill
 
 - "Ajoute un bloc [nom]"
-- "Crée un minerai [nom]"
-- "Nouveau bloc décoratif [description]"
+- "Cree un minerai [nom]"
+- "Nouveau bloc decoratif [description]"
 
----
+## Etapes
 
-## Étapes
+### 1. Definir les parametres
 
-### 1. Définir les paramètres
-
-| Paramètre | Valeur |
+| Parametre | Valeur |
 |-----------|--------|
 | `BLOCK_ID` | `gangite_ore`, `petasse_block` |
 | `ClassName` | `GangiteOreBlock`, `PetasseBlock` |
-| Hardness | float, ex: `3.0f` |
-| Blast resistance | float, ex: `3.0f` |
-| Tool | `ToolType.PICKAXE` / `AXE` / `SHOVEL` |
-| Harvest level | `0`(wood) `1`(stone) `2`(iron) `3`(diamond) |
-| Son | `SoundType.STONE` / `WOOD` / `METAL` / `GLASS` |
-| Drops | lui-même, silk touch, fortune, loot table |
+| Hardness | ex. `3.0f` |
+| Blast resistance | ex. `3.0f` |
+| Son | `SoundType.STONE`, `WOOD`, `METAL`, `GLASS` |
+| Drops | lui-meme, silk touch, fortune, loot table |
 
----
-
-### 2. Créer la classe bloc (si comportement custom)
+### 2. Creer la classe bloc si un comportement custom est necessaire
 
 **Fichier :** `src/main/java/com/petassegang/addons/block/MyBlock.java`
 
@@ -41,157 +35,65 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 
 /**
- * [Nom du bloc] — [Description].
+ * Bloc personnalise.
  */
-public class MyBlock extends Block {
+public final class MyBlock extends Block {
 
     public MyBlock(BlockBehaviour.Properties properties) {
         super(properties);
     }
-
-    // Override getDrops() pour les drops custom
-    // Override onPlace() pour comportement à la pose
-    // Override randomTick() pour comportement aléatoire
 }
 ```
 
-Pour un bloc simple : utiliser `Block` directement dans ModBlocks.
+Pour un bloc simple, utiliser directement `Block` dans `ModBlocks`.
 
----
-
-### 3. Créer ModBlocks.java (si absent)
-
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModBlocks.java`
+### 3. Enregistrer le bloc dans `ModBlocks.java`
 
 ```java
-package com.petassegang.addons.init;
-
-import com.petassegang.addons.util.ModConstants;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.SoundType;
-import net.minecraft.world.level.block.state.BlockBehaviour;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
-
-public final class ModBlocks {
-
-    public static final DeferredRegister<Block> BLOCKS =
-            DeferredRegister.create(ForgeRegistries.BLOCKS, ModConstants.MOD_ID);
-
-    public static final RegistryObject<Block> MY_BLOCK = BLOCKS.register(
-            "my_block",
-            () -> new Block(BlockBehaviour.Properties.of()
-                    .strength(3.0f, 3.0f)
-                    .sound(SoundType.STONE)
-                    .requiresCorrectToolForDrops())
-    );
-
-    public static void register(BusGroup modBusGroup) { BLOCKS.register(modBusGroup); }
-
-    private ModBlocks() { throw new UnsupportedOperationException("Registry class"); }
-}
-```
-
-Ajouter `ModBlocks.register(modBusGroup)` dans le constructeur de `PeTaSsEgAnGAdditionsMod`.
-
----
-
-### 4. Ajouter le BlockItem dans ModItems.java
-
-```java
-// Item permettant de tenir/poser le bloc dans l'inventaire
-public static final RegistryObject<Item> MY_BLOCK_ITEM = ITEMS.register(
+public static final RegistryObject<Block> MY_BLOCK = BLOCKS.register(
         "my_block",
-        () -> new BlockItem(ModBlocks.MY_BLOCK.get(), new Item.Properties().setId(ITEMS.key("my_block"))) // OBLIGATOIRE en MC 26.1
+        () -> new Block(BlockBehaviour.Properties
+                .ofFullCopy(Blocks.STONE)
+                .setId(BLOCKS.key("my_block")))
 );
 ```
 
----
+### 4. Ajouter le `BlockItem` dans `ModItems.java`
 
-### 5. Blockstate JSON
-
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/blockstates/my_block.json`
-
-```json
-{
-  "variants": {
-    "": { "model": "petasse_gang_additions:block/my_block" }
-  }
-}
+```java
+public static final RegistryObject<BlockItem> MY_BLOCK = ITEMS.register(
+        "my_block",
+        () -> new BlockItem(ModBlocks.MY_BLOCK.get(),
+                new Item.Properties().setId(ITEMS.key("my_block")))
+);
 ```
 
----
+### 5. Creer les ressources
 
-### 6. Modèles JSON
+- `assets/<modid>/blockstates/my_block.json`
+- `assets/<modid>/models/block/my_block.json`
+- `assets/<modid>/items/my_block.json`
+- `assets/<modid>/textures/block/my_block.png`
+- `data/<modid>/loot_table/blocks/my_block.json`
 
-**Bloc :** `assets/petasse_gang_additions/models/block/my_block.json`
-```json
-{
-  "parent": "block/cube_all",
-  "textures": {
-    "all": "petasse_gang_additions:block/my_block"
-  }
-}
-```
+### 6. Resolution des textures
 
-**Item :** `assets/petasse_gang_additions/models/item/my_block.json`
-```json
-{
-  "parent": "petasse_gang_additions:block/my_block"
-}
-```
+- `16x16` pour les blocs standards.
+- `32x32` autorise pour les blocs du Level 0.
 
----
+### 7. Finaliser
 
-### 7. Texture bloc
-
-**Fichier :** `assets/petasse_gang_additions/textures/block/my_block.png` (16x16)
-
----
-
-### 8. Loot table
-
-**Fichier :** `data/petasse_gang_additions/loot_tables/blocks/my_block.json`
-
-```json
-{
-  "type": "minecraft:block",
-  "pools": [{
-    "rolls": 1,
-    "entries": [{
-      "type": "minecraft:item",
-      "name": "petasse_gang_additions:my_block"
-    }],
-    "conditions": [{
-      "condition": "minecraft:survives_explosion"
-    }]
-  }]
-}
-```
-
----
-
-### 9. Traductions + creative tab + tests
-
-Même pattern que pour les items.
-Ajouter `ModBlocks.MY_BLOCK` et `ModItems.MY_BLOCK_ITEM` dans `docs/BLOCKS.md`.
-
----
+- Ajouter les cles EN et FR.
+- Ajouter l'item dans l'onglet creatif si necessaire.
+- Mettre a jour `docs/BLOCKS.md` et `docs/CHANGELOG.md`.
+- Ajouter ou ajuster les tests de registre.
 
 ## Checklist finale
 
-- [ ] `block/MyBlock.java` (si custom)
-- [ ] `init/ModBlocks.java` — RegistryObject ajouté
-- [ ] `init/ModItems.java` — BlockItem ajouté
-- [ ] `PeTaSsEgAnGAdditionsMod` — `ModBlocks.register(bus)` appelé
-- [ ] `creative/ModCreativeTab.java` — output.accept ajouté
-- [ ] `blockstates/my_block.json`
-- [ ] `models/block/my_block.json` + `models/item/my_block.json`
-- [ ] `textures/block/my_block.png`
-- [ ] `loot_tables/blocks/my_block.json`
-- [ ] Lang keys EN + FR
-- [ ] Tests mis à jour
-- [ ] `docs/BLOCKS.md` + `CHANGELOG.md` mis à jour
-- [ ] `./gradlew build` + `./gradlew test` passent
+- [ ] Bloc enregistre dans `ModBlocks.java`
+- [ ] BlockItem enregistre dans `ModItems.java`
+- [ ] Onglet creatif mis a jour si necessaire
+- [ ] Blockstate, modele, item model, texture et loot table presents
+- [ ] Traductions EN et FR presentes
+- [ ] `docs/BLOCKS.md` et `docs/CHANGELOG.md` mis a jour
+- [ ] `./gradlew build` passe

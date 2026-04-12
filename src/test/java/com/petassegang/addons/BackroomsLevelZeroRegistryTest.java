@@ -5,6 +5,7 @@ import org.junit.jupiter.api.Test;
 
 import net.minecraft.resources.Identifier;
 
+import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModChunkGenerators;
 import com.petassegang.addons.init.ModItems;
@@ -32,12 +33,26 @@ class BackroomsLevelZeroRegistryTest {
     }
 
     @Test
+    @DisplayName("La block entity du papier peint du Level 0 est enregistree")
+    void testLevelZeroWallpaperBlockEntityRegistryObjectNotNull() {
+        assertNotNull(ModBlockEntities.LEVEL_ZERO_WALLPAPER,
+                "Le RegistryObject de la block entity du papier peint doit etre non-null.");
+        assertEquals(
+                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper"),
+                ModBlockEntities.LEVEL_ZERO_WALLPAPER.getId(),
+                "L'identifiant de la block entity du papier peint du Level 0 doit etre correct."
+        );
+    }
+
+    @Test
     @DisplayName("Les blocs du Level 0 existent")
     void testLevelZeroBlocksRegistryObjectsNotNull() {
         assertNotNull(ModBlocks.LEVEL_ZERO_WALLPAPER,
                 "Le RegistryObject LEVEL_ZERO_WALLPAPER doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_WALLPAPER_AGED,
                 "Le RegistryObject LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
+        assertNotNull(ModBlocks.LEVEL_ZERO_WALL_INSULATION,
+                "Le RegistryObject LEVEL_ZERO_WALL_INSULATION doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_DAMP_CARPET,
                 "Le RegistryObject LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED,
@@ -54,7 +69,12 @@ class BackroomsLevelZeroRegistryTest {
         assertEquals(
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_aged"),
                 ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.getId(),
-                "L'identifiant du bloc level_zero_wallpaper_aged doit etre correct."
+                "L'identifiant du bloc support level_zero_wallpaper_aged doit etre correct."
+        );
+        assertEquals(
+                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wall_insulation"),
+                ModBlocks.LEVEL_ZERO_WALL_INSULATION.getId(),
+                "L'identifiant du bloc interne level_zero_wall_insulation doit etre correct."
         );
         assertEquals(
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet"),
@@ -83,8 +103,8 @@ class BackroomsLevelZeroRegistryTest {
     void testLevelZeroItemsRegistryObjectsNotNull() {
         assertNotNull(ModItems.LEVEL_ZERO_WALLPAPER,
                 "Le RegistryObject item LEVEL_ZERO_WALLPAPER doit etre non-null.");
-        assertNotNull(ModItems.LEVEL_ZERO_WALLPAPER_AGED,
-                "Le RegistryObject item LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
+        assertNotNull(ModItems.LEVEL_ZERO_WALL_INSULATION,
+                "Le RegistryObject item LEVEL_ZERO_WALL_INSULATION doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_DAMP_CARPET,
                 "Le RegistryObject item LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED,
@@ -99,9 +119,9 @@ class BackroomsLevelZeroRegistryTest {
                 "L'identifiant de l'item level_zero_wallpaper doit etre correct."
         );
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_aged"),
-                ModItems.LEVEL_ZERO_WALLPAPER_AGED.getId(),
-                "L'identifiant de l'item level_zero_wallpaper_aged doit etre correct."
+                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wall_insulation"),
+                ModItems.LEVEL_ZERO_WALL_INSULATION.getId(),
+                "L'identifiant de l'item level_zero_wall_insulation doit etre correct."
         );
         assertEquals(
                 Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet"),
