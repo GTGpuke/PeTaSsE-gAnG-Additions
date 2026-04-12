@@ -33,20 +33,28 @@ public final class ModBlocks {
     public static final DeferredRegister<Block> BLOCKS =
             DeferredRegister.create(ForgeRegistries.BLOCKS, ModConstants.MOD_ID);
 
-    /** Papier peint jauni du Level 0. */
+    /** Papier peint jauni simple du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER = BLOCKS.register(
             "level_zero_wallpaper",
-            () -> new LevelZeroWallpaperBlock(BlockBehaviour.Properties
+            () -> new Block(BlockBehaviour.Properties
                     .ofFullCopy(Blocks.END_STONE)
                     .setId(BLOCKS.key("level_zero_wallpaper")))
     );
 
-    /** Bloc support non expose pour la variante blanche du papier peint du Level 0. */
+    /** Variante blanche simple du papier peint du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER_AGED = BLOCKS.register(
             "level_zero_wallpaper_aged",
-            () -> new LevelZeroWallpaperBlock(BlockBehaviour.Properties
+            () -> new Block(BlockBehaviour.Properties
                     .ofFullCopy(Blocks.END_STONE)
                     .setId(BLOCKS.key("level_zero_wallpaper_aged")))
+    );
+
+    /** Bloc technique adapte aux transitions mixtes du papier peint du Level 0. */
+    public static final RegistryObject<Block> LEVEL_ZERO_WALLPAPER_ADAPTIVE = BLOCKS.register(
+            "level_zero_wallpaper_adaptive",
+            () -> new LevelZeroWallpaperBlock(BlockBehaviour.Properties
+                    .ofFullCopy(Blocks.END_STONE)
+                    .setId(BLOCKS.key("level_zero_wallpaper_adaptive")))
     );
 
     /** Bloc interne d'isolant pour remplir le coeur des murs du Level 0. */

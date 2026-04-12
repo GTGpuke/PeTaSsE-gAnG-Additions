@@ -30,9 +30,12 @@ public final class LevelZeroWallpaperModelHandler {
     private static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
         Map<BlockState, net.minecraft.client.renderer.block.dispatch.BlockStateModel> models =
                 event.getResults().blockStateModels();
-        BlockState wallpaperState = ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState();
+        BlockState wallpaperState = ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState();
         BlockState alternateWallpaperState = ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState();
         net.minecraft.client.renderer.block.dispatch.BlockStateModel baseModel = models.get(wallpaperState);
+        if (baseModel == null) {
+            baseModel = models.get(ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState());
+        }
         net.minecraft.client.renderer.block.dispatch.BlockStateModel alternateModel = models.get(alternateWallpaperState);
 
         if (baseModel == null || alternateModel == null) {

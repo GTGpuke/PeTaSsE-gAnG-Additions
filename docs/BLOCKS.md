@@ -16,27 +16,44 @@ Cette exception ne change pas automatiquement la resolution des autres blocs du 
 | Propriete | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:level_zero_wallpaper` |
-| Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
+| Classe | `net.minecraft.world.level.block.Block` |
 | Hardness | 3.0 |
 | Blast resistance | 3.0 |
 | Luminosite | 0 |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper.json` |
 
 Mur principal du Level 0.
-Le generateur ne pose plus qu'un seul bloc de mur, puis le rendu client choisit la bonne texture face par face selon le biome de surface adjacent.
+Ce bloc est maintenant la version simple jaune du mur.
+Le generateur l'utilise directement quand toute la colonne appartient a la variante de base, sans `BlockEntity`.
 
 ### Level 0 White Wallpaper (`level_zero_wallpaper_aged`)
 
 | Propriete | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:level_zero_wallpaper_aged` |
-| Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
+| Classe | `net.minecraft.world.level.block.Block` |
 | Hardness | 3.0 |
 | Blast resistance | 3.0 |
 | Luminosite | 0 |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper_aged.json` |
 
-Bloc support non expose en item, conserve uniquement comme source de modele pour la variante blanche du rendu adaptatif.
+Bloc simple blanc reserve au second biome de surface.
+Il reste cache cote item et sert aussi de source de modele pour les transitions mixtes.
+
+### Level 0 Adaptive Wallpaper (`level_zero_wallpaper_adaptive`)
+
+| Propriete | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:level_zero_wallpaper_adaptive` |
+| Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
+| Hardness | 3.0 |
+| Blast resistance | 3.0 |
+| Luminosite | 0 |
+
+Bloc technique interne non expose au joueur.
+Il n'est pose que sur les colonnes de mur vraiment mixtes, quand deux faces visibles doivent afficher des variantes differentes.
+Le `faceMask` y est calcule a la generation, stocke dans une `BlockEntity` synchronisee, puis relu par le modele client.
+Cette separation permet d'eviter de payer le cout du rendu adaptatif sur tous les murs simples.
 
 ### Level 0 Wall Insulation (`level_zero_wall_insulation`)
 

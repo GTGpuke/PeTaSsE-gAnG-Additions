@@ -5,7 +5,9 @@ import org.jetbrains.annotations.NotNull;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
@@ -61,8 +63,21 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
         if (faceMask == UNSET_FACE_MASK) {
             faceMask = LevelZeroWallpaperBlockStateModel.sampleFaceMask(level, worldPosition);
         }
-        requestModelDataUpdate();
-        level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        refreshClientRender(false);
+    }
+
+    @Override
+    public void handleUpdateTag(ValueInput tag, HolderLookup.Provider holders) {
+        int previousFaceMask = faceMask;
+        super.handleUpdateTag(tag, holders);
+        refreshClientRender(previousFaceMask != faceMask);
+    }
+
+    @Override
+    public void onDataPacket(Connection connection, ValueInput data, HolderLookup.Provider lookup) {
+        int previousFaceMask = faceMask;
+        super.onDataPacket(connection, data, lookup);
+        refreshClientRender(previousFaceMask != faceMask);
     }
 
     @Override
@@ -92,5 +107,20 @@ public final class LevelZeroWallpaperBlockEntity extends BlockEntity {
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    /**
+     * Force la mise a jour visuelle cote client apres reception des donnees
+     * synchronisees.
+     */
+    private void refreshClientRender(boolean needsBlockUpdate) {
+        Level currentLevel = level;
+        if (currentLevel == null || !currentLevel.isClientSide()) {
+            return;
+        }
+        requestModelDataUpdate();
+        if (needsBlockUpdate) {
+            currentLevel.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
     }
 }

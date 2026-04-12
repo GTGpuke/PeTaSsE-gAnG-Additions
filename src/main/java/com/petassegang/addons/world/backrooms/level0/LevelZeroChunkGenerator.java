@@ -33,6 +33,12 @@ import com.petassegang.addons.world.backrooms.BackroomsConstants;
  */
 public final class LevelZeroChunkGenerator extends ChunkGenerator {
 
+    private static final int NORTH_MASK = 1;
+    private static final int SOUTH_MASK = 1 << 1;
+    private static final int WEST_MASK = 1 << 2;
+    private static final int EAST_MASK = 1 << 3;
+    private static final int FULL_MASK = NORTH_MASK | SOUTH_MASK | WEST_MASK | EAST_MASK;
+
     /** Codec de serialization du generateur. */
     public static final MapCodec<LevelZeroChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
             instance.group(Biome.CODEC.fieldOf("biome").forGetter(LevelZeroChunkGenerator::biome))
@@ -73,6 +79,8 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         BlockState bedrock = Blocks.BEDROCK.defaultBlockState();
         BlockState subfloor = Blocks.SMOOTH_STONE.defaultBlockState();
         BlockState wallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState();
+        BlockState alternateWallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState();
+        BlockState adaptiveWallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState();
         BlockState wallInsulation = ModBlocks.LEVEL_ZERO_WALL_INSULATION.get().defaultBlockState();
         BlockState ceiling = ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState();
         BlockState light = ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get().defaultBlockState();
@@ -97,17 +105,20 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                 } else {
                     chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_FLOOR_Y, localZ), floor, 0);
                     boolean exposedWallpaper = isWallpaperExposed(worldX, worldZ, layoutSeed);
-                    BlockState wallState = exposedWallpaper ? wallpaper : wallInsulation;
                     int faceMask = exposedWallpaper ? sampleWallpaperFaceMask(worldX, worldZ, layoutSeed) : 0;
-                    for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_CEILING_Y; y++) {
+                    BlockState wallState = resolveWallState(
+                            exposedWallpaper, faceMask, wallpaper, alternateWallpaper, adaptiveWallpaper, wallInsulation);
+                    boolean needsBlockEntity = exposedWallpaper && isMixedFaceMask(faceMask);
+                    for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
                         chunk.setBlockState(mutablePos.set(localX, y, localZ), wallState, 0);
-                        if (exposedWallpaper) {
+                        if (needsBlockEntity) {
                             chunk.setBlockEntity(new LevelZeroWallpaperBlockEntity(
                                     new BlockPos(worldX, y, worldZ),
-                                    wallpaper,
+                                    adaptiveWallpaper,
                                     faceMask));
                         }
                     }
+                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_CEILING_Y, localZ), ceiling, 0);
                 }
             }
         }
@@ -173,12 +184,20 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                             ? ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get().defaultBlockState()
                             : ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState());
         } else {
-            BlockState wallState = isWallpaperExposed(x, z, resolveLayoutSeed(randomState))
-                    ? ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState()
-                    : ModBlocks.LEVEL_ZERO_WALL_INSULATION.get().defaultBlockState();
-            for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_CEILING_Y; y++) {
+            long layoutSeed = resolveLayoutSeed(randomState);
+            boolean exposedWallpaper = isWallpaperExposed(x, z, layoutSeed);
+            int faceMask = exposedWallpaper ? sampleWallpaperFaceMask(x, z, layoutSeed) : 0;
+            BlockState wallState = resolveWallState(
+                    exposedWallpaper,
+                    faceMask,
+                    ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState(),
+                    ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState(),
+                    ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState(),
+                    ModBlocks.LEVEL_ZERO_WALL_INSULATION.get().defaultBlockState());
+            for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
                 setColumnState(states, y, wallState);
             }
+            setColumnState(states, BackroomsConstants.LEVEL_ZERO_CEILING_Y, ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState());
         }
 
         return new NoiseColumn(heightAccessor.getMinY(), states);
@@ -234,11 +253,33 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
 
     private static int sampleWallpaperFaceMask(int worldX, int worldZ, long layoutSeed) {
         int faceMask = 0;
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 0, -1, 1);
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 0, 1, 1 << 1);
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, -1, 0, 1 << 2);
-        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 1, 0, 1 << 3);
+        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 0, -1, NORTH_MASK);
+        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 0, 1, SOUTH_MASK);
+        faceMask |= sampleFace(worldX, worldZ, layoutSeed, -1, 0, WEST_MASK);
+        faceMask |= sampleFace(worldX, worldZ, layoutSeed, 1, 0, EAST_MASK);
         return faceMask;
+    }
+
+    private static BlockState resolveWallState(boolean exposedWallpaper,
+                                               int faceMask,
+                                               BlockState wallpaper,
+                                               BlockState alternateWallpaper,
+                                               BlockState adaptiveWallpaper,
+                                               BlockState wallInsulation) {
+        if (!exposedWallpaper) {
+            return wallInsulation;
+        }
+        if (isMixedFaceMask(faceMask)) {
+            return adaptiveWallpaper;
+        }
+        if (faceMask == FULL_MASK) {
+            return alternateWallpaper;
+        }
+        return wallpaper;
+    }
+
+    private static boolean isMixedFaceMask(int faceMask) {
+        return faceMask != 0 && faceMask != FULL_MASK;
     }
 
     private static int sampleFace(int worldX,

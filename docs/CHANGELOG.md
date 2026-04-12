@@ -22,6 +22,7 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 ### Changed
 - **Pipeline du papier peint adaptatif** : le masque des faces est maintenant calcule a la generation, stocke dans la block entity puis synchronise au client, ce qui retire la lecture du monde pendant le rendu.
 - **Interieur des murs du Level 0** : les volumes non exposes utilisent maintenant `level_zero_wall_insulation` au lieu de conserver du papier peint adaptatif enterre.
+- **Optimisation des murs du Level 0** : les colonnes 100 % jaunes et 100 % blanches utilisent maintenant des blocs simples ; seul `level_zero_wallpaper_adaptive` reste rendu via `BlockEntity` sur les transitions mixtes.
 
 ## [0.3.0] - 2026-04-09
 

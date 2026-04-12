@@ -1,4 +1,4 @@
-# Troubleshooting — PeTaSsE_gAnG_Additions
+# Troubleshooting - PeTaSsE_gAnG_Additions
 
 ---
 
@@ -8,39 +8,37 @@
 **Cause :** Maven Forge inaccessible ou mauvaise version.
 ```bash
 ./gradlew build --refresh-dependencies
-# Si ça persiste, vérifier forge_version dans gradle.properties
+# Si cela persiste, verifier forge_version dans gradle.properties
 ```
 
 ### `Unsupported class file major version`
-**Cause :** Java version incorrecte. Le build nécessite Java 25.
+**Cause :** Version Java incorrecte. Le build necessite Java 25.
 ```bash
-java -version  # doit afficher "25"
-# Configurer JAVA_HOME vers JDK 25
-export JAVA_HOME=/path/to/jdk-25
+java -version
+# Doit afficher "25"
 ```
 
 ### `Task 'genEclipseRuns' not found`
-**Cause :** ForgeGradle pas encore téléchargé ou mauvaise version.
+**Cause :** ForgeGradle pas encore telecharge ou mauvaise version.
 ```bash
-./gradlew dependencies  # force le téléchargement
+./gradlew dependencies
 ./gradlew genEclipseRuns
 ```
 
 ### `gradle-wrapper.jar not found`
-**Cause :** Le JAR binaire du wrapper n'est pas dans le repo.
+**Cause :** Le binaire du wrapper Gradle est absent.
 ```bash
-# Si Gradle est installé globalement :
 gradle wrapper --gradle-version 9.3.0
 ```
 
 ---
 
-## Runtime (in-game)
+## Runtime
 
 ### `The Mod File build/resources/main has mods that were not found`
-**Cause :** Le `ClasspathLocator` de FML crée un `SecureJar` uniquement depuis le répertoire contenant `META-INF/mods.toml` (`build/resources/main`). Sans configuration spéciale, les classes compilées sont dans `build/classes/java/main` — répertoire séparé que Forge ne voit pas.
+**Cause :** FML ne trouve pas les classes compilees si `mods.toml` et les `.class` ne sortent pas dans le meme repertoire.
 
-**Fix dans `build.gradle`** (déjà appliqué) :
+**Fix deja applique dans `build.gradle` :**
 ```groovy
 sourceSets {
     main {
@@ -48,46 +46,31 @@ sourceSets {
     }
 }
 ```
-Cela force `processResources` à écrire `mods.toml` dans le même répertoire que les classes compilées.
-
-**Symptôme sans le fix :** l'écran rouge Minecraft avec "1 error has occurred during loading".
-
----
 
 ### `NullPointerException: Item id not set` au register
-**Cause :** En MC 26.1, le constructeur `Item(Properties)` appelle `Properties.itemIdOrThrow()`. Sans `setId()`, NPE au moment de l'enregistrement.
+**Cause :** En MC 26.1, `Item.Properties` doit recevoir un `setId(...)`.
 
-**Fix dans `ModItems.java`** (déjà appliqué) :
+**Fix type :**
 ```java
-ITEMS.register("gang_badge", () -> new GangBadgeItem(
-    new Item.Properties()
-        .setId(ITEMS.key("gang_badge"))  // OBLIGATOIRE en MC 26.1
-        .stacksTo(1)
-        .rarity(Rarity.EPIC)
-));
+new Item.Properties().setId(ITEMS.key("gang_badge"))
 ```
 
----
+### Le mod n'apparait pas dans la liste des mods
+- Verifier que le JAR est dans `mods/`.
+- Verifier que `mods.toml` contient le bon `modId`.
+- Verifier que Java 25 est utilise.
 
-### Le mod n'apparaît pas dans la liste des mods
-- Vérifie que `mods.toml` a les bonnes valeurs (`modId`, `loaderVersion`)
-- Vérifie que le JAR est dans le dossier `mods/`
-- Vérifie la version Java : MC 26.1 requiert Java 25
+### `Registry object not present` au demarrage
+**Cause :** Un `RegistryObject.get()` est appele trop tot.
 
-### `Registry object not present` au démarrage
-**Cause :** Un `RegistryObject.get()` appelé avant que la registration soit terminée.
-- Ne jamais appeler `.get()` dans un initialiseur statique d'un autre registre
-- Utiliser `.get()` seulement dans des méthodes appelées après `FMLCommonSetupEvent`
+**Regle :**
+- Ne pas appeler `.get()` dans un initialiseur statique dependant d'un autre registre.
+- Utiliser `.get()` seulement apres la phase d'enregistrement Forge.
 
-### L'onglet créatif PétasseGang n'apparaît pas
-- Vérifie que `ModCreativeTab.register(modEventBus)` est appelé dans le constructeur `@Mod`
-- Vérifie que `ModCreativeTab.PETASSEGANG_TAB` est non-null (test `RegistryTest`)
+### Texture manquante sur un item
+**Cause principale en MC 26.1 :** Le fichier `assets/<namespace>/items/<item_id>.json` manque.
 
-### Texture manquante (carré violet/noir) sur un item
-
-**Cause principale (MC 26.1) :** Le fichier `assets/[namespace]/items/[item_id].json` est absent. En MC 26.1, chaque item doit avoir ce fichier de définition pour que le moteur sache comment le rendre — même si la texture et le modèle existent.
-
-**Fix :** Créer `assets/petasse_gang_additions/items/gang_badge.json` :
+**Exemple :**
 ```json
 {
   "model": {
@@ -97,49 +80,77 @@ ITEMS.register("gang_badge", () -> new GangBadgeItem(
 }
 ```
 
-**Autres causes possibles :**
-- `gang_badge.png` absent de `assets/petasse_gang_additions/textures/item/`
-- `gang_badge.json` (modèle) avec un chemin de texture incorrect
-- Rebuild : `./gradlew build`
+Autres causes possibles :
+- Texture absente dans `textures/item/`.
+- Modele avec un chemin de texture incorrect.
+- Build non regenere.
+
+### Quelques murs du Level 0 affichent temporairement la mauvaise variante de papier peint
+**Cause :** Le papier peint adaptatif du Level 0 repose sur une `BlockEntity` synchronisee cote client, mais uniquement sur les transitions mixtes. Selon le timing de chargement du chunk, un mur mixte peut etre rendu avec un etat visuel transitoire avant la reception complete du `faceMask`.
+
+**Etat actuel :**
+- Le `faceMask` est calcule a la generation.
+- Il est stocke uniquement pour les colonnes mixtes dans la `BlockEntity`.
+- Les murs 100 % jaunes et 100 % blancs sont maintenant de simples blocs sans pipeline adaptatif.
+- Le client force maintenant un refresh de `ModelData` au chargement, a la reception du tag de chunk et a la reception du packet reseau.
+
+**Impact :**
+- Le probleme semble fortement reduit.
+- Le pipeline reste plus sensible qu'un bloc vanilla sans rendu adaptatif.
+
+**Contournements utiles :**
+- Recharger la zone.
+- Tester sur de nouveaux chunks du Level 0.
+- Comparer en priorite les murs generes naturellement avant les murs poses a la main.
+
+**Piste restante si le bug reapparait :**
+- Le prochain suspect sera le mixage des `BlockStateModelPart` dans `LevelZeroWallpaperBlockStateModel`, plus que la generation ou les biomes.
+
+### Crash bootstrap `Field fluid is not private and an instance field`
+**Cause probable :** Conflit Forge ou environnement client incoherent, generalement avant le vrai chargement du mod.
+
+**Constat actuel :**
+- Le repo ne contient pas d'`AccessTransformer`.
+- Le crash apparait pendant le bootstrap Forge, avant la logique metier du Level 0.
+
+**Verification conseillee :**
+- Tester avec une instance Forge propre.
+- Ne laisser que le bon JAR du mod dans `mods/`.
+- Verifier que le JAR partage est bien celui de la version attendue.
 
 ---
 
 ## Tests
 
 ### `ClassNotFoundException` dans les tests
-**Cause :** MC classes pas sur le classpath de test.
-- Les tests JUnit qui instancient des classes MC nécessitent le classpath ForgeGradle.
-- Utilise `./gradlew test` et non le runner JUnit de l'IDE directement.
+**Cause :** Les classes Minecraft et Forge ne doivent pas etre lancees depuis le runner JUnit brut de l'IDE.
 
-### `ClassNotFoundException` sur toutes les classes de test (Windows)
-**Cause :** Le chemin du projet contient un caractère accentué (`Développement`). Gradle écrit le classpath du worker de test dans un `@argfile` Java ; sous Windows, le launcher JVM lit ce fichier avec l'encodage système (CP1252) et non UTF-8, ce qui corrompt le chemin vers `build/classes/java/test`.
-
-**Symptôme :** `Could not execute test class 'com.petassegang.addons.ConfigTest'` → `ClassNotFoundException`.
-
-**Contournement :** Ne pas mettre le projet dans un répertoire au nom accentué :
+**Commande correcte :**
+```bash
+./gradlew test
 ```
-✅  C:\Dev\PeTaSsE-gAnG-Additions\
-❌  C:\Projets\Développement\Java\PeTaSsE-gAnG-Additions\
-```
-Ou utiliser la cible partielle pour compiler et packager sans tests :
+
+### `ClassNotFoundException` sur toutes les classes de test sous Windows
+**Cause :** Le chemin du projet contient un caractere accentue, ce qui peut corrompre le classpath du worker Gradle.
+
+**Contournement :**
+- Deplacer le projet vers un chemin sans accent.
+- Ou utiliser temporairement :
 ```bash
 ./gradlew build -x test
 ```
-
-### Tests qui passent localement mais échouent en CI
-- Vérifier que le cache Gradle CI est à jour (Actions → Caches → supprimer si corrompu)
-- S'assurer que le wrapper JAR est généré correctement
 
 ---
 
 ## Performance
 
-### Build très lent
+### Build tres lent
 ```bash
-# Activer le daemon et le cache (déjà dans gradle.properties)
-org.gradle.daemon=true
-org.gradle.caching=true
-
-# Forcer le rebuild propre si le cache semble corrompu
 ./gradlew clean build
 ```
+
+Verifier aussi que :
+- `org.gradle.daemon=true`
+- `org.gradle.caching=true`
+
+Ces options sont deja activees dans `gradle.properties`.

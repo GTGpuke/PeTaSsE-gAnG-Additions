@@ -20,13 +20,13 @@ public final class ModBlockEntities {
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITY_TYPES =
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, ModConstants.MOD_ID);
 
-    /** Block entity du papier peint adaptatif du Level 0. */
+    /** Block entity du papier peint adaptatif interne du Level 0. */
     public static final RegistryObject<BlockEntityType<LevelZeroWallpaperBlockEntity>> LEVEL_ZERO_WALLPAPER =
             BLOCK_ENTITY_TYPES.register(
                     "level_zero_wallpaper",
                     () -> new BlockEntityType<>(
                             LevelZeroWallpaperBlockEntity::new,
-                            Set.of(ModBlocks.LEVEL_ZERO_WALLPAPER.get(), ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get()))
+                            Set.of(ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get()))
             );
 
     /**
