@@ -83,7 +83,7 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 
 ```bash
 ./gradlew genEclipseRuns   # Générer les run configs IDE (une seule fois)
-./gradlew build            # Build → build/libs/petasse_gang_additions-0.3.0.jar
+./gradlew build            # Build → build/libs/petasse_gang_additions-0.6.0.jar
 ./gradlew test             # Tests JUnit 5
 ./gradlew runGameTestServer # Tests in-game Forge
 ./gradlew runData          # Data generation

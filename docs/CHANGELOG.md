@@ -6,6 +6,13 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [0.6.0] - 2026-04-12
+
+### Changed
+- **Documentation sync** : `README.md`, `docs/BLOCKS.md`, `docs/TESTING.md` et `docs/TROUBLESHOOTING.md` decrivent maintenant explicitement l'etat actuel du Level 0 monocouche, du benchmark local et du pipeline de papier peint adaptatif.
+- **Cache du layout Level 0** : la capacite du cache de secteurs a ete reduite a `1024` entrees pour limiter la memoire retenue sur les petites configurations, sans changer la forme du maze.
+- **Fallback client du papier peint adaptatif** : si la `ModelData` synchronisee n'est pas encore disponible, le modele client relit d'abord les vrais blocs de sol deja generes pour deduire la bonne palette, puis ne retombe sur l'echantillonnage deterministe qu'en dernier recours.
+
 ## [0.4.0] - 2026-04-12
 
 ### Added

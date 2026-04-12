@@ -41,6 +41,7 @@ com.petassegang.addons/
 |   `-- ModCreativeTab.java           <- Creative tab DeferredRegister
 |
 |-- init/                             <- Registres (un fichier par type)
+|   |-- ModBlockEntities.java         <- DeferredRegister<BlockEntityType<?>>
 |   |-- ModBlocks.java                <- DeferredRegister<Block>
 |   |-- ModChunkGenerators.java       <- DeferredRegister<MapCodec<? extends ChunkGenerator>>
 |   `-- ModItems.java                 <- DeferredRegister<Item>
@@ -49,16 +50,30 @@ com.petassegang.addons/
 |   |-- CursedSnackItem.java
 |   `-- GangBadgeItem.java
 |
-|-- block/                            <- Classes de blocs custom si necessaire
-|-- entity/                           <- Futur contenu d'entites custom
+|-- block/                            <- Classes de blocs custom
+|   |-- LevelZeroWallpaperBlock.java  <- Bloc technique adaptatif (BlockEntity)
+|   `-- entity/
+|       `-- LevelZeroWallpaperBlockEntity.java <- BlockEntity pour le faceMask adaptatif
+|
 |-- network/                          <- Packets reseau
+|   |-- ModNetworking.java
+|   `-- packet/
+|       `-- GangBadgeActivatePacket.java
+|
 |-- world/
 |   `-- backrooms/
 |       |-- BackroomsConstants.java   <- IDs et hauteurs du Level 0
 |       `-- level0/
-|           |-- LevelZeroChunkGenerator.java <- Generation monocouche
-|           `-- LevelZeroLayout.java         <- Traduction deterministe du script Python
-|-- client/                           <- Handlers, renderers, GUI
+|           |-- LevelZeroChunkGenerator.java  <- Generation monocouche
+|           |-- LevelZeroLayout.java          <- Traduction deterministe du script Python
+|           `-- LevelZeroSurfaceBiome.java    <- Biomes cosmetiques internes (BASE, RED)
+|
+|-- client/                           <- Handlers, renderers, GUI (CLIENT only)
+|   |-- handler/
+|   |   `-- GangBadgeClientHandler.java
+|   `-- model/
+|       |-- LevelZeroWallpaperBlockStateModel.java
+|       `-- LevelZeroWallpaperModelHandler.java
 |
 `-- util/
     `-- ModConstants.java             <- MOD_ID, MOD_NAME, LOGGER central
@@ -76,9 +91,12 @@ public static final DeferredRegister<Item> ITEMS =
         DeferredRegister.create(ForgeRegistries.ITEMS, ModConstants.MOD_ID);
 
 public static final RegistryObject<Item> GANG_BADGE = ITEMS.register(
-        "gang_badge", () -> new GangBadgeItem(new Item.Properties()...));
+        "gang_badge", () -> new GangBadgeItem(new Item.Properties()
+                .setId(ITEMS.key("gang_badge"))...));
 
-ModItems.register(modEventBus);
+// Dans le constructeur @Mod, via le BusGroup fourni par FMLJavaModLoadingContext :
+BusGroup modBusGroup = context.getModBusGroup();
+ModItems.register(modBusGroup);
 ```
 
 Flow complet :

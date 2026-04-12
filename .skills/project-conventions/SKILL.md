@@ -11,7 +11,7 @@ description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : mod id
 |-----------|--------|
 | MOD_ID | `petasse_gang_additions` |
 | Package racine | `com.petassegang.addons` |
-| Version mod | `0.5.0` |
+| Version mod | `0.6.0` |
 | Version MC | `26.1` |
 | Version Forge | `62.0.x` |
 | Java | `25` |
@@ -61,7 +61,9 @@ public static final DeferredRegister<Block> BLOCKS =
 
 public static final RegistryObject<Block> MY_BLOCK = BLOCKS.register(
         "my_block",
-        () -> new Block(BlockBehaviour.Properties.ofFullCopy(Blocks.STONE))
+        () -> new Block(BlockBehaviour.Properties
+                .ofFullCopy(Blocks.STONE)
+                .setId(BLOCKS.key("my_block")))   // OBLIGATOIRE en MC 26.1
 );
 
 public static void register(BusGroup modBusGroup) {
@@ -87,6 +89,9 @@ Ordre attendu :
 - Utiliser `Component.translatable(...)` pour tout texte visible en jeu.
 - Les textures de blocs du Level 0 suivent la convention locale `32x32`.
 - Les loot tables MC 26.1 vivent dans `data/<modid>/loot_table/blocks/`.
+- Les murs du Level 0 sont penses comme fixes et indestructibles en survie : eviter tout update permanent si un calcul a la generation suffit.
+- `level_zero_wallpaper_adaptive` doit rester un bloc technique reserve aux transitions mixtes ; les murs simples doivent rester en blocs simples.
+- Le coeur non expose des murs du Level 0 doit rester en `minecraft:bedrock`, pas dans un bloc de remplissage custom.
 
 ## Mise a jour obligatoire apres chaque ajout
 

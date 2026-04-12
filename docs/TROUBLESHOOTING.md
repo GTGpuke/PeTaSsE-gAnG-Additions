@@ -86,7 +86,7 @@ Autres causes possibles :
 - Build non regenere.
 
 ### Quelques murs du Level 0 affichent temporairement la mauvaise variante de papier peint
-**Cause :** Le papier peint adaptatif du Level 0 repose sur une `BlockEntity` synchronisee cote client, mais uniquement sur les transitions mixtes. Selon le timing de chargement du chunk, un mur mixte peut etre rendu avec un etat visuel transitoire avant la reception complete du `faceMask`.
+**Cause :** Le papier peint adaptatif du Level 0 repose sur une `BlockEntity` synchronisee cote client, mais uniquement sur les transitions mixtes. Selon le timing de chargement du chunk, un mur mixte peut etre rendu avec un etat visuel transitoire avant la reception complete du `faceMask`, surtout pres de l'interface mur/sol sur le bloc le plus bas.
 
 **Etat actuel :**
 - Le `faceMask` est calcule a la generation.
@@ -97,6 +97,7 @@ Autres causes possibles :
 - Le recalcul de secours au chargement reste limite au serveur pour les anciens cas ou le masque manquerait encore.
 - Le client continue de rafraichir la `ModelData`, mais n'envoie plus de `sendBlockUpdated(...)` systematique au simple chargement.
 - Les updates reseau et visuelles ne sont plus poussees si le `faceMask` n'a pas reellement change.
+- Si la `ModelData` n'est pas encore arrivee, le fallback client lit d'abord les vrais blocs de sol deja generes pour retrouver la palette du couloir visible, puis ne retombe sur `sampleAtWorld(...)` qu'en dernier recours.
 
 **Pourquoi ce choix :**
 - Les murs du Level 0 sont penses comme des blocs fixes, indestructibles en survie.

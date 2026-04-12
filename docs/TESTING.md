@@ -78,6 +78,12 @@ Cette verification sert surtout a detecter :
 - une explosion du nombre de murs mixtes ;
 - une hausse anormale du nombre de sondes necessaires pour le papier peint adaptatif.
 
+Ce benchmark ne couvre pas les artefacts de rendu transitoires cote client.
+Pour le papier peint adaptatif, garder aussi un controle manuel simple :
+- charger de nouveaux chunks du Level 0 ;
+- inspecter une transition mixte naturelle ;
+- verifier en priorite la ligne basse du mur, a la jonction avec le sol.
+
 Comme les murs du Level 0 sont fixes et indestructibles en survie, l'objectif
 est de garder un pipeline le plus statique possible : calculer une fois,
 afficher correctement, puis eviter les updates inutiles.

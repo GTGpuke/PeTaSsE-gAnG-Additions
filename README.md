@@ -112,7 +112,9 @@ The current cosmetic biome layer only changes surface appearance. It does not ch
 Wallpaper rendering now adapts per exposed face only on truly mixed transitions between adjacent surface biomes.
 Simple yellow walls and simple white walls are now plain blocks, while an internal adaptive wall block is only used when a column really needs per-face blending.
 The exposed wallpaper face mask is computed during generation, stored in synchronized block entities for these mixed cases only, and reused by the client renderer.
+If synchronized model data is not available yet on the client, the adaptive wallpaper model now falls back to the generated floor blocks first, then only to the deterministic biome sampler as a last resort. This keeps the lowest visible wall row more stable during chunk loads.
 Inner wall mass now uses vanilla bedrock so adaptive wallpaper stays only on visible surfaces.
+The layout cache also stays intentionally bounded to reduce retained heap on smaller integrated-graphics machines.
 
 Level 0 block textures currently follow a dedicated `32x32` convention.
 

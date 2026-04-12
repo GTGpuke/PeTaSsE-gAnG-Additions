@@ -18,7 +18,7 @@ Cette exception ne change pas automatiquement la resolution des autres blocs du 
 | ID complet | `petasse_gang_additions:level_zero_wallpaper` |
 | Classe | `net.minecraft.world.level.block.Block` |
 | Hardness | 3.0 |
-| Blast resistance | 3.0 |
+| Blast resistance | 9.0 |
 | Luminosite | 0 |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper.json` |
 
@@ -33,7 +33,7 @@ Le generateur l'utilise directement quand toute la colonne appartient a la varia
 | ID complet | `petasse_gang_additions:level_zero_wallpaper_aged` |
 | Classe | `net.minecraft.world.level.block.Block` |
 | Hardness | 3.0 |
-| Blast resistance | 3.0 |
+| Blast resistance | 9.0 |
 | Luminosite | 0 |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper_aged.json` |
 
@@ -48,12 +48,13 @@ Il reste accessible en creatif pour les tests visuels.
 | ID complet | `petasse_gang_additions:level_zero_wallpaper_adaptive` |
 | Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
 | Hardness | 3.0 |
-| Blast resistance | 3.0 |
+| Blast resistance | 9.0 |
 | Luminosite | 0 |
 
 Bloc technique utilise pour les transitions mixtes.
 Il n'est pose que sur les colonnes de mur vraiment mixtes, quand deux faces visibles doivent afficher des variantes differentes.
 Le `faceMask` y est calcule a la generation, stocke dans une `BlockEntity` synchronisee, puis relu par le modele client.
+Si la `ModelData` n'est pas encore prete cote client, le modele adaptatif relit d'abord les blocs de sol deja poses dans le chunk pour retrouver la bonne palette visuelle avant de retomber sur le sampler deterministe.
 Cette separation permet d'eviter de payer le cout du rendu adaptatif sur tous les murs simples.
 Le coeur des murs non exposes est maintenant rempli en `minecraft:bedrock`, sans bloc dedie supplementaire.
 Le bloc reste expose en creatif pour les tests techniques.
