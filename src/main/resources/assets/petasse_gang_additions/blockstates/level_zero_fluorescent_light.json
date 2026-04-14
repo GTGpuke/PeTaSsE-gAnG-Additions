@@ -1,5 +1,9 @@
 {
-  "variants": {
-    "": { "model": "petasse_gang_additions:block/level_zero_fluorescent_light" }
-  }
+  "multipart": [
+    {
+      "apply": {
+        "model": "petasse_gang_additions:block/level_zero_fluorescent_light"
+      }
+    }
+  ]
 }

@@ -33,6 +33,7 @@ minecraft {
             systemProperty 'forge.logging.markers',              'REGISTRIES'
             systemProperty 'forge.logging.console.level',        'debug'
             systemProperty 'eventbus.api.strictRuntimeChecks',   'true'
+            args '-mixin.config=petasse_gang_additions.mixins.json'
         }
 
         // ---- Client ----------------------------------------
@@ -121,6 +122,7 @@ jarJar.register()
 dependencies {
     // FG7.0.19 : la dépendance Forge va ici via minecraft.dependency()
     implementation minecraft.dependency("net.minecraftforge:forge:${minecraft_version}-${forge_version}")
+    annotationProcessor 'org.spongepowered:mixin:0.8.7:processor'
 
     // ---- JiJ — Bibliothèques embarquées (Backrooms) --------
     // Syntaxe jarjar-gradle 0.2.3 : add('jarJar', dep) + jarJar.configure(dep) { setVersion; setRange }
@@ -202,6 +204,7 @@ tasks.register('benchmarkLevelZeroGeneration', JavaExec) {
 jar {
     manifest {
         attributes([
+            'MixinConfigs'            : 'petasse_gang_additions.mixins.json',
             'Specification-Title'     : mod_name,
             'Specification-Vendor'    : mod_authors,
             'Specification-Version'   : '1',
@@ -212,6 +215,7 @@ jar {
         ])
     }
 }
+
 
 // Token substitution in mods.toml
 // doNotTrackState : le répertoire de sortie est partagé avec compileJava (fix FML ClasspathLocator).

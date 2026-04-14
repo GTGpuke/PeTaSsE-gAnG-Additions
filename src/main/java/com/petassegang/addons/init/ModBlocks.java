@@ -17,6 +17,7 @@ import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.RegistryObject;
 
+import com.petassegang.addons.block.LevelZeroFluorescentLightBlock;
 import com.petassegang.addons.block.LevelZeroWallpaperBlock;
 import com.petassegang.addons.util.ModConstants;
 
@@ -84,9 +85,10 @@ public final class ModBlocks {
     /** Neon fluorescent du Level 0. */
     public static final RegistryObject<Block> LEVEL_ZERO_FLUORESCENT_LIGHT = BLOCKS.register(
             "level_zero_fluorescent_light",
-            () -> new Block(BlockBehaviour.Properties
+            () -> new LevelZeroFluorescentLightBlock(BlockBehaviour.Properties
                     .ofFullCopy(Blocks.SEA_LANTERN)
-                    .lightLevel(state -> 15)
+                    .lightLevel(state -> state.getValue(LevelZeroFluorescentLightBlock.LIT)
+                            && !state.getValue(LevelZeroFluorescentLightBlock.BROKEN) ? 15 : 0)
                     .setId(BLOCKS.key("level_zero_fluorescent_light")))
     );
 

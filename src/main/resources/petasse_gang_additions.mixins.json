@@ -1,0 +1,14 @@
+{
+  "required": true,
+  "package": "com.petassegang.addons.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SmokeTestMixin",
+    "FluorescentLightEngineMixin",
+    "BlockLightSectionStorageAccessor"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

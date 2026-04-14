@@ -103,13 +103,15 @@ Plafond du Level 0.
 | Propriete | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:level_zero_fluorescent_light` |
-| Classe | `net.minecraft.world.level.block.Block` |
+| Classe | `com.petassegang.addons.block.LevelZeroFluorescentLightBlock` |
 | Hardness | 0.3 |
 | Blast resistance | 0.3 |
-| Luminosite | 15 |
+| Luminosite | `15` si `LIT=true` et `BROKEN=false`, sinon `0` |
 | Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_fluorescent_light.json` |
 
-Bloc lumineux place au plafond dans les zones ouvertes.
+Bloc lumineux simple du Level 0.
+Il garde son apparence actuelle mais expose maintenant `FACING`, `LIT`, `BROKEN` et `NEON_COLOR` dans le `BlockState`.
+Le rendu reste volontairement simple pour l'instant, tandis que `LIT` et `BROKEN` pilotent deja l'emission lumineuse reelle.
 
 ---
 
