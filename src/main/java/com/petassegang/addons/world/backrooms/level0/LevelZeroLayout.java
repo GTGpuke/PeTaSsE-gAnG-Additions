@@ -1,9 +1,7 @@
 package com.petassegang.addons.world.backrooms.level0;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.petassegang.addons.world.backrooms.BackroomsConstants;
 
@@ -35,7 +33,7 @@ public final class LevelZeroLayout {
     private static final int MAX_NUM_SIDES = 8;
     private static final int MIN_CUSTOM_ROOM_RADIUS = 1;
     private static final int MAX_CUSTOM_ROOM_RADIUS = 16;
-    private static final int LIGHT_INTERVAL = 4;
+    private static final int LIGHT_INTERVAL = 7;
 
     /** Identifiant de la variante de base (papier peint jauni, moquette classique). */
     public static final int SURFACE_VARIANT_BASE = 0;
@@ -43,12 +41,9 @@ public final class LevelZeroLayout {
     public static final int SURFACE_VARIANT_ALTERNATE = 1;
 
     private static final int SECTOR_CACHE_CAPACITY = 1024;
-    private static final Map<Long, SectorData> SECTOR_CACHE = new LinkedHashMap<>(SECTOR_CACHE_CAPACITY + 1, 0.75F, true) {
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Long, SectorData> eldest) {
-            return size() > SECTOR_CACHE_CAPACITY;
-        }
-    };
+    // ConcurrentHashMap : lectures sans verrou — supprime la contention lors du chargement parallele des chunks.
+    private static final ConcurrentHashMap<Long, SectorData> SECTOR_CACHE =
+            new ConcurrentHashMap<>(SECTOR_CACHE_CAPACITY * 2, 0.75f, 4);
 
     private final boolean[] walkable;
     private final boolean[] lighted;
@@ -238,53 +233,55 @@ public final class LevelZeroLayout {
 
     private static SectorData getSector(int sectorX, int sectorZ, long layoutSeed) {
         long cacheKey = mix(layoutSeed, sectorX, sectorZ, 0x534543544F52L);
-
-        // Lecture rapide — verrou court, ne bloque pas la génération.
-        synchronized (SECTOR_CACHE) {
-            SectorData cached = SECTOR_CACHE.get(cacheKey);
-            if (cached != null) {
-                return cached;
-            }
+        // Lecture non bloquante — ConcurrentHashMap garantit la visibilite sans verrou.
+        SectorData cached = SECTOR_CACHE.get(cacheKey);
+        if (cached != null) {
+            return cached;
         }
-
-        // Génération hors du verrou — déterministe : si deux threads génèrent le même
-        // secteur en parallèle, ils produisent exactement le même résultat.
+        // Generation deterministe : deux threads paralleles produisent le meme resultat.
         SectorData generated = generateSector(sectorX, sectorZ, layoutSeed);
-
-        // Écriture dans le cache — computeIfAbsent conserve la version d'un autre thread
-        // si plusieurs générations parallèles se sont terminées entre-temps.
-        synchronized (SECTOR_CACHE) {
-            return SECTOR_CACHE.computeIfAbsent(cacheKey, k -> generated);
+        if (SECTOR_CACHE.size() < SECTOR_CACHE_CAPACITY) {
+            SECTOR_CACHE.putIfAbsent(cacheKey, generated);
         }
+        return generated;
+    }
+
+    /**
+     * Vide le cache de secteurs.
+     * A appeler lors de l'arret du serveur pour liberer la memoire.
+     */
+    public static void clearCache() {
+        SECTOR_CACHE.clear();
     }
 
     private static SectorData generateSector(int sectorX, int sectorZ, long layoutSeed) {
         boolean[] cells = new boolean[TOTAL_CELLS];
         Random random = new Random(mix(layoutSeed, sectorX, sectorZ, 0x4D415A45L));
-        ArrayList<Long> frontier = new ArrayList<>();
+        // long[] primitif : supprime le boxing Long — pas d'allocation par element.
+        long[] frontier = new long[TOTAL_CELLS];
+        int frontierSize = 0;
         int visitedCount = 0;
         boolean[] visited = new boolean[TOTAL_CELLS];
 
         for (int overlay = 0; overlay < NUM_MAZES; overlay++) {
             int startX = random.nextInt(SECTOR_COLS);
             int startZ = random.nextInt(SECTOR_ROWS);
-            frontier.clear();
-            frontier.add(encode(startX, startZ));
+            frontierSize = 0;
+            frontier[frontierSize++] = encode(startX, startZ);
 
             while ((double) visitedCount / TOTAL_CELLS < MAZE_FILL_PERCENTAGE) {
-                if (frontier.isEmpty()) {
+                if (frontierSize == 0) {
                     break;
                 }
 
-                int frontierIndex = random.nextInt(frontier.size());
-                // Swap-and-pop O(1) : échange avec le dernier élément puis supprime la fin.
-                // L'ordre dans la frontier n'a pas d'importance — l'index est tiré aléatoirement.
-                long encoded = frontier.get(frontierIndex);
-                int lastIndex = frontier.size() - 1;
+                int frontierIndex = random.nextInt(frontierSize);
+                // Swap-and-pop O(1) : echange avec le dernier element puis reduit la taille.
+                long encoded = frontier[frontierIndex];
+                int lastIndex = frontierSize - 1;
                 if (frontierIndex != lastIndex) {
-                    frontier.set(frontierIndex, frontier.get(lastIndex));
+                    frontier[frontierIndex] = frontier[lastIndex];
                 }
-                frontier.remove(lastIndex);
+                frontierSize--;
                 int x = decodeX(encoded);
                 int z = decodeZ(encoded);
                 int currentIndex = cellIndex(x, z);
@@ -323,7 +320,7 @@ public final class LevelZeroLayout {
                     int betweenIndex = cellIndex(betweenX, betweenZ);
 
                     if (random.nextDouble() > STOP_COLLISION_PROBABILITY || !cells[betweenIndex]) {
-                        frontier.add(encode(nextX, nextZ));
+                        frontier[frontierSize++] = encode(nextX, nextZ);
                         cells[betweenIndex] = true;
                     }
                 }

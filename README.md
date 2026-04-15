@@ -4,15 +4,15 @@ Custom content mod for the PetasseGang Minecraft server.
 
 [![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
 [![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
-![MC](https://img.shields.io/badge/Minecraft-26.1-brightgreen)
-![Forge](https://img.shields.io/badge/Forge-62.0.x-orange)
+![MC](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)
+![Fabric](https://img.shields.io/badge/Fabric-0.16.9-blue)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
 
 ## Quick Start
 
-Prerequisites: Java 25 and Git. Gradle is provided via the wrapper.
+Prérequis : Java 21 et Git. Gradle est fourni via le wrapper.
 
 ```bash
 # 1. Clone
@@ -26,22 +26,22 @@ cd petasse_gang_additions
 ./gradlew build
 ```
 
-First-time setup details are documented in [docs/SETUP.md](docs/SETUP.md).
+Les détails d'installation sont dans [docs/SETUP.md](docs/SETUP.md).
 
 ---
 
 ## Current State
 
-The project currently includes:
+Le projet inclut actuellement :
 
-- a custom Forge 26.1 setup,
-- a first playable Backrooms Level 0 dimension,
-- a custom monocouche chunk generator inspired by the reference Python script,
-- cosmetic Level 0 surface biomes that change wallpaper and carpet without changing the maze topology,
-- adaptive wallpaper rendering per exposed face, now reserved to mixed wall transitions only,
-- bedrock-filled inner wall mass so only exposed wall shells use wallpaper logic,
-- the original Gang Badge and cursed tree content,
-- a JUnit 5 and Forge GameTest test suite.
+- une installation Fabric 1.21.1 avec Fabric API,
+- une première dimension Backrooms Level 0 jouable,
+- un générateur de chunk monocouche custom inspiré du script Python de référence,
+- des biomes cosmétiques Level 0 qui changent le papier peint et la moquette sans modifier la topologie du labyrinthe,
+- un rendu de papier peint adaptatif par face exposée, réservé aux transitions mixtes entre biomes de surface,
+- un cœur de mur en bedrock vanilla pour que le bloc adaptatif ne s'applique qu'aux surfaces visibles,
+- le Gang Badge et le contenu de l'Arbre Maudit d'origine,
+- une suite de tests JUnit 5.
 
 ---
 
@@ -51,6 +51,7 @@ The project currently includes:
 petasse_gang_additions/
 |- src/main/java/com/petassegang/addons/
 |  |- PeTaSsEgAnGAdditionsMod.java
+|  |- PeTaSsEgAnGAdditionsClientMod.java
 |  |- client/
 |  |- config/
 |  |- creative/ModCreativeTab.java
@@ -69,7 +70,7 @@ petasse_gang_additions/
 |        |- LevelZeroLayout.java
 |        `- LevelZeroSurfaceBiome.java
 |- src/main/resources/
-|  |- META-INF/mods.toml
+|  |- fabric.mod.json
 |  |- assets/petasse_gang_additions/
 |  `- data/petasse_gang_additions/
 |- src/test/
@@ -82,16 +83,16 @@ petasse_gang_additions/
 ## Main Commands
 
 ```bash
-# Compile main sources
+# Compiler les sources principales
 ./gradlew compileJava
 
-# Run unit tests
+# Lancer les tests unitaires
 ./gradlew test
 
-# Run the dev client
+# Lancer le client dev
 ./gradlew runClient
 
-# Full build
+# Build complet (produit build/libs/petasse_gang_additions-<version>-dev.jar)
 ./gradlew build
 ```
 
@@ -99,39 +100,37 @@ petasse_gang_additions/
 
 ## Level 0 Notes
 
-The current Level 0 implementation is built around a deterministic layout pipeline:
+L'implémentation actuelle du Level 0 repose sur un pipeline de layout déterministe :
 
-- maze generation translated from the reference Python prototype,
-- rectangular rooms,
-- pillar rooms,
-- custom polygon rooms,
-- a `1 logical cell = 3x3 blocks` scale in-world,
-- a low ceiling and strong fluorescent lighting for the intended oppressive feel.
+- génération de labyrinthe traduite du prototype Python de référence,
+- salles rectangulaires, salles à piliers, salles polygonales,
+- `1 cellule logique = 3×3 blocs` en monde,
+- plafond bas et éclairage fluorescent fort pour l'effet oppressif voulu.
 
-The current cosmetic biome layer only changes surface appearance. It does not change the layout shape.
-Wallpaper rendering now adapts per exposed face only on truly mixed transitions between adjacent surface biomes.
-Simple yellow walls and simple white walls are now plain blocks, while an internal adaptive wall block is only used when a column really needs per-face blending.
-The exposed wallpaper face mask is computed during generation, stored in synchronized block entities for these mixed cases only, and reused by the client renderer.
-If synchronized model data is not available yet on the client, the adaptive wallpaper model now falls back to the generated floor blocks first, then only to the deterministic biome sampler as a last resort. This keeps the lowest visible wall row more stable during chunk loads.
-Inner wall mass now uses vanilla bedrock so adaptive wallpaper stays only on visible surfaces.
-The layout cache also stays intentionally bounded to reduce retained heap on smaller integrated-graphics machines.
+La couche de biomes cosmétiques ne modifie que l'aspect de surface. Elle ne change pas la forme du layout.
+Le rendu de papier peint adapte chaque face exposée uniquement sur les vraies transitions mixtes entre biomes de surface adjacents.
+Les murs jaunes simples et les murs blancs simples sont des blocs simples sans `BlockEntity`.
+Le masque de face exposée est calculé à la génération, stocké dans une `BlockEntity` synchronisée pour les cas mixtes uniquement, et relu par le renderer client.
+Si la `ModelData` synchronisée n'est pas encore disponible côté client, le modèle adaptatif relit d'abord les blocs de sol déjà générés, puis retombe sur l'échantillonneur déterministe en dernier recours.
+Le cœur non exposé des murs utilise de la bedrock vanilla.
+Le cache de layout est intentionnellement borné pour limiter la mémoire retenue.
 
-Level 0 block textures currently follow a dedicated `32x32` convention.
+Les textures de blocs du Level 0 suivent la convention `32×32`.
 
 ---
 
 ## Testing
 
 ```bash
-# JUnit 5 tests
+# Tests JUnit 5
 ./gradlew test
 
-# Forge GameTests
-./gradlew runGameTestServer
+# Benchmark de performance Level 0
+./gradlew benchmarkLevelZeroGeneration
 ```
 
-If you are working on Windows and the project path contains accented characters, also check
-[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) for known Gradle and encoding edge cases.
+Sur Windows avec un chemin de projet contenant des caractères accentués, consulter
+[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) pour les problèmes d'encodage Gradle connus.
 
 ---
 
@@ -139,22 +138,23 @@ If you are working on Windows and the project path contains accented characters,
 
 | Document | Description |
 |----------|-------------|
-| [docs/SETUP.md](docs/SETUP.md) | Local setup |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Project architecture and conventions |
-| [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Backrooms dependency plan |
-| [docs/DIMENSIONS.md](docs/DIMENSIONS.md) | Dimension reference |
-| [docs/BLOCKS.md](docs/BLOCKS.md) | Block catalog |
-| [docs/ITEMS.md](docs/ITEMS.md) | Item catalog |
-| [docs/TESTING.md](docs/TESTING.md) | Test guide |
-| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Version history |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues |
+| [docs/SETUP.md](docs/SETUP.md) | Installation locale |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture et conventions |
+| [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Plan de dépendances Backrooms |
+| [docs/DIMENSIONS.md](docs/DIMENSIONS.md) | Référence des dimensions |
+| [docs/BLOCKS.md](docs/BLOCKS.md) | Catalogue des blocs |
+| [docs/ITEMS.md](docs/ITEMS.md) | Catalogue des items |
+| [docs/TESTING.md](docs/TESTING.md) | Guide des tests |
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Problèmes courants |
 
 ---
 
 ## Build Output
 
 ```bash
-build/libs/petasse_gang_additions-<version>.jar
+build/libs/petasse_gang_additions-<version>.jar        # JAR non-remap (dev)
+build/libs/petasse_gang_additions-<version>-dev.jar    # JAR remappé (production)
 ```
 
 ---

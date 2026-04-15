@@ -1,39 +1,42 @@
 package com.petassegang.addons.network;
 
-import net.minecraftforge.network.ChannelBuilder;
-import net.minecraftforge.network.SimpleChannel;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.server.network.ServerPlayerEntity;
 
-import com.petassegang.addons.network.packet.GangBadgeActivatePacket;
+import com.petassegang.addons.network.packet.GangBadgeActivatePayload;
 import com.petassegang.addons.util.ModConstants;
 
 /**
- * Gestionnaire du canal réseau du mod.
+ * Gestionnaire du reseau du mod.
  *
- * <p>Utilise l'API {@link ChannelBuilder} de Forge pour créer un canal
- * {@code SimpleChannel}. Tous les packets sont enregistrés dans {@link #register()}.
- * Appeler {@link #register()} une seule fois depuis le constructeur du mod.
+ * <p>Utilise l'API Fabric Networking pour enregistrer les payloads.
+ * Appeler {@link #register()} depuis le point d'entree commun du mod.
  */
 public final class ModNetworking {
 
-    /** Version du protocole réseau — incrémenter à chaque modification de l'API des packets. */
-    private static final int PROTOCOL_VERSION = 1;
-
-    /** Canal réseau principal du mod. */
-    public static final SimpleChannel CHANNEL = ChannelBuilder
-            .named(ModConstants.MOD_ID + ":main")
-            .networkProtocolVersion(PROTOCOL_VERSION)
-            .optionalClient()
-            .simpleChannel();
-
     /**
-     * Enregistre tous les packets du mod sur le canal.
-     * Doit être appelé exactement une fois, depuis le constructeur de {@code PeTaSsEgAnGAdditionsMod}.
+     * Enregistre les payloads S2C du mod.
+     * Doit etre appele exactement une fois depuis {@code PeTaSsEgAnGAdditionsMod}.
      */
     public static void register() {
-        GangBadgeActivatePacket.register(CHANNEL);
+        PayloadTypeRegistry.playS2C().register(
+                GangBadgeActivatePayload.ID,
+                GangBadgeActivatePayload.CODEC);
+        ModConstants.LOGGER.debug("Payloads reseau enregistres.");
+    }
+
+    /**
+     * Envoie le payload d'activation du badge a un joueur specifique.
+     *
+     * @param player le joueur destinataire
+     * @param payload le payload a envoyer
+     */
+    public static void send(ServerPlayerEntity player, GangBadgeActivatePayload payload) {
+        ServerPlayNetworking.send(player, payload);
     }
 
     private ModNetworking() {
-        throw new UnsupportedOperationException("Classe utilitaire réseau.");
+        throw new UnsupportedOperationException("Classe utilitaire reseau.");
     }
 }

@@ -1,53 +1,72 @@
 package com.petassegang.addons.client.model;
 
-import java.util.Map;
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
+import net.fabricmc.fabric.api.client.model.loading.v1.ModelModifier;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.util.ModelIdentifier;
+import net.minecraft.util.Identifier;
 
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraftforge.client.event.ModelEvent;
-
-import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.util.ModConstants;
 
 /**
  * Branche le modele adaptatif du papier peint du Level 0 cote client.
+ *
+ * <p>Le bloc possede 16 variants de block state ({@code face_mask=0} a
+ * {@code face_mask=15}). {@code modifyModelAfterBake} est appele une fois
+ * par variant : le modele alternatif et le wrapper sont crees a la premiere
+ * invocation puis reuses pour les 15 variantes suivantes, evitant 15 re-bakes
+ * et 15 messages de log en doublon.
  */
 public final class LevelZeroWallpaperModelHandler {
 
     private static boolean registered;
-    private static boolean adaptiveModelPrepared;
+
+    /** Instance du wrapper partagee entre tous les variants. */
+    private static volatile LevelZeroWallpaperBakedModel sharedWrapper;
 
     /**
-     * Enregistre les listeners de modele cote client.
+     * Enregistre le plugin de chargement de modele cote client.
+     * Doit etre appele une seule fois depuis l'initialiseur client.
      */
     public static void register() {
         if (registered) {
             return;
         }
         registered = true;
-        ModelEvent.ModifyBakingResult.BUS.addListener(LevelZeroWallpaperModelHandler::onModifyBakingResult);
+        ModelLoadingPlugin.register(pluginContext -> {
+            // Reinitialisation a chaque reload de ressources (F3+T, etc.).
+            sharedWrapper = null;
+            pluginContext.modifyModelAfterBake().register(LevelZeroWallpaperModelHandler::onModifyAfterBake);
+        });
     }
 
-    private static void onModifyBakingResult(ModelEvent.ModifyBakingResult event) {
-        Map<BlockState, net.minecraft.client.renderer.block.dispatch.BlockStateModel> models =
-                event.getResults().blockStateModels();
-        BlockState wallpaperState = ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState();
-        BlockState alternateWallpaperState = ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState();
-        net.minecraft.client.renderer.block.dispatch.BlockStateModel baseModel = models.get(wallpaperState);
-        if (baseModel == null) {
-            baseModel = models.get(ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState());
+    private static BakedModel onModifyAfterBake(BakedModel model, ModelModifier.AfterBake.Context context) {
+        ModelIdentifier topId = context.topLevelId();
+        if (topId == null
+                || !ModConstants.MOD_ID.equals(topId.id().getNamespace())
+                || !"level_zero_wallpaper_adaptive".equals(topId.id().getPath())) {
+            return model;
         }
-        net.minecraft.client.renderer.block.dispatch.BlockStateModel alternateModel = models.get(alternateWallpaperState);
 
-        if (baseModel == null || alternateModel == null) {
+        // Tous les variants (face_mask=0..15) partagent le meme wrapper.
+        // On le cree uniquement lors du premier appel du reload courant.
+        LevelZeroWallpaperBakedModel wrapper = sharedWrapper;
+        if (wrapper != null) {
+            return wrapper;
+        }
+
+        BakedModel alternateModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_wallpaper_aged"),
+                context.settings());
+        if (model == null || alternateModel == null) {
             ModConstants.LOGGER.warn("Impossible de preparer le rendu adaptatif du papier peint du Level 0.");
-            return;
+            return model;
         }
 
-        models.put(wallpaperState, new LevelZeroWallpaperBlockStateModel(baseModel, alternateModel));
-        if (!adaptiveModelPrepared) {
-            adaptiveModelPrepared = true;
-            ModConstants.LOGGER.info("Le rendu adaptatif du papier peint du Level 0 est actif.");
-        }
+        wrapper = new LevelZeroWallpaperBakedModel(model, alternateModel);
+        sharedWrapper = wrapper;
+        ModConstants.LOGGER.info("Rendu adaptatif du papier peint du Level 0 actif.");
+        return wrapper;
     }
 
     private LevelZeroWallpaperModelHandler() {

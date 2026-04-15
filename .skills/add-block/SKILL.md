@@ -1,46 +1,46 @@
 ---
 name: add-block
-description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions. Declenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc decoratif', 'bloc fonctionnel', 'ore' ou 'block'."
+description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc décoratif', 'bloc fonctionnel', 'ore' ou 'block'."
 ---
 
-# Skill - Ajouter un Bloc
+# Skill — Ajouter un Bloc (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
 - "Ajoute un bloc [nom]"
-- "Cree un minerai [nom]"
-- "Nouveau bloc decoratif [description]"
+- "Crée un minerai [nom]"
+- "Nouveau bloc décoratif [description]"
 
-## Etapes
+## Étapes
 
-### 1. Definir les parametres
+### 1. Définir les paramètres
 
-| Parametre | Valeur |
+| Paramètre | Valeur |
 |-----------|--------|
 | `BLOCK_ID` | `gangite_ore`, `petasse_block` |
 | `ClassName` | `GangiteOreBlock`, `PetasseBlock` |
 | Hardness | ex. `3.0f` |
 | Blast resistance | ex. `3.0f` |
-| Son | `SoundType.STONE`, `WOOD`, `METAL`, `GLASS` |
-| Drops | lui-meme, silk touch, fortune, loot table |
+| Son | `BlockSoundGroup.STONE`, `WOOD`, `METAL`, `GLASS` |
+| Drops | lui-même, silk touch, fortune, loot table |
 
-### 2. Creer la classe bloc si un comportement custom est necessaire
+### 2. Créer la classe bloc si un comportement custom est nécessaire
 
 **Fichier :** `src/main/java/com/petassegang/addons/block/MyBlock.java`
 
 ```java
 package com.petassegang.addons.block;
 
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.state.BlockBehaviour;
+import net.minecraft.block.Block;
+import net.minecraft.block.AbstractBlock;
 
 /**
- * Bloc personnalise.
+ * Bloc personnalisé.
  */
 public final class MyBlock extends Block {
 
-    public MyBlock(BlockBehaviour.Properties properties) {
-        super(properties);
+    public MyBlock(AbstractBlock.Settings settings) {
+        super(settings);
     }
 }
 ```
@@ -50,25 +50,29 @@ Pour un bloc simple, utiliser directement `Block` dans `ModBlocks`.
 ### 3. Enregistrer le bloc dans `ModBlocks.java`
 
 ```java
-public static final RegistryObject<Block> MY_BLOCK = BLOCKS.register(
-        "my_block",
-        () -> new Block(BlockBehaviour.Properties
-                .ofFullCopy(Blocks.STONE)
-                .setId(BLOCKS.key("my_block")))
+public static final Block MY_BLOCK = Registry.register(
+        Registries.BLOCK,
+        Identifier.of(ModConstants.MOD_ID, "my_block"),
+        new Block(AbstractBlock.Settings.create()
+                .hardness(3.0f)
+                .resistance(9.0f)
+                .sounds(BlockSoundGroup.STONE))
 );
 ```
+
+**Pas de `.setId()`** — Fabric n'en a pas besoin.
 
 ### 4. Ajouter le `BlockItem` dans `ModItems.java`
 
 ```java
-public static final RegistryObject<BlockItem> MY_BLOCK = ITEMS.register(
-        "my_block",
-        () -> new BlockItem(ModBlocks.MY_BLOCK.get(),
-                new Item.Properties().setId(ITEMS.key("my_block")))
+public static final BlockItem MY_BLOCK = Registry.register(
+        Registries.ITEM,
+        Identifier.of(ModConstants.MOD_ID, "my_block"),
+        new BlockItem(ModBlocks.MY_BLOCK, new Item.Settings())
 );
 ```
 
-### 5. Creer les ressources
+### 5. Créer les ressources
 
 - `assets/<modid>/blockstates/my_block.json`
 - `assets/<modid>/models/block/my_block.json`
@@ -76,24 +80,25 @@ public static final RegistryObject<BlockItem> MY_BLOCK = ITEMS.register(
 - `assets/<modid>/textures/block/my_block.png`
 - `data/<modid>/loot_table/blocks/my_block.json`
 
-### 6. Resolution des textures
+### 6. Résolution des textures
 
-- `16x16` pour les blocs standards.
-- `32x32` autorise pour les blocs du Level 0.
+- `16×16` pour les blocs standards.
+- `32×32` autorisé pour les blocs du Level 0.
 
 ### 7. Finaliser
 
-- Ajouter les cles EN et FR.
-- Ajouter l'item dans l'onglet creatif si necessaire.
-- Mettre a jour `docs/BLOCKS.md` et `docs/CHANGELOG.md`.
+- Ajouter les clés EN et FR.
+- Ajouter l'item dans l'onglet créatif si nécessaire (`FabricItemGroupEvents.modifyEntriesEvent()`).
+- Mettre à jour `docs/BLOCKS.md` et `docs/CHANGELOG.md`.
 - Ajouter ou ajuster les tests de registre.
 
 ## Checklist finale
 
-- [ ] Bloc enregistre dans `ModBlocks.java`
-- [ ] BlockItem enregistre dans `ModItems.java`
-- [ ] Onglet creatif mis a jour si necessaire
-- [ ] Blockstate, modele, item model, texture et loot table presents
-- [ ] Traductions EN et FR presentes
-- [ ] `docs/BLOCKS.md` et `docs/CHANGELOG.md` mis a jour
+- [ ] Bloc enregistré dans `ModBlocks.java` via `Registry.register(Registries.BLOCK, ...)`
+- [ ] BlockItem enregistré dans `ModItems.java` via `Registry.register(Registries.ITEM, ...)`
+- [ ] Onglet créatif mis à jour si nécessaire
+- [ ] Blockstate, modèle, item model, texture et loot table présents
+- [ ] Fichier `items/my_block.json` présent (obligatoire MC 1.21.1)
+- [ ] Traductions EN et FR présentes
+- [ ] `docs/BLOCKS.md` et `docs/CHANGELOG.md` mis à jour
 - [ ] `./gradlew build` passe

@@ -4,53 +4,23 @@ import com.petassegang.addons.config.ModConfig;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
- * Vérifie que les objets ForgeConfigSpec sont construits correctement et que
- * les valeurs par défaut correspondent à ce que le code annonce.
+ * Vérifie que les constantes de ModConfig ont les valeurs par défaut attendues.
  *
- * <p>Ces tests s'exécutent sans bootstrap Forge — ForgeConfigSpec est pur Java
- * et ne nécessite pas une instance Minecraft en cours d'exécution.
+ * <p>En Fabric, la configuration n'utilise pas ForgeConfigSpec — les valeurs par défaut
+ * sont des constantes statiques. Ces tests s'exécutent sans bootstrap Minecraft.
  */
-@DisplayName("Intégrité des specs ModConfig")
+@DisplayName("Intégrité des constantes ModConfig")
 class ConfigTest {
 
     @Test
-    @DisplayName("SERVER_SPEC n'est pas null")
-    void testServerSpecNotNull() {
-        assertNotNull(ModConfig.SERVER_SPEC,
-                "SERVER_SPEC doit être construit dans l'initialiseur statique.");
-    }
-
-    @Test
-    @DisplayName("CLIENT_SPEC n'est pas null")
-    void testClientSpecNotNull() {
-        assertNotNull(ModConfig.CLIENT_SPEC,
-                "CLIENT_SPEC doit être construit dans l'initialiseur statique.");
-    }
-
-    @Test
-    @DisplayName("ENABLE_GANG_BADGE existe et vaut true par défaut")
+    @DisplayName("ENABLE_GANG_BADGE vaut true par défaut")
     void testEnableGangBadgeDefault() {
-        assertNotNull(ModConfig.ENABLE_GANG_BADGE,
-                "La valeur de config ENABLE_GANG_BADGE ne doit pas être null.");
-
-        // ForgeConfigSpec.BooleanValue.getDefault() est disponible avant le chargement du fichier par Forge.
-        assertTrue((boolean) ModConfig.ENABLE_GANG_BADGE.getDefault(),
-                "enableGangBadge doit valoir true par défaut.");
-    }
-
-    @Test
-    @DisplayName("SERVER_SPEC définit correctement la catégorie 'items'")
-    void testServerSpecHasItemsCategory() {
-        // Vérifie que le chemin de config est 'items.enableGangBadge'.
-        String path = String.join(".", ModConfig.ENABLE_GANG_BADGE.getPath());
-        assertEquals("items.enableGangBadge", path,
-                "Le chemin de la clé de config doit être 'items.enableGangBadge'.");
+        assertTrue(ModConfig.ENABLE_GANG_BADGE,
+                "enableGangBadge doit valoir true par defaut.");
     }
 
     @Test

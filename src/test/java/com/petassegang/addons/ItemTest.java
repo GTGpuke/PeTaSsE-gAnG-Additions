@@ -1,11 +1,10 @@
 package com.petassegang.addons;
 
-import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.Identifier;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Rarity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.Rarity;
+import net.minecraft.util.TypedActionResult;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,8 +18,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Teste les propriétés de GangBadgeItem.
  *
- * <p><b>Note :</b> Les tests appelant {@code item.isFoil()} ou les méthodes de tooltip
- * nécessitent les classes Minecraft sur le classpath (fourni par ForgeGradle au moment
+ * <p><b>Note :</b> Les tests appelant {@code item.hasGlint()} ou les méthodes de tooltip
+ * nécessitent les classes Minecraft sur le classpath (fourni par Fabric Loom au moment
  * de la compilation des tests). Ils s'exécutent correctement via {@code ./gradlew test}.
  *
  * <p>Modèle : reproduire cette structure pour chaque nouvelle classe d'item.
@@ -33,26 +32,24 @@ class ItemTest {
     @BeforeEach
     void setUp() {
         item = new GangBadgeItem(
-                new Item.Properties()
-                        .setId(ResourceKey.create(Registries.ITEM,
-                                Identifier.fromNamespaceAndPath("test", "gang_badge")))
-                        .stacksTo(1)
+                new Item.Settings()
+                        .maxCount(1)
                         .rarity(Rarity.EPIC)
         );
     }
 
     @Test
-    @DisplayName("isFoil() retourne toujours true")
-    void testIsFoilAlwaysTrue() {
+    @DisplayName("hasGlint() retourne toujours true")
+    void testHasGlintAlwaysTrue() {
         ItemStack stack = new ItemStack(item);
-        assertTrue(item.isFoil(stack),
+        assertTrue(item.hasGlint(stack),
                 "Le Gang Badge doit toujours afficher la brillance d'enchantement.");
     }
 
     @Test
     @DisplayName("La taille de pile est 1")
     void testStackSizeIsOne() {
-        assertEquals(1, item.getDefaultMaxStackSize(),
+        assertEquals(1, item.getMaxCount(),
                 "Le Gang Badge ne doit pas s'empiler.");
     }
 
@@ -74,12 +71,12 @@ class ItemTest {
     @DisplayName("GangBadgeItem override la méthode use()")
     void testUseMethodOverridden() throws NoSuchMethodException {
         var method = GangBadgeItem.class.getDeclaredMethod("use",
-                net.minecraft.world.level.Level.class,
-                net.minecraft.world.entity.player.Player.class,
-                net.minecraft.world.InteractionHand.class);
+                net.minecraft.world.World.class,
+                net.minecraft.entity.player.PlayerEntity.class,
+                net.minecraft.util.Hand.class);
         assertNotNull(method,
                 "GangBadgeItem doit surcharger use() pour gérer le clic droit.");
-        assertEquals(net.minecraft.world.InteractionResult.class, method.getReturnType(),
-                "use() doit retourner InteractionResult.");
+        assertEquals(TypedActionResult.class, method.getReturnType(),
+                "use() doit retourner TypedActionResult.");
     }
 }

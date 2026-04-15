@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "petasse_gang_additions",
+  "version": "${mod_version}",
+  "name": "PeTaSsE_gAnG_Additions",
+  "description": "${mod_description}",
+  "authors": ["${mod_authors}"],
+  "license": "MIT",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.petassegang.addons.PeTaSsEgAnGAdditionsMod"
+    ],
+    "client": [
+      "com.petassegang.addons.PeTaSsEgAnGAdditionsClientMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "geckolib": ">=4.4",
+    "patchouli": "*"
+  }
+}

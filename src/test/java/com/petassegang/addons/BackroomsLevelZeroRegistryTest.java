@@ -3,16 +3,18 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.registry.Registries;
+import net.minecraft.util.Identifier;
 
-import com.petassegang.addons.init.ModBlockEntities;
+import com.petassegang.addons.block.LevelZeroWallpaperBlock;
 import com.petassegang.addons.init.ModBlocks;
-import com.petassegang.addons.init.ModChunkGenerators;
 import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.world.backrooms.level0.LevelZeroChunkGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Verifie la presence des registres du Level 0.
@@ -21,134 +23,115 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class BackroomsLevelZeroRegistryTest {
 
     @Test
-    @DisplayName("Le generateur de chunk du Level 0 est enregistre")
-    void testChunkGeneratorRegistryObjectNotNull() {
-        assertNotNull(ModChunkGenerators.BACKROOMS_LEVEL_ZERO,
-                "Le RegistryObject du generateur du Level 0 doit etre non-null.");
-        assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "backrooms_level_zero"),
-                ModChunkGenerators.BACKROOMS_LEVEL_ZERO.getId(),
-                "L'identifiant du generateur de chunk du Level 0 doit etre correct."
-        );
+    @DisplayName("Le codec du generateur de chunk du Level 0 est defini")
+    void testChunkGeneratorCodecNotNull() {
+        assertNotNull(LevelZeroChunkGenerator.CODEC,
+                "Le codec du generateur du Level 0 doit etre non-null.");
     }
 
     @Test
-    @DisplayName("La block entity du papier peint du Level 0 est enregistree")
-    void testLevelZeroWallpaperBlockEntityRegistryObjectNotNull() {
-        assertNotNull(ModBlockEntities.LEVEL_ZERO_WALLPAPER,
-                "Le RegistryObject de la block entity du papier peint doit etre non-null.");
-        assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper"),
-                ModBlockEntities.LEVEL_ZERO_WALLPAPER.getId(),
-                "L'identifiant de la block entity du papier peint du Level 0 doit etre correct."
-        );
+    @DisplayName("Le bloc adaptatif possede la propriete face_mask (0-15)")
+    void testLevelZeroAdaptiveBlockHasFaceMaskProperty() {
+        assertNotNull(LevelZeroWallpaperBlock.FACE_MASK,
+                "La propriete FACE_MASK doit etre non-null.");
+        assertEquals(0, ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState().get(LevelZeroWallpaperBlock.FACE_MASK),
+                "La valeur par defaut de face_mask doit etre 0.");
+        assertTrue(
+                ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState().contains(LevelZeroWallpaperBlock.FACE_MASK),
+                "Le bloc adaptatif doit contenir la propriete face_mask.");
     }
 
     @Test
     @DisplayName("Les blocs du Level 0 existent")
     void testLevelZeroBlocksRegistryObjectsNotNull() {
         assertNotNull(ModBlocks.LEVEL_ZERO_WALLPAPER,
-                "Le RegistryObject LEVEL_ZERO_WALLPAPER doit etre non-null.");
+                "Le bloc LEVEL_ZERO_WALLPAPER doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_WALLPAPER_AGED,
-                "Le RegistryObject LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
+                "Le bloc LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE,
-                "Le RegistryObject LEVEL_ZERO_WALLPAPER_ADAPTIVE doit etre non-null.");
+                "Le bloc LEVEL_ZERO_WALLPAPER_ADAPTIVE doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_DAMP_CARPET,
-                "Le RegistryObject LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
+                "Le bloc LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED,
-                "Le RegistryObject LEVEL_ZERO_DAMP_CARPET_AGED doit etre non-null.");
+                "Le bloc LEVEL_ZERO_DAMP_CARPET_AGED doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_CEILING_TILE,
-                "Le RegistryObject LEVEL_ZERO_CEILING_TILE doit etre non-null.");
+                "Le bloc LEVEL_ZERO_CEILING_TILE doit etre non-null.");
         assertNotNull(ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT,
-                "Le RegistryObject LEVEL_ZERO_FLUORESCENT_LIGHT doit etre non-null.");
+                "Le bloc LEVEL_ZERO_FLUORESCENT_LIGHT doit etre non-null.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper"),
-                ModBlocks.LEVEL_ZERO_WALLPAPER.getId(),
-                "L'identifiant du bloc level_zero_wallpaper doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_wallpaper"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_WALLPAPER),
+                "L'identifiant du bloc level_zero_wallpaper doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_aged"),
-                ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.getId(),
-                "L'identifiant du bloc level_zero_wallpaper_aged doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_wallpaper_aged"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_WALLPAPER_AGED),
+                "L'identifiant du bloc level_zero_wallpaper_aged doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_adaptive"),
-                ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getId(),
-                "L'identifiant du bloc technique level_zero_wallpaper_adaptive doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_wallpaper_adaptive"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE),
+                "L'identifiant du bloc technique level_zero_wallpaper_adaptive doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet"),
-                ModBlocks.LEVEL_ZERO_DAMP_CARPET.getId(),
-                "L'identifiant du bloc level_zero_damp_carpet doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_damp_carpet"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_DAMP_CARPET),
+                "L'identifiant du bloc level_zero_damp_carpet doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet_aged"),
-                ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.getId(),
-                "L'identifiant du bloc level_zero_damp_carpet_aged doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_damp_carpet_aged"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED),
+                "L'identifiant du bloc level_zero_damp_carpet_aged doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_ceiling_tile"),
-                ModBlocks.LEVEL_ZERO_CEILING_TILE.getId(),
-                "L'identifiant du bloc level_zero_ceiling_tile doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_ceiling_tile"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_CEILING_TILE),
+                "L'identifiant du bloc level_zero_ceiling_tile doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_fluorescent_light"),
-                ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.getId(),
-                "L'identifiant du bloc level_zero_fluorescent_light doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_fluorescent_light"),
+                Registries.BLOCK.getId(ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT),
+                "L'identifiant du bloc level_zero_fluorescent_light doit etre correct.");
     }
 
     @Test
     @DisplayName("Les BlockItems du Level 0 existent")
     void testLevelZeroItemsRegistryObjectsNotNull() {
         assertNotNull(ModItems.LEVEL_ZERO_WALLPAPER,
-                "Le RegistryObject item LEVEL_ZERO_WALLPAPER doit etre non-null.");
+                "L'item LEVEL_ZERO_WALLPAPER doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_WALLPAPER_AGED,
-                "Le RegistryObject item LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
+                "L'item LEVEL_ZERO_WALLPAPER_AGED doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_WALLPAPER_ADAPTIVE,
-                "Le RegistryObject item LEVEL_ZERO_WALLPAPER_ADAPTIVE doit etre non-null.");
+                "L'item LEVEL_ZERO_WALLPAPER_ADAPTIVE doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_DAMP_CARPET,
-                "Le RegistryObject item LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
+                "L'item LEVEL_ZERO_DAMP_CARPET doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED,
-                "Le RegistryObject item LEVEL_ZERO_DAMP_CARPET_AGED doit etre non-null.");
+                "L'item LEVEL_ZERO_DAMP_CARPET_AGED doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_CEILING_TILE,
-                "Le RegistryObject item LEVEL_ZERO_CEILING_TILE doit etre non-null.");
+                "L'item LEVEL_ZERO_CEILING_TILE doit etre non-null.");
         assertNotNull(ModItems.LEVEL_ZERO_FLUORESCENT_LIGHT,
-                "Le RegistryObject item LEVEL_ZERO_FLUORESCENT_LIGHT doit etre non-null.");
+                "L'item LEVEL_ZERO_FLUORESCENT_LIGHT doit etre non-null.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper"),
-                ModItems.LEVEL_ZERO_WALLPAPER.getId(),
-                "L'identifiant de l'item level_zero_wallpaper doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_wallpaper"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_WALLPAPER),
+                "L'identifiant de l'item level_zero_wallpaper doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_aged"),
-                ModItems.LEVEL_ZERO_WALLPAPER_AGED.getId(),
-                "L'identifiant de l'item level_zero_wallpaper_aged doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_wallpaper_aged"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_WALLPAPER_AGED),
+                "L'identifiant de l'item level_zero_wallpaper_aged doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_wallpaper_adaptive"),
-                ModItems.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getId(),
-                "L'identifiant de l'item level_zero_wallpaper_adaptive doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_wallpaper_adaptive"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_WALLPAPER_ADAPTIVE),
+                "L'identifiant de l'item level_zero_wallpaper_adaptive doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet"),
-                ModItems.LEVEL_ZERO_DAMP_CARPET.getId(),
-                "L'identifiant de l'item level_zero_damp_carpet doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_damp_carpet"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_DAMP_CARPET),
+                "L'identifiant de l'item level_zero_damp_carpet doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_damp_carpet_aged"),
-                ModItems.LEVEL_ZERO_DAMP_CARPET_AGED.getId(),
-                "L'identifiant de l'item level_zero_damp_carpet_aged doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_damp_carpet_aged"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED),
+                "L'identifiant de l'item level_zero_damp_carpet_aged doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_ceiling_tile"),
-                ModItems.LEVEL_ZERO_CEILING_TILE.getId(),
-                "L'identifiant de l'item level_zero_ceiling_tile doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_ceiling_tile"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_CEILING_TILE),
+                "L'identifiant de l'item level_zero_ceiling_tile doit etre correct.");
         assertEquals(
-                Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "level_zero_fluorescent_light"),
-                ModItems.LEVEL_ZERO_FLUORESCENT_LIGHT.getId(),
-                "L'identifiant de l'item level_zero_fluorescent_light doit etre correct."
-        );
+                Identifier.of(ModConstants.MOD_ID, "level_zero_fluorescent_light"),
+                Registries.ITEM.getId(ModItems.LEVEL_ZERO_FLUORESCENT_LIGHT),
+                "L'identifiant de l'item level_zero_fluorescent_light doit etre correct.");
     }
 }

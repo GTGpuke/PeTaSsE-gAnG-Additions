@@ -3,7 +3,7 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
 
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
@@ -106,8 +106,8 @@ class BackroomsLevelZeroLayoutTest {
     @Test
     @DisplayName("Le biome de surface peut etre retrouve depuis le bloc de sol")
     void testSurfaceBiomeCanBeRecoveredFromFloorState() {
-        BlockState baseFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET.get().defaultBlockState();
-        BlockState alternateFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.get().defaultBlockState();
+        BlockState baseFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET.getDefaultState();
+        BlockState alternateFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.getDefaultState();
 
         assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.fromFloorState(baseFloor),
                 "La moquette jaune doit correspondre au biome de base.");

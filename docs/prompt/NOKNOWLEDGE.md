@@ -9,27 +9,24 @@ Tu démarres sans contexte sur ce projet. Lis les fichiers suivants dans cet ord
 ### 1. Vue d'ensemble
 - [`README.md`](../../README.md) — Stack, structure du projet, quick start, skills disponibles
 
-### 2. Configuration Gradle (critique — nombreux pièges FG7)
-- [`gradle.properties`](../../gradle.properties) — Toutes les versions : MC, Forge, Java, mod_id, group, mod_version
-- [`build.gradle`](../../build.gradle) — Config complète ForgeGradle 7, runs, dépendances, compileJava
-- [`settings.gradle`](../../settings.gradle) — Pourquoi foojay est absent (piège Gradle 9.x)
+### 2. Configuration Gradle
+- [`gradle.properties`](../../gradle.properties) — Toutes les versions : MC 1.21.1, Fabric, Java 21, mod_id, group, mod_version
+- [`build.gradle`](../../build.gradle) — Config Fabric Loom 1.9, runs, dépendances, compileJava
+- [`settings.gradle`](../../settings.gradle) — Déclaration du projet
 - [`gradle/wrapper/gradle-wrapper.properties`](../../gradle/wrapper/gradle-wrapper.properties) — Version du wrapper (9.3.0+)
 
 ### 3. Identité du mod
-- [`src/main/resources/META-INF/mods.toml`](../../src/main/resources/META-INF/mods.toml) — Déclaration Forge, dépendances obligatoires/optionnelles
+- [`src/main/resources/fabric.mod.json`](../../src/main/resources/fabric.mod.json) — Déclaration Fabric, entrypoints, dépendances
 
 ### 4. Code source principal
-- [`src/main/java/com/petassegang/addons/util/ModConstants.java`](../../src/main/java/com/petassegang/addons/util/ModConstants.java) — MOD_ID, MOD_NAME, LOGGER (référence partout)
-- [`src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java`](../../src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java) — Point d'entrée @Mod, bus d'événements, init des registres
-- [`src/main/java/com/petassegang/addons/init/ModItems.java`](../../src/main/java/com/petassegang/addons/init/ModItems.java) — Pattern DeferredRegister pour les items
+- [`src/main/java/com/petassegang/addons/util/ModConstants.java`](../../src/main/java/com/petassegang/addons/util/ModConstants.java) — MOD_ID, MOD_NAME, LOGGER
+- [`src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java`](../../src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java) — ModInitializer, init des registres
+- [`src/main/java/com/petassegang/addons/init/ModItems.java`](../../src/main/java/com/petassegang/addons/init/ModItems.java) — Pattern Registry.register() pour les items
 
 ### 5. Architecture et conventions
-- [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) — Conventions de code, patterns obligatoires, stack technique, où ajouter quoi
+- [`docs/ARCHITECTURE.md`](../ARCHITECTURE.md) — Conventions de code, patterns, stack technique
 
-### 6. Pièges déjà rencontrés (lire avant tout build ou config)
-- [`AUDIT_REPORT.md`](../../AUDIT_REPORT.md) — Historique complet des erreurs ForgeGradle 7 corrigées ; évite de les reproduire
-
-### 7. Skills (conventions d'ajout de contenu)
+### 6. Skills (conventions d'ajout de contenu)
 Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 - `add-item` / `add-block` / `add-entity` / `add-dimension`
 - `add-recipe` / `add-sound` / `add-creative-tab` / `add-dependency`
@@ -38,29 +35,33 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 
 ## Pièges critiques — mémorise-les avant tout
 
-### ForgeGradle 7 (FG7) vs FG6
-| ❌ FG6 / incorrect | ✅ FG7 / correct |
-|-------------------|-----------------|
-| `workingDirectory project.file(...)` | `workingDir = project.file(...)` |
-| `programArguments [...]` | `args = [...]` |
-| `minecraft "net.minecraftforge:forge:..."` dans `dependencies {}` | `version = "${minecraft_version}-${forge_version}"` dans `minecraft {}` |
-| `finalizedBy 'reobfJar'` | supprimé (MC 26.1 est déobfusqué) |
-| `copyIdeResources true` | supprimé (n'existe pas en FG7) |
-| `genVSCodeRuns` | n'existe pas — utiliser `genEclipseRuns` |
-| `runClient` (task Gradle) | disponible dans ce dépôt — le lancer via `./gradlew runClient` ou la tâche VS Code dédiée |
+### Fabric vs Forge
+| ❌ Forge / incorrect | ✅ Fabric / correct |
+|---------------------|---------------------|
+| `DeferredRegister.create(ForgeRegistries.ITEMS, MOD_ID)` | `Registry.register(Registries.ITEM, Identifier.of(MOD_ID, "id"), obj)` |
+| `RegistryObject<Item> ITEM = ITEMS.register(...)` | `Item ITEM = Registry.register(...)` |
+| `ModItems.GANG_BADGE.get()` | `ModItems.GANG_BADGE` (pas de `.get()`) |
+| `new Item.Properties().stacksTo(1).setId(...)` | `new Item.Settings().maxCount(1)` (pas de `.setId()`) |
+| `Item.Properties` | `Item.Settings` |
+| `item.isFoil(stack)` | `item.hasGlint(stack)` |
+| `item.getDefaultMaxStackSize()` | `item.getMaxCount()` |
+| `finishUsingItem(stack, level, entity)` | `finishUsing(stack, world, entity)` |
+| `InteractionResultHolder<ItemStack> use(...)` | `TypedActionResult<ItemStack> use(...)` |
+| `Component.translatable("key")` | `Text.translatable("key")` |
+| `@OnlyIn(Dist.CLIENT)` | `@Environment(EnvType.CLIENT)` |
+| `ModList.get().isLoaded("modid")` | `FabricLoader.getInstance().isModLoaded("modid")` |
+| `Identifier.fromNamespaceAndPath(ns, path)` | `Identifier.of(ns, path)` |
+| `ResourceLocation` | `Identifier` |
+| `ServerLevel` | `ServerWorld` |
+| `net.minecraft.world.item.Item` | `net.minecraft.item.Item` (Yarn) |
+| `net.minecraft.world.level.block.Block` | `net.minecraft.block.Block` (Yarn) |
+| `mods.toml` | `fabric.mod.json` |
 
-### Gradle 9.x
-- **Foojay toolchain resolver absent** : `JvmVendorSpec.IBM_SEMERU` retiré en Gradle 9.x → crash au démarrage. Ne jamais réajouter ce plugin dans `settings.gradle`.
-- **Wrapper minimum : 9.3.0** — FG7 le requiert explicitement.
+### Worldgen JSON
+- **`dirt_provider`** est **obligatoire** dans `minecraft:tree` configured_feature — `below_trunk_provider` n'existe pas en 1.21.1 → crash `Failed to load registries` au chargement de monde.
 
-### Minecraft 26.1
-- **Java 25 obligatoire** — le build échoue sans lui (toolchain). Installer via `winget install EclipseAdoptium.Temurin.25.JDK`.
-- **Mappings :** `channel: 'official', version: minecraft_version` — pas de MCP, pas de Parchment.
-- **pack_format :** `55` dans `pack.mcmeta`.
-- **`TooltipContext` :** type imbriqué `Item.TooltipContext` — l'import complet est `net.minecraft.world.item.Item.TooltipContext`.
-
-### Compilation Java
-- `-Werror` est **absent intentionnellement** : le code généré par Forge produit des warnings qui casseraient le build.
+### Encodage Windows
+- **`-Dfile.encoding=COMPAT`** est **obligatoire** dans `org.gradle.jvmargs` si le chemin contient `é` (`Développement`). Déjà présent dans `gradle.properties`.
 
 ---
 
@@ -68,11 +69,13 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 
 | Composant | Version |
 |-----------|---------|
-| Minecraft | 26.1 |
-| Forge | 62.0.x |
-| ForgeGradle | 7.x |
+| Minecraft | 1.21.1 |
+| Yarn mappings | 1.21.1+build.3 |
+| Fabric Loader | 0.16.9 |
+| Fabric API | 0.102.0+1.21.1 |
+| Fabric Loom | 1.9 |
 | Gradle | 9.3.0+ |
-| Java | 25 (Temurin recommandé) |
+| Java | 21 (Temurin recommandé) |
 | JUnit | 5.10.3 |
 | mod_id | `petasse_gang_additions` |
 | package racine | `com.petassegang.addons` |
@@ -82,17 +85,17 @@ Parcourir tous les `SKILL.md` dans [`.skills/`](../../.skills/) :
 ## Commandes utiles
 
 ```bash
-./gradlew genEclipseRuns   # Générer les run configs IDE (une seule fois)
-./gradlew build            # Build → build/libs/petasse_gang_additions-0.6.0.jar
-./gradlew test             # Tests JUnit 5
-./gradlew runGameTestServer # Tests in-game Forge
-./gradlew runData          # Data generation
-./gradlew clean build      # Rebuild propre
-./gradlew dependencies     # Voir l'arbre de dépendances complet
+./gradlew build                               # Build → build/libs/petasse_gang_additions-0.6.0.jar
+./gradlew test                                # Tests JUnit 5
+./gradlew runClient                           # Client dev
+./gradlew runServer                           # Serveur dédié
+./gradlew benchmarkLevelZeroGeneration        # Benchmark Level 0
+./gradlew clean build                         # Rebuild propre
+./gradlew --stop && ./gradlew build           # Stop daemon + rebuild (problèmes encodage)
 ```
 
 ---
 
 ## Si le build échoue
 
-Voir [`docs/TROUBLESHOOTING.md`](../TROUBLESHOOTING.md) et [`AUDIT_REPORT.md`](../../AUDIT_REPORT.md).
+Voir [`docs/TROUBLESHOOTING.md`](../TROUBLESHOOTING.md).

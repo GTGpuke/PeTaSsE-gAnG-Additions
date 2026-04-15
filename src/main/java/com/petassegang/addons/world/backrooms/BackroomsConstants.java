@@ -1,6 +1,6 @@
 package com.petassegang.addons.world.backrooms;
 
-import net.minecraft.resources.Identifier;
+import net.minecraft.util.Identifier;
 
 import com.petassegang.addons.util.ModConstants;
 
@@ -20,7 +20,7 @@ public final class BackroomsConstants {
 
     /** Cle du random principal du layout. */
     public static final Identifier LEVEL_ZERO_LAYOUT_RANDOM =
-            Identifier.fromNamespaceAndPath(ModConstants.MOD_ID, "backrooms_level_zero_layout");
+            Identifier.of(ModConstants.MOD_ID, "backrooms_level_zero_layout");
 
     /** Echelle de conversion entre une cellule du script et les blocs Minecraft. */
     public static final int LEVEL_ZERO_CELL_SCALE = 3;

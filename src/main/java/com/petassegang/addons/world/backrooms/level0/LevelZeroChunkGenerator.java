@@ -6,25 +6,24 @@ import java.util.concurrent.CompletableFuture;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
-import net.minecraft.world.level.LevelHeightAccessor;
-import net.minecraft.world.level.NoiseColumn;
-import net.minecraft.world.level.StructureManager;
-import net.minecraft.world.level.WorldGenLevel;
-import net.minecraft.server.level.WorldGenRegion;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.biome.BiomeManager;
-import net.minecraft.world.level.biome.FixedBiomeSource;
-import net.minecraft.world.level.block.Blocks;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.RandomState;
-import net.minecraft.world.level.levelgen.blending.Blender;
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.entry.RegistryEntry;
+import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.HeightLimitView;
+import net.minecraft.world.Heightmap;
+import net.minecraft.world.biome.Biome;
+import net.minecraft.world.biome.source.FixedBiomeSource;
+import net.minecraft.world.chunk.Chunk;
+import net.minecraft.world.gen.GenerationStep;
+import net.minecraft.world.gen.StructureAccessor;
+import net.minecraft.world.gen.chunk.Blender;
+import net.minecraft.world.gen.chunk.ChunkGenerator;
+import net.minecraft.world.ChunkRegion;
+import net.minecraft.world.gen.chunk.VerticalBlockSample;
+import net.minecraft.world.gen.noise.NoiseConfig;
 
-import com.petassegang.addons.block.entity.LevelZeroWallpaperBlockEntity;
+import com.petassegang.addons.block.LevelZeroWallpaperBlock;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.BackroomsConstants;
 
@@ -35,90 +34,85 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
 
     private static final int NORTH_MASK = 1;
     private static final int SOUTH_MASK = 1 << 1;
-    private static final int WEST_MASK = 1 << 2;
-    private static final int EAST_MASK = 1 << 3;
-    private static final int FULL_MASK = NORTH_MASK | SOUTH_MASK | WEST_MASK | EAST_MASK;
+    private static final int WEST_MASK  = 1 << 2;
+    private static final int EAST_MASK  = 1 << 3;
+    private static final int FULL_MASK  = NORTH_MASK | SOUTH_MASK | WEST_MASK | EAST_MASK;
 
-    /** Codec de serialization du generateur. */
+    /** Codec de serialisation du generateur. */
     public static final MapCodec<LevelZeroChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
-            instance.group(Biome.CODEC.fieldOf("biome").forGetter(LevelZeroChunkGenerator::biome))
+            instance.group(Biome.REGISTRY_CODEC.fieldOf("biome")
+                            .forGetter(LevelZeroChunkGenerator::biome))
                     .apply(instance, LevelZeroChunkGenerator::new));
 
-    private final Holder<Biome> biome;
+    private final RegistryEntry<Biome> biome;
 
     /**
      * Construit le generateur avec un biome fixe.
      *
      * @param biome biome unique de la dimension
      */
-    public LevelZeroChunkGenerator(Holder<Biome> biome) {
+    public LevelZeroChunkGenerator(RegistryEntry<Biome> biome) {
         super(new FixedBiomeSource(biome));
         this.biome = biome;
     }
 
-    private Holder<Biome> biome() {
+    private RegistryEntry<Biome> biome() {
         return biome;
     }
 
     @Override
-    protected MapCodec<? extends ChunkGenerator> codec() {
+    protected MapCodec<? extends ChunkGenerator> getCodec() {
         return CODEC;
     }
 
     @Override
-    public CompletableFuture<ChunkAccess> fillFromNoise(Blender blender,
-                                                        RandomState randomState,
-                                                        StructureManager structureManager,
-                                                        ChunkAccess chunk) {
-        long layoutSeed = resolveLayoutSeed(randomState);
+    public CompletableFuture<Chunk> populateNoise(Blender blender,
+                                                   NoiseConfig noiseConfig,
+                                                   StructureAccessor structureAccessor,
+                                                   Chunk chunk) {
+        long layoutSeed = resolveLayoutSeed(noiseConfig);
         LevelZeroLayout layout = LevelZeroLayout.generate(
-                chunk.getPos().x(),
-                chunk.getPos().z(),
+                chunk.getPos().x,
+                chunk.getPos().z,
                 layoutSeed);
         LayoutSampler sampler = new LayoutSampler(layoutSeed);
-        BlockPos.MutableBlockPos mutablePos = new BlockPos.MutableBlockPos();
-        BlockState bedrock = Blocks.BEDROCK.defaultBlockState();
-        BlockState subfloor = Blocks.SMOOTH_STONE.defaultBlockState();
-        BlockState wallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState();
-        BlockState alternateWallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState();
-        BlockState adaptiveWallpaper = ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState();
-        BlockState ceiling = ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState();
-        BlockState light = ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get().defaultBlockState();
-        int worldMinX = chunk.getPos().getMinBlockX();
-        int worldMinZ = chunk.getPos().getMinBlockZ();
+        BlockPos.Mutable mutablePos = new BlockPos.Mutable();
+        BlockState bedrock         = Blocks.BEDROCK.getDefaultState();
+        BlockState subfloor        = Blocks.SMOOTH_STONE.getDefaultState();
+        BlockState wallpaper       = ModBlocks.LEVEL_ZERO_WALLPAPER.getDefaultState();
+        BlockState altWallpaper    = ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.getDefaultState();
+        BlockState adaptWallpaper  = ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState();
+        BlockState ceiling         = ModBlocks.LEVEL_ZERO_CEILING_TILE.getDefaultState();
+        BlockState light           = ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.getDefaultState();
+        int worldMinX = chunk.getPos().getStartX();
+        int worldMinZ = chunk.getPos().getStartZ();
 
         for (int localX = 0; localX < LevelZeroLayout.CHUNK_SIZE; localX++) {
             int worldX = worldMinX + localX;
             for (int localZ = 0; localZ < LevelZeroLayout.CHUNK_SIZE; localZ++) {
                 int worldZ = worldMinZ + localZ;
                 BlockState floor = resolveFloorState(layout, localX, localZ);
-                chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_BEDROCK_Y, localZ), bedrock, 0);
-                chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_SUBFLOOR_Y, localZ), subfloor, 0);
+                chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_BEDROCK_Y, localZ), bedrock, false);
+                chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_SUBFLOOR_Y, localZ), subfloor, false);
 
                 if (layout.isWalkable(localX, localZ)) {
-                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_FLOOR_Y, localZ), floor, 0);
+                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_FLOOR_Y, localZ), floor, false);
                     for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
-                        chunk.setBlockState(mutablePos.set(localX, y, localZ), Blocks.AIR.defaultBlockState(), 0);
+                        chunk.setBlockState(mutablePos.set(localX, y, localZ), Blocks.AIR.getDefaultState(), false);
                     }
                     BlockState ceilingState = layout.hasLight(localX, localZ) ? light : ceiling;
-                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_CEILING_Y, localZ), ceilingState, 0);
+                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_CEILING_Y, localZ), ceilingState, false);
                 } else {
-                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_FLOOR_Y, localZ), floor, 0);
+                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_FLOOR_Y, localZ), floor, false);
                     boolean exposedWallpaper = sampler.isWallpaperExposed(worldX, worldZ);
                     int faceMask = exposedWallpaper ? sampler.sampleWallpaperFaceMask(worldX, worldZ) : 0;
+                    // Le faceMask est encode directement dans le block state — pas de block entity.
                     BlockState wallState = resolveWallState(
-                            exposedWallpaper, faceMask, wallpaper, alternateWallpaper, adaptiveWallpaper, bedrock);
-                    boolean needsBlockEntity = exposedWallpaper && isMixedFaceMask(faceMask);
+                            exposedWallpaper, faceMask, wallpaper, altWallpaper, adaptWallpaper, bedrock);
                     for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
-                        chunk.setBlockState(mutablePos.set(localX, y, localZ), wallState, 0);
-                        if (needsBlockEntity) {
-                            chunk.setBlockEntity(new LevelZeroWallpaperBlockEntity(
-                                    new BlockPos(worldX, y, worldZ),
-                                    adaptiveWallpaper,
-                                    faceMask));
-                        }
+                        chunk.setBlockState(mutablePos.set(localX, y, localZ), wallState, false);
                     }
-                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_CEILING_Y, localZ), ceiling, 0);
+                    chunk.setBlockState(mutablePos.set(localX, BackroomsConstants.LEVEL_ZERO_CEILING_Y, localZ), ceiling, false);
                 }
             }
         }
@@ -127,52 +121,53 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public void buildSurface(WorldGenRegion level,
-                             StructureManager structureManager,
-                             RandomState randomState,
-                             ChunkAccess chunk) {
+    public void buildSurface(ChunkRegion region,
+                             StructureAccessor structures,
+                             NoiseConfig noiseConfig,
+                             Chunk chunk) {
     }
 
     @Override
-    public void applyCarvers(WorldGenRegion level,
-                             long seed,
-                             RandomState randomState,
-                             BiomeManager biomeManager,
-                             StructureManager structureManager,
-                             ChunkAccess chunk) {
+    public void carve(ChunkRegion chunkRegion,
+                      long seed,
+                      NoiseConfig noiseConfig,
+                      net.minecraft.world.biome.source.BiomeAccess biomeAccess,
+                      StructureAccessor structureAccessor,
+                      Chunk chunk,
+                      GenerationStep.Carver carverStep) {
     }
 
     @Override
-    public void spawnOriginalMobs(WorldGenRegion level) {
+    public void populateEntities(ChunkRegion region) {
     }
 
     @Override
-    public int getBaseHeight(int x,
-                             int z,
-                             Heightmap.Types heightmap,
-                             LevelHeightAccessor heightAccessor,
-                             RandomState randomState) {
+    public int getHeight(int x,
+                         int z,
+                         Heightmap.Type heightmap,
+                         HeightLimitView world,
+                         NoiseConfig noiseConfig) {
         return BackroomsConstants.LEVEL_ZERO_CEILING_Y + 1;
     }
 
     @Override
-    public NoiseColumn getBaseColumn(int x,
-                                     int z,
-                                     LevelHeightAccessor heightAccessor,
-                                     RandomState randomState) {
-        BlockState[] states = new BlockState[BackroomsConstants.LEVEL_ZERO_GEN_DEPTH];
-        for (int y = 0; y < states.length; y++) {
-            states[y] = Blocks.AIR.defaultBlockState();
+    public VerticalBlockSample getColumnSample(int x,
+                                               int z,
+                                               HeightLimitView world,
+                                               NoiseConfig noiseConfig) {
+        BlockState[] states = new BlockState[128];
+        for (int i = 0; i < states.length; i++) {
+            states[i] = Blocks.AIR.getDefaultState();
         }
 
-        setColumnState(states, BackroomsConstants.LEVEL_ZERO_BEDROCK_Y, Blocks.BEDROCK.defaultBlockState());
-        setColumnState(states, BackroomsConstants.LEVEL_ZERO_SUBFLOOR_Y, Blocks.SMOOTH_STONE.defaultBlockState());
+        setColumnState(states, BackroomsConstants.LEVEL_ZERO_BEDROCK_Y, Blocks.BEDROCK.getDefaultState());
+        setColumnState(states, BackroomsConstants.LEVEL_ZERO_SUBFLOOR_Y, Blocks.SMOOTH_STONE.getDefaultState());
 
+        long layoutSeed = resolveLayoutSeed(noiseConfig);
         LevelZeroLayout layout = LevelZeroLayout.generate(
                 Math.floorDiv(x, LevelZeroLayout.CHUNK_SIZE),
                 Math.floorDiv(z, LevelZeroLayout.CHUNK_SIZE),
-                resolveLayoutSeed(randomState));
-        long layoutSeed = resolveLayoutSeed(randomState);
+                layoutSeed);
         LayoutSampler sampler = new LayoutSampler(layoutSeed);
         int localX = Math.floorMod(x, LevelZeroLayout.CHUNK_SIZE);
         int localZ = Math.floorMod(z, LevelZeroLayout.CHUNK_SIZE);
@@ -183,30 +178,31 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
             setColumnState(states,
                     BackroomsConstants.LEVEL_ZERO_CEILING_Y,
                     layout.hasLight(localX, localZ)
-                            ? ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.get().defaultBlockState()
-                            : ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState());
+                            ? ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.getDefaultState()
+                            : ModBlocks.LEVEL_ZERO_CEILING_TILE.getDefaultState());
         } else {
             boolean exposedWallpaper = sampler.isWallpaperExposed(x, z);
             int faceMask = exposedWallpaper ? sampler.sampleWallpaperFaceMask(x, z) : 0;
             BlockState wallState = resolveWallState(
                     exposedWallpaper,
                     faceMask,
-                    ModBlocks.LEVEL_ZERO_WALLPAPER.get().defaultBlockState(),
-                    ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.get().defaultBlockState(),
-                    ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.get().defaultBlockState(),
-                    Blocks.BEDROCK.defaultBlockState());
+                    ModBlocks.LEVEL_ZERO_WALLPAPER.getDefaultState(),
+                    ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.getDefaultState(),
+                    ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState(),
+                    Blocks.BEDROCK.getDefaultState());
             for (int y = BackroomsConstants.LEVEL_ZERO_AIR_MIN_Y; y <= BackroomsConstants.LEVEL_ZERO_AIR_MAX_Y; y++) {
                 setColumnState(states, y, wallState);
             }
-            setColumnState(states, BackroomsConstants.LEVEL_ZERO_CEILING_Y, ModBlocks.LEVEL_ZERO_CEILING_TILE.get().defaultBlockState());
+            setColumnState(states, BackroomsConstants.LEVEL_ZERO_CEILING_Y, ModBlocks.LEVEL_ZERO_CEILING_TILE.getDefaultState());
         }
 
-        return new NoiseColumn(heightAccessor.getMinY(), states);
+        return new VerticalBlockSample(world.getBottomY(), states);
     }
 
     @Override
-    public int getGenDepth() {
-        return BackroomsConstants.LEVEL_ZERO_GEN_DEPTH;
+    public int getWorldHeight() {
+        // Correspond au "height" du fichier backrooms_level_0_type.json.
+        return 128;
     }
 
     @Override
@@ -215,21 +211,19 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
     }
 
     @Override
-    public int getMinY() {
+    public int getMinimumY() {
         return 0;
     }
 
     @Override
-    public void addDebugScreenInfo(List<String> result,
-                                   RandomState randomState,
-                                   BlockPos pos) {
-        result.add("Backrooms : Level 0");
-        result.add("ChunkGenerator : Traduction monocouche du script Python.");
+    public void getDebugHudText(List<String> text,
+                                NoiseConfig noiseConfig,
+                                BlockPos pos) {
+        text.add("Backrooms : Level 0");
+        text.add("ChunkGenerator : Traduction monocouche du script Python.");
     }
 
-    @Override
-    public void applyBiomeDecoration(WorldGenLevel level, ChunkAccess chunk, StructureManager structureManager) {
-    }
+    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static void setColumnState(BlockState[] states, int y, BlockState state) {
         if (y >= 0 && y < states.length) {
@@ -240,11 +234,18 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
     private static BlockState resolveFloorState(LevelZeroLayout layout, int localX, int localZ) {
         return switch (layout.floorVariant(localX, localZ)) {
             case LevelZeroLayout.SURFACE_VARIANT_ALTERNATE ->
-                    ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.get().defaultBlockState();
-            default -> ModBlocks.LEVEL_ZERO_DAMP_CARPET.get().defaultBlockState();
+                    ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.getDefaultState();
+            default -> ModBlocks.LEVEL_ZERO_DAMP_CARPET.getDefaultState();
         };
     }
 
+    /**
+     * Retourne le block state de mur adequat.
+     *
+     * <p>Pour les blocs adaptatifs (faceMask mixte), le masque est encode
+     * directement dans la propriete {@link LevelZeroWallpaperBlock#FACE_MASK}
+     * du block state — aucune block entity n'est creee.
+     */
     private static BlockState resolveWallState(boolean exposedWallpaper,
                                                int faceMask,
                                                BlockState wallpaper,
@@ -255,7 +256,7 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
             return wallInsulation;
         }
         if (isMixedFaceMask(faceMask)) {
-            return adaptiveWallpaper;
+            return adaptiveWallpaper.with(LevelZeroWallpaperBlock.FACE_MASK, faceMask);
         }
         if (faceMask == FULL_MASK) {
             return alternateWallpaper;
@@ -267,9 +268,9 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         return faceMask != 0 && faceMask != FULL_MASK;
     }
 
-    private static long resolveLayoutSeed(RandomState randomState) {
-        return randomState.getOrCreateRandomFactory(BackroomsConstants.LEVEL_ZERO_LAYOUT_RANDOM)
-                .at(0, 0, 0)
+    private static long resolveLayoutSeed(NoiseConfig noiseConfig) {
+        return noiseConfig.getOrCreateRandomDeriver(BackroomsConstants.LEVEL_ZERO_LAYOUT_RANDOM)
+                .split(BlockPos.ORIGIN)
                 .nextLong();
     }
 
@@ -295,9 +296,9 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
         private int sampleWallpaperFaceMask(int worldX, int worldZ) {
             int faceMask = 0;
             faceMask |= sampleFace(worldX, worldZ, 0, -1, NORTH_MASK);
-            faceMask |= sampleFace(worldX, worldZ, 0, 1, SOUTH_MASK);
+            faceMask |= sampleFace(worldX, worldZ, 0,  1, SOUTH_MASK);
             faceMask |= sampleFace(worldX, worldZ, -1, 0, WEST_MASK);
-            faceMask |= sampleFace(worldX, worldZ, 1, 0, EAST_MASK);
+            faceMask |= sampleFace(worldX, worldZ,  1, 0, EAST_MASK);
             return faceMask;
         }
 

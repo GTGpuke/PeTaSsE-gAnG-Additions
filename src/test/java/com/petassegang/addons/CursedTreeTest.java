@@ -14,13 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 class CursedTreeTest {
 
     @Test
-    @DisplayName("ModBlocks.BLOCKS DeferredRegister n'est pas null")
-    void testBlocksDeferredRegisterNotNull() {
-        assertNotNull(ModBlocks.BLOCKS,
-                "Le DeferredRegister BLOCKS doit être créé de façon eagerly.");
-    }
-
-    @Test
     @DisplayName("CURSED_LOG RegistryObject n'est pas null")
     void testCursedLogRegistryObjectNotNull() {
         assertNotNull(ModBlocks.CURSED_LOG,

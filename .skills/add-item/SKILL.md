@@ -1,9 +1,9 @@
 ---
 name: add-item
-description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions. Utilise ce skill dès qu'on veut créer un item, outil, arme, consommable, ou objet. Déclenche pour 'ajoute', 'crée', 'nouveau' + 'item', 'objet', 'outil', 'arme', 'nourriture', 'carte', 'clé', 'badge', 'épée', 'pioche', 'hache', 'arc'."
+description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Utilise ce skill dès qu'on veut créer un item, outil, arme, consommable, ou objet. Déclenche pour 'ajoute', 'crée', 'nouveau' + 'item', 'objet', 'outil', 'arme', 'nourriture', 'carte', 'clé', 'badge', 'épée', 'pioche', 'hache', 'arc'."
 ---
 
-# Skill — Ajouter un Item
+# Skill — Ajouter un Item (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
@@ -18,15 +18,13 @@ description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions. Utilise ce s
 
 ### 1. Définir les paramètres
 
-Avant de coder, détermine :
-
 | Paramètre | Exemples |
 |-----------|---------|
 | `ITEM_ID` (snake_case) | `gang_sword`, `magic_key`, `mystery_card` |
 | `ClassName` (PascalCase) | `GangSwordItem`, `MagicKeyItem`, `MysteryCardItem` |
 | Stack max | `1` (unique) ou `64` (stackable) |
-| Rareté | `COMMON`, `UNCOMMON`, `RARE`, `EPIC` |
-| Comportement custom | tooltip, foil, durabilité, nourriture, etc. |
+| Rareté | `Rarity.COMMON`, `Rarity.UNCOMMON`, `Rarity.RARE`, `Rarity.EPIC` |
+| Comportement custom | tooltip, glint, durabilité, nourriture, etc. |
 | Nom EN / Nom FR | "Gang Sword" / "Épée de la Gang" |
 
 ---
@@ -40,12 +38,15 @@ package com.petassegang.addons.item;
 
 import java.util.List;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.Item.TooltipContext;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.world.World;
 
 /**
  * [Nom de l'item] — [Description courte].
@@ -53,31 +54,27 @@ import net.minecraft.world.item.TooltipFlag;
 public class MyItem extends Item {
 
     private static final String TOOLTIP_KEY = "item.petasse_gang_additions.my_item_id.tooltip";
-    private static final Component TOOLTIP_LINE =
-            Component.translatable(TOOLTIP_KEY).withStyle(ChatFormatting.GOLD);
+    private static final Text TOOLTIP_LINE =
+            Text.translatable(TOOLTIP_KEY).formatted(Formatting.GOLD);
 
-    public MyItem(Properties properties) {
-        super(properties);
+    public MyItem(Settings settings) {
+        super(settings);
     }
 
     @Override
-    public void appendHoverText(ItemStack stack,
-                                TooltipContext context,
-                                List<Component> tooltip,
-                                TooltipFlag flag) {
+    public void appendTooltip(ItemStack stack, TooltipContext context,
+                              List<Text> tooltip, TooltipType type) {
         tooltip.add(TOOLTIP_LINE);
     }
 
-    // Override isFoil() → true pour le glint enchantement.
-    // Override getUseDuration() pour les consommables.
-    // Override finishUsingItem() pour l'effet à la consommation.
+    // Override hasGlint() → true pour le glint enchantement.
+    // Override getMaxUseTime() pour les consommables.
+    // Override finishUsing() pour l'effet à la consommation.
+    // Override use() pour le clic droit.
 }
 ```
 
-**Pour un item simple sans comportement custom :** inutile de créer une classe, utiliser directement `Item` dans ModItems :
-```java
-() -> new Item(new Item.Properties().setId(ITEMS.key("my_item_id")).stacksTo(64))
-```
+**Pour un item simple sans comportement custom :** inutile de créer une classe, utiliser directement `Item` dans ModItems.
 
 ---
 
@@ -86,17 +83,22 @@ public class MyItem extends Item {
 **Fichier :** `src/main/java/com/petassegang/addons/init/ModItems.java`
 
 ```java
-// Ajouter après la dernière RegistryObject :
-public static final RegistryObject<Item> MY_ITEM = ITEMS.register(
-        "my_item_id",
-        () -> new MyItem(
-                new Item.Properties()
-                        .setId(ITEMS.key("my_item_id")) // OBLIGATOIRE en MC 26.1
-                        .stacksTo(1)                    // ou 64
-                        .rarity(Rarity.RARE)            // COMMON / UNCOMMON / RARE / EPIC
+// Ajouter après le dernier champ static final :
+public static final Item MY_ITEM = Registry.register(
+        Registries.ITEM,
+        Identifier.of(ModConstants.MOD_ID, "my_item_id"),
+        new MyItem(
+                new Item.Settings()
+                        .maxCount(1)          // ou 64
+                        .rarity(Rarity.RARE)  // COMMON / UNCOMMON / RARE / EPIC
         )
 );
 ```
+
+**Important :**
+- Pas de `.setId()` — Fabric n'en a pas besoin.
+- Le champ contient directement l'objet, pas un `RegistryObject`.
+- Utiliser `ModItems.MY_ITEM` directement partout, pas `ModItems.MY_ITEM.get()`.
 
 ---
 
@@ -105,13 +107,13 @@ public static final RegistryObject<Item> MY_ITEM = ITEMS.register(
 **Fichier :** `src/main/java/com/petassegang/addons/creative/ModCreativeTab.java`
 
 ```java
-// Dans displayItems(), après la dernière ligne output.accept(...) :
-output.accept(ModItems.MY_ITEM.get());
+// Dans le FabricItemGroupEvents.modifyEntriesEvent callback :
+entries.add(ModItems.MY_ITEM);
 ```
 
 ---
 
-### 5. Créer la définition d'item (OBLIGATOIRE en MC 26.1)
+### 5. Créer la définition d'item (obligatoire en MC 1.21.1)
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/items/my_item_id.json`
 
@@ -124,7 +126,7 @@ output.accept(ModItems.MY_ITEM.get());
 }
 ```
 
-> **MC 26.1 exige ce fichier.** Sans lui, l'item s'affiche comme un carré violet/noir même si la texture et le modèle existent.
+> **MC 1.21.1 exige ce fichier.** Sans lui, l'item s'affiche comme un carré violet/noir.
 
 ---
 
@@ -151,15 +153,6 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 - Format : PNG, 16×16 px, RGBA
 - Crée la texture dans ton éditeur préféré (Aseprite, GIMP, Pixilart…)
-- Ou génère un placeholder via PowerShell :
-
-```powershell
-Add-Type -AssemblyName System.Drawing
-$bmp = New-Object System.Drawing.Bitmap(16, 16)
-$g = [System.Drawing.Graphics]::FromImage($bmp)
-$g.Clear([System.Drawing.Color]::FromArgb(255, 128, 0, 255))  # Violet
-$bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_item_id.png", [System.Drawing.Imaging.ImageFormat]::Png)
-```
 
 ---
 
@@ -210,19 +203,25 @@ $bmp.Save("src\main\resources\assets\petasse_gang_additions\textures\item\my_ite
 **Fichier :** `src/test/java/com/petassegang/addons/ItemTest.java`
 
 ```java
+// Test sans bootstrap (constantes/champs statiques uniquement) :
 @Test
-@DisplayName("MyItem stack size is X")
-void testMyItemStackSize() {
-    // Ajuster selon les propriétés réelles
-    var item = new MyItem(new Item.Properties().stacksTo(1));
-    assertEquals(1, item.getDefaultMaxStackSize());
+@DisplayName("MY_ITEM n'est pas null")
+void testMyItemNotNull() {
+    assertNotNull(ModItems.MY_ITEM, "Le champ MY_ITEM doit être non-null.");
 }
 
-// Et dans RegistryTest.java :
+// Test avec bootstrap (instanciation MC) :
+@BeforeAll
+static void bootstrapMinecraft() {
+    SharedConstants.createGameVersion();
+    Bootstrap.bootstrap();
+}
+
 @Test
-@DisplayName("MY_ITEM RegistryObject is not null")
-void testMyItemRegistryObjectNotNull() {
-    assertNotNull(ModItems.MY_ITEM);
+@DisplayName("MyItem stack size is 1")
+void testMyItemStackSize() {
+    var item = new MyItem(new Item.Settings().maxCount(1));
+    assertEquals(1, item.getMaxCount(), "La taille de pile doit être 1.");
 }
 ```
 
@@ -240,17 +239,15 @@ void testMyItemRegistryObjectNotNull() {
 ## Checklist finale
 
 - [ ] Classe `item/MyItem.java` créée (ou pas nécessaire si item simple)
-- [ ] `init/ModItems.java` — `RegistryObject` ajouté
-- [ ] `creative/ModCreativeTab.java` — `output.accept()` ajouté
-- [ ] `items/my_item_id.json` créé (OBLIGATOIRE MC 26.1 — sinon carré violet)
+- [ ] `init/ModItems.java` — champ `static final` ajouté avec `Registry.register()`
+- [ ] `creative/ModCreativeTab.java` — `entries.add()` ajouté
+- [ ] `items/my_item_id.json` créé (obligatoire MC 1.21.1 — sinon carré violet)
 - [ ] `models/item/my_item_id.json` créé
-- [ ] `textures/item/my_item_id.png` créé (16x16)
+- [ ] `textures/item/my_item_id.png` créé (16×16)
 - [ ] `lang/en_us.json` mis à jour
 - [ ] `lang/fr_fr.json` mis à jour
 - [ ] Recette ajoutée (si applicable)
-- [ ] Test `ItemTest.java` mis à jour
-- [ ] Test `RegistryTest.java` mis à jour
+- [ ] Test ajouté (RegistryTest ou ItemTest)
 - [ ] `docs/ITEMS.md` mis à jour
 - [ ] `docs/CHANGELOG.md` mis à jour
 - [ ] `./gradlew build` passe sans erreur
-- [ ] `./gradlew test` — tous les tests verts

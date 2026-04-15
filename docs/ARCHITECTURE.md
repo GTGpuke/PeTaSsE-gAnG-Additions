@@ -1,29 +1,26 @@
-# Architecture - PeTaSsE_gAnG_Additions
+# Architecture — PeTaSsE_gAnG_Additions
 
 ## Stack technique
 
 | Couche | Technologie |
 |--------|-------------|
-| Jeu | Minecraft 26.1 (fully deobfuscated) |
-| Mod loader | Forge 62.0.x |
-| Langage | Java 25 |
-| Build | Gradle 9.3.0 + ForgeGradle 7.x |
-| Tests | JUnit 5 + Forge GameTest |
+| Jeu | Minecraft 1.21.1 (Yarn mappings 1.21.1+build.3) |
+| Mod loader | Fabric Loader 0.16.9 |
+| API | Fabric API 0.102.0+1.21.1 |
+| Langage | Java 21 |
+| Build | Gradle 9.3.0 + Fabric Loom 1.9 |
+| Tests | JUnit 5 |
 | CI/CD | GitHub Actions |
 
-### Bibliothèques embarquées (JiJ)
+### Dépendances prévues (pas encore activées)
 
-Ces bibliothèques voyagent dans le JAR du mod — les joueurs n'ont pas à les installer séparément.
+Ces bibliothèques sont documentées dans [docs/DEPENDENCIES.md](DEPENDENCIES.md) et déclarées
+en `suggests` dans `fabric.mod.json`, mais pas encore incluses dans le build.
 
-| Bibliothèque | Rôle | Repository |
-|-------------|------|------------|
-| GeckoLib | Animations 3D (mobs Backrooms) | cloudsmith.io/geckolib3 |
-| Patchouli | Livre/guide in-game (lore Backrooms) | maven.blamejared.com |
-| Konkrete | Utilitaire requis par FancyMenu | maven.keksuccino.de |
-| FancyMenu | Personnalisation menus MC | maven.keksuccino.de |
-| Fusion | Textures connectées (papier peint Backrooms) | maven.supermartijn642.com |
-
-Voir [docs/DEPENDENCIES.md](DEPENDENCIES.md) pour les coordonnées Maven complètes et les notes de licence.
+| Bibliothèque | Rôle |
+|-------------|------|
+| GeckoLib | Animations 3D (mobs Backrooms) |
+| Patchouli | Livre/guide in-game (lore Backrooms) |
 
 ---
 
@@ -32,81 +29,79 @@ Voir [docs/DEPENDENCIES.md](DEPENDENCIES.md) pour les coordonnées Maven complè
 ```text
 com.petassegang.addons/
 |
-|-- PeTaSsEgAnGAdditionsMod.java      <- @Mod entry-point, lifecycle wiring
+|-- PeTaSsEgAnGAdditionsMod.java        <- ModInitializer — point d'entrée principal
+|-- PeTaSsEgAnGAdditionsClientMod.java  <- ClientModInitializer — entrée client uniquement
 |
 |-- config/
-|   `-- ModConfig.java                <- ForgeConfigSpec (SERVER + CLIENT)
+|   `-- ModConfig.java                  <- Constantes de configuration (plain booleans)
 |
 |-- creative/
-|   `-- ModCreativeTab.java           <- Creative tab DeferredRegister
+|   `-- ModCreativeTab.java             <- Onglet créatif (ItemGroup + FabricItemGroupEvents)
 |
-|-- init/                             <- Registres (un fichier par type)
-|   |-- ModBlockEntities.java         <- DeferredRegister<BlockEntityType<?>>
-|   |-- ModBlocks.java                <- DeferredRegister<Block>
-|   |-- ModChunkGenerators.java       <- DeferredRegister<MapCodec<? extends ChunkGenerator>>
-|   `-- ModItems.java                 <- DeferredRegister<Item>
+|-- init/                               <- Registres (un fichier par type)
+|   |-- ModBlockEntities.java           <- Registry.register(Registries.BLOCK_ENTITY_TYPE, ...)
+|   |-- ModBlocks.java                  <- Registry.register(Registries.BLOCK, ...)
+|   |-- ModChunkGenerators.java         <- Registry.register(Registries.CHUNK_GENERATOR, ...)
+|   `-- ModItems.java                   <- Registry.register(Registries.ITEM, ...)
 |
-|-- item/                             <- Classes d'items custom
+|-- item/                               <- Classes d'items custom
 |   |-- CursedSnackItem.java
 |   `-- GangBadgeItem.java
 |
-|-- block/                            <- Classes de blocs custom
-|   |-- LevelZeroWallpaperBlock.java  <- Bloc technique adaptatif (BlockEntity)
+|-- block/                              <- Classes de blocs custom
+|   |-- LevelZeroWallpaperBlock.java    <- Bloc technique adaptatif (BlockEntity)
 |   `-- entity/
 |       `-- LevelZeroWallpaperBlockEntity.java <- BlockEntity pour le faceMask adaptatif
 |
-|-- network/                          <- Packets reseau
+|-- network/                            <- Packets réseau
 |   |-- ModNetworking.java
 |   `-- packet/
-|       `-- GangBadgeActivatePacket.java
+|       `-- GangBadgeActivatePayload.java
 |
 |-- world/
 |   `-- backrooms/
-|       |-- BackroomsConstants.java   <- IDs et hauteurs du Level 0
+|       |-- BackroomsConstants.java      <- IDs et hauteurs du Level 0
 |       `-- level0/
-|           |-- LevelZeroChunkGenerator.java  <- Generation monocouche
-|           |-- LevelZeroLayout.java          <- Traduction deterministe du script Python
-|           `-- LevelZeroSurfaceBiome.java    <- Biomes cosmetiques internes (BASE, RED)
+|           |-- LevelZeroChunkGenerator.java  <- Génération monocouche
+|           |-- LevelZeroLayout.java          <- Traduction déterministe du script Python
+|           `-- LevelZeroSurfaceBiome.java    <- Biomes cosmétiques internes (BASE, RED)
 |
-|-- client/                           <- Handlers, renderers, GUI (CLIENT only)
+|-- client/                             <- Handlers, renderers, GUI (CLIENT uniquement)
 |   |-- handler/
 |   |   `-- GangBadgeClientHandler.java
 |   `-- model/
 |       |-- LevelZeroWallpaperBlockStateModel.java
+|       |-- LevelZeroWallpaperBakedModel.java
 |       `-- LevelZeroWallpaperModelHandler.java
 |
 `-- util/
-    `-- ModConstants.java             <- MOD_ID, MOD_NAME, LOGGER central
+    `-- ModConstants.java               <- MOD_ID, MOD_NAME, LOGGER central
 ```
 
 ---
 
-## Pattern DeferredRegister
+## Pattern d'enregistrement Fabric
 
-Tous les objets Minecraft sont enregistres via `DeferredRegister` pour garantir
-que l'enregistrement se fait au bon moment dans le cycle de vie de Forge.
+En Fabric, tous les objets sont enregistrés via `Registry.register()` dans des champs `static final`.
+Il n'y a pas de `DeferredRegister` ni de `RegistryObject`.
 
 ```java
-public static final DeferredRegister<Item> ITEMS =
-        DeferredRegister.create(ForgeRegistries.ITEMS, ModConstants.MOD_ID);
-
-public static final RegistryObject<Item> GANG_BADGE = ITEMS.register(
-        "gang_badge", () -> new GangBadgeItem(new Item.Properties()
-                .setId(ITEMS.key("gang_badge"))...));
-
-// Dans le constructeur @Mod, via le BusGroup fourni par FMLJavaModLoadingContext :
-BusGroup modBusGroup = context.getModBusGroup();
-ModItems.register(modBusGroup);
+// ModItems.java
+public static final Item GANG_BADGE = Registry.register(
+        Registries.ITEM,
+        Identifier.of(ModConstants.MOD_ID, "gang_badge"),
+        new GangBadgeItem(new Item.Settings().maxCount(1).rarity(Rarity.EPIC))
+);
 ```
+
+Le champ contient directement l'objet enregistré — pas de `.get()` nécessaire.
 
 Flow complet :
 
 ```text
-JVM load -> static fields crees
-         -> @Mod constructor -> DeferredRegister.register(bus)
-         -> Forge fire RegistryEvent -> RegistryObject rempli
-         -> FMLCommonSetupEvent -> commonSetup()
-         -> Monde charge
+JVM load -> static fields exécutés (Registration immédiate)
+         -> ModInitializer.onInitialize() -> setup réseau, creative tabs
+         -> Monde chargé
 ```
 
 ---
@@ -115,37 +110,29 @@ JVM load -> static fields crees
 
 ```text
 1. Chargement JVM
-   `-- static initialisers (DeferredRegister, ForgeConfigSpec)
+   `-- static initialisers (tous les Registry.register() s'exécutent ici)
 
-2. @Mod constructor
-   |-- register DeferredRegisters to modEventBus
-   |-- addListener(commonSetup)
-   |-- addListener(clientSetup) [CLIENT seulement]
-   `-- registerConfig(SERVER, CLIENT)
+2. ModInitializer.onInitialize()
+   |-- setup réseau (ModNetworking.register())
+   `-- enregistrement onglet créatif
 
-3. RegistryEvents
-   `-- Tous les RegistryObject sont resolus
+3. ClientModInitializer.onInitializeClient()  [CLIENT seulement]
+   `-- renderers, key bindings, model handlers
 
-4. FMLCommonSetupEvent
-   `-- Logique partagee client/serveur
-
-5. FMLClientSetupEvent [CLIENT seulement]
-   `-- Renderers, key bindings, overlays
-
-6. Monde charge / Serveur demarre
+4. Monde chargé / Serveur démarré
 ```
 
 ---
 
-## Separation client / serveur
+## Séparation client / serveur
 
-| Regle | Detail |
+| Règle | Détail |
 |-------|--------|
 | Tout code dans `item/`, `block/`, `init/` | Compatible dedicated server |
-| `@OnlyIn(Dist.CLIENT)` | Pour renderers, GUI, particles |
-| `FMLEnvironment.dist == Dist.CLIENT` | Guard dans le constructeur avant clientSetup |
+| `@Environment(EnvType.CLIENT)` | Pour renderers, GUI, particles |
 | Package `client/` | Tout ce qui est client-only |
-| Jamais de `Minecraft.getInstance()` hors CLIENT | Evite les crashs serveur |
+| Jamais de `MinecraftClient.getInstance()` hors CLIENT | Évite les crashs serveur |
+| `ClientModInitializer` séparé | Point d'entrée client dédié |
 
 ---
 
@@ -154,33 +141,33 @@ JVM load -> static fields crees
 | Type | Convention | Exemple |
 |------|------------|---------|
 | Classe | PascalCase | `GangBadgeItem` |
-| Methode | camelCase | `appendHoverText()` |
+| Méthode | camelCase | `appendTooltip()` |
 | Constante | UPPER_SNAKE_CASE | `MOD_ID`, `GANG_BADGE` |
 | Package | lowercase | `com.petassegang.addons.item` |
 | Mod ID | lowercase_snake | `petasse_gang_additions` |
 | Resource path | lowercase_snake | `gang_badge` |
 | Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
-| Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.example_block` |
+| Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.level_zero_wallpaper` |
 | Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petasse_gang_additions.petassegang` |
 
 ---
 
-## Flow d'enregistrement
+## Flow d'ajout de contenu
 
 ### Item
 1. `item/MyCustomItem.java`
-2. `init/ModItems.java`
-3. `creative/ModCreativeTab.java`
+2. `init/ModItems.java` — `Registry.register(Registries.ITEM, ...)`
+3. `creative/ModCreativeTab.java` — `FabricItemGroupEvents.modifyEntriesEvent()`
 4. `assets/.../models/item/my_item.json`
 5. `assets/.../textures/item/my_item.png`
 6. `lang/en_us.json` + `fr_fr.json`
-7. `data/.../recipes/my_item.json` si necessaire
+7. `data/.../recipes/my_item.json` si nécessaire
 8. `src/test/.../ItemTest.java`
 
 ### Block
 1. `block/MyCustomBlock.java`
-2. `init/ModBlocks.java`
-3. Item de bloc dans `ModItems.java`
+2. `init/ModBlocks.java` — `Registry.register(Registries.BLOCK, ...)`
+3. `init/ModItems.java` — `BlockItem` pour le block item
 4. `assets/.../blockstates/my_block.json`
 5. `assets/.../models/block/my_block.json` + `models/item/my_block.json`
 6. `assets/.../textures/block/my_block.png`

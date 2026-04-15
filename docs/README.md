@@ -11,12 +11,13 @@ Documentation technique complète du mod.
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Architecture technique, packages, patterns, conventions |
 | [SETUP.md](SETUP.md) | Guide d'installation complet (Java, Gradle, VS Code) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Conventions de code, workflow Git, checklist |
-| [TESTING.md](TESTING.md) | Guide des tests unitaires et GameTests |
+| [TESTING.md](TESTING.md) | Guide des tests unitaires et benchmark |
 | [CICD.md](CICD.md) | Pipeline GitHub Actions, créer une release |
-| [ITEMS.md](ITEMS.md) | Catalogue des items (Gang Badge documenté) |
-| [BLOCKS.md](BLOCKS.md) | Catalogue des blocs (template) |
+| [ITEMS.md](ITEMS.md) | Catalogue des items |
+| [BLOCKS.md](BLOCKS.md) | Catalogue des blocs |
 | [ENTITIES.md](ENTITIES.md) | Catalogue des entités (template) |
-| [DIMENSIONS.md](DIMENSIONS.md) | Catalogue des dimensions (template) |
+| [DIMENSIONS.md](DIMENSIONS.md) | Catalogue des dimensions |
+| [DEPENDENCIES.md](DEPENDENCIES.md) | Plan de dépendances Backrooms |
 | [CHANGELOG.md](CHANGELOG.md) | Journal de toutes les modifications |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Résolution des problèmes courants |
 
@@ -24,11 +25,12 @@ Documentation technique complète du mod.
 
 ## Stack technique
 
-- **Minecraft 26.1** — fully deobfuscated, Java 25 requis
-- **Forge 62.0.x** — mod loader
+- **Minecraft 1.21.1** — Yarn mappings 1.21.1+build.3, Java 21 requis
+- **Fabric Loader 0.16.9** — mod loader
+- **Fabric API 0.102.0+1.21.1** — API de modding
+- **Fabric Loom 1.9** — plugin Gradle
 - **Gradle 9.3.0** — build system
 - **JUnit 5** — tests unitaires
-- **Forge GameTest** — tests in-game
 - **GitHub Actions** — CI/CD
 
 ---

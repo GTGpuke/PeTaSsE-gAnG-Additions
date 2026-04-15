@@ -63,7 +63,7 @@ jar tf build/libs/petasse_gang_additions-*.jar | head -40
 Vérifie :
 - ✅/❌ Le JAR existe et a une taille > 10KB ?
 - ✅/❌ Contient les classes dans `com/petassegang/addons/` ?
-- ✅/❌ Contient `META-INF/mods.toml` ?
+- ✅/❌ Contient `fabric.mod.json` ?
 - ✅/❌ Contient les assets dans `assets/petasse_gang_additions/` ?
 
 ---
@@ -107,6 +107,16 @@ echo "========== ÉTAPE 2.7 — Imports client hors package client/ =========="
 grep -rn "import net.minecraft.client" src/main/java/com/petassegang/addons/ --include="*.java" | grep -v "/client/" | grep -v "compat/" || echo "✅ Aucun import client dans les classes communes."
 ```
 
+```bash
+echo "========== ÉTAPE 2.8 — Résidus Forge =========="
+grep -rn "net\.minecraftforge\|DeferredRegister\|RegistryObject\|DeferredHolder\|ForgeRegistries\|ModList\.get\(\)" src/main/java/ --include="*.java" || echo "✅ Aucun résidu Forge trouvé."
+```
+
+```bash
+echo "========== ÉTAPE 2.9 — below_trunk_provider interdit =========="
+grep -rn "below_trunk_provider" src/main/resources/ || echo "✅ Aucun below_trunk_provider trouvé."
+```
+
 Pour chaque résultat non vide : CORRIGE immédiatement → ré-exécute → confirme ✅.
 
 ---
@@ -136,10 +146,10 @@ Vérifie CHAQUE message de log :
 
 ```bash
 echo "========== ÉTAPE 3.3 — Textes in-game non traduits (texte en dur) =========="
-grep -rn 'new TextComponent\|Component.literal' src/main/java/ --include="*.java" | grep -v "test\|Test" || echo "✅ Aucun texte en dur trouvé."
+grep -rn "Text\.literal\|Text\.of(" src/main/java/com/petassegang/addons/ --include="*.java" | grep -v "test\|Test" || echo "✅ Aucun texte en dur trouvé."
 ```
 
-Si des `Component.literal()` sont trouvés dans le code principal (pas les tests) : remplace par `Component.translatable()` → ajoute les clés dans les fichiers de langue.
+Si des `Text.literal()` sont trouvés dans le code principal (pas les tests) : remplace par `Text.translatable()` → ajoute les clés dans les fichiers de langue.
 
 ---
 
@@ -350,19 +360,21 @@ echo "========== ÉTAPE 9.2 — Tests finaux =========="
 - ✅/❌ Tests : tous passent ?
 
 ```bash
-echo "========== ÉTAPE 9.3 — Vérification des fichiers existants =========="
-echo "--- Items enregistrés ---"
-grep -rn "DeferredRegister\|RegistryObject\|DeferredHolder" src/main/java/com/petassegang/addons/init/ --include="*.java"
+echo "========== ÉTAPE 9.3 — Vérification des enregistrements Fabric =========="
+echo "--- Enregistrements Registry.register dans init/ ---"
+grep -rn "Registry\.register" src/main/java/com/petassegang/addons/init/ --include="*.java"
 echo "--- Traductions existantes ---"
 python3 -c "import json; d=json.load(open('src/main/resources/assets/petasse_gang_additions/lang/en_us.json')); print(f'{len(d)} clés EN'); d=json.load(open('src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json')); print(f'{len(d)} clés FR')"
 echo "--- Textures existantes ---"
 find src/main/resources/assets/petasse_gang_additions/textures -name "*.png" -type f
+echo "--- fabric.mod.json valide ---"
+python3 -c "import json; json.load(open('src/main/resources/fabric.mod.json')); print('✅ fabric.mod.json valide')"
 ```
 
-- ✅/❌ Tous les éléments existants sont toujours enregistrés ?
+- ✅/❌ Tous les éléments existants sont toujours enregistrés via `Registry.register()` ?
 - ✅/❌ Aucune traduction supprimée ?
 - ✅/❌ Aucune texture supprimée ?
-- ✅/❌ La config existante est compatible ?
+- ✅/❌ `fabric.mod.json` est valide ?
 
 ---
 

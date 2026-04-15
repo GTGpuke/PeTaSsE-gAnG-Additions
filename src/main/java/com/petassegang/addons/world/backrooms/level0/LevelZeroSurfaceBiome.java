@@ -1,6 +1,6 @@
 package com.petassegang.addons.world.backrooms.level0;
 
-import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.block.BlockState;
 
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.BackroomsConstants;
@@ -20,7 +20,7 @@ public enum LevelZeroSurfaceBiome {
 
     /** Taille d'une region cosmetique en cellules logiques. */
     private static final int REGION_SIZE_CELLS = 48;
-    /** Rareté du biome secondaire. */
+    /** Rarete du biome secondaire. */
     private static final int RED_REGION_MODULO = 18;
     /** Sel de hash stable pour la carte des biomes cosmetiques. */
     private static final long SURFACE_REGION_SALT = 0x535552464143454CL;
@@ -110,7 +110,7 @@ public enum LevelZeroSurfaceBiome {
      * @return biome cosmetique correspondant
      */
     public static LevelZeroSurfaceBiome fromFloorState(BlockState floorState) {
-        return floorState.is(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.get()) ? RED : BASE;
+        return floorState.isOf(ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED) ? RED : BASE;
     }
 
     private static long mix(long x, long z) {
