@@ -4,7 +4,7 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import com.petassegang.addons.client.handler.GangBadgeClientHandler;
-import com.petassegang.addons.client.model.LevelZeroWallpaperModelHandler;
+import com.petassegang.addons.client.model.backrooms.LevelZeroWallpaperModelHandler;
 import com.petassegang.addons.network.packet.GangBadgeActivatePayload;
 import com.petassegang.addons.util.ModConstants;
 

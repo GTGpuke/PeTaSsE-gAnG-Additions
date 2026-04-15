@@ -1,4 +1,4 @@
-package com.petassegang.addons.client.model;
+package com.petassegang.addons.client.model.backrooms;
 
 import net.fabricmc.fabric.api.client.model.loading.v1.ModelLoadingPlugin;
 import net.fabricmc.fabric.api.client.model.loading.v1.ModelModifier;

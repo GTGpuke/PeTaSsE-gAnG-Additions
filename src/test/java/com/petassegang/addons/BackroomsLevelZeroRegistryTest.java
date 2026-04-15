@@ -6,7 +6,7 @@ import org.junit.jupiter.api.Test;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 
-import com.petassegang.addons.block.LevelZeroWallpaperBlock;
+import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.util.ModConstants;

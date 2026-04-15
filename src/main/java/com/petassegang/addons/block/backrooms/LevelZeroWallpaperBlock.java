@@ -1,4 +1,4 @@
-package com.petassegang.addons.block;
+package com.petassegang.addons.block.backrooms;
 
 import net.minecraft.block.AbstractBlock;
 import net.minecraft.block.Block;

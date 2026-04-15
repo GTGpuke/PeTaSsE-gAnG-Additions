@@ -14,7 +14,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
-import com.petassegang.addons.block.LevelZeroWallpaperBlock;
+import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
 import com.petassegang.addons.util.ModConstants;
 
 /**

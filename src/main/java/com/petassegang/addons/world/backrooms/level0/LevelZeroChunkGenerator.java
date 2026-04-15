@@ -23,7 +23,7 @@ import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.gen.chunk.VerticalBlockSample;
 import net.minecraft.world.gen.noise.NoiseConfig;
 
-import com.petassegang.addons.block.LevelZeroWallpaperBlock;
+import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.BackroomsConstants;
 

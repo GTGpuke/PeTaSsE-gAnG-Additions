@@ -1,4 +1,4 @@
-package com.petassegang.addons.client.model;
+package com.petassegang.addons.client.model.backrooms;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -22,7 +22,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockRenderView;
 
-import com.petassegang.addons.block.LevelZeroWallpaperBlock;
+import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
 
 /**
  * Modele de bloc adaptatif qui choisit le papier peint selon le masque de faces
