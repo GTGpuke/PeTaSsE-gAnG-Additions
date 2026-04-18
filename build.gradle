@@ -25,6 +25,12 @@ loom {
         client {
             client()
             defaultMainClass = 'net.fabricmc.devlaunchinjector.Main'
+            if (project.hasProperty('levelZeroNoiseGeometry')) {
+                vmArg "-Dpetassegang.levelZero.noiseGeometry=${project.property('levelZeroNoiseGeometry')}"
+            }
+            if (project.hasProperty('levelZeroDebugMicroGeometry')) {
+                vmArg "-Dpetassegang.levelZero.debugMicroGeometry=${project.property('levelZeroDebugMicroGeometry')}"
+            }
         }
         server {
             server()
@@ -82,6 +88,12 @@ tasks.register('benchmarkLevelZeroGeneration', JavaExec) {
 
     if (project.hasProperty('levelZeroPerfBudgetMsPerChunk')) {
         systemProperty 'levelZeroPerfBudgetMsPerChunk', project.property('levelZeroPerfBudgetMsPerChunk')
+    }
+    if (project.hasProperty('levelZeroNoiseGeometry')) {
+        systemProperty 'petassegang.levelZero.noiseGeometry', project.property('levelZeroNoiseGeometry')
+    }
+    if (project.hasProperty('levelZeroDebugMicroGeometry')) {
+        systemProperty 'petassegang.levelZero.debugMicroGeometry', project.property('levelZeroDebugMicroGeometry')
     }
 }
 

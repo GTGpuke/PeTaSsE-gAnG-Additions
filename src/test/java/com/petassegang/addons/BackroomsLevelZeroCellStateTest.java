@@ -1,0 +1,50 @@
+package com.petassegang.addons;
+
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+
+import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTag;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+/**
+ * Verifie les helpers semantiques locaux des cellules du Level 0.
+ */
+@DisplayName("Etat de cellule du Level 0")
+class BackroomsLevelZeroCellStateTest {
+
+    @Test
+    @DisplayName("La traversabilite locale tient compte du micro-pattern")
+    void testLocalWalkabilityUsesMicroPattern() {
+        LevelZeroCellState openState = new LevelZeroCellState(
+                LevelZeroCellTag.CORRIDOR,
+                LevelZeroCellTopology.CORRIDOR,
+                LevelZeroGeometryMask.none(),
+                LevelZeroCellMicroPattern.PINCH_VERTICAL,
+                1,
+                1,
+                LevelZeroSurfaceBiome.BASE,
+                false,
+                false);
+        LevelZeroCellState blockedState = new LevelZeroCellState(
+                LevelZeroCellTag.CORRIDOR,
+                LevelZeroCellTopology.CORRIDOR,
+                LevelZeroGeometryMask.none(),
+                LevelZeroCellMicroPattern.PINCH_VERTICAL,
+                0,
+                1,
+                LevelZeroSurfaceBiome.BASE,
+                false,
+                false);
+
+        assertEquals(true, openState.isLocallyWalkable(),
+                "Le bloc central du pinch doit rester traversable.");
+        assertEquals(false, blockedState.isLocallyWalkable(),
+                "Un bloc ferme par le micro-pattern ne doit plus etre traversable localement.");
+    }
+}

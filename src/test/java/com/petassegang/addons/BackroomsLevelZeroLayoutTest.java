@@ -8,6 +8,11 @@ import net.minecraft.block.BlockState;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTag;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -123,7 +128,46 @@ class BackroomsLevelZeroLayoutTest {
 
         assertEquals(largeRoom, layout.isLargeRoom(7, 9),
                 "Le marquage de grande piece doit rester stable sur la meme cellule logique.");
-        assertEquals(largeRoom, layout.isLargeRoom(8, 11),
+        assertEquals(largeRoom, layout.isLargeRoom(7, 11),
                 "Le marquage de grande piece doit couvrir toute la cellule de trois par trois blocs.");
+    }
+
+    @Test
+    @DisplayName("Le tag semantique reste coherent avec le layout historique")
+    void testCellTagMatchesHistoricalFlags() {
+        LevelZeroLayout layout = LevelZeroLayout.generate(10, 6, 24680L);
+
+        assertEquals(layout.isWalkable(6, 9) ? (layout.isLargeRoom(6, 9) ? LevelZeroCellTag.ROOM_LARGE : LevelZeroCellTag.CORRIDOR) : LevelZeroCellTag.WALL,
+                layout.cellTag(6, 9),
+                "Le tag doit refleter la combinaison walkable/largeRoom historique.");
+        assertEquals(layout.cellTag(6, 9), layout.cellTag(7, 9),
+                "Le tag doit rester stable sur toute la cellule logique.");
+        assertEquals(layout.cellTag(6, 9), layout.cellTag(7, 11),
+                "Le tag ne doit pas varier a l'interieur d'une meme cellule 3x3.");
+    }
+
+    @Test
+    @DisplayName("L'etat de cellule regroupe bien les donnees historiques")
+    void testCellStateMatchesHistoricalAccessors() {
+        LevelZeroLayout layout = LevelZeroLayout.generate(8, 11, 13579L);
+        LevelZeroCellState state = layout.cellState(7, 7);
+
+        assertEquals(layout.cellTag(7, 7), state.tag(),
+                "Le tag de l'etat de cellule doit correspondre a l'accesseur historique.");
+        assertEquals(layout.surfaceBiome(7, 7), state.surfaceBiome(),
+                "Le biome de surface de l'etat doit correspondre a l'accesseur historique.");
+        assertEquals(layout.isLargeRoom(7, 7), state.largeRoom(),
+                "Le flag grande piece de l'etat doit correspondre a l'accesseur historique.");
+        assertEquals(layout.hasLight(7, 7), state.lighted(),
+                "Le flag lumiere de l'etat doit correspondre a l'accesseur historique.");
+        assertEquals(layout.isWalkable(7, 7), state.walkable(),
+                "Le caractere traversable de l'etat doit rester coherent avec le layout.");
+        assertEquals(layout.isLargeRoom(7, 7) ? LevelZeroCellTopology.ROOM_LARGE : state.topology(),
+                state.topology(),
+                "La topologie fine doit rester coherente avec l'etat semantique.");
+        assertEquals(false, state.hasGeometryFeature(LevelZeroGeometryFeature.NONE),
+                "Le masque geometrique ne doit pas repondre positivement a une pseudo-feature NONE.");
+        assertEquals(true, LevelZeroCellMicroPattern.isOpen(state.microPattern(), state.subCellX(), state.subCellZ()) == state.isMicroOpen(),
+                "Le helper micro-geometrique doit rester coherent avec le motif 3x3 stocke.");
     }
 }

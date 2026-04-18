@@ -24,6 +24,13 @@ class ConfigTest {
     }
 
     @Test
+    @DisplayName("ENABLE_LEVEL_ZERO_NOISE_GEOMETRY vaut true par defaut")
+    void testEnableLevelZeroNoiseGeometryDefault() {
+        assertTrue(ModConfig.ENABLE_LEVEL_ZERO_NOISE_GEOMETRY,
+                "La micro-geometrie du Level 0 doit rester active par defaut.");
+    }
+
+    @Test
     @DisplayName("Le constructeur de ModConfig lève UnsupportedOperationException")
     void testUtilityClassConstructors() {
         assertThrows(UnsupportedOperationException.class, () -> {
