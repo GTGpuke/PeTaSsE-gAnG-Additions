@@ -5,11 +5,12 @@ import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellEvaluation;
 
 /**
- * Representation canonique d'une region finie de cellules logiques.
+ * Region logique evaluee, encore exprimee cellule par cellule.
  *
- * <p>Cette premiere version couvre seulement la fenetre de cellules necessaire
- * a l'extraction d'un chunk, mais elle formalise deja le passage
- * "evaluation regionale -> extraction locale".
+ * <p>Cette structure se situe entre la walkability regionale et le
+ * {@code ChunkSlice}. Elle contient deja toute l'evaluation metier d'une
+ * fenetre de cellules, mais n'a pas encore ete convertie en grille locale de
+ * chunk.
  */
 public final class LevelZeroRegionLayout {
 
@@ -70,6 +71,10 @@ public final class LevelZeroRegionLayout {
         int worldMaxZ = LevelZeroCoords.chunkEndZ(chunkZ);
         LevelZeroChunkSlice chunkSlice = new LevelZeroChunkSlice(worldMinX, worldMinZ, worldMaxX, worldMaxZ);
 
+        // L'extraction de chunk convertit la region logique cellule-par-cellule
+        // en une grille locale bloc-par-bloc. C'est ici que chaque cellule 3x3
+        // legacy est aplatie dans le slice du chunk, et que son point lumineux
+        // eventuel est reporte au centre logique.
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             int cellWorldMinX = LevelZeroCoords.cellToWorldMinX(cellX);
             int startLocalX = Math.max(cellWorldMinX - worldMinX, 0);

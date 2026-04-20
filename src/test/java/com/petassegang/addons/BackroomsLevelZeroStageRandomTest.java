@@ -28,9 +28,15 @@ class BackroomsLevelZeroStageRandomTest {
     @DisplayName("Deux stages differents produisent des derives distincts")
     void testDifferentStagesProduceDifferentHashes() {
         long lights = StageRandom.mixLegacy(12345L, StageRandom.Stage.LIGHTS, 17, -9);
+        long biomeLights = StageRandom.mixLegacy(12345L, StageRandom.Stage.BIOME_LIGHTING, 17, -9);
+        long roomLights = StageRandom.mixLegacy(12345L, StageRandom.Stage.LARGE_ROOM_LIGHTING, 17, -9);
         long rooms = StageRandom.mixLegacy(12345L, StageRandom.Stage.LARGE_ROOMS, 17, -9);
         long geometry = StageRandom.mixLegacy(12345L, StageRandom.Stage.NOISE_GEOMETRY, 17, -9);
 
+        assertNotEquals(lights, biomeLights,
+                "Le stage BIOME_LIGHTING doit rester distinct du derive historique des neons.");
+        assertNotEquals(lights, roomLights,
+                "Le stage LARGE_ROOM_LIGHTING doit rester distinct du derive historique des neons.");
         assertNotEquals(lights, rooms,
                 "Deux stages differents ne doivent pas reutiliser le meme derive.");
         assertNotEquals(lights, geometry,

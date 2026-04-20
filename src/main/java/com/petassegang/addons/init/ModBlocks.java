@@ -14,6 +14,7 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
+import com.petassegang.addons.block.backrooms.LevelZeroBaseboardBlock;
 import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
 import com.petassegang.addons.util.ModConstants;
 
@@ -60,6 +61,14 @@ public final class ModBlocks {
     public static final Block LEVEL_ZERO_FLUORESCENT_LIGHT = register(
             "level_zero_fluorescent_light",
             new Block(AbstractBlock.Settings.copy(Blocks.SEA_LANTERN).luminance(state -> 15)));
+
+    /** Plinthe adaptative decorant le bas des murs du Level 0. */
+    public static final LevelZeroBaseboardBlock LEVEL_ZERO_BASEBOARD = register(
+            "level_zero_baseboard",
+            new LevelZeroBaseboardBlock(AbstractBlock.Settings.copy(Blocks.OAK_PLANKS)
+                    .strength(0.3f)
+                    .nonOpaque()
+                    .noCollision()));
 
     /** Generateur d'arbre Maudit, pousse via la ConfiguredFeature personnalisee. */
     public static final SaplingGenerator CURSED_TREE_GROWER = new SaplingGenerator(

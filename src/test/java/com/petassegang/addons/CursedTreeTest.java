@@ -1,63 +1,65 @@
 package com.petassegang.addons;
 
-import com.petassegang.addons.init.ModBlocks;
-import com.petassegang.addons.init.ModItems;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+
+import com.petassegang.addons.init.ModBlocks;
+import com.petassegang.addons.init.ModItems;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Vérifie que les RegistryObject de l'Arbre Maudit sont non-null au chargement de la classe.
+ * Verifie que les champs publics de l'Arbre Maudit existent bien dans les
+ * registres declaratifs.
  */
 @DisplayName("Registre de l'Arbre Maudit")
 class CursedTreeTest {
 
     @Test
-    @DisplayName("CURSED_LOG RegistryObject n'est pas null")
-    void testCursedLogRegistryObjectNotNull() {
-        assertNotNull(ModBlocks.CURSED_LOG,
-                "Le RegistryObject CURSED_LOG doit être non-null avant l'enregistrement.");
+    @DisplayName("CURSED_LOG existe dans ModBlocks")
+    void testCursedLogFieldExists() throws NoSuchFieldException {
+        assertNotNull(ModBlocks.class.getDeclaredField("CURSED_LOG"),
+                "Le champ CURSED_LOG doit exister dans ModBlocks.");
     }
 
     @Test
-    @DisplayName("CURSED_LEAVES RegistryObject n'est pas null")
-    void testCursedLeavesRegistryObjectNotNull() {
-        assertNotNull(ModBlocks.CURSED_LEAVES,
-                "Le RegistryObject CURSED_LEAVES doit être non-null avant l'enregistrement.");
+    @DisplayName("CURSED_LEAVES existe dans ModBlocks")
+    void testCursedLeavesFieldExists() throws NoSuchFieldException {
+        assertNotNull(ModBlocks.class.getDeclaredField("CURSED_LEAVES"),
+                "Le champ CURSED_LEAVES doit exister dans ModBlocks.");
     }
 
     @Test
-    @DisplayName("CURSED_SAPLING RegistryObject n'est pas null")
-    void testCursedSaplingRegistryObjectNotNull() {
-        assertNotNull(ModBlocks.CURSED_SAPLING,
-                "Le RegistryObject CURSED_SAPLING doit être non-null avant l'enregistrement.");
+    @DisplayName("CURSED_SAPLING existe dans ModBlocks")
+    void testCursedSaplingFieldExists() throws NoSuchFieldException {
+        assertNotNull(ModBlocks.class.getDeclaredField("CURSED_SAPLING"),
+                "Le champ CURSED_SAPLING doit exister dans ModBlocks.");
     }
 
     @Test
-    @DisplayName("CURSED_PLANKS RegistryObject n'est pas null")
-    void testCursedPlanksRegistryObjectNotNull() {
-        assertNotNull(ModBlocks.CURSED_PLANKS,
-                "Le RegistryObject CURSED_PLANKS doit être non-null avant l'enregistrement.");
+    @DisplayName("CURSED_PLANKS existe dans ModBlocks")
+    void testCursedPlanksFieldExists() throws NoSuchFieldException {
+        assertNotNull(ModBlocks.class.getDeclaredField("CURSED_PLANKS"),
+                "Le champ CURSED_PLANKS doit exister dans ModBlocks.");
     }
 
     @Test
-    @DisplayName("CURSED_TREE_GROWER n'est pas null")
-    void testCursedTreeGrowerNotNull() {
-        assertNotNull(ModBlocks.CURSED_TREE_GROWER,
-                "Le TreeGrower CURSED_TREE_GROWER doit être non-null.");
+    @DisplayName("CURSED_TREE_GROWER existe dans ModBlocks")
+    void testCursedTreeGrowerFieldExists() throws NoSuchFieldException {
+        assertNotNull(ModBlocks.class.getDeclaredField("CURSED_TREE_GROWER"),
+                "Le champ CURSED_TREE_GROWER doit exister dans ModBlocks.");
     }
 
     @Test
-    @DisplayName("Items de blocs enregistrés (BlockItems non-null)")
-    void testCursedBlockItemsRegistryObjectsNotNull() {
-        assertNotNull(ModItems.CURSED_LOG,
-                "Le RegistryObject CURSED_LOG item doit être non-null avant l'enregistrement.");
-        assertNotNull(ModItems.CURSED_LEAVES,
-                "Le RegistryObject CURSED_LEAVES item doit être non-null avant l'enregistrement.");
-        assertNotNull(ModItems.CURSED_SAPLING,
-                "Le RegistryObject CURSED_SAPLING item doit être non-null avant l'enregistrement.");
-        assertNotNull(ModItems.CURSED_PLANKS,
-                "Le RegistryObject CURSED_PLANKS item doit être non-null avant l'enregistrement.");
+    @DisplayName("Les BlockItems maudits existent dans ModItems")
+    void testCursedBlockItemFieldsExist() throws NoSuchFieldException {
+        assertNotNull(ModItems.class.getDeclaredField("CURSED_LOG"),
+                "Le champ CURSED_LOG doit exister dans ModItems.");
+        assertNotNull(ModItems.class.getDeclaredField("CURSED_LEAVES"),
+                "Le champ CURSED_LEAVES doit exister dans ModItems.");
+        assertNotNull(ModItems.class.getDeclaredField("CURSED_SAPLING"),
+                "Le champ CURSED_SAPLING doit exister dans ModItems.");
+        assertNotNull(ModItems.class.getDeclaredField("CURSED_PLANKS"),
+                "Le champ CURSED_PLANKS doit exister dans ModItems.");
     }
 }

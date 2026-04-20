@@ -2,25 +2,44 @@ package com.petassegang.addons.world.backrooms.level0.layout;
 
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.petassegang.addons.debug.performance.ModPerformanceMonitor;
 import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyRegionLayoutStage;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyRegionWalkabilityStage;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorData;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorGenerator;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorWalkabilitySampler;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayoutPipeline;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroRegionContext;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroRegionStage;
+import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionLayoutStage;
+import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionWalkabilityStage;
 
 /**
- * Facade regionale compatible avec le layout historique du Level 0.
+ * Facade regionale du Level 0 entre la generation sectorielle et l'extraction
+ * par chunk.
  *
- * <p>Cette premiere version ne calcule pas encore une vraie region finie
- * conforme a la spec v6. Elle encapsule toutefois deja les lectures
- * regionales et l'extraction locale d'un chunk.
+ * <p>Son role est de construire une vue regionale deterministe, assez large
+ * pour qu'un chunk puisse etre evalue avec son contexte immediat, sans
+ * recalculer brutalement toute la generation bloc par bloc.
+ *
+ * <p>En pratique :
+ *
+ * <ul>
+ *   <li>le package {@code layout/sector} fournit la source brute de
+ *   traversabilite et de types de salles ;</li>
+ *   <li>la facade regionale applique ensuite la pipeline logique sur une
+ *   fenetre de cellules ;</li>
+ *   <li>le chunk final n'est extrait qu'a la toute fin.</li>
+ * </ul>
+ *
+ * <p>Cette facade va dans la direction de la spec v6, mais il faut la lire
+ * comme l'implementation active du projet, pas comme une promesse abstraite :
+ * elle est deja responsable aujourd'hui de la construction regionale utile au
+ * runtime courant.
  */
 public final class LevelZeroRegionGrid {
 
     private final long layoutSeed;
-    private final int sectorCols;
-    private final int sectorRows;
+    private final int layerIndex;
     private final LevelZeroSectorWalkabilitySampler walkabilitySampler;
     private final LevelZeroRegionStage<LevelZeroRegionLayout> regionLayoutStage;
 
@@ -30,7 +49,6 @@ public final class LevelZeroRegionGrid {
      * @param layoutSeed seed de layout
      * @param sectorCols largeur d'un secteur logique
      * @param sectorRows hauteur d'un secteur logique
-     * @param lightInterval modulo historique des neons
      * @param sectorCacheCapacity capacite maximale du cache partage
      * @param sectorCache cache de secteurs partage
      * @param sectorGenerator generateur historique de secteur
@@ -39,14 +57,33 @@ public final class LevelZeroRegionGrid {
     public LevelZeroRegionGrid(long layoutSeed,
                                int sectorCols,
                                int sectorRows,
-                               int lightInterval,
+                               int sectorCacheCapacity,
+                               ConcurrentHashMap<Long, LevelZeroSectorData> sectorCache,
+                               LevelZeroSectorGenerator sectorGenerator,
+                               LevelZeroLegacyLayoutPipeline layoutPipeline) {
+        this(layoutSeed,
+                0,
+                sectorCols,
+                sectorRows,
+                sectorCacheCapacity,
+                sectorCache,
+                sectorGenerator,
+                layoutPipeline);
+    }
+
+    public LevelZeroRegionGrid(long layoutSeed,
+                               int layerIndex,
+                               int sectorCols,
+                               int sectorRows,
                                int sectorCacheCapacity,
                                ConcurrentHashMap<Long, LevelZeroSectorData> sectorCache,
                                LevelZeroSectorGenerator sectorGenerator,
                                LevelZeroLegacyLayoutPipeline layoutPipeline) {
         this.layoutSeed = layoutSeed;
-        this.sectorCols = sectorCols;
-        this.sectorRows = sectorRows;
+        this.layerIndex = layerIndex;
+        // Le sampler secteur fournit la source de verite "brute" de
+        // traversabilite pour ce layoutSeed et ce layer. La suite de la facade
+        // n'ajoute que des couches semantiques au-dessus de cette base.
         this.walkabilitySampler = new LevelZeroSectorWalkabilitySampler(
                 layoutSeed,
                 sectorCols,
@@ -78,8 +115,15 @@ public final class LevelZeroRegionGrid {
      * @param chunkZ coordonnee Z du chunk
      * @return region layout couvrant toutes les cellules du chunk
      */
+    @SuppressWarnings("try")
     public LevelZeroRegionLayout buildChunkRegionLayout(int chunkX, int chunkZ) {
-        return regionLayoutStage.sample(new LevelZeroRegionContext(chunkCellWindow(chunkX, chunkZ), layoutSeed));
+        try (ModPerformanceMonitor.Scope ignored =
+                     ModPerformanceMonitor.scope("level0.region_grid.build_chunk_region_layout")) {
+            // On ne construit ici qu'une fenetre regionale minimale couvrant les
+            // cellules necessaires au chunk demande. L'extraction bloc-par-bloc se
+            // fera seulement dans l'etape suivante, a partir de la region evaluee.
+            return regionLayoutStage.sample(new LevelZeroRegionContext(chunkCellWindow(chunkX, chunkZ), layoutSeed, layerIndex));
+        }
     }
 
     /**
@@ -91,13 +135,6 @@ public final class LevelZeroRegionGrid {
      */
     public boolean sampleWalkableCell(int cellX, int cellZ) {
         return walkabilitySampler.sampleWalkableCell(cellX, cellZ);
-    }
-
-    /**
-     * Vide le cache partage de secteurs.
-     */
-    public void clearCache() {
-        walkabilitySampler.clearCache();
     }
 
     private static LevelZeroChunkCellWindow chunkCellWindow(int chunkX, int chunkZ) {

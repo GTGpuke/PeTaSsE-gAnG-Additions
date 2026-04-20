@@ -1,10 +1,21 @@
 package com.petassegang.addons;
 
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
 
 import com.petassegang.addons.world.backrooms.BackroomsConstants;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
+import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureCellRole;
+import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureGameplayPointKind;
+import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureProfile;
+import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureResolver;
 
 /**
  * Benchmark local et deterministe du pipeline de generation du Level 0.
@@ -62,6 +73,8 @@ public final class LevelZeroPerformanceCheck {
         double bestDurationMs = nanosToMillis(bestDurationNs);
         double worstDurationMs = nanosToMillis(worstDurationNs);
         double mixedColumnRatio = total.mixedColumns * 100.0D / total.wallColumns;
+        double corridorFeatureRatio = percent(total.corridorFeatureCells, total.corridorCells);
+        double deadEndFeatureRatio = percent(total.deadEndFeatureCells, total.deadEndCells);
 
         System.out.println("=== Benchmark Level 0 ===");
         System.out.printf(Locale.ROOT, "Passes mesurees : %d%n", MEASURED_PASSES);
@@ -76,6 +89,45 @@ public final class LevelZeroPerformanceCheck {
                 total.mixedColumns / MEASURED_PASSES,
                 mixedColumnRatio);
         System.out.printf(Locale.ROOT, "Sondes de faces : %d%n", total.faceSamples / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Cellules logiques : %d%n", total.logicalCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Corridors : %d%n", total.corridorCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Angles : %d%n", total.angleCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "T-junctions : %d%n", total.tJunctionCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Crossroads : %d%n", total.crossroadCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Jonctions legacy : %d%n", total.junctionCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Dead ends : %d%n", total.deadEndCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Grandes pieces : %d%n", total.largeRoomCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Rooms rect legacy : %d%n", total.rectRoomCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Rooms piliers legacy : %d%n", total.pillarRoomCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Rooms custom legacy : %d%n", total.customRoomCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Rooms rect walkable : %d%n", total.rectRoomWalkableCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Rooms piliers walkable : %d%n", total.pillarRoomWalkableCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Rooms custom walkable : %d%n", total.customRoomWalkableCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Features sur corridors : %d (%.2f%%)%n",
+                total.corridorFeatureCells / MEASURED_PASSES,
+                corridorFeatureRatio);
+        System.out.printf(Locale.ROOT, "Features sur dead ends : %d (%.2f%%)%n",
+                total.deadEndFeatureCells / MEASURED_PASSES,
+                deadEndFeatureRatio);
+        System.out.printf(Locale.ROOT, "Offsets : %d%n", total.offsetWalls / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Recess : %d%n", total.recesses / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Alcoves : %d%n", total.alcoves / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Half-walls : %d%n", total.halfWalls / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Pinch 1-wide : %d%n", total.pinches / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Structures rares : %d%n", total.rareStructures / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Structure cells : %d%n", total.structureCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Storage clusters : %d%n", total.storageClusters / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Office remains : %d%n", total.officeRemains / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Pillar rings : %d%n", total.pillarRings / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Structure anchors : %d%n", total.structureAnchorCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Structure edges : %d%n", total.structureEdgeCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Structure centers : %d%n", total.structureCenterCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Structure interiors : %d%n", total.structureInteriorCells / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Gameplay points structures : %d%n", total.structureGameplayPoints / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Gameplay entry : %d%n", total.structureGameplayEntries / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Gameplay focal : %d%n", total.structureGameplayFocalPoints / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Gameplay loot : %d%n", total.structureGameplayLootHints / MEASURED_PASSES);
+        System.out.printf(Locale.ROOT, "Gameplay utility : %d%n", total.structureGameplayUtilityHints / MEASURED_PASSES);
 
         String budgetProperty = System.getProperty("levelZeroPerfBudgetMsPerChunk");
         if (budgetProperty == null || budgetProperty.isBlank()) {
@@ -118,16 +170,19 @@ public final class LevelZeroPerformanceCheck {
                                   ScenarioStats stats) {
         int worldMinX = chunkX * LevelZeroLayout.CHUNK_SIZE;
         int worldMinZ = chunkZ * LevelZeroLayout.CHUNK_SIZE;
+        Set<Long> visitedCells = new HashSet<>();
 
         for (int localX = 0; localX < LevelZeroLayout.CHUNK_SIZE; localX++) {
             int worldX = worldMinX + localX;
             for (int localZ = 0; localZ < LevelZeroLayout.CHUNK_SIZE; localZ++) {
+                int worldZ = worldMinZ + localZ;
+                recordLogicalCell(layout, localX, localZ, worldX, worldZ, visitedCells, stats);
+
                 if (layout.isWalkable(localX, localZ)) {
                     continue;
                 }
 
                 stats.wallColumns++;
-                int worldZ = worldMinZ + localZ;
                 if (!sampler.isWallpaperExposed(worldX, worldZ)) {
                     continue;
                 }
@@ -141,8 +196,150 @@ public final class LevelZeroPerformanceCheck {
         }
     }
 
+    private static void recordLogicalCell(LevelZeroLayout layout,
+                                          int localX,
+                                          int localZ,
+                                          int worldX,
+                                          int worldZ,
+                                          Set<Long> visitedCells,
+                                          ScenarioStats stats) {
+        long cellKey = packCell(LevelZeroCoords.worldToCellX(worldX), LevelZeroCoords.worldToCellZ(worldZ));
+        if (!visitedCells.add(cellKey)) {
+            return;
+        }
+
+        LevelZeroCellState state = layout.cellState(localX, localZ);
+        stats.logicalCells++;
+        switch (state.topology()) {
+            case CORRIDOR -> stats.corridorCells++;
+            case ANGLE -> stats.angleCells++;
+            case T_JUNCTION -> stats.tJunctionCells++;
+            case CROSSROAD -> stats.crossroadCells++;
+            case JUNCTION -> stats.junctionCells++;
+            case DEAD_END -> stats.deadEndCells++;
+            case ROOM_LARGE -> stats.largeRoomCells++;
+            default -> {
+            }
+        }
+        switch (state.roomKind()) {
+            case RECT_ROOM -> {
+                stats.rectRoomCells++;
+                if (state.walkable()) {
+                    stats.rectRoomWalkableCells++;
+                }
+            }
+            case PILLAR_ROOM -> {
+                stats.pillarRoomCells++;
+                if (state.walkable()) {
+                    stats.pillarRoomWalkableCells++;
+                }
+            }
+            case CUSTOM_ROOM -> {
+                stats.customRoomCells++;
+                if (state.walkable()) {
+                    stats.customRoomWalkableCells++;
+                }
+            }
+            default -> {
+            }
+        }
+
+        boolean hasFeature = false;
+        if (state.hasGeometryFeature(LevelZeroGeometryFeature.OFFSET_WALL)) {
+            stats.offsetWalls++;
+            hasFeature = true;
+        }
+        if (state.hasGeometryFeature(LevelZeroGeometryFeature.RECESS)) {
+            stats.recesses++;
+            hasFeature = true;
+        }
+        if (state.hasGeometryFeature(LevelZeroGeometryFeature.ALCOVE)) {
+            stats.alcoves++;
+            hasFeature = true;
+        }
+        if (state.hasGeometryFeature(LevelZeroGeometryFeature.HALF_WALL)) {
+            stats.halfWalls++;
+            hasFeature = true;
+        }
+        if (state.hasGeometryFeature(LevelZeroGeometryFeature.PINCH_1WIDE)) {
+            stats.pinches++;
+            hasFeature = true;
+        }
+
+        if (hasFeature) {
+            if (state.topology() == LevelZeroCellTopology.CORRIDOR) {
+                stats.corridorFeatureCells++;
+            } else if (state.topology() == LevelZeroCellTopology.DEAD_END) {
+                stats.deadEndFeatureCells++;
+            }
+        }
+
+        LevelZeroStructureProfile structure = StructureSampler.RESOLVER.resolve(
+                state.roomKind(),
+                state.walkable(),
+                worldX,
+                worldZ);
+        if (!structure.hasStructure()) {
+            return;
+        }
+
+        stats.structureCells++;
+        switch (structure.kind()) {
+            case STORAGE_CLUSTER -> stats.storageClusters++;
+            case OFFICE_REMAINS -> stats.officeRemains++;
+            case PILLAR_RING -> stats.pillarRings++;
+            default -> {
+            }
+        }
+        switch (structure.role()) {
+            case ANCHOR -> stats.structureAnchorCells++;
+            case EDGE -> stats.structureEdgeCells++;
+            case CENTER -> stats.structureCenterCells++;
+            case INTERIOR -> stats.structureInteriorCells++;
+            default -> {
+            }
+        }
+        switch (structure.gameplayPointKind()) {
+            case ENTRY -> {
+                stats.structureGameplayPoints++;
+                stats.structureGameplayEntries++;
+            }
+            case FOCAL_POINT -> {
+                stats.structureGameplayPoints++;
+                stats.structureGameplayFocalPoints++;
+            }
+            case LOOT_HINT -> {
+                stats.structureGameplayPoints++;
+                stats.structureGameplayLootHints++;
+            }
+            case UTILITY_HINT -> {
+                stats.structureGameplayPoints++;
+                stats.structureGameplayUtilityHints++;
+            }
+            default -> {
+            }
+        }
+
+        long structureAnchorKey = packCell(structure.anchorCellX(), structure.anchorCellZ())
+                ^ (((long) structure.kind().ordinal()) << 48);
+        if (stats.seenStructureAnchors.add(structureAnchorKey)) {
+            stats.rareStructures++;
+        }
+    }
+
     private static double nanosToMillis(double nanos) {
         return nanos / 1_000_000.0D;
+    }
+
+    private static double percent(int value, int total) {
+        if (total == 0) {
+            return 0.0D;
+        }
+        return value * 100.0D / total;
+    }
+
+    private static long packCell(int cellX, int cellZ) {
+        return (((long) cellX) << 32) ^ (cellZ & 0xffffffffL);
     }
 
     private static final class ScenarioStats {
@@ -153,6 +350,42 @@ public final class LevelZeroPerformanceCheck {
         private int exposedColumns;
         private int mixedColumns;
         private int faceSamples;
+        private int logicalCells;
+        private int corridorCells;
+        private int angleCells;
+        private int tJunctionCells;
+        private int crossroadCells;
+        private int junctionCells;
+        private int deadEndCells;
+        private int largeRoomCells;
+        private int rectRoomCells;
+        private int pillarRoomCells;
+        private int customRoomCells;
+        private int rectRoomWalkableCells;
+        private int pillarRoomWalkableCells;
+        private int customRoomWalkableCells;
+        private int corridorFeatureCells;
+        private int deadEndFeatureCells;
+        private int offsetWalls;
+        private int recesses;
+        private int alcoves;
+        private int halfWalls;
+        private int pinches;
+        private int rareStructures;
+        private int structureCells;
+        private int storageClusters;
+        private int officeRemains;
+        private int pillarRings;
+        private int structureAnchorCells;
+        private int structureEdgeCells;
+        private int structureCenterCells;
+        private int structureInteriorCells;
+        private int structureGameplayPoints;
+        private int structureGameplayEntries;
+        private int structureGameplayFocalPoints;
+        private int structureGameplayLootHints;
+        private int structureGameplayUtilityHints;
+        private final Set<Long> seenStructureAnchors = new HashSet<>();
 
         private void add(ScenarioStats other) {
             durationNs += other.durationNs;
@@ -161,6 +394,49 @@ public final class LevelZeroPerformanceCheck {
             exposedColumns += other.exposedColumns;
             mixedColumns += other.mixedColumns;
             faceSamples += other.faceSamples;
+            logicalCells += other.logicalCells;
+            corridorCells += other.corridorCells;
+            angleCells += other.angleCells;
+            tJunctionCells += other.tJunctionCells;
+            crossroadCells += other.crossroadCells;
+            junctionCells += other.junctionCells;
+            deadEndCells += other.deadEndCells;
+            largeRoomCells += other.largeRoomCells;
+            rectRoomCells += other.rectRoomCells;
+            pillarRoomCells += other.pillarRoomCells;
+            customRoomCells += other.customRoomCells;
+            rectRoomWalkableCells += other.rectRoomWalkableCells;
+            pillarRoomWalkableCells += other.pillarRoomWalkableCells;
+            customRoomWalkableCells += other.customRoomWalkableCells;
+            corridorFeatureCells += other.corridorFeatureCells;
+            deadEndFeatureCells += other.deadEndFeatureCells;
+            offsetWalls += other.offsetWalls;
+            recesses += other.recesses;
+            alcoves += other.alcoves;
+            halfWalls += other.halfWalls;
+            pinches += other.pinches;
+            rareStructures += other.rareStructures;
+            structureCells += other.structureCells;
+            storageClusters += other.storageClusters;
+            officeRemains += other.officeRemains;
+            pillarRings += other.pillarRings;
+            structureAnchorCells += other.structureAnchorCells;
+            structureEdgeCells += other.structureEdgeCells;
+            structureCenterCells += other.structureCenterCells;
+            structureInteriorCells += other.structureInteriorCells;
+            structureGameplayPoints += other.structureGameplayPoints;
+            structureGameplayEntries += other.structureGameplayEntries;
+            structureGameplayFocalPoints += other.structureGameplayFocalPoints;
+            structureGameplayLootHints += other.structureGameplayLootHints;
+            structureGameplayUtilityHints += other.structureGameplayUtilityHints;
+        }
+    }
+
+    private static final class StructureSampler {
+
+        private static final LevelZeroStructureResolver RESOLVER = new LevelZeroStructureResolver();
+
+        private StructureSampler() {
         }
     }
 

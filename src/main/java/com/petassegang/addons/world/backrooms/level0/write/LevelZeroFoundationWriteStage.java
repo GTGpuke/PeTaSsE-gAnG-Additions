@@ -1,18 +1,19 @@
 package com.petassegang.addons.world.backrooms.level0.write;
 
+import java.util.Arrays;
+
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
-
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
 
 /**
  * Etape d'ecriture des couches fixes du Level 0.
  */
 public final class LevelZeroFoundationWriteStage implements LevelZeroWriteStage {
 
-    private final LevelZeroBlockPalette blockPalette;
+    private final BlockState bedrockState;
+    private final BlockState subfloorState;
 
     /**
      * Construit l'etape des couches fixes.
@@ -20,17 +21,13 @@ public final class LevelZeroFoundationWriteStage implements LevelZeroWriteStage 
      * @param blockPalette palette de blocs
      */
     public LevelZeroFoundationWriteStage(LevelZeroBlockPalette blockPalette) {
-        this.blockPalette = blockPalette;
+        this.bedrockState = blockPalette.bedrock();
+        this.subfloorState = blockPalette.subfloor();
     }
 
     @Override
     public void initializeColumnSample(BlockState[] states) {
-        for (int i = 0; i < states.length; i++) {
-            states[i] = Blocks.AIR.getDefaultState();
-        }
-
-        setColumnState(states, LevelZeroVerticalLayout.bedrockY(), blockPalette.bedrock());
-        setColumnState(states, LevelZeroVerticalLayout.subfloorY(), blockPalette.subfloor());
+        Arrays.fill(states, Blocks.AIR.getDefaultState());
     }
 
     @Override
@@ -39,16 +36,34 @@ public final class LevelZeroFoundationWriteStage implements LevelZeroWriteStage 
                                  int localX,
                                  int localZ,
                                  LevelZeroResolvedColumn resolvedColumn) {
-        chunk.setBlockState(mutablePos.set(localX, LevelZeroVerticalLayout.bedrockY(), localZ),
-                blockPalette.bedrock(),
-                false);
-        chunk.setBlockState(mutablePos.set(localX, LevelZeroVerticalLayout.subfloorY(), localZ),
-                blockPalette.subfloor(),
-                false);
+        int bedrockMinY = resolvedColumn.verticalSlice().bedrockMinY();
+        int bedrockMaxY = resolvedColumn.verticalSlice().bedrockMaxY();
+        int subfloorY = resolvedColumn.verticalSlice().subfloorY();
+        for (int y = bedrockMinY;
+             y <= bedrockMaxY;
+             y++) {
+            chunk.setBlockState(mutablePos.set(localX, y, localZ), bedrockState, false);
+        }
+        if (subfloorY >= 0) {
+            chunk.setBlockState(mutablePos.set(localX, subfloorY, localZ),
+                    subfloorState,
+                    false);
+        }
     }
 
     @Override
     public void writeColumnSample(BlockState[] states, LevelZeroResolvedColumn resolvedColumn) {
+        int bedrockMinY = resolvedColumn.verticalSlice().bedrockMinY();
+        int bedrockMaxY = resolvedColumn.verticalSlice().bedrockMaxY();
+        int subfloorY = resolvedColumn.verticalSlice().subfloorY();
+        for (int y = bedrockMinY;
+             y <= bedrockMaxY;
+             y++) {
+            setColumnState(states, y, bedrockState);
+        }
+        if (subfloorY >= 0) {
+            setColumnState(states, subfloorY, subfloorState);
+        }
     }
 
     private static void setColumnState(BlockState[] states, int y, BlockState state) {

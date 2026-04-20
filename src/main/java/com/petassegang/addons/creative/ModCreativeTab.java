@@ -40,6 +40,7 @@ public final class ModCreativeTab {
         entries.add(ModItems.LEVEL_ZERO_DAMP_CARPET_AGED);
         entries.add(ModItems.LEVEL_ZERO_CEILING_TILE);
         entries.add(ModItems.LEVEL_ZERO_FLUORESCENT_LIGHT);
+        entries.add(ModItems.LEVEL_ZERO_BASEBOARD);
         entries.add(ModItems.CURSED_LOG);
         entries.add(ModItems.CURSED_PLANKS);
         entries.add(ModItems.CURSED_LEAVES);

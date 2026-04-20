@@ -27,4 +27,18 @@ class BackroomsLevelZeroDebugConfigTest {
         assertFalse(ModConfig.DEBUG_LEVEL_ZERO_MICRO_GEOMETRY,
                 "Le debug visuel doit rester desactive par defaut pour ne pas polluer le rendu normal.");
     }
+
+    @Test
+    @DisplayName("Le debug visuel des petits details muraux reste desactive par defaut")
+    void testWallPropsDebugDisabledByDefault() {
+        assertFalse(ModConfig.DEBUG_LEVEL_ZERO_WALL_PROPS,
+                "Le debug des petits details muraux doit rester desactive par defaut.");
+    }
+
+    @Test
+    @DisplayName("Le debug visuel des structures rares reste desactive par defaut")
+    void testStructuresDebugDisabledByDefault() {
+        assertFalse(ModConfig.DEBUG_LEVEL_ZERO_STRUCTURES,
+                "Le debug des structures rares doit rester desactive par defaut.");
+    }
 }

@@ -2,7 +2,9 @@ package com.petassegang.addons;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
+import com.petassegang.addons.debug.performance.ModPerformanceMonitor;
 import com.petassegang.addons.creative.ModCreativeTab;
 import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModBlocks;
@@ -34,6 +36,8 @@ public class PeTaSsEgAnGAdditionsMod implements ModInitializer {
         ModItems.register();
         ModCreativeTab.register();
         ModNetworking.register();
+        ServerTickEvents.START_SERVER_TICK.register(server -> ModPerformanceMonitor.onServerTickStart());
+        ServerTickEvents.END_SERVER_TICK.register(server -> ModPerformanceMonitor.onServerTickEnd());
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> LevelZeroLayout.clearCache());
 
         ModConstants.LOGGER.info("Initialisation de {} terminee.", ModConstants.MOD_NAME);

@@ -5,7 +5,12 @@ import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellEvaluati
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayoutPipeline;
 
 /**
- * Builder canonique de region layout pour le Level 0.
+ * Constructeur de {@code LevelZeroRegionLayout} a partir de la walkability
+ * regionale.
+ *
+ * <p>Son travail est volontairement simple : iterer sur la fenetre regionale
+ * et demander a la pipeline legacy d'evaluer chaque cellule, sans poser de
+ * blocs et sans extraire encore le chunk final.
  */
 public final class LevelZeroRegionLayoutBuilder {
 
@@ -20,6 +25,11 @@ public final class LevelZeroRegionLayoutBuilder {
         this.layoutPipeline = layoutPipeline;
     }
 
+    public LevelZeroRegionLayout build(long layoutSeed,
+                                       LevelZeroRegionWalkability regionWalkability) {
+        return build(layoutSeed, 0, regionWalkability);
+    }
+
     /**
      * Construit une region canonique a partir d'une fenetre de cellules.
      *
@@ -28,6 +38,7 @@ public final class LevelZeroRegionLayoutBuilder {
      * @return region layout canonique
      */
     public LevelZeroRegionLayout build(long layoutSeed,
+                                       int layerIndex,
                                        LevelZeroRegionWalkability regionWalkability) {
         int minCellX = regionWalkability.minCellX();
         int minCellZ = regionWalkability.minCellZ();
@@ -37,9 +48,12 @@ public final class LevelZeroRegionLayoutBuilder {
         int height = maxCellZ - minCellZ + 1;
         LevelZeroCellEvaluation[] evaluations = new LevelZeroCellEvaluation[width * height];
 
+        // La region est evaluee cellule par cellule pour garder un etat logique
+        // complet avant l'extraction du chunk : on ne pose rien ici, on
+        // accumule seulement des evaluations semantiques stables.
         for (int cellX = minCellX; cellX <= maxCellX; cellX++) {
             for (int cellZ = minCellZ; cellZ <= maxCellZ; cellZ++) {
-                LevelZeroCellContext cellContext = new LevelZeroCellContext(cellX, cellZ, layoutSeed);
+                LevelZeroCellContext cellContext = new LevelZeroCellContext(cellX, cellZ, layoutSeed, layerIndex);
                 evaluations[(cellZ - minCellZ) * width + (cellX - minCellX)] =
                         layoutPipeline.evaluateCell(cellContext, regionWalkability);
             }

@@ -36,10 +36,13 @@ Le projet inclut actuellement :
 
 - une installation Fabric 1.21.1 avec Fabric API,
 - une première dimension Backrooms Level 0 jouable,
-- un générateur de chunk monocouche custom inspiré du script Python de référence,
+- un générateur de chunk multi-layer custom inspiré du script Python de référence,
 - des biomes cosmétiques Level 0 qui changent le papier peint et la moquette sans modifier la topologie du labyrinthe,
 - un rendu de papier peint adaptatif par face exposée, réservé aux transitions mixtes entre biomes de surface,
 - un cœur de mur en bedrock vanilla pour que le bloc adaptatif ne s'applique qu'aux surfaces visibles,
+- une pile verticale canonique Level 0 avec layers seedés indépendamment,
+- un pipeline Level 0 réorganisé et documenté par responsabilités,
+- un monitoring de performance debug pour observer les coûts en jeu,
 - le Gang Badge et le contenu de l'Arbre Maudit d'origine,
 - une suite de tests JUnit 5.
 

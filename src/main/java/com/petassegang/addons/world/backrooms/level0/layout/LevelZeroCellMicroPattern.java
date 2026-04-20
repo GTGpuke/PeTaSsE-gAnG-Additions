@@ -5,6 +5,9 @@ package com.petassegang.addons.world.backrooms.level0.layout;
  *
  * <p>Un bit a 1 signifie "ouvert / traversable" pour le bloc correspondant
  * dans la cellule. L'ordre est ligne-major : `(z * 3 + x)`.
+ *
+ * <p>Ce fichier decrit donc la micro-geometrie locale, pas la topologie
+ * globale du labyrinthe.
  */
 public final class LevelZeroCellMicroPattern {
 

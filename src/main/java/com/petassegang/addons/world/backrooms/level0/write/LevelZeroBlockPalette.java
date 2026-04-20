@@ -15,8 +15,96 @@ import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroLayoutSampl
 /**
  * Palette de blocs du Level 0 et traduction des variantes de layout vers les
  * {@link BlockState} places dans les chunks.
+ *
+ * <p>Cette classe repond a la question : "quels blocs utiliser pour cet etat
+ * semantique ?". Elle choisit les materiaux, mais ne les pose jamais elle-meme.
  */
 public final class LevelZeroBlockPalette {
+
+    private final BlockState baseFloorState;
+    private final BlockState alternateFloorState;
+    private final BlockState ceilingTileState;
+    private final BlockState fluorescentLightState;
+    private final BlockState exposedWallpaperState;
+    private final BlockState airState;
+    private final BlockState bedrockState;
+    private final BlockState subfloorState;
+
+    /**
+     * Construit la palette runtime du Level 0 en s'appuyant sur les registres
+     * reels du mod.
+     */
+    public LevelZeroBlockPalette() {
+        this(
+                ModBlocks.LEVEL_ZERO_DAMP_CARPET.getDefaultState(),
+                ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.getDefaultState(),
+                ModBlocks.LEVEL_ZERO_CEILING_TILE.getDefaultState(),
+                ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.getDefaultState(),
+                ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState(),
+                Blocks.AIR.getDefaultState(),
+                Blocks.BEDROCK.getDefaultState(),
+                Blocks.SMOOTH_STONE.getDefaultState());
+    }
+
+    /**
+     * Construit une palette injectable pour les tests et les echantillons hors
+     * runtime Minecraft complet.
+     *
+     * @param baseFloorState bloc de sol du biome de base
+     * @param alternateFloorState bloc de sol du biome alternatif
+     * @param ceilingTileState dalle de plafond standard
+     * @param fluorescentLightState bloc lumineux de plafond
+     * @param exposedWallpaperState bloc de mur expose a l'air
+     * @param airState bloc d'air interne pour les colonnes traversables
+     * @param bedrockState bloc de bedrock interne
+     * @param subfloorState bloc du sous-sol technique
+     */
+    public LevelZeroBlockPalette(BlockState baseFloorState,
+                                 BlockState alternateFloorState,
+                                 BlockState ceilingTileState,
+                                 BlockState fluorescentLightState,
+                                 BlockState exposedWallpaperState,
+                                 BlockState airState,
+                                 BlockState bedrockState,
+                                 BlockState subfloorState) {
+        this.baseFloorState = baseFloorState;
+        this.alternateFloorState = alternateFloorState;
+        this.ceilingTileState = ceilingTileState;
+        this.fluorescentLightState = fluorescentLightState;
+        this.exposedWallpaperState = exposedWallpaperState;
+        this.airState = airState;
+        this.bedrockState = bedrockState;
+        this.subfloorState = subfloorState;
+    }
+
+    /**
+     * Construit une palette injectable en reutilisant l'air vanilla.
+     *
+     * @param baseFloorState bloc de sol du biome de base
+     * @param alternateFloorState bloc de sol du biome alternatif
+     * @param ceilingTileState dalle de plafond standard
+     * @param fluorescentLightState bloc lumineux de plafond
+     * @param exposedWallpaperState bloc de mur expose a l'air
+     * @param bedrockState bloc de bedrock interne
+     * @param subfloorState bloc du sous-sol technique
+     */
+    public LevelZeroBlockPalette(BlockState baseFloorState,
+                                 BlockState alternateFloorState,
+                                 BlockState ceilingTileState,
+                                 BlockState fluorescentLightState,
+                                 BlockState exposedWallpaperState,
+                                 BlockState bedrockState,
+                                 BlockState subfloorState) {
+        this(
+                baseFloorState,
+                alternateFloorState,
+                ceilingTileState,
+                fluorescentLightState,
+                exposedWallpaperState,
+                Blocks.AIR.getDefaultState(),
+                bedrockState,
+                subfloorState);
+    }
 
     /**
      * Retourne l'etat du bloc de sol a la position demandee.
@@ -51,9 +139,8 @@ public final class LevelZeroBlockPalette {
      */
     public BlockState floor(LevelZeroSurfaceBiome surfaceBiome) {
         return switch (surfaceBiome.floorVariant()) {
-            case LevelZeroLayout.SURFACE_VARIANT_ALTERNATE ->
-                    ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.getDefaultState();
-            default -> ModBlocks.LEVEL_ZERO_DAMP_CARPET.getDefaultState();
+            case LevelZeroLayout.SURFACE_VARIANT_ALTERNATE -> alternateFloorState;
+            default -> baseFloorState;
         };
     }
 
@@ -73,12 +160,19 @@ public final class LevelZeroBlockPalette {
      * Retourne l'etat du plafond pour une cellule traversable.
      *
      * @param cellState etat semantique de la cellule
-     * @return dalle de plafond ou neon fluorescent
+     * @return dalle de plafond standard
      */
     public BlockState walkableCeiling(LevelZeroCellState cellState) {
-        return cellState.lighted()
-                ? ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT.getDefaultState()
-                : ModBlocks.LEVEL_ZERO_CEILING_TILE.getDefaultState();
+        return ceilingTileState;
+    }
+
+    /**
+     * Retourne le bloc de neon fluorescent du Level 0.
+     *
+     * @return bloc lumineux de plafond
+     */
+    public BlockState lightFixture() {
+        return fluorescentLightState;
     }
 
     /**
@@ -97,7 +191,7 @@ public final class LevelZeroBlockPalette {
             return new LevelZeroColumnMaterial(
                     true,
                     floor(cellState),
-                    Blocks.AIR.getDefaultState(),
+                    airState,
                     walkableCeiling(cellState));
         }
         return new LevelZeroColumnMaterial(
@@ -116,16 +210,13 @@ public final class LevelZeroBlockPalette {
      */
     public BlockState wall(boolean exposedWallpaper, int faceMask) {
         if (!exposedWallpaper) {
-            return Blocks.BEDROCK.getDefaultState();
+            return bedrockState;
         }
-        if (isMixedFaceMask(faceMask)) {
-            return ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState()
-                    .with(LevelZeroWallpaperBlock.FACE_MASK, faceMask);
+        if (!exposedWallpaperState.contains(LevelZeroWallpaperBlock.FACE_MASK)) {
+            return exposedWallpaperState;
         }
-        if (faceMask == LevelZeroLayoutSampler.FULL_MASK) {
-            return ModBlocks.LEVEL_ZERO_WALLPAPER_AGED.getDefaultState();
-        }
-        return ModBlocks.LEVEL_ZERO_WALLPAPER.getDefaultState();
+        return exposedWallpaperState
+                .with(LevelZeroWallpaperBlock.FACE_MASK, faceMask);
     }
 
     /**
@@ -134,7 +225,7 @@ public final class LevelZeroBlockPalette {
      * @return dalle de plafond standard
      */
     public BlockState wallCeiling() {
-        return ModBlocks.LEVEL_ZERO_CEILING_TILE.getDefaultState();
+        return ceilingTileState;
     }
 
     /**
@@ -143,7 +234,7 @@ public final class LevelZeroBlockPalette {
      * @return etat bedrock
      */
     public BlockState bedrock() {
-        return Blocks.BEDROCK.getDefaultState();
+        return bedrockState;
     }
 
     /**
@@ -152,11 +243,7 @@ public final class LevelZeroBlockPalette {
      * @return etat smooth stone
      */
     public BlockState subfloor() {
-        return Blocks.SMOOTH_STONE.getDefaultState();
-    }
-
-    private static boolean isMixedFaceMask(int faceMask) {
-        return faceMask != 0 && faceMask != LevelZeroLayoutSampler.FULL_MASK;
+        return subfloorState;
     }
 
     private BlockState debugInterior(LevelZeroCellState cellState, boolean exposedWallpaper, int faceMask) {

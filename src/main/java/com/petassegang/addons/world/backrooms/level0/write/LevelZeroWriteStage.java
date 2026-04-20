@@ -5,7 +5,11 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
 
 /**
- * Etape d'ecriture de colonnes pour le pipeline du Level 0.
+ * Contrat commun des stages d'ecriture du Level 0.
+ *
+ * <p>Chaque stage recoit une colonne deja resolue et se contente d'ecrire sa
+ * couche : fondation, sol, interieur, plafond, lumiere, etc. Les decisions de
+ * layout doivent avoir ete prises avant d'arriver ici.
  */
 public interface LevelZeroWriteStage {
 

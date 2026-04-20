@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "face_mask=0":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=1":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=2":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=3":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=4":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=5":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=6":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=7":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=8":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=9":  { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=10": { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=11": { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=12": { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=13": { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=14": { "model": "petasse_gang_additions:block/level_zero_baseboard" },
+    "face_mask=15": { "model": "petasse_gang_additions:block/level_zero_baseboard" }
+  }
+}

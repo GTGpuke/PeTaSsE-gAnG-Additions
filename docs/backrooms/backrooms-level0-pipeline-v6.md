@@ -2,6 +2,29 @@
 
 ## Contexte et objectif
 
+## Note de conformité avec l'implémentation actuelle
+
+Ce document reste la spec cible de référence, pas une photographie exacte du runtime actuel.
+
+Ce qui est déjà actif en code :
+- génération régionale avec extraction par chunk ;
+- pipeline de layout explicite ;
+- multi-layer réel via `layerIndex` et slices verticales canoniques ;
+- writer dédié, biomes verticaux, lumière modulaire et détails muraux actifs ;
+- instrumentation de performance opt-in.
+
+Ce qui reste volontairement partiel ou différé :
+- la couche `surface details` connectés est gelée côté rendu ;
+- le vrai système de structures manuelles/prefabs n'est pas encore branché ;
+- les connexions verticales sont reportées à ces grosses structures manuelles ;
+- certaines structures de données de cette spec sont plus ambitieuses que le
+  socle runtime actuel.
+
+TODO DOC - À garder visible :
+- mettre à jour cette note quand un pan de la spec passe vraiment en runtime actif ;
+- ne pas traiter une section comme `faite` tant que son rendu final n'a pas été
+  revalidé en jeu.
+
 ### Le projet en une phrase
 
 Générer, en Java sur Fabric 1.21.1, une dimension Minecraft custom reproduisant le Level 0 des Backrooms (couloirs jaunes labyrinthiques, moquette, néons fluorescents, sans fenêtres, sans fin) avec une variété et une qualité visuelle supérieures à ce qu'un simple algo de labyrinthe produirait.
@@ -62,7 +85,13 @@ Bedrock : Y = 26               (1 bloc au-dessus du dernier layer)
 Air : Y = 27 à 319             (vide, jamais atteint)
 ```
 
-**Bornes de la dimension :** configurer le `DimensionType` JSON avec `min_y: -64` et `height: 384` (valeurs vanilla). Le `ChunkGenerator` remplit de bedrock depuis Y=-64 jusqu'à Y=-1 et place 1 bloc de bedrock au-dessus du plafond du dernier layer. Le joueur n'a pas accès à des outils de minage dans les Backrooms, mais la bedrock empêche toute exploitation.
+**Bornes de la dimension :** cette section décrit la cible théorique. Dans l'implémentation active actuelle, la dimension du Level 0 tourne sur `min_y = 0` et `height = 64`, avec `5` layers utiles dans cette enveloppe technique compatible avec Minecraft. Le joueur n'a pas accès à des outils de minage dans les Backrooms, mais la bedrock empêche toute exploitation.
+
+TODO DOC PLUS TARD :
+- revalider ces bornes si le système final de structures multi-layer impose une
+  hauteur technique différente ;
+- garder la compatibilité avec les contraintes Minecraft réelles avant de
+  revenir à une formulation plus ambitieuse.
 
 **Règle de remplacement wallpaper → bedrock :**
 Lors du placement final des blocs (`BlockWriter.write`), pour chaque bloc de mur aux positions Y+1 à Y+4 :
@@ -167,6 +196,12 @@ En plus du tag principal, chaque cellule porte des métadonnées :
 La génération est **strictement 2D par layer**. La 3D apparaît uniquement via :
 - Des **connexions verticales ponctuelles** entre layers (escaliers, trous) traitées comme des structures préfabriquées aux points d'ancrage.
 - Des **structures multi-layer** qui écrivent dans les grilles de plusieurs layers à leur emplacement, comme une exception locale.
+
+TODO IMPLÉMENTATION PLUS TARD :
+- reprendre ces connexions verticales uniquement via de grosses structures
+  manuelles contrôlées ;
+- ne pas réintroduire de petit escalier procédural autonome tant que
+  l'immersion et l'encastrement ne sont pas garantis.
 
 ### 4. Système de coordonnées canonique
 
@@ -833,6 +868,13 @@ PLAFOND :
 **Input :** grille complète.
 **Output :** structures `.nbt` placées.
 
+TODO IMPLÉMENTATION PLUS TARD :
+- cette étape reste aujourd'hui une cible, pas une réalité runtime complète ;
+- le socle sémantique de structures existe déjà, mais le vrai placement de
+  prefabs manuels reste à brancher ;
+- le format documentaire `level0-manual-structures-template.json` devra rester
+  aligné avec le futur format réellement chargé par le jeu.
+
 **Principe :** trois catégories de structures.
 
 ```
@@ -896,6 +938,12 @@ Les structures sont placées dans cet ordre exact. Une catégorie ne peut JAMAIS
 3. Structures gameplay (coffres, distributeurs, etc.)
 4. Détails structurels (petits objets décoratifs s'ils sont des .nbt)
 ```
+
+TODO IMPLÉMENTATION PLUS TARD :
+- cet ordre est utile comme règle cible, mais il ne faut l'activer qu'une fois
+  le vrai système de prefabs branché ;
+- ajouter alors les règles anti-collage et de distance minimale dès le premier
+  branchement runtime.
 
 Si une structure candidate entre en conflit spatial avec une structure déjà placée d'une catégorie supérieure ou égale, elle est **rejetée** (pas déplacée, pas adaptée — rejetée). Le Poisson spacing et les `min_distance_to` réduisent la probabilité de conflit, mais l'ordre de résolution est le filet de sécurité final.
 

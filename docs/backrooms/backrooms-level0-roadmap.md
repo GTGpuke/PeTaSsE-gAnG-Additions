@@ -20,21 +20,34 @@ passer a la suivante.
 
 ## Etat actuel resume
 
-Le code actuel est simple, monolithique, mais deja sain sur plusieurs points :
+Le code actuel n'est plus un simple generateur monocouche monolithique.
+La base active est deja bien plus avancee :
 
-- `LevelZeroLayout` porte la logique principale du layout et reste deterministe.
-- `LevelZeroChunkGenerator` ecrit directement un chunk monocouche exploitable.
-- `LevelZeroSurfaceBiome` est decouple de la topologie.
-- Le benchmark `benchmarkLevelZeroGeneration` tourne et donne une baseline tres legere sur la
-  logique actuelle.
+- `LevelZeroLayout` reste la facade principale du layout et reste deterministe.
+- `LevelZeroChunkGenerator` genere maintenant plusieurs `verticalSlice` canoniques.
+- `LevelZeroLayerStackLayout` et `LevelZeroVerticalSlice` portent la verticale canonique active.
+- `LevelZeroRegionGrid` assure bien une separation nette `region cachee / extraction chunk`.
+- `LevelZeroLegacyLayoutPipeline` expose deja une vraie pipeline par etapes explicites.
+- `LevelZeroSurfaceBiome` est decouple de la topologie et varie maintenant aussi selon le layer.
+- `LevelZeroBlockWriter` et `LevelZeroResolvedColumnResolver` separent bien la logique et
+  l'ecriture finale.
+- Le benchmark `benchmarkLevelZeroGeneration` tourne toujours et sert maintenant aussi de
+  baseline pour la couche structurelle et les points de gameplay potentiels.
 
-En revanche, la spec v6 est beaucoup plus ambitieuse que l'implementation actuelle :
+En revanche, plusieurs pans de la spec v6 restent volontairement partiels ou differes :
 
-- pas encore de pipeline par etapes explicites ;
-- pas encore de representation intermediaire taggee ;
-- pas encore de separation nette `region cachee / extraction chunk` ;
-- pas encore de multi-layer ;
-- pas encore de systeme de structures/details/lumieres en modules distincts.
+- le systeme de `surface details` connectes est conserve comme socle, mais gele cote rendu ;
+- le vrai systeme de structures manuelles/prefabs n'est pas encore actif ;
+- les connexions verticales restent volontairement reportees a ces grosses structures manuelles ;
+- la passe visuelle finale (lumieres, grandes rooms, details) reste a finir en toute fin ;
+- une partie de la spec v6 reste plus ambitieuse que les structures de donnees runtime actuelles.
+
+TODO DOC - A garder visible :
+
+- remettre a jour cette section a chaque fois qu'une grosse brique passe de
+  `spec cible` a `runtime actif`.
+- ne pas reclasser une couche gelee comme `terminee` tant que son rendu final
+  n'est pas valide en jeu.
 
 ## Ordre recommande
 
@@ -208,19 +221,66 @@ Objectif : enrichir sans casser la lecture du niveau.
 Sous-taches :
 
 - Etape 5 : placement des neons comme vrai module.
+- Faire porter au biome une densite lumineuse cible, sans en faire une loi
+  absolue cellule par cellule.
+- Autoriser certains biomes a produire localement ou regionalement des zones
+  entierement sombres.
+- Donner aux grandes pieces une logique lumineuse prioritaire :
+  soit tres bien eclairees avec des neons reguliers qui suivent leur forme,
+  soit entierement sombres, ce second cas restant beaucoup plus rare.
 - Etape 6 : details decoratifs legers.
+- PAUSE ACTUELLE : la couche de `surface details` (taches, humidite,
+  salete, usure) est volontairement gelee pour l'instant car l'approche
+  retenue ne donne pas un resultat satisfaisant.
+- Reprendre plus tard cette couche comme vrai systeme d'overlays si besoin,
+  sans bloquer les autres chantiers.
+- Priorite immediate : petits props muraux potentiellement lies au gameplay
+  (`plinthes`, `interrupteurs`, `prises`).
+- Prioriser une couche de `surface details` connectes (taches, humidite,
+  usure, plafond sale, wallpaper plus abime) avant les petits props 3D.
+- Faire porter ces details par des masques/variantes connectees afin de
+  permettre plus tard de vraies textures multi-blocs coherentes.
+- Reporter les petits details muraux legerement 3D (plinthes,
+  interrupteurs, prises) dans un sous-temps distinct, une fois la couche
+  surfacique connectee stabilisee.
 - Etape 7 : structures prefabriquees simples et rares.
+- TODO STRUCTURES MANUELLES :
+  reprendre plus tard un vrai systeme de structures faites a la main,
+  separe des grandes rooms, avec fichiers de definition dedies,
+  regles anti-collage, et placement sans modification du layout.
+- TODO UTILE PLUS TARD :
+  faire converger ce futur systeme avec le template documentaire
+  `level0-manual-structures-template.json`, au lieu de laisser deux formats
+  diverger.
+- TODO UTILE PLUS TARD :
+  reintroduire de vraies connexions verticales uniquement comme sous-cas de
+  ces grosses structures manuelles, jamais comme petit escalier procedural
+  autonome.
 - Instrumentation de perf par etape.
 
 Validation :
 
 - Les neons gardent leur role central dans l'ambiance.
+- La densite lumineuse percue varie bien selon les biomes sans casser
+  la lisibilite generale.
+- Les grandes pieces ont un traitement lumineux distinct et identifiable.
 - Pas d'explosion du nombre de sources lumineuses.
 - Le niveau reste lisible et ne devient pas "bruite" visuellement.
 
 ### Phase 7 - Multi-layer et geographie verticale
 
 Objectif : passer du monocouche actuel au vrai Level 0 multi-layer de la spec.
+
+Note d'avancement :
+
+- Le schema vertical canonique a ete pose en code comme base de reference
+  testee.
+- Il est maintenant branche au `ChunkGenerator`, au writer et au
+  `DimensionType` actif.
+- La dimension active tourne maintenant sur `5` layers utiles dans une
+  hauteur technique de `64` blocs (`min_y = 0`, `height = 64`).
+- Le writer sait ecrire explicitement par `verticalSlice` et la boucle
+  multi-layer est activee dans le generateur.
 
 Sous-taches :
 
@@ -234,6 +294,13 @@ Validation :
 - Chaque layer est deterministe.
 - Les ecarts verticaux respectent exactement la spec.
 - Les connexions verticales tombent sur du traversable des deux cotes.
+- TODO : reprendre plus tard les connexions verticales uniquement via de grosses structures manuelles/controlees, pas via un petit escalier procedural simple.
+- TODO UTILE PLUS TARD :
+  limiter explicitement certains biomes a certains layers via une
+  configuration plus declarative si la liste en code devient trop rigide.
+- TODO UTILE PLUS TARD :
+  revalider le schema vertical final si une vraie structure multi-layer
+  impose un besoin de hauteur supplementaire.
 
 ### Phase 8 - Production et nettoyage final
 
@@ -245,6 +312,12 @@ Sous-taches :
 - Completer la doc technique du nouveau pipeline.
 - Ajouter des tests de non-regression plus forts.
 - Ajouter un dump debug de grille/tag/biome si utile.
+- TODO UTILE PLUS TARD :
+  ajouter un dump debug propre des couches `layout / lumiere / structures`
+  pour faciliter la passe visuelle finale et les regressions rares.
+- TODO UTILE PLUS TARD :
+  consolider la doc de performance in-game pour que le mode monitor reste
+  exploitable apres la sortie.
 
 Validation :
 

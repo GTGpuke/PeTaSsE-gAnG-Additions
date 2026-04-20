@@ -2,25 +2,33 @@ package com.petassegang.addons.world.backrooms.level0.layout;
 
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellEvaluation;
 
 /**
- * Copie mutable des donnees de layout d'un chunk du Level 0.
+ * Representation locale d'un chunk, prete pour la resolution de colonnes.
  *
- * <p>Cette structure reste volontairement simple et compatible avec
- * l'implementation historique. Elle prepare le terrain pour un futur
- * decoupage region -> chunk plus explicite.
+ * <p>Le {@code RegionLayout} raisonne encore cellule par cellule. Le
+ * {@code ChunkSlice}, lui, aplatit deja cette logique sur la grille locale du
+ * chunk afin que la suite de la pipeline puisse travailler colonne par colonne.
+ *
+ * <p>En pratique, cette structure est le pont entre :
+ * region evaluee -> chunk local -> colonnes resolues -> blocs poses.
  */
 public final class LevelZeroChunkSlice {
 
+    // Etat local bloc-par-bloc derive d'une evaluation logique par cellule.
+    // Une meme cellule 3x3 legacy peut donc remplir plusieurs colonnes locales.
     private final boolean[] walkable;
     private final boolean[] lighted;
     private final LevelZeroSurfaceBiome[] surfaceBiomes;
     private final boolean[] largeRoom;
     private final LevelZeroCellTag[] cellTags;
     private final LevelZeroCellTopology[] cellTopologies;
+    private final int[] connectionMasks;
     private final int[] geometryMasks;
     private final int[] microPatterns;
+    private final LevelZeroSectorRoomKind[] roomKinds;
     private final int worldMinX;
     private final int worldMinZ;
     private final int worldMaxX;
@@ -41,48 +49,14 @@ public final class LevelZeroChunkSlice {
         this.largeRoom = new boolean[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
         this.cellTags = new LevelZeroCellTag[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
         this.cellTopologies = new LevelZeroCellTopology[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
+        this.connectionMasks = new int[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
         this.geometryMasks = new int[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
         this.microPatterns = new int[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
+        this.roomKinds = new LevelZeroSectorRoomKind[LevelZeroLayout.CHUNK_SIZE * LevelZeroLayout.CHUNK_SIZE];
         this.worldMinX = worldMinX;
         this.worldMinZ = worldMinZ;
         this.worldMaxX = worldMaxX;
         this.worldMaxZ = worldMaxZ;
-    }
-
-    /**
-     * Remplit une plage locale du chunk avec les donnees d'une cellule logique.
-     *
-     * @param startLocalX debut local X inclus
-     * @param endLocalX fin locale X incluse
-     * @param startLocalZ debut locale Z incluse
-     * @param endLocalZ fin locale Z incluse
-     * @param cellWalkable etat traversable de la cellule
-     * @param surfaceBiome biome cosmetique de surface
-     * @param cellLargeRoom marquage grande piece
-     */
-    public void fillCellRange(int startLocalX,
-                              int endLocalX,
-                              int startLocalZ,
-                              int endLocalZ,
-                              boolean cellWalkable,
-                              LevelZeroSurfaceBiome surfaceBiome,
-                              boolean cellLargeRoom) {
-        for (int localX = startLocalX; localX <= endLocalX; localX++) {
-            for (int localZ = startLocalZ; localZ <= endLocalZ; localZ++) {
-                int index = index(localX, localZ);
-                walkable[index] = cellWalkable;
-                surfaceBiomes[index] = surfaceBiome;
-                largeRoom[index] = cellLargeRoom;
-                cellTags[index] = resolveCellTag(cellWalkable, cellLargeRoom);
-                cellTopologies[index] = cellLargeRoom
-                        ? LevelZeroCellTopology.ROOM_LARGE
-                        : (cellWalkable ? LevelZeroCellTopology.CORRIDOR : LevelZeroCellTopology.WALL);
-                geometryMasks[index] = LevelZeroGeometryMask.none();
-                microPatterns[index] = cellWalkable
-                        ? LevelZeroCellMicroPattern.FULL_OPEN
-                        : LevelZeroCellMicroPattern.FULL_CLOSED;
-            }
-        }
     }
 
     /**
@@ -100,6 +74,9 @@ public final class LevelZeroChunkSlice {
                               int startLocalZ,
                               int endLocalZ,
                               LevelZeroCellEvaluation evaluation) {
+        // Cette copie "aplatie" l'evaluation logique sur toutes les colonnes
+        // locales couvertes par la cellule 3x3 afin que le writer n'ait plus
+        // qu'a raisonner bloc par bloc.
         for (int localX = startLocalX; localX <= endLocalX; localX++) {
             for (int localZ = startLocalZ; localZ <= endLocalZ; localZ++) {
                 int index = index(localX, localZ);
@@ -108,7 +85,9 @@ public final class LevelZeroChunkSlice {
                 largeRoom[index] = evaluation.largeRoom();
                 cellTags[index] = evaluation.cellTag();
                 cellTopologies[index] = evaluation.topology();
+                connectionMasks[index] = evaluation.connectionMask();
                 geometryMasks[index] = evaluation.geometryMask();
+                roomKinds[index] = evaluation.roomKind();
                 microPatterns[index] = evaluation.microPattern();
             }
         }
@@ -139,6 +118,9 @@ public final class LevelZeroChunkSlice {
         if (!evaluation.lighted()) {
             return;
         }
+        // La lumiere reste volontairement marquee uniquement au centre logique
+        // de la cellule 3x3 : le chunk slice ne stocke pas un motif lumineux,
+        // seulement le point d'ancrage plafond qui sera ecrit plus tard.
         markLightAtWorldCenter(
                 com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords.cellCenterWorldX(evaluation.context().cellX()),
                 com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords.cellCenterWorldZ(evaluation.context().cellZ()));
@@ -209,26 +191,24 @@ public final class LevelZeroChunkSlice {
         int index = index(localX, localZ);
         int subCellX = Math.floorMod(worldMinX + localX, com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords.cellScale());
         int subCellZ = Math.floorMod(worldMinZ + localZ, com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords.cellScale());
+        // subCellX / subCellZ conservent la position intra-cellule 3x3 pour les
+        // motifs fins, meme quand plusieurs colonnes locales partagent le meme
+        // etat logique global.
         return new LevelZeroCellState(
                 cellTags[index],
                 cellTopologies[index],
+                connectionMasks[index],
                 geometryMasks[index],
                 microPatterns[index],
                 subCellX,
                 subCellZ,
                 surfaceBiomes[index],
+                roomKinds[index],
                 largeRoom[index],
                 lighted[index]);
     }
 
     private static int index(int localX, int localZ) {
         return localZ * LevelZeroLayout.CHUNK_SIZE + localX;
-    }
-
-    private static LevelZeroCellTag resolveCellTag(boolean cellWalkable, boolean cellLargeRoom) {
-        if (!cellWalkable) {
-            return LevelZeroCellTag.WALL;
-        }
-        return cellLargeRoom ? LevelZeroCellTag.ROOM_LARGE : LevelZeroCellTag.CORRIDOR;
     }
 }

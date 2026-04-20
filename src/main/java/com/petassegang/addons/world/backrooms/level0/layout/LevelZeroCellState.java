@@ -1,18 +1,25 @@
 package com.petassegang.addons.world.backrooms.level0.layout;
 
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
 
 /**
- * Etat semantique minimal d'une cellule locale du Level 0.
+ * Etat semantique complet d'une cellule locale apres evaluation.
+ *
+ * <p>Ce record rassemble tout ce dont le writer et les resolvers ont besoin a
+ * l'echelle d'une colonne locale : tag, topologie, biome, motif, lumiere et
+ * sous-position dans la cellule 3x3.
  */
 public record LevelZeroCellState(
         LevelZeroCellTag tag,
         LevelZeroCellTopology topology,
+        int connectionMask,
         int geometryMask,
         int microPattern,
         int subCellX,
         int subCellZ,
         LevelZeroSurfaceBiome surfaceBiome,
+        LevelZeroSectorRoomKind roomKind,
         boolean largeRoom,
         boolean lighted) {
 
@@ -33,6 +40,16 @@ public record LevelZeroCellState(
      */
     public boolean hasGeometryFeature(LevelZeroGeometryFeature feature) {
         return LevelZeroGeometryMask.has(geometryMask, feature);
+    }
+
+    /**
+     * Indique si la cellule est ouverte vers une direction cardinale.
+     *
+     * @param direction bit cardinal de {@link LevelZeroCellConnections}
+     * @return {@code true} si la connexion est presente
+     */
+    public boolean hasConnection(int direction) {
+        return LevelZeroCellConnections.has(connectionMask, direction);
     }
 
     /**

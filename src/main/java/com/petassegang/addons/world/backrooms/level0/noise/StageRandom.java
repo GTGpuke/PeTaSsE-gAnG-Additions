@@ -8,6 +8,9 @@ import java.util.Random;
  * <p>Cette premiere version reste volontairement compatible avec les derives
  * historiques du layout actuel. Elle sert de point d'ancrage avant une
  * migration plus stricte vers les stages de la pipeline v6.
+ *
+ * <p>Autrement dit : si une nouvelle couche a besoin d'un hasard deterministe,
+ * elle doit passer par ce fichier plutot que recreer son propre mix.
  */
 public final class StageRandom {
 
@@ -16,8 +19,14 @@ public final class StageRandom {
      */
     public enum Stage {
         LIGHTS(0x4C49474854L),
+        BIOME_LIGHTING(0x42494F4D454C4954L),
+        LARGE_ROOM_LIGHTING(0x524F4F4D4C4954L),
         LARGE_ROOMS(0x4C41524745524F4DL),
+        LAYER_LAYOUT(0x4C415945524C4159L),
         NOISE_GEOMETRY(0x4E4F49534547454FL),
+        SURFACE_DETAILS(0x44455441494C53L),
+        WALL_PROPS(0x57414C4C50524F50L),
+        STRUCTURES(0x5354525543545552L),
         SECTOR_CACHE(0x534543544F52L),
         SECTOR_MAZE(0x4D415A45L),
         SURFACE_BIOME(0x535552464143454CL);

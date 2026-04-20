@@ -31,6 +31,7 @@ Le niveau génère un labyrinthe monocouche de couloirs et de salles via :
 - `src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroLayout.java`
 - `src/main/resources/data/petasse_gang_additions/dimension/backrooms_level_0.json`
 - `src/main/resources/data/petasse_gang_additions/dimension_type/backrooms_level_0_type.json`
+- `docs/dimensions/backrooms-level0-dimension-type-multilayer.json`
 
 ### Accès
 

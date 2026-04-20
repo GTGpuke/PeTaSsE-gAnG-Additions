@@ -4,7 +4,11 @@ import com.petassegang.addons.world.backrooms.BackroomsConstants;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 
 /**
- * Conversions canoniques de coordonnees pour le Level 0 actuel.
+ * Conversions canoniques entre monde, chunk et cellule logique.
+ *
+ * <p>Ce fichier doit rester la source de verite des conversions spatiales du
+ * Level 0. Lorsqu'un doute apparait sur une coordonnee, c'est ici qu'il faut
+ * regarder avant de reintroduire des calculs locaux dupliques.
  */
 public final class LevelZeroCoords {
 

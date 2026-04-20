@@ -12,13 +12,13 @@ import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionGrid;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionLayout;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionLayoutBuilder;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionWalkability;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroSectorWalkabilitySampler;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroSectorData;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroSectorGenerator;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyRegionLayoutStage;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorWalkabilitySampler;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorData;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorGenerator;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayoutPipeline;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyRegionWalkabilityStage;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroRegionContext;
+import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionLayoutStage;
+import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionWalkabilityStage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -61,7 +61,6 @@ class BackroomsLevelZeroRegionLayoutTest {
                 998877L,
                 SECTOR_COLS,
                 SECTOR_ROWS,
-                7,
                 1024,
                 new ConcurrentHashMap<Long, LevelZeroSectorData>(),
                 sectorGenerator(),
@@ -87,7 +86,6 @@ class BackroomsLevelZeroRegionLayoutTest {
                 998877L,
                 SECTOR_COLS,
                 SECTOR_ROWS,
-                7,
                 1024,
                 new ConcurrentHashMap<Long, LevelZeroSectorData>(),
                 sectorGenerator(),
@@ -125,7 +123,6 @@ class BackroomsLevelZeroRegionLayoutTest {
                 998877L,
                 SECTOR_COLS,
                 SECTOR_ROWS,
-                7,
                 1024,
                 sectorCache,
                 sectorGenerator(),
@@ -163,7 +160,6 @@ class BackroomsLevelZeroRegionLayoutTest {
                 998877L,
                 SECTOR_COLS,
                 SECTOR_ROWS,
-                7,
                 1024,
                 sectorCache,
                 sectorGenerator(),

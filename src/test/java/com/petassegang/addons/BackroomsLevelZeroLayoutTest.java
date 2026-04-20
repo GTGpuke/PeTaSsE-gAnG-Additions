@@ -3,16 +3,15 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import net.minecraft.block.BlockState;
-
-import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTag;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 @DisplayName("Layout du Level 0")
 class BackroomsLevelZeroLayoutTest {
-
     @Test
     @DisplayName("La zone d'origine reste toujours traversable")
     void testSpawnAreaIsWalkable() {
@@ -110,13 +108,10 @@ class BackroomsLevelZeroLayoutTest {
 
     @Test
     @DisplayName("Le biome de surface peut etre retrouve depuis le bloc de sol")
-    void testSurfaceBiomeCanBeRecoveredFromFloorState() {
-        BlockState baseFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET.getDefaultState();
-        BlockState alternateFloor = ModBlocks.LEVEL_ZERO_DAMP_CARPET_AGED.getDefaultState();
-
-        assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.fromFloorState(baseFloor),
+    void testSurfaceBiomeCanBeRecoveredFromFloorVariant() {
+        assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.fromFloorVariant(LevelZeroLayout.SURFACE_VARIANT_BASE),
                 "La moquette jaune doit correspondre au biome de base.");
-        assertEquals(LevelZeroSurfaceBiome.RED, LevelZeroSurfaceBiome.fromFloorState(alternateFloor),
+        assertEquals(LevelZeroSurfaceBiome.RED, LevelZeroSurfaceBiome.fromFloorVariant(LevelZeroLayout.SURFACE_VARIANT_ALTERNATE),
                 "La moquette rouge doit correspondre au biome alternatif.");
     }
 
@@ -160,13 +155,23 @@ class BackroomsLevelZeroLayoutTest {
                 "Le flag grande piece de l'etat doit correspondre a l'accesseur historique.");
         assertEquals(layout.hasLight(7, 7), state.lighted(),
                 "Le flag lumiere de l'etat doit correspondre a l'accesseur historique.");
+        assertEquals(true, state.roomKind() != null,
+                "Le type de salle legacy doit etre disponible dans l'etat de cellule.");
+        assertEquals(true, state.roomKind() == LevelZeroSectorRoomKind.NONE || state.walkable(),
+                "Un type de salle spécifique ne doit pas etre attache a un mur plein.");
         assertEquals(layout.isWalkable(7, 7), state.walkable(),
                 "Le caractere traversable de l'etat doit rester coherent avec le layout.");
-        assertEquals(layout.isLargeRoom(7, 7) ? LevelZeroCellTopology.ROOM_LARGE : state.topology(),
-                state.topology(),
+        assertEquals(true,
+                layout.isLargeRoom(7, 7)
+                        ? state.topology() == LevelZeroCellTopology.ROOM_LARGE
+                        : state.topology() != LevelZeroCellTopology.WALL,
                 "La topologie fine doit rester coherente avec l'etat semantique.");
         assertEquals(false, state.hasGeometryFeature(LevelZeroGeometryFeature.NONE),
                 "Le masque geometrique ne doit pas repondre positivement a une pseudo-feature NONE.");
+        assertEquals(true, state.connectionMask() == 0 || state.walkable(),
+                "Un masque de connexions non vide doit correspondre a une cellule traversable.");
+        assertEquals(false, state.hasConnection(LevelZeroCellConnections.NORTH) && !state.walkable(),
+                "Un mur ne doit pas annoncer de connexion cardinale.");
         assertEquals(true, LevelZeroCellMicroPattern.isOpen(state.microPattern(), state.subCellX(), state.subCellZ()) == state.isMicroOpen(),
                 "Le helper micro-geometrique doit rester coherent avec le motif 3x3 stocke.");
     }

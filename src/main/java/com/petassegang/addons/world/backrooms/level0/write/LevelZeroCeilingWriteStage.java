@@ -4,8 +4,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
 
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
-
 /**
  * Etape d'ecriture du plafond d'une colonne.
  */
@@ -21,14 +19,14 @@ public final class LevelZeroCeilingWriteStage implements LevelZeroWriteStage {
                                  int localX,
                                  int localZ,
                                  LevelZeroResolvedColumn resolvedColumn) {
-        chunk.setBlockState(mutablePos.set(localX, LevelZeroVerticalLayout.ceilingY(), localZ),
+        chunk.setBlockState(mutablePos.set(localX, resolvedColumn.verticalSlice().ceilingY(), localZ),
                 resolvedColumn.material().ceiling(),
                 false);
     }
 
     @Override
     public void writeColumnSample(BlockState[] states, LevelZeroResolvedColumn resolvedColumn) {
-        setColumnState(states, LevelZeroVerticalLayout.ceilingY(), resolvedColumn.material().ceiling());
+        setColumnState(states, resolvedColumn.verticalSlice().ceilingY(), resolvedColumn.material().ceiling());
     }
 
     private static void setColumnState(BlockState[] states, int y, BlockState state) {

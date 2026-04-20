@@ -23,13 +23,29 @@ import net.minecraft.world.ChunkRegion;
 import net.minecraft.world.gen.chunk.VerticalBlockSample;
 import net.minecraft.world.gen.noise.NoiseConfig;
 
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
+import com.petassegang.addons.debug.performance.ModPerformanceMonitor;
+import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroLayerStackLayout;
+import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalSlice;
 import com.petassegang.addons.world.backrooms.level0.noise.LevelZeroSeedResolver;
 import com.petassegang.addons.world.backrooms.level0.write.LevelZeroBlockPalette;
 import com.petassegang.addons.world.backrooms.level0.write.LevelZeroBlockWriter;
 
 /**
- * Generateur monocouche du Level 0 des Backrooms.
+ * Generateur multi-layer du Level 0 des Backrooms.
+ *
+ * <p>Ce fichier est le point d'entree runtime de toute la generation. Son role
+ * est volontairement restreint :
+ *
+ * <ol>
+ *   <li>choisir les {@code verticalSlice} a generer ;</li>
+ *   <li>deriver une seed par layer ;</li>
+ *   <li>demander a {@link LevelZeroLayout} l'etat logique du chunk ;</li>
+ *   <li>deleguer a {@code LevelZeroBlockWriter} la traduction en blocs.</li>
+ * </ol>
+ *
+ * <p>Le generateur ne decide donc ni la topologie fine, ni la lumiere, ni les
+ * details muraux. Il orchestre seulement la pile verticale et la reconstruction
+ * deterministe de chaque layer.
  */
 public final class LevelZeroChunkGenerator extends ChunkGenerator {
 
@@ -41,7 +57,6 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
 
     private static final LevelZeroBlockPalette BLOCK_PALETTE = new LevelZeroBlockPalette();
     private static final LevelZeroBlockWriter BLOCK_WRITER = new LevelZeroBlockWriter(BLOCK_PALETTE);
-
     private final RegistryEntry<Biome> biome;
 
     /**
@@ -64,14 +79,29 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
     }
 
     @Override
+    @SuppressWarnings("try")
     public CompletableFuture<Chunk> populateNoise(Blender blender,
                                                   NoiseConfig noiseConfig,
                                                   StructureAccessor structureAccessor,
                                                   Chunk chunk) {
-        long layoutSeed = LevelZeroSeedResolver.resolveLayoutSeed(noiseConfig);
-        LevelZeroLayout layout = LevelZeroLayout.generate(chunk.getPos().x, chunk.getPos().z, layoutSeed);
-        BLOCK_WRITER.writeChunk(chunk, layout, layoutSeed);
-
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope("level0.chunk_generator.populate_noise")) {
+            List<LevelZeroVerticalSlice> slices = LevelZeroLayerStackLayout.defaultSlices();
+            for (LevelZeroVerticalSlice slice : slices) {
+                long layerSeed = LevelZeroSeedResolver.resolveLayerLayoutSeed(noiseConfig, slice.layerIndex());
+                // Chaque layer garde la meme pipeline que l'ancien Level 0, mais
+                // avec une seed derivee propre pour eviter de dupliquer le meme
+                // labyrinthe d'un etage a l'autre.
+                LevelZeroLayout layout;
+                try (ModPerformanceMonitor.Scope layoutScope =
+                             ModPerformanceMonitor.scope("level0.chunk_generator.layout_generate")) {
+                    layout = LevelZeroLayout.generate(chunk.getPos().x, chunk.getPos().z, layerSeed, slice.layerIndex());
+                }
+                try (ModPerformanceMonitor.Scope writeScope =
+                             ModPerformanceMonitor.scope("level0.chunk_generator.write_chunk")) {
+                    BLOCK_WRITER.writeChunk(chunk, layout, layerSeed, slice);
+                }
+            }
+        }
         return CompletableFuture.completedFuture(chunk);
     }
 
@@ -102,39 +132,56 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                          Heightmap.Type heightmap,
                          HeightLimitView world,
                          NoiseConfig noiseConfig) {
-        return LevelZeroVerticalLayout.heightmapTopY();
+        return LevelZeroLayerStackLayout.recommendedHeightmapTopY();
     }
 
     @Override
+    @SuppressWarnings("try")
     public VerticalBlockSample getColumnSample(int x,
                                                int z,
                                                HeightLimitView world,
                                                NoiseConfig noiseConfig) {
-        BlockState[] states = new BlockState[LevelZeroVerticalLayout.COLUMN_SAMPLE_HEIGHT];
-        long layoutSeed = LevelZeroSeedResolver.resolveLayoutSeed(noiseConfig);
-        LevelZeroLayout layout = LevelZeroLayout.generate(
-                Math.floorDiv(x, LevelZeroLayout.CHUNK_SIZE),
-                Math.floorDiv(z, LevelZeroLayout.CHUNK_SIZE),
-                layoutSeed);
-        BLOCK_WRITER.writeColumnSample(states, layout, layoutSeed, x, z);
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope("level0.chunk_generator.column_sample")) {
+            BlockState[] states = new BlockState[getWorldHeight()];
+            boolean initialize = true;
+            // Le sample vertical doit reconstruire exactement les memes slices que
+            // populateNoise pour que heightmaps, debug et worldgen lisent la meme
+            // pile logique.
+            for (LevelZeroVerticalSlice slice : LevelZeroLayerStackLayout.defaultSlices()) {
+                long layerSeed = LevelZeroSeedResolver.resolveLayerLayoutSeed(noiseConfig, slice.layerIndex());
+                LevelZeroLayout layout;
+                try (ModPerformanceMonitor.Scope layoutScope =
+                             ModPerformanceMonitor.scope("level0.chunk_generator.column_sample.layout_generate")) {
+                    layout = LevelZeroLayout.generate(
+                            Math.floorDiv(x, LevelZeroLayout.CHUNK_SIZE),
+                            Math.floorDiv(z, LevelZeroLayout.CHUNK_SIZE),
+                            layerSeed,
+                            slice.layerIndex());
+                }
+                try (ModPerformanceMonitor.Scope writeScope =
+                             ModPerformanceMonitor.scope("level0.chunk_generator.column_sample.write_column")) {
+                    BLOCK_WRITER.writeColumnSample(states, layout, layerSeed, x, z, slice, initialize);
+                }
+                initialize = false;
+            }
 
-        return new VerticalBlockSample(world.getBottomY(), states);
+            return new VerticalBlockSample(world.getBottomY(), states);
+        }
     }
 
     @Override
     public int getWorldHeight() {
-        // Correspond au "height" du fichier backrooms_level_0_type.json.
-        return LevelZeroVerticalLayout.worldHeight();
+        return LevelZeroLayerStackLayout.recommendedDimensionHeight();
     }
 
     @Override
     public int getSeaLevel() {
-        return LevelZeroVerticalLayout.seaLevel();
+        return LevelZeroLayerStackLayout.floorY(0);
     }
 
     @Override
     public int getMinimumY() {
-        return LevelZeroVerticalLayout.minimumY();
+        return LevelZeroLayerStackLayout.minimumY();
     }
 
     @Override
@@ -142,6 +189,7 @@ public final class LevelZeroChunkGenerator extends ChunkGenerator {
                                 NoiseConfig noiseConfig,
                                 BlockPos pos) {
         text.add("Backrooms : Level 0");
-        text.add("ChunkGenerator : Traduction monocouche du script Python.");
+        text.add("ChunkGenerator : pile multi-layer seedee par layer.");
+        ModPerformanceMonitor.appendDebugHudText(text);
     }
 }

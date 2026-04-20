@@ -1,0 +1,27 @@
+{
+  "_comment": "Template provisoire pour futures structures Level 0 faites a la main. Non charge par le jeu pour l'instant.",
+  "id": "storage_cluster_small",
+  "structure_kind": "STORAGE_CLUSTER",
+  "room_kind": "RECT_ROOM",
+  "footprint": {
+    "width_cells": 3,
+    "height_cells": 3
+  },
+  "anchors": [
+    {
+      "role": "ENTRY",
+      "local_cell_x": 0,
+      "local_cell_z": 0
+    },
+    {
+      "role": "FOCAL_POINT",
+      "local_cell_x": 1,
+      "local_cell_z": 1
+    }
+  ],
+  "notes": [
+    "Les coordonnees sont exprimees en cellules logiques, pas en blocs monde.",
+    "Le layout ne doit pas etre modifie par cette structure.",
+    "Les futurs blocs/props devront se poser sur des cellules deja walkable."
+  ]
+}

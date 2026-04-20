@@ -19,6 +19,7 @@
   "block.petasse_gang_additions.level_zero_damp_carpet_aged": "Red Level 0 Carpet",
   "block.petasse_gang_additions.level_zero_ceiling_tile": "Level 0 Ceiling Tile",
   "block.petasse_gang_additions.level_zero_fluorescent_light": "Level 0 Fluorescent Light",
+  "block.petasse_gang_additions.level_zero_baseboard": "Level 0 Baseboard",
 
   "item.petasse_gang_additions.cursed_log": "Cursed Log",
   "item.petasse_gang_additions.cursed_leaves": "Cursed Leaves",
@@ -31,6 +32,7 @@
   "item.petasse_gang_additions.level_zero_damp_carpet_aged": "Red Level 0 Carpet",
   "item.petasse_gang_additions.level_zero_ceiling_tile": "Level 0 Ceiling Tile",
   "item.petasse_gang_additions.level_zero_fluorescent_light": "Level 0 Fluorescent Light",
+  "item.petasse_gang_additions.level_zero_baseboard": "Level 0 Baseboard",
 
   "dimension.petasse_gang_additions.backrooms_level_0": "Backrooms - Level 0",
 

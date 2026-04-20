@@ -31,6 +31,18 @@ loom {
             if (project.hasProperty('levelZeroDebugMicroGeometry')) {
                 vmArg "-Dpetassegang.levelZero.debugMicroGeometry=${project.property('levelZeroDebugMicroGeometry')}"
             }
+            if (project.hasProperty('levelZeroDebugWallProps')) {
+                vmArg "-Dpetassegang.levelZero.debugWallProps=${project.property('levelZeroDebugWallProps')}"
+            }
+            if (project.hasProperty('levelZeroDebugStructures')) {
+                vmArg "-Dpetassegang.levelZero.debugStructures=${project.property('levelZeroDebugStructures')}"
+            }
+            if (project.hasProperty('debugPerformanceMonitor')) {
+                vmArg "-Dpetassegang.debugPerformanceMonitor=${project.property('debugPerformanceMonitor')}"
+            }
+            if (project.hasProperty('performanceLogIntervalSeconds')) {
+                vmArg "-Dpetassegang.performanceLogIntervalSeconds=${project.property('performanceLogIntervalSeconds')}"
+            }
         }
         server {
             server()
@@ -94,6 +106,18 @@ tasks.register('benchmarkLevelZeroGeneration', JavaExec) {
     }
     if (project.hasProperty('levelZeroDebugMicroGeometry')) {
         systemProperty 'petassegang.levelZero.debugMicroGeometry', project.property('levelZeroDebugMicroGeometry')
+    }
+    if (project.hasProperty('levelZeroDebugWallProps')) {
+        systemProperty 'petassegang.levelZero.debugWallProps', project.property('levelZeroDebugWallProps')
+    }
+    if (project.hasProperty('levelZeroDebugStructures')) {
+        systemProperty 'petassegang.levelZero.debugStructures', project.property('levelZeroDebugStructures')
+    }
+    if (project.hasProperty('debugPerformanceMonitor')) {
+        systemProperty 'petassegang.debugPerformanceMonitor', project.property('debugPerformanceMonitor')
+    }
+    if (project.hasProperty('performanceLogIntervalSeconds')) {
+        systemProperty 'petassegang.performanceLogIntervalSeconds', project.property('performanceLogIntervalSeconds')
     }
 }
 

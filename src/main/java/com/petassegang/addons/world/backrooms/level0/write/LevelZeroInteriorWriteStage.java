@@ -4,8 +4,6 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
 
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
-
 /**
  * Etape d'ecriture de l'interieur vertical d'une colonne.
  */
@@ -21,8 +19,13 @@ public final class LevelZeroInteriorWriteStage implements LevelZeroWriteStage {
                                  int localX,
                                  int localZ,
                                  LevelZeroResolvedColumn resolvedColumn) {
+        if (resolvedColumn.material().walkable()) {
+            return;
+        }
         BlockState interior = resolvedColumn.material().interior();
-        for (int y = LevelZeroVerticalLayout.airMinY(); y <= LevelZeroVerticalLayout.airMaxY(); y++) {
+        for (int y = resolvedColumn.verticalSlice().airMinY();
+             y <= resolvedColumn.verticalSlice().airMaxY();
+             y++) {
             chunk.setBlockState(mutablePos.set(localX, y, localZ), interior, false);
         }
     }
@@ -34,7 +37,9 @@ public final class LevelZeroInteriorWriteStage implements LevelZeroWriteStage {
         }
 
         BlockState interior = resolvedColumn.material().interior();
-        for (int y = LevelZeroVerticalLayout.airMinY(); y <= LevelZeroVerticalLayout.airMaxY(); y++) {
+        for (int y = resolvedColumn.verticalSlice().airMinY();
+             y <= resolvedColumn.verticalSlice().airMaxY();
+             y++) {
             setColumnState(states, y, interior);
         }
     }

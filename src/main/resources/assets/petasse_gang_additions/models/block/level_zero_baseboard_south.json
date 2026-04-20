@@ -1,0 +1,19 @@
+{
+  "textures": {
+    "texture": "petasse_gang_additions:block/level_zero_baseboard"
+  },
+  "elements": [
+    {
+      "from": [-0.35, 0, 15.45],
+      "to": [16.35, 3, 16.55],
+      "faces": {
+        "north": { "texture": "#texture", "uv": [0, 13, 16, 16] },
+        "south": { "texture": "#texture", "uv": [0, 13, 16, 16] },
+        "west": { "texture": "#texture", "uv": [0, 13, 1, 16] },
+        "east": { "texture": "#texture", "uv": [15, 13, 16, 16] },
+        "up": { "texture": "#texture", "uv": [0, 0, 16, 1] },
+        "down": { "texture": "#texture", "uv": [0, 0, 16, 1] }
+      }
+    }
+  ]
+}

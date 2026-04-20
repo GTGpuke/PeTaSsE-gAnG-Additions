@@ -3,17 +3,34 @@ package com.petassegang.addons.world.backrooms.level0;
 import java.util.concurrent.ConcurrentHashMap;
 
 import com.petassegang.addons.world.backrooms.BackroomsConstants;
+import com.petassegang.addons.debug.performance.ModPerformanceMonitor;
 import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTag;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroChunkSlice;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroSectorData;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroSectorGenerator;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionGrid;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorData;
+import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorGenerator;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayoutPipeline;
 
 /**
- * Traduction deterministe du script Python de reference pour le Level 0.
+ * Facade historique stable du layout logique du Level 0.
+ *
+ * <p>Cette classe est le meilleur point d'entree pour comprendre la generation
+ * logique sans se perdre dans l'ecriture de blocs :
+ *
+ * <ul>
+ *   <li>{@code secteur} : generation brute du motif historique a grande echelle ;</li>
+ *   <li>{@code region} : fenetre deterministe suffisante pour evaluer un chunk
+ *   avec son contexte ;</li>
+ *   <li>{@code chunk} : extraction locale finale, prete a etre ecrite.</li>
+ * </ul>
+ *
+ * <p>Le mot {@code historique} / {@code legacy} autour de cette facade signifie
+ * que l'on preserve ici le coeur de generation du Level 0 tel qu'il produit le
+ * ressenti valide du projet. Ce coeur ne doit pas bouger silencieusement : les
+ * nouvelles couches doivent s'appuyer dessus, pas le remplacer sans decision
+ * explicite.
  */
 public final class LevelZeroLayout {
 
@@ -21,25 +38,40 @@ public final class LevelZeroLayout {
     public static final int CHUNK_SIZE = 16;
 
     private static final int CELL_SCALE = BackroomsConstants.LEVEL_ZERO_CELL_SCALE;
+    // Ces dimensions reprennent la resolution logique historique utilisee par la
+    // traduction du script de reference. Elles proviennent d'une grille
+    // "ecran-like" 1920x1080 reduite par pas de 8, conservee pour preserver la
+    // densite et le ressenti du layout d'origine.
     private static final int SECTOR_COLS = 1920 / 8;
     private static final int SECTOR_ROWS = 1080 / 8;
     private static final int TOTAL_CELLS = SECTOR_COLS * SECTOR_ROWS;
+    // Part cible de cellules ouvertes dans un secteur. Plus la valeur monte,
+    // plus le niveau s'aere ; plus elle baisse, plus le maillage se referme.
     private static final double MAZE_FILL_PERCENTAGE = 0.8D;
+    // Nombre de mini-labyrinthes superposes. Cette valeur pilote surtout la
+    // richesse du maillage historique et la frequence des recouvrements.
     private static final int NUM_MAZES = 1000;
+    // Probabilite d'arret lorsqu'un mini-labyrinthe rencontre un couloir deja
+    // present. C'est un des leviers historiques du melange entre densite et
+    // fragmentation du tracé.
     private static final double STOP_COLLISION_PROBABILITY = 0.5D;
+    // Quantite de salles rectangulaires injectees par secteur logique.
     private static final int NUM_ROOMS = 2;
     private static final int ROOM_MIN = 1;
     private static final int ROOM_MAX = 32;
+    // Quantite de salles a piliers injectees par secteur logique.
     private static final int NUM_PILLAR_ROOMS = 1;
     private static final int PILLAR_ROOM_MIN = 1;
     private static final int PILLAR_ROOM_MAX = 32;
     private static final int PILLAR_SPACING_MIN = 2;
     private static final int PILLAR_SPACING_MAX = 6;
+    // Quantite de salles polygonales/custom injectees par secteur logique.
     private static final int NUM_CUSTOM_ROOMS = 1;
     private static final int MIN_NUM_SIDES = 2;
     private static final int MAX_NUM_SIDES = 8;
     private static final int MIN_CUSTOM_ROOM_RADIUS = 1;
     private static final int MAX_CUSTOM_ROOM_RADIUS = 16;
+    // Modulo historique des neons, conserve comme parametre du coeur legacy.
     private static final int LIGHT_INTERVAL = 7;
 
     /** Identifiant de la variante de base (papier peint jauni, moquette classique). */
@@ -100,14 +132,34 @@ public final class LevelZeroLayout {
      * @return layout calcule pour le chunk
      */
     public static LevelZeroLayout generate(int chunkX, int chunkZ, long layoutSeed) {
-        LevelZeroChunkSlice chunkSlice = regionGrid(layoutSeed).extractChunk(chunkX, chunkZ);
-        return new LevelZeroLayout(
-                chunkSlice.walkable(),
-                chunkSlice.lighted(),
-                chunkSlice.surfaceBiomes(),
-                chunkSlice.largeRoom(),
-                chunkSlice.cellTags(),
-                chunkSlice);
+        return generate(chunkX, chunkZ, layoutSeed, 0);
+    }
+
+    /**
+     * Genere le layout logique complet d'un chunk pour un layer donne.
+     *
+     * <p>Cette methode ne pose aucun bloc. Elle fabrique uniquement l'etat
+     * logique local qui sera ensuite traduit en colonnes puis en blocs par le
+     * writer.
+     *
+     * @param chunkX coordonnee X du chunk
+     * @param chunkZ coordonnee Z du chunk
+     * @param layoutSeed seed deterministe du layer courant
+     * @param layerIndex index du layer courant dans la pile verticale
+     * @return layout calcule pour le chunk et le layer demandes
+     */
+    @SuppressWarnings("try")
+    public static LevelZeroLayout generate(int chunkX, int chunkZ, long layoutSeed, int layerIndex) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope("level0.layout.generate")) {
+            LevelZeroChunkSlice chunkSlice = regionGrid(layoutSeed, layerIndex).extractChunk(chunkX, chunkZ);
+            return new LevelZeroLayout(
+                    chunkSlice.walkable(),
+                    chunkSlice.lighted(),
+                    chunkSlice.surfaceBiomes(),
+                    chunkSlice.largeRoom(),
+                    chunkSlice.cellTags(),
+                    chunkSlice);
+        }
     }
 
     /**
@@ -122,7 +174,10 @@ public final class LevelZeroLayout {
      * @return {@code true} si la position appartient a une cellule ouverte
      */
     public static boolean isWalkableAtWorld(int worldX, int worldZ, long layoutSeed) {
-        return regionGrid(layoutSeed).sampleWalkableCell(
+        // Ce point d'entree sert encore surtout aux lectures globales hors
+        // contexte de layer. Tant qu'aucun layer explicite n'est fourni, on
+        // garde volontairement le comportement legacy du layer 0.
+        return regionGrid(layoutSeed, 0).sampleWalkableCell(
                 LevelZeroCoords.worldToCellX(worldX),
                 LevelZeroCoords.worldToCellZ(worldZ));
     }
@@ -227,12 +282,14 @@ public final class LevelZeroLayout {
         return localZ * CHUNK_SIZE + localX;
     }
 
-    private static LevelZeroRegionGrid regionGrid(long layoutSeed) {
+    private static LevelZeroRegionGrid regionGrid(long layoutSeed, int layerIndex) {
+        // Le region grid encapsule tout le pipeline logique du Level 0 :
+        // secteur -> walkability -> evaluation de cellules -> extraction chunk.
         return new LevelZeroRegionGrid(
                 layoutSeed,
+                layerIndex,
                 SECTOR_COLS,
                 SECTOR_ROWS,
-                LIGHT_INTERVAL,
                 SECTOR_CACHE_CAPACITY,
                 SECTOR_CACHE,
                 SECTOR_GENERATOR,

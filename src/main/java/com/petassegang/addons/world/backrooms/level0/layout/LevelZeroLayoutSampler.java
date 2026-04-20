@@ -17,9 +17,15 @@ public final class LevelZeroLayoutSampler {
     public static final int FULL_MASK = NORTH_MASK | SOUTH_MASK | WEST_MASK | EAST_MASK;
 
     private final long layoutSeed;
+    private final int layerIndex;
 
     public LevelZeroLayoutSampler(long layoutSeed) {
+        this(layoutSeed, 0);
+    }
+
+    public LevelZeroLayoutSampler(long layoutSeed, int layerIndex) {
         this.layoutSeed = layoutSeed;
+        this.layerIndex = layerIndex;
     }
 
     /**
@@ -31,10 +37,31 @@ public final class LevelZeroLayoutSampler {
      * @return {@code true} si le mur est visible
      */
     public boolean isWallpaperExposed(int worldX, int worldZ) {
-        return isWalkableAt(worldX + 1, worldZ)
-                || isWalkableAt(worldX - 1, worldZ)
-                || isWalkableAt(worldX, worldZ + 1)
-                || isWalkableAt(worldX, worldZ - 1);
+        return sampleExposedFaceMask(worldX, worldZ) != 0;
+    }
+
+    /**
+     * Retourne le masque des faces horizontales exposees a l'air.
+     *
+     * @param worldX coordonnee X monde
+     * @param worldZ coordonnee Z monde
+     * @return bitmask N/S/W/E des faces visibles
+     */
+    public int sampleExposedFaceMask(int worldX, int worldZ) {
+        int faceMask = 0;
+        if (isWalkableAt(worldX, worldZ - 1)) {
+            faceMask |= NORTH_MASK;
+        }
+        if (isWalkableAt(worldX, worldZ + 1)) {
+            faceMask |= SOUTH_MASK;
+        }
+        if (isWalkableAt(worldX - 1, worldZ)) {
+            faceMask |= WEST_MASK;
+        }
+        if (isWalkableAt(worldX + 1, worldZ)) {
+            faceMask |= EAST_MASK;
+        }
+        return faceMask;
     }
 
     /**
@@ -61,14 +88,14 @@ public final class LevelZeroLayoutSampler {
             if (!isWalkableAt(sampleX, sampleZ)) {
                 continue;
             }
-            return LevelZeroSurfaceBiome.sampleAtWorld(sampleX, sampleZ) == LevelZeroSurfaceBiome.RED
+            return LevelZeroSurfaceBiome.sampleAtWorld(sampleX, sampleZ, layerIndex) == LevelZeroSurfaceBiome.RED
                     ? maskBit
                     : 0;
         }
 
         int fallbackX = worldX + stepX * BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 2;
         int fallbackZ = worldZ + stepZ * BackroomsConstants.LEVEL_ZERO_CELL_SCALE * 2;
-        return LevelZeroSurfaceBiome.sampleAtWorld(fallbackX, fallbackZ) == LevelZeroSurfaceBiome.RED
+        return LevelZeroSurfaceBiome.sampleAtWorld(fallbackX, fallbackZ, layerIndex) == LevelZeroSurfaceBiome.RED
                 ? maskBit
                 : 0;
     }

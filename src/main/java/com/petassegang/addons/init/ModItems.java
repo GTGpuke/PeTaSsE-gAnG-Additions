@@ -52,6 +52,11 @@ public final class ModItems {
             "level_zero_fluorescent_light",
             new BlockItem(ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT, new Item.Settings()));
 
+    /** Item pour la plinthe adaptative du Level 0. */
+    public static final BlockItem LEVEL_ZERO_BASEBOARD = register(
+            "level_zero_baseboard",
+            new BlockItem(ModBlocks.LEVEL_ZERO_BASEBOARD, new Item.Settings()));
+
     /**
      * Badge de la Gang, jeton officiel d'appartenance a la PetasseGang.
      * Taille de pile 1, rarete EPIC.

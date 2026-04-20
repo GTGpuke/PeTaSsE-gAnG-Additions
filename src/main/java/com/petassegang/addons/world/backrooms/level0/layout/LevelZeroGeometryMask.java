@@ -1,7 +1,10 @@
 package com.petassegang.addons.world.backrooms.level0.layout;
 
 /**
- * Utilitaires de manipulation des features geometriques fines.
+ * Helpers de masque pour les features de micro-geometrie.
+ *
+ * <p>Le masque sert a memoriser quelles anomalies fines sont actives sur une
+ * cellule avant leur traduction finale en motif 3x3 ou en rendu debug.
  */
 public final class LevelZeroGeometryMask {
 

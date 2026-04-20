@@ -58,12 +58,75 @@ public final class LevelZeroWallpaperModelHandler {
         BakedModel alternateModel = context.baker().bake(
                 Identifier.of(ModConstants.MOD_ID, "block/level_zero_wallpaper_aged"),
                 context.settings());
-        if (model == null || alternateModel == null) {
+        BakedModel northBaseboardModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_baseboard_north"),
+                context.settings());
+        BakedModel southBaseboardModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_baseboard_south"),
+                context.settings());
+        BakedModel westBaseboardModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_baseboard_west"),
+                context.settings());
+        BakedModel eastBaseboardModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_baseboard_east"),
+                context.settings());
+        BakedModel northSwitchModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_switch_north"),
+                context.settings());
+        BakedModel southSwitchModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_switch_south"),
+                context.settings());
+        BakedModel westSwitchModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_switch_west"),
+                context.settings());
+        BakedModel eastSwitchModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_switch_east"),
+                context.settings());
+        BakedModel northOutletModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_outlet_north"),
+                context.settings());
+        BakedModel southOutletModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_outlet_south"),
+                context.settings());
+        BakedModel westOutletModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_outlet_west"),
+                context.settings());
+        BakedModel eastOutletModel = context.baker().bake(
+                Identifier.of(ModConstants.MOD_ID, "block/level_zero_outlet_east"),
+                context.settings());
+        if (model == null
+                || alternateModel == null
+                || northBaseboardModel == null
+                || southBaseboardModel == null
+                || westBaseboardModel == null
+                || eastBaseboardModel == null
+                || northSwitchModel == null
+                || southSwitchModel == null
+                || westSwitchModel == null
+                || eastSwitchModel == null
+                || northOutletModel == null
+                || southOutletModel == null
+                || westOutletModel == null
+                || eastOutletModel == null) {
             ModConstants.LOGGER.warn("Impossible de preparer le rendu adaptatif du papier peint du Level 0.");
             return model;
         }
 
-        wrapper = new LevelZeroWallpaperBakedModel(model, alternateModel);
+        wrapper = new LevelZeroWallpaperBakedModel(
+                model,
+                alternateModel,
+                northBaseboardModel,
+                southBaseboardModel,
+                westBaseboardModel,
+                eastBaseboardModel,
+                northSwitchModel,
+                southSwitchModel,
+                westSwitchModel,
+                eastSwitchModel,
+                northOutletModel,
+                southOutletModel,
+                westOutletModel,
+                eastOutletModel);
         sharedWrapper = wrapper;
         ModConstants.LOGGER.info("Rendu adaptatif du papier peint du Level 0 actif.");
         return wrapper;

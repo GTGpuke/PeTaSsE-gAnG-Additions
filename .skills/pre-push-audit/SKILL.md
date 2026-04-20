@@ -22,6 +22,23 @@ description: "Audit pré-push obligatoire avant tout commit final, push ou décl
 6. **Si une correction est nécessaire** : corrige → ré-exécute la commande → confirme que c'est ✅ → continue.
 7. **À la fin, affiche le rapport complet** avec le verdict.
 
+### Adaptation obligatoire au projet actuel
+
+- Le projet tourne sur **Windows + PowerShell** : les snippets bash de ce skill
+  sont des intentions de vérification, pas des commandes à recopier aveuglément.
+- Si une commande bash n'est pas adaptée au shell courant, utiliser l'équivalent
+  PowerShell natif ou `rg`.
+- Pour ce projet, les commandes minimales fiables sont :
+  - `./gradlew compileTestJava --stacktrace`
+  - `./gradlew test --stacktrace`
+  - `./gradlew runClient`
+- Pour tout audit touchant `world/backrooms/`, relire avant l'audit :
+  - `docs/backrooms/backrooms-level0-roadmap.md`
+  - `docs/backrooms/backrooms-level0-pipeline-v6.md`
+  - `docs/backrooms/to-check/TO CHECK.md`
+- Toute suppression ou réorganisation réellement effectuée pendant l'audit doit
+  être journalisée dans `CLEANUP_LOG.md`.
+
 ### Workflow :
 ```
 Pour chaque section de l'audit :
@@ -39,6 +56,13 @@ Pour chaque section de l'audit :
 ## ÉTAPE 1 — Compilation et build
 
 Exécute ces commandes UNE PAR UNE et montre chaque sortie :
+
+Pour ce projet, si tu dois choisir une variante compatible en priorité :
+
+```powershell
+./gradlew compileTestJava --stacktrace
+./gradlew test --stacktrace
+```
 
 ```bash
 echo "========== ÉTAPE 1.1 — Clean build =========="
@@ -355,6 +379,17 @@ echo "========== ÉTAPE 9.1 — Clean build final =========="
 echo "========== ÉTAPE 9.2 — Tests finaux =========="
 ./gradlew test 2>&1
 ```
+
+Pour ce projet, ajoute aussi si la modification touche le runtime ou le rendu :
+
+```powershell
+./gradlew runClient
+```
+
+Et si la zone auditée touche `backrooms`, confirmer explicitement :
+- que la roadmap et la pipeline v6 ont été relues ;
+- qu'aucune régression de comportement n'a été introduite dans la pipeline active ;
+- que les éventuels écarts volontaires restent documentés.
 
 - ✅/❌ Build : BUILD SUCCESSFUL, 0 warning ?
 - ✅/❌ Tests : tous passent ?
