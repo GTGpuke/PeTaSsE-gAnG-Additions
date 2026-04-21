@@ -14,7 +14,10 @@ Versioning follows [Semantic Versioning](https://semver.org/).
   - `LevelZeroChunkGenerator` orchestre des slices seedees par layer, tout en deleguant toujours la topologie au coeur legacy.
   - `LevelZeroLayout` documente explicitement la hierarchie secteur -> region -> chunk et le statut "legacy" des regles a ne pas casser.
 - **Pipeline Level 0** : refactor de l'arborescence interne pour separer plus clairement `coord`, `layout`, `stage`, `write`, `debug` et `noise`.
-- **Lumiere Level 0** : les grandes rooms utilisent une trame dediee stable, sans collisions 3x3 collees avec les couloirs normaux.
+- **Lumiere Level 0** : la trame active repose maintenant sur un motif global simple et stable, puis sur un filtrage par biome.
+  - Le biome standard conserve la densite maximale du motif.
+  - Les autres biomes peuvent attenuer cette trame via une densite dediee, sans recreer une grille differente.
+  - Certaines grandes pieces peuvent devenir entierement sombres de maniere tres rare et deterministe.
 - **Micro-geometrie Level 0** : les demi-murs et alcoves critiques restent maintenant alignes sur les directions semantiques attendues.
 - **Writer Level 0** : ajout d'etapes dediees pour les neons, les details muraux et les structures debug, avec constructeurs injectables pour les tests.
 - **Performance debug** : ajout d'un monitoring de performance cote client et serveur pour observer les hotspots pendant les sessions de test.

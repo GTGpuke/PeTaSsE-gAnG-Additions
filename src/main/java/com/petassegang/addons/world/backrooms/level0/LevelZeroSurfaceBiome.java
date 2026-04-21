@@ -22,9 +22,9 @@ import com.petassegang.addons.world.backrooms.level0.noise.StageRandom;
 public enum LevelZeroSurfaceBiome {
 
     /** Palette classique du Level 0. */
-    BASE(0, LevelZeroLayout.SURFACE_VARIANT_BASE, LevelZeroLayout.SURFACE_VARIANT_BASE, 3, 7, 0, 0, false, -1),
+    BASE(0, LevelZeroLayout.SURFACE_VARIANT_BASE, LevelZeroLayout.SURFACE_VARIANT_BASE, 1, 1, 31, false, -1),
     /** Palette alternative avec murs blancs et tapis rouges. */
-    RED(1, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, 4, 5, 1, 1, true, layerMask(1, 3));
+    RED(1, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, 0, 1, 19, true, layerMask(1, 3));
 
     /** Taille d'une region cosmetique en cellules logiques. */
     private static final int REGION_SIZE_CELLS = 48;
@@ -35,29 +35,26 @@ public enum LevelZeroSurfaceBiome {
     private final int id;
     private final int floorVariant;
     private final int wallpaperVariant;
-    private final int lightGridSpacing;
-    private final int lightDropoutModulo;
-    private final int lightGridPhaseX;
-    private final int lightGridPhaseZ;
+    private final int lightDensityNumerator;
+    private final int lightDensityDenominator;
+    private final int largeRoomBlackoutModulo;
     private final boolean supportsFullDarkRegions;
     private final int allowedLayerMask;
 
     LevelZeroSurfaceBiome(int id,
                          int floorVariant,
                          int wallpaperVariant,
-                         int lightGridSpacing,
-                         int lightDropoutModulo,
-                         int lightGridPhaseX,
-                         int lightGridPhaseZ,
+                         int lightDensityNumerator,
+                         int lightDensityDenominator,
+                         int largeRoomBlackoutModulo,
                          boolean supportsFullDarkRegions,
                          int allowedLayerMask) {
         this.id = id;
         this.floorVariant = floorVariant;
         this.wallpaperVariant = wallpaperVariant;
-        this.lightGridSpacing = lightGridSpacing;
-        this.lightDropoutModulo = lightDropoutModulo;
-        this.lightGridPhaseX = lightGridPhaseX;
-        this.lightGridPhaseZ = lightGridPhaseZ;
+        this.lightDensityNumerator = lightDensityNumerator;
+        this.lightDensityDenominator = lightDensityDenominator;
+        this.largeRoomBlackoutModulo = largeRoomBlackoutModulo;
         this.supportsFullDarkRegions = supportsFullDarkRegions;
         this.allowedLayerMask = allowedLayerMask;
     }
@@ -90,42 +87,6 @@ public enum LevelZeroSurfaceBiome {
     }
 
     /**
-     * Retourne l'espacement cible de la trame lumineuse de ce biome, en cellules.
-     *
-     * @return espacement de la grille lumineuse
-     */
-    public int lightGridSpacing() {
-        return lightGridSpacing;
-    }
-
-    /**
-     * Retourne le modulo de suppression legere applique sur les points de grille.
-     *
-     * @return modulo de dropout, superieur ou egal a 2
-     */
-    public int lightDropoutModulo() {
-        return lightDropoutModulo;
-    }
-
-    /**
-     * Retourne la phase X fixe de la grille lumineuse de ce biome.
-     *
-     * @return decalage X stable de la trame
-     */
-    public int lightGridPhaseX() {
-        return lightGridPhaseX;
-    }
-
-    /**
-     * Retourne la phase Z fixe de la grille lumineuse de ce biome.
-     *
-     * @return decalage Z stable de la trame
-     */
-    public int lightGridPhaseZ() {
-        return lightGridPhaseZ;
-    }
-
-    /**
      * Indique si ce biome peut produire des regions entierement sombres.
      *
      * @return {@code true} si ce biome autorise des blackouts regionaux
@@ -136,6 +97,52 @@ public enum LevelZeroSurfaceBiome {
 
     public boolean supportsLayer(int layerIndex) {
         return allowedLayerMask < 0 || ((allowedLayerMask >>> layerIndex) & 1) != 0;
+    }
+
+    /**
+     * Indique si ce biome conserve la lampe candidate issue de la trame globale.
+     *
+     * <p>Le biome de base garde la densite maximale. Les autres biomes peuvent
+     * eclaircir la trame de reference en supprimant certaines lampes de maniere
+     * deterministe, sans casser l'alignement global du plafond.
+     *
+     * @param cellX coordonnee X en cellules
+     * @param cellZ coordonnee Z en cellules
+     * @param layoutSeed seed de layout
+     * @return {@code true} si la lampe candidate doit etre conservee
+     */
+    public boolean keepsStripedLight(int cellX, int cellZ, long layoutSeed) {
+        if (lightDensityNumerator >= lightDensityDenominator) {
+            return true;
+        }
+        long hash = StageRandom.mixLegacy(layoutSeed ^ id, StageRandom.Stage.LIGHTS, cellX, cellZ);
+        return Math.floorMod(hash, lightDensityDenominator) < lightDensityNumerator;
+    }
+
+    /**
+     * Indique si une grande piece doit basculer en blackout total dans ce biome.
+     *
+     * <p>La decision est prise a une echelle macro volontairement plus large
+     * qu'une cellule pour garder des coupures nettes et rares, au lieu de
+     * produire des trous de lumiere incoherents.
+     *
+     * @param cellX coordonnee X en cellules
+     * @param cellZ coordonnee Z en cellules
+     * @param layoutSeed seed de layout
+     * @return {@code true} si cette zone de grande piece doit rester sans neon
+     */
+    public boolean isLargeRoomBlackout(int cellX, int cellZ, long layoutSeed) {
+        if (largeRoomBlackoutModulo <= 0) {
+            return false;
+        }
+        int macroX = Math.floorDiv(cellX, 24);
+        int macroZ = Math.floorDiv(cellZ, 24);
+        long hash = StageRandom.mixLegacy(
+                layoutSeed ^ (id * 31L),
+                StageRandom.Stage.LARGE_ROOM_LIGHTING,
+                macroX,
+                macroZ);
+        return Math.floorMod(hash, largeRoomBlackoutModulo) == 0;
     }
 
     /**
