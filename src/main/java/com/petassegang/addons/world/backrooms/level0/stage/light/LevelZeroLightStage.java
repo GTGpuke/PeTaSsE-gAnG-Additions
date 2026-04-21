@@ -110,13 +110,16 @@ public final class LevelZeroLightStage implements LevelZeroCellStage<Boolean> {
     }
 
     private boolean sampleGlobalStripedPattern(LevelZeroCellContext context) {
-        int rowPhase = Math.floorMod(context.cellZ(), 3);
+        int rowPhase = Math.floorMod(context.cellZ(), 4);
         if (rowPhase == 1) {
             return false;
         }
         if (rowPhase == 0) {
             return Math.floorMod(context.cellX(), 2) == 0;
         }
-        return Math.floorMod(context.cellX(), 2) != 0;
+        if (rowPhase == 2) {
+            return Math.floorMod(context.cellX(), 2) != 0;
+        }
+        return false;
     }
 }

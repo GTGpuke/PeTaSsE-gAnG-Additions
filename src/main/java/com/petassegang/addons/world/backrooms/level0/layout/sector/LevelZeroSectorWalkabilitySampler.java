@@ -14,6 +14,9 @@ import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayout
  */
 public final class LevelZeroSectorWalkabilitySampler implements LevelZeroWalkabilitySampler {
 
+    /** Demi-taille de la zone de securite forcee autour de l'origine. */
+    private static final int ORIGIN_SAFE_RADIUS = 2;
+
     private final long layoutSeed;
     private final int sectorCols;
     private final int sectorRows;
@@ -51,7 +54,8 @@ public final class LevelZeroSectorWalkabilitySampler implements LevelZeroWalkabi
 
     @Override
     public boolean sampleWalkableCell(int cellX, int cellZ) {
-        if (cellX >= -4 && cellX <= 4 && cellZ >= -4 && cellZ <= 4) {
+        if (cellX >= -ORIGIN_SAFE_RADIUS && cellX <= ORIGIN_SAFE_RADIUS
+                && cellZ >= -ORIGIN_SAFE_RADIUS && cellZ <= ORIGIN_SAFE_RADIUS) {
             // La zone centrale reste forcee ouverte pour garantir un point de
             // depart jouable et stable autour de l'origine.
             return true;
@@ -67,7 +71,8 @@ public final class LevelZeroSectorWalkabilitySampler implements LevelZeroWalkabi
 
     @Override
     public LevelZeroSectorRoomKind sampleRoomKindCell(int cellX, int cellZ) {
-        if (cellX >= -4 && cellX <= 4 && cellZ >= -4 && cellZ <= 4) {
+        if (cellX >= -ORIGIN_SAFE_RADIUS && cellX <= ORIGIN_SAFE_RADIUS
+                && cellZ >= -ORIGIN_SAFE_RADIUS && cellZ <= ORIGIN_SAFE_RADIUS) {
             return LevelZeroSectorRoomKind.NONE;
         }
 

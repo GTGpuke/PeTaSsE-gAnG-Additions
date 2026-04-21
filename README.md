@@ -95,6 +95,12 @@ petasse_gang_additions/
 # Lancer le client dev
 ./gradlew runClient
 
+# Lancer le client dev avec monitoring de performance actif
+./gradlew runClient -PdebugPerformanceMonitor=true
+
+# Lancer le client dev avec monitoring actif et logs plus frequents
+./gradlew runClient -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
+
 # Build complet (produit build/libs/petasse_gang_additions-<version>-dev.jar)
 ./gradlew build
 ```
@@ -130,10 +136,49 @@ Les textures de blocs du Level 0 suivent la convention `32×32`.
 
 # Benchmark de performance Level 0
 ./gradlew benchmarkLevelZeroGeneration
+
+# Benchmark avec budget max autorise par chunk
+./gradlew benchmarkLevelZeroGeneration -PlevelZeroPerfBudgetMsPerChunk=0.350
 ```
 
 Sur Windows avec un chemin de projet contenant des caractères accentués, consulter
 [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) pour les problèmes d'encodage Gradle connus.
+
+---
+
+## Performance Debug
+
+Le mod inclut un monitoring de performance opt-in pour le runtime general et
+pour les sections profilees du pipeline Level 0.
+
+Activation rapide :
+
+```bash
+./gradlew runClient -PdebugPerformanceMonitor=true
+```
+
+Commandes utiles :
+
+```bash
+# Resume perf toutes les 5 secondes dans les logs
+./gradlew runClient -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
+
+# Monitoring actif pendant le benchmark deterministe Level 0
+./gradlew benchmarkLevelZeroGeneration -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
+```
+
+Quand le monitoring est actif :
+
+- des resumes periodiques `[perf]` sont ecrits dans les logs ;
+- le F3/debug HUD affiche une synthese courte client + serveur ;
+- les sections profilees du Level 0 remontent dans le top serveur ;
+- la RAM JVM, la charge CPU processus/systeme et les FPS client sont echantillonnes.
+
+Limites actuelles :
+
+- le GPU n'est pas exposable proprement via l'API Java/Fabric seule ;
+- le benchmark `benchmarkLevelZeroGeneration` mesure surtout le cout CPU du pipeline deterministe ;
+- sous Windows, le wrapper Gradle peut finir par `exit /b 1` meme quand `BUILD SUCCESSFUL` est bien affiche.
 
 ---
 

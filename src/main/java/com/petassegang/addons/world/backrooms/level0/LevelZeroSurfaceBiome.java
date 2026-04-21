@@ -22,19 +22,18 @@ import com.petassegang.addons.world.backrooms.level0.noise.StageRandom;
 public enum LevelZeroSurfaceBiome {
 
     /** Palette classique du Level 0. */
-    BASE(0, LevelZeroLayout.SURFACE_VARIANT_BASE, LevelZeroLayout.SURFACE_VARIANT_BASE, 1, 1, 31, false, -1),
+    BASE(0, LevelZeroLayout.SURFACE_VARIANT_BASE, LevelZeroLayout.SURFACE_VARIANT_BASE, 17, 1, 1, 31, false, -1),
     /** Palette alternative avec murs blancs et tapis rouges. */
-    RED(1, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, 0, 1, 19, true, layerMask(1, 3));
+    RED(1, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, LevelZeroLayout.SURFACE_VARIANT_ALTERNATE, 1, 0, 1, 19, true, layerMask(1, 3));
 
     /** Taille d'une region cosmetique en cellules logiques. */
     private static final int REGION_SIZE_CELLS = 48;
-    /** Rarete du biome secondaire. */
-    private static final int RED_REGION_MODULO = 18;
     /** Rarete des regions entierement sombres dans les biomes qui l'autorisent. */
     private static final int FULL_DARK_REGION_MODULO = 4;
     private final int id;
     private final int floorVariant;
     private final int wallpaperVariant;
+    private final int regionSpawnWeight;
     private final int lightDensityNumerator;
     private final int lightDensityDenominator;
     private final int largeRoomBlackoutModulo;
@@ -44,6 +43,7 @@ public enum LevelZeroSurfaceBiome {
     LevelZeroSurfaceBiome(int id,
                          int floorVariant,
                          int wallpaperVariant,
+                         int regionSpawnWeight,
                          int lightDensityNumerator,
                          int lightDensityDenominator,
                          int largeRoomBlackoutModulo,
@@ -52,6 +52,7 @@ public enum LevelZeroSurfaceBiome {
         this.id = id;
         this.floorVariant = floorVariant;
         this.wallpaperVariant = wallpaperVariant;
+        this.regionSpawnWeight = regionSpawnWeight;
         this.lightDensityNumerator = lightDensityNumerator;
         this.lightDensityDenominator = lightDensityDenominator;
         this.largeRoomBlackoutModulo = largeRoomBlackoutModulo;
@@ -97,6 +98,15 @@ public enum LevelZeroSurfaceBiome {
 
     public boolean supportsLayer(int layerIndex) {
         return allowedLayerMask < 0 || ((allowedLayerMask >>> layerIndex) & 1) != 0;
+    }
+
+    /**
+     * Indique si ce biome peut etre tire par le sampler regional.
+     *
+     * @return {@code true} si le biome participe au tirage pondéré
+     */
+    public boolean canSpawnInRegion() {
+        return regionSpawnWeight > 0;
     }
 
     /**
@@ -188,8 +198,25 @@ public enum LevelZeroSurfaceBiome {
                 StageRandom.Stage.SURFACE_BIOME,
                 regionX,
                 ((((long) regionZ) & 0xffffffffL) << 8) ^ layerIndex);
-        if (RED.supportsLayer(layerIndex) && Math.floorMod(hash, RED_REGION_MODULO) == 0) {
-            return RED;
+        int totalWeight = 0;
+        for (LevelZeroSurfaceBiome biome : values()) {
+            if (biome.supportsLayer(layerIndex) && biome.canSpawnInRegion()) {
+                totalWeight += biome.regionSpawnWeight;
+            }
+        }
+        if (totalWeight <= 0) {
+            return BASE;
+        }
+
+        int pick = Math.floorMod(hash, totalWeight);
+        for (LevelZeroSurfaceBiome biome : values()) {
+            if (!biome.supportsLayer(layerIndex) || !biome.canSpawnInRegion()) {
+                continue;
+            }
+            if (pick < biome.regionSpawnWeight) {
+                return biome;
+            }
+            pick -= biome.regionSpawnWeight;
         }
         return BASE;
     }

@@ -56,7 +56,7 @@ class BackroomsLevelZeroLightStageTest {
     }
 
     @Test
-    @DisplayName("Le biome standard conserve le motif maximal sur tous les trois rangs")
+    @DisplayName("Le biome standard conserve le motif maximal sur tous les quatre rangs")
     void testBaseBiomeKeepsMaximumPattern() {
         LevelZeroLightStage stage = new LevelZeroLightStage(7);
 
@@ -65,7 +65,7 @@ class BackroomsLevelZeroLightStageTest {
                 boolean current = stage.sample(new LevelZeroCellContext(cellX, cellZ, 424242L),
                         LevelZeroSurfaceBiome.BASE,
                         false);
-                boolean repeated = stage.sample(new LevelZeroCellContext(cellX, cellZ + 3, 424242L),
+                boolean repeated = stage.sample(new LevelZeroCellContext(cellX, cellZ + 4, 424242L),
                         LevelZeroSurfaceBiome.BASE,
                         false,
                         LevelZeroSectorRoomKind.PILLAR_ROOM);
@@ -92,6 +92,18 @@ class BackroomsLevelZeroLightStageTest {
                         stage.sample(new LevelZeroCellContext(cellX, cellZ + 1, 98765L), LevelZeroSurfaceBiome.BASE, false),
                         "Deux lampes ne doivent pas etre collees verticalement.");
             }
+        }
+    }
+
+    @Test
+    @DisplayName("La quatrieme ligne reste entierement eteinte")
+    void testFourthPatternRowIsFullyDark() {
+        LevelZeroLightStage stage = new LevelZeroLightStage(7);
+
+        for (int cellX = -6; cellX <= 6; cellX++) {
+            assertEquals(false,
+                    stage.sample(new LevelZeroCellContext(cellX, 3, 12345L), LevelZeroSurfaceBiome.BASE, false),
+                    "La quatrieme ligne du motif ne doit contenir aucune lampe.");
         }
     }
 

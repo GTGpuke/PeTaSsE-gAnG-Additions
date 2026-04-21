@@ -60,6 +60,7 @@ class BackroomsLevelZeroLegacyLayoutPipelineTest {
     @DisplayName("Le biome cosmetique peut varier selon le layer et respecter des restrictions verticales")
     void testSurfaceBiomeCanVaryPerLayer() {
         boolean foundVerticalDifference = false;
+        boolean foundRedOnAllowedLayer = false;
 
         for (int cellX = -512; cellX <= 512 && !foundVerticalDifference; cellX += 24) {
             for (int cellZ = -512; cellZ <= 512 && !foundVerticalDifference; cellZ += 24) {
@@ -71,12 +72,22 @@ class BackroomsLevelZeroLegacyLayoutPipelineTest {
             }
         }
 
+        for (int cellX = -768; cellX <= 768 && !foundRedOnAllowedLayer; cellX += 24) {
+            for (int cellZ = -768; cellZ <= 768 && !foundRedOnAllowedLayer; cellZ += 24) {
+                if (LevelZeroSurfaceBiome.sampleAtCell(cellX, cellZ, 1) == LevelZeroSurfaceBiome.RED) {
+                    foundRedOnAllowedLayer = true;
+                }
+            }
+        }
+
         assertEquals(true, LevelZeroSurfaceBiome.BASE.supportsLayer(0),
                 "Le biome de base doit rester autorise sur tous les layers.");
         assertEquals(false, LevelZeroSurfaceBiome.RED.supportsLayer(2),
                 "Le biome rouge ne doit pas pouvoir apparaitre sur un layer non autorise.");
         assertEquals(true, foundVerticalDifference,
                 "Sur un echantillon raisonnable, les biomes doivent pouvoir varier d'un layer a l'autre.");
+        assertEquals(true, foundRedOnAllowedLayer,
+                "Le biome rouge doit rester tirable sur un layer autorise.");
     }
 
     @Test
