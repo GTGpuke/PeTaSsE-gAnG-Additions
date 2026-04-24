@@ -15,35 +15,6 @@ public final class LevelZeroCellMicroPattern {
     public static final int FULL_CLOSED = 0;
     /** Cellule pleine ouverte. */
     public static final int FULL_OPEN = 0b111_111_111;
-    /** Passage vertical d'un bloc de large. */
-    public static final int PINCH_VERTICAL = 0b010_010_010;
-    /** Passage horizontal d'un bloc de large. */
-    public static final int PINCH_HORIZONTAL = 0b000_111_000;
-    /** Renfoncement nord. */
-    public static final int RECESS_NORTH = 0b000_111_111;
-    /** Renfoncement sud. */
-    public static final int RECESS_SOUTH = 0b111_111_000;
-    /** Renfoncement ouest. */
-    public static final int RECESS_WEST = 0b011_011_011;
-    /** Renfoncement est. */
-    public static final int RECESS_EAST = 0b110_110_110;
-    /** Alcove nord. */
-    public static final int ALCOVE_NORTH = 0b010_111_111;
-    /** Alcove sud. */
-    public static final int ALCOVE_SOUTH = 0b111_111_010;
-    /** Alcove ouest. */
-    public static final int ALCOVE_WEST = 0b011_111_011;
-    /** Alcove est. */
-    public static final int ALCOVE_EAST = 0b110_111_110;
-    /** Decalage leger du mur vers l'est. */
-    public static final int OFFSET_EAST = 0b110_111_110;
-    /** Decalage leger du mur vers l'ouest. */
-    public static final int OFFSET_WEST = 0b011_111_011;
-    /** Demi-mur horizontal. */
-    public static final int HALF_WALL_HORIZONTAL = 0b111_000_111;
-    /** Demi-mur vertical. */
-    public static final int HALF_WALL_VERTICAL = 0b101_101_101;
-
     private LevelZeroCellMicroPattern() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }

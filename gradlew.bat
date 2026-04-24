@@ -54,8 +54,11 @@ set CLASSPATH=%APP_HOME%\gradle\wrapper\gradle-wrapper.jar
     org.gradle.wrapper.GradleWrapperMain ^
     %*
 
+set EXIT_CODE=%ERRORLEVEL%
+
 :end
-if "%OS%"=="Windows_NT" endlocal
+if "%OS%"=="Windows_NT" endlocal & exit /b %EXIT_CODE%
+exit /b %EXIT_CODE%
 
 :fail
 exit /b 1

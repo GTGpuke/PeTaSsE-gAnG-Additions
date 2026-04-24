@@ -9,8 +9,7 @@ import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroLayoutSampler;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask;
 
 /**
  * Palette de blocs du Level 0 et traduction des variantes de layout vers les
@@ -254,51 +253,14 @@ public final class LevelZeroBlockPalette {
     }
 
     private static boolean hasDebugGeometry(LevelZeroCellState cellState) {
-        return cellState.hasGeometryFeature(LevelZeroGeometryFeature.OFFSET_WALL)
-                || cellState.hasGeometryFeature(LevelZeroGeometryFeature.HALF_WALL)
-                || cellState.hasGeometryFeature(LevelZeroGeometryFeature.RECESS)
-                || cellState.hasGeometryFeature(LevelZeroGeometryFeature.ALCOVE)
-                || cellState.hasGeometryFeature(LevelZeroGeometryFeature.PINCH_1WIDE);
+        return cellState.geometryMask() != LevelZeroGeometryMask.none();
     }
 
     private static BlockState debugFloor(LevelZeroCellState cellState) {
-        return switch (primaryFeature(cellState)) {
-            case OFFSET_WALL -> Blocks.LIGHT_BLUE_CONCRETE.getDefaultState();
-            case HALF_WALL -> Blocks.ORANGE_CONCRETE.getDefaultState();
-            case RECESS -> Blocks.LIME_CONCRETE.getDefaultState();
-            case ALCOVE -> Blocks.MAGENTA_CONCRETE.getDefaultState();
-            case PINCH_1WIDE -> Blocks.RED_CONCRETE.getDefaultState();
-            default -> Blocks.WHITE_CONCRETE.getDefaultState();
-        };
+        return Blocks.WHITE_CONCRETE.getDefaultState();
     }
 
     private static BlockState debugWall(LevelZeroCellState cellState) {
-        return switch (primaryFeature(cellState)) {
-            case OFFSET_WALL -> Blocks.BLUE_CONCRETE.getDefaultState();
-            case HALF_WALL -> Blocks.ORANGE_TERRACOTTA.getDefaultState();
-            case RECESS -> Blocks.GREEN_CONCRETE.getDefaultState();
-            case ALCOVE -> Blocks.PURPLE_CONCRETE.getDefaultState();
-            case PINCH_1WIDE -> Blocks.RED_TERRACOTTA.getDefaultState();
-            default -> Blocks.GRAY_CONCRETE.getDefaultState();
-        };
-    }
-
-    private static LevelZeroGeometryFeature primaryFeature(LevelZeroCellState cellState) {
-        if (cellState.hasGeometryFeature(LevelZeroGeometryFeature.PINCH_1WIDE)) {
-            return LevelZeroGeometryFeature.PINCH_1WIDE;
-        }
-        if (cellState.hasGeometryFeature(LevelZeroGeometryFeature.ALCOVE)) {
-            return LevelZeroGeometryFeature.ALCOVE;
-        }
-        if (cellState.hasGeometryFeature(LevelZeroGeometryFeature.RECESS)) {
-            return LevelZeroGeometryFeature.RECESS;
-        }
-        if (cellState.hasGeometryFeature(LevelZeroGeometryFeature.HALF_WALL)) {
-            return LevelZeroGeometryFeature.HALF_WALL;
-        }
-        if (cellState.hasGeometryFeature(LevelZeroGeometryFeature.OFFSET_WALL)) {
-            return LevelZeroGeometryFeature.OFFSET_WALL;
-        }
-        return LevelZeroGeometryFeature.NONE;
+        return Blocks.GRAY_CONCRETE.getDefaultState();
     }
 }

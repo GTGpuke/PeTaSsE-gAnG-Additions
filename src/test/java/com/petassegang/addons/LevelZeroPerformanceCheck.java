@@ -10,10 +10,6 @@ import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
 import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureCellRole;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureGameplayPointKind;
 import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureProfile;
 import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureResolver;
 
@@ -244,27 +240,7 @@ public final class LevelZeroPerformanceCheck {
             }
         }
 
-        boolean hasFeature = false;
-        if (state.hasGeometryFeature(LevelZeroGeometryFeature.OFFSET_WALL)) {
-            stats.offsetWalls++;
-            hasFeature = true;
-        }
-        if (state.hasGeometryFeature(LevelZeroGeometryFeature.RECESS)) {
-            stats.recesses++;
-            hasFeature = true;
-        }
-        if (state.hasGeometryFeature(LevelZeroGeometryFeature.ALCOVE)) {
-            stats.alcoves++;
-            hasFeature = true;
-        }
-        if (state.hasGeometryFeature(LevelZeroGeometryFeature.HALF_WALL)) {
-            stats.halfWalls++;
-            hasFeature = true;
-        }
-        if (state.hasGeometryFeature(LevelZeroGeometryFeature.PINCH_1WIDE)) {
-            stats.pinches++;
-            hasFeature = true;
-        }
+        boolean hasFeature = state.geometryMask() != 0;
 
         if (hasFeature) {
             if (state.topology() == LevelZeroCellTopology.CORRIDOR) {

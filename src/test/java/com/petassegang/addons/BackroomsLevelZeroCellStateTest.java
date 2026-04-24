@@ -28,7 +28,7 @@ class BackroomsLevelZeroCellStateTest {
                 LevelZeroCellTopology.CORRIDOR,
                 LevelZeroCellConnections.NORTH,
                 LevelZeroGeometryMask.none(),
-                LevelZeroCellMicroPattern.PINCH_VERTICAL,
+                LevelZeroCellMicroPattern.bit(1, 1),
                 1,
                 1,
                 LevelZeroSurfaceBiome.BASE,
@@ -40,7 +40,7 @@ class BackroomsLevelZeroCellStateTest {
                 LevelZeroCellTopology.CORRIDOR,
                 LevelZeroCellConnections.NORTH,
                 LevelZeroGeometryMask.none(),
-                LevelZeroCellMicroPattern.PINCH_VERTICAL,
+                LevelZeroCellMicroPattern.bit(1, 1),
                 0,
                 1,
                 LevelZeroSurfaceBiome.BASE,
@@ -49,7 +49,7 @@ class BackroomsLevelZeroCellStateTest {
                 false);
 
         assertEquals(true, openState.isLocallyWalkable(),
-                "Le bloc central du pinch doit rester traversable.");
+                "Le bloc central du motif de test doit rester traversable.");
         assertEquals(false, blockedState.isLocallyWalkable(),
                 "Un bloc ferme par le micro-pattern ne doit plus etre traversable localement.");
         assertEquals(true, openState.hasConnection(LevelZeroCellConnections.NORTH),

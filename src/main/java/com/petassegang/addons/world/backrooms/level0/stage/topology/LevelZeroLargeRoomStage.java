@@ -19,6 +19,29 @@ public final class LevelZeroLargeRoomStage implements LevelZeroCellStage<Boolean
 
     @Override
     public Boolean sample(LevelZeroCellContext context) {
+        if (!isCandidate(context)) {
+            return false;
+        }
+        long selfScore = roomScore(context);
+        for (int offsetX = -1; offsetX <= 1; offsetX++) {
+            for (int offsetZ = -1; offsetZ <= 1; offsetZ++) {
+                if (offsetX == 0 && offsetZ == 0) {
+                    continue;
+                }
+                LevelZeroCellContext neighbor = new LevelZeroCellContext(
+                        context.cellX() + offsetX,
+                        context.cellZ() + offsetZ,
+                        context.layoutSeed(),
+                        context.layerIndex());
+                if (isCandidate(neighbor) && neighborWins(neighbor, context, selfScore)) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    private boolean isCandidate(LevelZeroCellContext context) {
         long hash = StageRandom.mixLegacy(
                 context.layoutSeed(),
                 StageRandom.Stage.LARGE_ROOMS,
@@ -29,5 +52,24 @@ public final class LevelZeroLargeRoomStage implements LevelZeroCellStage<Boolean
         // Le but ici est seulement de fournir un marquage stable qui sera
         // ensuite reinterprete par la topologie, la lumiere et le rendu.
         return Math.floorMod(hash, 16) < 5;
+    }
+
+    private long roomScore(LevelZeroCellContext context) {
+        return StageRandom.mixLegacy(
+                context.layoutSeed(),
+                StageRandom.Stage.LARGE_ROOMS,
+                context.cellX() * 17 + context.layerIndex(),
+                context.cellZ() * 31 - context.layerIndex());
+    }
+
+    private boolean neighborWins(LevelZeroCellContext neighbor, LevelZeroCellContext context, long selfScore) {
+        long neighborScore = roomScore(neighbor);
+        if (neighborScore != selfScore) {
+            return neighborScore > selfScore;
+        }
+        if (neighbor.cellX() != context.cellX()) {
+            return neighbor.cellX() > context.cellX();
+        }
+        return neighbor.cellZ() > context.cellZ();
     }
 }

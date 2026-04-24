@@ -11,7 +11,7 @@ import com.petassegang.addons.world.backrooms.level0.noise.StageRandom;
  * seulement des candidats stables qui pourront etre exploites plus tard
  * sans changer la topologie.
  *
- * <p>TODO Level 0 : cette couche reste volontairement une fondation
+ * <p>A reprendre Level 0 : cette couche reste volontairement une fondation
  * semantique. Le vrai systeme de grosses structures faites a la main devra
  * reprendre plus tard ces points d'ancrage sans se limiter au `roomKind`
  * legacy.

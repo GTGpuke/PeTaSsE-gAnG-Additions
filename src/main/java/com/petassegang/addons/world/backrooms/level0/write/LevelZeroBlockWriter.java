@@ -58,7 +58,7 @@ public final class LevelZeroBlockWriter {
                 profiledStage("level0.write_stage.floor", new LevelZeroFloorWriteStage()),
                 profiledStage("level0.write_stage.interior", new LevelZeroInteriorWriteStage()),
                 profiledStage("level0.write_stage.ceiling", new LevelZeroCeilingWriteStage()),
-                // TODO Level 0: reprendre plus tard les overlays surfaciques.
+                // A reprendre Level 0 : reprendre plus tard les overlays surfaciques.
                 profiledStage("level0.write_stage.wall_props", new LevelZeroWallPropWriteStage()),
                 profiledStage("level0.write_stage.structures_debug", new LevelZeroStructureWriteStage()),
                 profiledStage("level0.write_stage.light", new LevelZeroLightWriteStage(blockPalette))));

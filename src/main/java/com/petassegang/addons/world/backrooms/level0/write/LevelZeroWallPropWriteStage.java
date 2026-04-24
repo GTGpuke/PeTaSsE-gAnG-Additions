@@ -7,7 +7,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.chunk.Chunk;
 
 import com.petassegang.addons.config.ModConfig;
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
 import com.petassegang.addons.world.backrooms.level0.debug.LevelZeroWallPropDebugPalette;
 
 /**
@@ -59,7 +58,7 @@ public final class LevelZeroWallPropWriteStage implements LevelZeroWriteStage {
                                  int localX,
                                  int localZ,
                                  LevelZeroResolvedColumn resolvedColumn) {
-        // TODO Level 0: la plinthe n'est plus posee comme bloc de generation.
+        // Note Level 0 : la plinthe n'est plus posee comme bloc de generation.
         // Elle est maintenant rendue cote client sur le wallpaper pour eviter
         // de remplacer le mur et de casser le hover/ciblage du bloc.
         if (debugFixturesEnabled) {
@@ -69,7 +68,7 @@ public final class LevelZeroWallPropWriteStage implements LevelZeroWriteStage {
 
     @Override
     public void writeColumnSample(BlockState[] states, LevelZeroResolvedColumn resolvedColumn) {
-        // TODO Level 0: la plinthe est maintenant rendue cote client sur le mur
+        // Note Level 0 : la plinthe est maintenant rendue cote client sur le mur
         // et ne doit plus ecrire de bloc dans l'echantillon vertical.
         if (debugFixturesEnabled) {
             writeFixture(states, resolvedColumn);

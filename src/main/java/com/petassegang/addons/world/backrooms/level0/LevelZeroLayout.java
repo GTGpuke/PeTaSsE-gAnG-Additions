@@ -2,7 +2,6 @@ package com.petassegang.addons.world.backrooms.level0;
 
 import java.util.concurrent.ConcurrentHashMap;
 
-import com.petassegang.addons.world.backrooms.BackroomsConstants;
 import com.petassegang.addons.debug.performance.ModPerformanceMonitor;
 import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTag;
@@ -37,7 +36,6 @@ public final class LevelZeroLayout {
     /** Taille d'un chunk en blocs. */
     public static final int CHUNK_SIZE = 16;
 
-    private static final int CELL_SCALE = BackroomsConstants.LEVEL_ZERO_CELL_SCALE;
     // Ces dimensions reprennent la resolution logique historique utilisee par la
     // traduction du script de reference. Elles proviennent d'une grille
     // "ecran-like" 1920x1080 reduite par pas de 8, conservee pour preserver la

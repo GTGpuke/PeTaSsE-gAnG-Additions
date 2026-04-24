@@ -1,14 +1,24 @@
 package com.petassegang.addons.world.backrooms.level0.stage.geometry;
 
 import com.petassegang.addons.config.ModConfig;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask;
-import com.petassegang.addons.world.backrooms.level0.noise.StageRandom;
 import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellContext;
 
 /**
  * Etape legacy de micro-anomalies geometriques rares au-dessus de la grille 3x3.
+ *
+ * <p>La couche est volontairement vide pour repartir proprement sur les
+ * variantes de noise. Le stage reste branche dans la pipeline afin que chaque
+ * future variante puisse etre ajoutee une par une sans modifier l'architecture
+ * du layout.
+ *
+ * <p>TODO Level 0 : reconstruire des noises geometriques plus intelligents.
+ * Chaque nouvelle variante doit etre ajoutee seule, testee visuellement, eviter
+ * les grandes pieces, eviter les cellules eclairees, respecter les connexions
+ * de couloir et ne jamais creer de blocage ou de forme flottante au milieu du
+ * passage.
  */
 public final class LevelZeroLegacyGeometryStage {
 
@@ -24,7 +34,7 @@ public final class LevelZeroLegacyGeometryStage {
     /**
      * Construit l'etape geometry legacy avec un toggle explicite.
      *
-     * @param enabled {@code true} pour activer les anomalies geometriques
+     * @param enabled {@code true} pour autoriser les futures variantes
      */
     public LevelZeroLegacyGeometryStage(boolean enabled) {
         this.enabled = enabled;
@@ -33,75 +43,30 @@ public final class LevelZeroLegacyGeometryStage {
     /**
      * Echantillonne les features geometriques fines d'une cellule.
      *
-     * <p>Cette premiere version reste volontairement conservative :
-     * elle n'affecte que rarement des cellules traversables, en priorite sur
-     * des couloirs droits. Les jonctions restent stables pour ne pas ajouter
-     * artificiellement de surplus topologique ou de faux cul-de-sac.
-     * Les etranglements 1-wide restent exceptionnellement rares.
-     *
      * @param context contexte canonique de cellule
      * @param topology topologie fine deja derivee
      * @return masque de features geometriques
      */
     public int sample(LevelZeroCellContext context, LevelZeroCellTopology topology) {
+        return sample(context, topology, LevelZeroCellConnections.none());
+    }
+
+    /**
+     * Echantillonne les features geometriques fines d'une cellule avec son
+     * contexte de connexions.
+     *
+     * <p>Pour l'instant, aucune variante n'est emise : le comportement runtime
+     * reste identique a une couche desactivee, meme si le toggle est actif.
+     *
+     * @param context contexte canonique de cellule
+     * @param topology topologie fine deja derivee
+     * @param connectionMask sorties cardinales de la cellule
+     * @return masque vide tant que les variantes ne sont pas reconstruites
+     */
+    public int sample(LevelZeroCellContext context, LevelZeroCellTopology topology, int connectionMask) {
         if (!enabled) {
             return LevelZeroGeometryMask.none();
         }
-        if (topology == LevelZeroCellTopology.WALL || topology == LevelZeroCellTopology.ROOM_LARGE) {
-            // Les murs pleins et les grandes pieces restent hors de cette
-            // couche pour ne pas superposer de bruit geometrique a des zones
-            // qui doivent rester soit stables, soit traitees a part.
-            return LevelZeroGeometryMask.none();
-        }
-
-        long hash = StageRandom.mixLegacy(
-                context.layoutSeed(),
-                StageRandom.Stage.NOISE_GEOMETRY,
-                context.cellX(),
-                context.cellZ());
-        int roll = Math.floorMod(hash, 10_000);
-        int mask = LevelZeroGeometryMask.none();
-
-        if (topology == LevelZeroCellTopology.CORRIDOR) {
-            // Le couloir droit est la cible principale de cette couche : il
-            // accepte quelques variations tres rares sans casser la lecture du
-            // labyrinthe.
-            if (roll < 90) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.OFFSET_WALL);
-            } else if (roll < 150) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.RECESS);
-            } else if (roll < 178) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.HALF_WALL);
-            } else if (roll < 184) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.PINCH_1WIDE);
-            }
-            return mask;
-        }
-
-        if (topology == LevelZeroCellTopology.ANGLE) {
-            if (roll < 50) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.OFFSET_WALL);
-            } else if (roll < 90) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.RECESS);
-            }
-            return mask;
-        }
-
-        if (topology == LevelZeroCellTopology.T_JUNCTION
-                || topology == LevelZeroCellTopology.CROSSROAD
-                || topology == LevelZeroCellTopology.JUNCTION) {
-            // Les jonctions restent neutres pour eviter de creer de faux surplus
-            // topologiques ou des intersections visuellement brouillees.
-            return LevelZeroGeometryMask.none();
-        }
-
-        if (topology == LevelZeroCellTopology.DEAD_END) {
-            if (roll < 120) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.ALCOVE);
-            } else if (roll < 145) {
-                mask = LevelZeroGeometryMask.with(mask, LevelZeroGeometryFeature.RECESS);
-            }
-        }
-        return mask;
+        return LevelZeroGeometryMask.none();
     }
 }

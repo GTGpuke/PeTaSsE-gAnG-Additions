@@ -120,7 +120,7 @@ public final class LevelZeroWallpaperBakedModel implements BakedModel {
         LevelZeroWallPropProfile wallPropProfile = pos != null
                 ? sampleWallPropProfile(blockView, pos)
                 : LevelZeroWallPropProfile.none();
-        // TODO Level 0: rebrancher ici les overlays surfaciques si la couche
+        // A reprendre Level 0 : rebrancher ici les overlays surfaciques si la couche
         // `surface details` repasse en rendu actif. Pour l'instant, ce chemin
         // reste volontairement retire du runtime client.
 

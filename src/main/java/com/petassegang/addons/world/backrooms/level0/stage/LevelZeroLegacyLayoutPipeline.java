@@ -1,6 +1,7 @@
 package com.petassegang.addons.world.backrooms.level0.stage;
 
 import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
+import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionWalkability;
 import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
 import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
@@ -170,19 +171,27 @@ public final class LevelZeroLegacyLayoutPipeline {
         int connectionMask = walkable && !largeRoom
                 ? topologyStage.sampleConnectionMask(context, regionWalkability)
                 : com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections.none();
-        int geometryMask = geometryStage.sample(context, topology);
         boolean largeRoomLighting = topology == LevelZeroCellTopology.ROOM_LARGE;
+        boolean lighted = walkable && sampleLight(context, surfaceBiome, largeRoomLighting, roomKind, regionWalkability);
+        int geometryMask = lighted
+                ? com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask.none()
+                : geometryStage.sample(context, topology, connectionMask);
+        int microPattern = topology == LevelZeroCellTopology.WALL
+                ? LevelZeroCellMicroPattern.FULL_CLOSED
+                : geometryMask == com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask.none()
+                        ? LevelZeroCellMicroPattern.FULL_OPEN
+                        : microPatternStage.sample(context, topology, connectionMask, geometryMask);
         return new LevelZeroCellEvaluation(
                 context,
                 walkable,
                 topology,
                 connectionMask,
                 geometryMask,
-                microPatternStage.sample(context, topology, connectionMask, geometryMask),
+                microPattern,
                 surfaceBiome,
                 roomKind,
                 largeRoom,
-                walkable && sampleLight(context, surfaceBiome, largeRoomLighting, roomKind, regionWalkability));
+                lighted);
     }
 
     private boolean hasWinningLightNeighbor(LevelZeroCellContext context,

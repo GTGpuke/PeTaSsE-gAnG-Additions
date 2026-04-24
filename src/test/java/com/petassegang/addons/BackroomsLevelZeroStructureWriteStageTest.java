@@ -4,7 +4,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 import com.petassegang.addons.world.backrooms.level0.debug.LevelZeroStructureWriteStage;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureProfile;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

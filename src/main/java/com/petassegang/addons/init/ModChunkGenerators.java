@@ -1,11 +1,8 @@
 package com.petassegang.addons.init;
 
-import com.mojang.serialization.MapCodec;
-
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
-import net.minecraft.world.gen.chunk.ChunkGenerator;
 
 import com.petassegang.addons.util.ModConstants;
 import com.petassegang.addons.world.backrooms.level0.LevelZeroChunkGenerator;

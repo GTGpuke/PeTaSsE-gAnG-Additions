@@ -34,7 +34,7 @@ public final class LevelZeroSurfaceDetailResolver {
      */
     public LevelZeroSurfaceDetailProfile resolve(LevelZeroCellState cellState, int worldX, int worldZ) {
         if (!ModConfig.ENABLE_LEVEL_ZERO_SURFACE_DETAILS) {
-            // TODO Level 0: reprendre plus tard la couche d'overlays surfaciques.
+            // A reprendre Level 0 : reprendre plus tard la couche d'overlays surfaciques.
             return LevelZeroSurfaceDetailProfile.none();
         }
         LevelZeroSurfaceDetail floorDetail = resolveFloorDetail(cellState, worldX, worldZ);
@@ -61,7 +61,7 @@ public final class LevelZeroSurfaceDetailResolver {
      */
     public static LevelZeroSurfaceDetail resolveWallDetailAtWorld(int worldX, int worldZ) {
         if (!ModConfig.ENABLE_LEVEL_ZERO_SURFACE_DETAILS) {
-            // TODO Level 0: les overlays muraux sont volontairement geles pour l'instant.
+            // A reprendre Level 0 : les overlays muraux sont volontairement geles pour l'instant.
             return LevelZeroSurfaceDetail.NONE;
         }
         return resolveWallDetail(LevelZeroSurfaceBiome.sampleAtWorld(worldX, worldZ), worldX, worldZ);

@@ -17,7 +17,7 @@ import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroSt
  * <p>Cette etape reste purement visuelle et optionnelle. Elle ne doit jamais
  * s'activer dans le rendu normal.
  *
- * <p>TODO Level 0 : reprendre plus tard un vrai systeme de structures faites
+ * <p>A reprendre Level 0 : reprendre plus tard un vrai systeme de structures faites
  * a la main, chargees depuis des definitions dediees, separe du traitement des
  * grandes rooms et sans casser le layout.
  */

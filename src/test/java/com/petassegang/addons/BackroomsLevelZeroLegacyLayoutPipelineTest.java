@@ -151,6 +151,35 @@ class BackroomsLevelZeroLegacyLayoutPipelineTest {
     }
 
     @Test
+    @DisplayName("Une cellule eclairee ne recoit jamais de micro-geometrie")
+    void testLightedCellsStayGeometryFree() {
+        LevelZeroLegacyLayoutPipeline pipeline = new LevelZeroLegacyLayoutPipeline(7, true);
+        LevelZeroRegionWalkability walkability = new LevelZeroLegacyRegionWalkabilityStage(
+                (x, z) -> x == 18 && z >= -4 && z <= 4)
+                .sample(new LevelZeroRegionContext(
+                        new com.petassegang.addons.world.backrooms.level0.layout.LevelZeroChunkCellWindow(0, 0, 17, -5, 19, 5),
+                        778899L));
+        boolean foundLightedCell = false;
+
+        for (int cellZ = -4; cellZ <= 4 && !foundLightedCell; cellZ++) {
+            LevelZeroCellContext context = new LevelZeroCellContext(18, cellZ, 778899L);
+            LevelZeroCellEvaluation evaluation = pipeline.evaluateCell(context, walkability);
+            if (!evaluation.lighted()) {
+                continue;
+            }
+
+            foundLightedCell = true;
+            assertEquals(LevelZeroGeometryMask.none(), evaluation.geometryMask(),
+                    "Une cellule lighted ne doit jamais recevoir de micro-geometrie.");
+            assertEquals(LevelZeroCellMicroPattern.FULL_OPEN, evaluation.microPattern(),
+                    "Une cellule lighted doit garder un motif de couloir pleinement ouvert.");
+        }
+
+        assertTrue(foundLightedCell,
+                "L'echantillon doit contenir au moins une cellule eclairee pour verrouiller la regle.");
+    }
+
+    @Test
     @DisplayName("Le biome rouge peut produire des regions entierement sombres")
     void testRedBiomeSupportsFullDarkRegions() {
         assertEquals(true, LevelZeroSurfaceBiome.RED.supportsFullDarkRegions(),
