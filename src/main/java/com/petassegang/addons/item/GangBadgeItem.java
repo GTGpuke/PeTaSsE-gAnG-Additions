@@ -1,106 +1,64 @@
 package com.petassegang.addons.item;
 
-import java.util.function.Consumer;
+import java.util.List;
 
-import net.minecraft.ChatFormatting;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.Style;
-import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.component.TooltipDisplay;
-import net.minecraft.world.level.Level;
-import net.minecraftforge.network.PacketDistributor;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.MutableText;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
+import net.minecraft.util.Hand;
+import net.minecraft.util.TypedActionResult;
+import net.minecraft.world.World;
 
 import com.petassegang.addons.network.ModNetworking;
-import com.petassegang.addons.network.packet.GangBadgeActivatePacket;
+import com.petassegang.addons.network.packet.GangBadgeActivatePayload;
 
 /**
- * Le Badge de la Gang — jeton officiel d'appartenance à la PétasseGang.
- *
- * <p>Propriétés :
- * <ul>
- *   <li>Taille de pile : 1 (badge unique)</li>
- *   <li>Rareté         : EPIC (effet de brillance)</li>
- *   <li>Tooltip        : nom du membre + texte de saveur</li>
- * </ul>
+ * Le Badge de la Gang — jeton officiel d'appartenance a la PetasseGang.
  */
 public class GangBadgeItem extends Item {
 
-    /** Composants de tooltip pré-alloués — jamais recréés sur le hot-path de rendu. */
-    private static final Component TOOLTIP_MEMBER = Component.translatable("tooltip.petasse_gang_additions.gang_badge.member")
-            .setStyle(Style.EMPTY.withColor(ChatFormatting.GOLD).withBold(true));
+    /** Composants de tooltip pre-alloues — jamais reecrees sur le hot-path de rendu. */
+    private static final MutableText TOOLTIP_MEMBER =
+            Text.translatable("tooltip.petasse_gang_additions.gang_badge.member")
+                .formatted(Formatting.GOLD, Formatting.BOLD);
 
-    private static final Component TOOLTIP_FLAVOUR = Component.translatable("tooltip.petasse_gang_additions.gang_badge.flavour")
-            .setStyle(Style.EMPTY.withColor(ChatFormatting.GRAY).withItalic(true));
+    private static final MutableText TOOLTIP_FLAVOUR =
+            Text.translatable("tooltip.petasse_gang_additions.gang_badge.flavour")
+                .formatted(Formatting.GRAY, Formatting.ITALIC);
 
-    /**
-     * Crée une instance du Gang Badge avec les propriétés spécifiées.
-     *
-     * @param properties les propriétés de l'item (stack size, rareté, id)
-     */
-    public GangBadgeItem(Properties properties) {
-        super(properties);
+    public GangBadgeItem(Settings settings) {
+        super(settings);
     }
 
     /**
-     * Clic droit : joue un son de chat et déclenche l'animation du totem.
-     * Aucune consommation de l'item.
+     * Clic droit : joue un son de chat et declenche l'animation du totem.
      */
     @Override
-    public InteractionResult use(Level level, Player player, InteractionHand hand) {
-        if (!level.isClientSide()) {
-            // Son de chat (pitch abaissé pour sonner adulte).
-            level.playSound(null, player.getX(), player.getY(), player.getZ(),
-                    SoundEvents.CAT_AMBIENT_BABY, SoundSource.PLAYERS, 1.0F, 0.6F);
-            // Packet custom : affiche l'animation d'activation avec la texture du badge,
-            // pas celle du totem vanilla (event 35 utilise findTotem() hardcodé côté client).
-            ModNetworking.CHANNEL.send(
-                    new GangBadgeActivatePacket(),
-                    PacketDistributor.PLAYER.with((ServerPlayer) player));
+    public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
+        if (!world.isClient()) {
+            world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                    SoundEvents.ENTITY_CAT_AMBIENT, SoundCategory.PLAYERS, 1.0f, 0.6f);
+            ModNetworking.send((ServerPlayerEntity) user, new GangBadgeActivatePayload());
         }
-        return InteractionResult.SUCCESS;
+        return TypedActionResult.success(user.getStackInHand(hand));
     }
 
-    /**
-     * Ajoute les lignes de tooltip personnalisées à l'item survolé.
-     *
-     * <p>Méthode marquée {@code @Deprecated} en MC 26.1 sans remplacement stable —
-     * les items vanilla (ex. {@code SmithingTemplateItem}) l'utilisent encore.
-     * À migrer vers {@link net.minecraft.world.item.component.TooltipProvider} quand l'API sera stabilisée.
-     *
-     * @param stack          la pile d'items survolée
-     * @param context        contexte du tooltip (accès au monde)
-     * @param display        paramètres d'affichage du tooltip
-     * @param tooltipConsumer consumer auquel passer chaque ligne de tooltip
-     * @param flag           indique si les tooltips avancés sont activés
-     */
-    @SuppressWarnings("deprecation") // Méthode dépréciée en MC 26.1 sans remplacement stable — les items vanilla l'utilisent encore.
     @Override
-    public void appendHoverText(ItemStack stack,
-                                TooltipContext context,
-                                TooltipDisplay display,
-                                Consumer<Component> tooltipConsumer,
-                                TooltipFlag flag) {
-        tooltipConsumer.accept(TOOLTIP_MEMBER);
-        tooltipConsumer.accept(TOOLTIP_FLAVOUR);
+    public void appendTooltip(ItemStack stack, TooltipContext context, List<Text> tooltip, TooltipType type) {
+        tooltip.add(TOOLTIP_MEMBER);
+        tooltip.add(TOOLTIP_FLAVOUR);
     }
 
-    /**
-     * Retourne {@code true} pour que le badge affiche toujours la brillance d'enchantement,
-     * qu'il soit enchanté ou non.
-     *
-     * @param stack la pile d'items à vérifier
-     * @return toujours {@code true}
-     */
+    /** Affiche toujours la brillance d'enchantement. */
     @Override
-    public boolean isFoil(ItemStack stack) {
+    public boolean hasGlint(ItemStack stack) {
         return true;
     }
 }

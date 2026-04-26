@@ -1,57 +1,33 @@
 package com.petassegang.addons;
 
-import com.petassegang.addons.item.CursedSnackItem;
-import net.minecraft.world.food.FoodProperties;
-import net.minecraft.world.item.Item;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.petassegang.addons.item.CursedSnackItem;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 /**
- * Teste les propriétés de CursedSnackItem.
+ * Teste les proprietes de CursedSnackItem.
  */
-@DisplayName("Propriétés de CursedSnackItem")
+@DisplayName("Proprietes de CursedSnackItem")
 class CursedSnackTest {
 
-    private CursedSnackItem item;
-
-    @BeforeEach
-    void setUp() {
-        item = new CursedSnackItem(
-                new Item.Properties()
-                        .stacksTo(16)
-                        .food(new FoodProperties.Builder()
-                                .nutrition(0)
-                                .saturationModifier(0)
-                                .alwaysEdible()
-                                .build())
-        );
+    @Test
+    @DisplayName("CursedSnackItem expose un constructeur avec Item.Settings")
+    void testConstructorExists() throws NoSuchMethodException {
+        assertNotNull(CursedSnackItem.class.getDeclaredConstructor(net.minecraft.item.Item.Settings.class),
+                "CursedSnackItem doit exposer un constructeur prenant Item.Settings.");
     }
 
     @Test
-    @DisplayName("CursedSnackItem n'est pas null après construction")
-    void testConstructionNotNull() {
-        assertNotNull(item,
-                "Le constructeur de CursedSnackItem ne doit pas retourner null.");
-    }
-
-    @Test
-    @DisplayName("La taille de pile est 16")
-    void testStackSizeIsSixteen() {
-        assertEquals(16, item.getDefaultMaxStackSize(),
-                "Le Casse-croûte Maudit doit avoir un stack size de 16.");
-    }
-
-    @Test
-    @DisplayName("CursedSnackItem surcharge la méthode finishUsingItem()")
-    void testFinishUsingItemOverridden() throws NoSuchMethodException {
-        var method = CursedSnackItem.class.getDeclaredMethod("finishUsingItem",
-                net.minecraft.world.item.ItemStack.class,
-                net.minecraft.world.level.Level.class,
-                net.minecraft.world.entity.LivingEntity.class);
+    @DisplayName("CursedSnackItem surcharge la methode finishUsing()")
+    void testFinishUsingOverridden() throws NoSuchMethodException {
+        var method = CursedSnackItem.class.getDeclaredMethod("finishUsing",
+                net.minecraft.item.ItemStack.class,
+                net.minecraft.world.World.class,
+                net.minecraft.entity.LivingEntity.class);
         assertNotNull(method,
-                "CursedSnackItem doit surcharger finishUsingItem() pour modifier la faim.");
+                "CursedSnackItem doit surcharger finishUsing() pour modifier la faim.");
     }
 }

@@ -1,9 +1,9 @@
 ---
 name: add-recipe
-description: "Ajouter une recette au mod PeTaSsE_gAnG_Additions. Déclenche pour 'recette', 'craft', 'fabriquer', 'fondre', 'cuisiner', 'table de craft', 'fourneau', 'smithing', 'recipe'."
+description: "Ajouter une recette au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'recette', 'craft', 'fabriquer', 'fondre', 'cuisiner', 'table de craft', 'fourneau', 'smithing', 'recipe'."
 ---
 
-# Skill — Ajouter une Recette
+# Skill — Ajouter une Recette (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
@@ -31,9 +31,11 @@ description: "Ajouter une recette au mod PeTaSsE_gAnG_Additions. Déclenche pour
 ## Emplacement des fichiers
 
 ```
-data/petasse_gang_additions/recipes/
+data/petasse_gang_additions/recipe/
 └── my_item.json
 ```
+
+> **Important MC 1.21.1 :** le répertoire est `recipe/` (singulier), pas `recipes/`.
 
 **Convention :** un fichier par item crafté. Le nom du fichier = l'ID de l'item résultant.
 
@@ -108,11 +110,23 @@ data/petasse_gang_additions/recipes/
 }
 ```
 
+### Stonecutter
+
+```json
+{
+  "type": "minecraft:stonecutting",
+  "ingredient": { "item": "petasse_gang_additions:my_block" },
+  "result": { "id": "petasse_gang_additions:my_slab" },
+  "count": 2
+}
+```
+
 ---
 
 ## Checklist finale
 
-- [ ] Fichier JSON créé dans `data/petasse_gang_additions/recipes/`
+- [ ] Fichier JSON créé dans `data/petasse_gang_additions/recipe/` (singulier)
+- [ ] Champ `"result"` utilise `"id"` (pas `"item"`) — format MC 1.21.1
 - [ ] Ingrédients corrects (vérifier les item IDs)
 - [ ] Résultat correct (vérifier l'item ID)
 - [ ] Testé en jeu : `/recipe give @p petasse_gang_additions:my_item`

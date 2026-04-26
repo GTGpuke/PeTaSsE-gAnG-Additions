@@ -1,9 +1,9 @@
 ---
 name: project-conventions
-description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : Mod ID, structure des packages, nommage, patterns DeferredRegister, imports standards, séparation client/serveur, règles qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture', 'comment organiser'."
+description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions (Fabric 1.21.1) : mod id, structure des packages, nommage, patterns Registry.register(), imports standards, séparation client/serveur et règles qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture' ou 'comment organiser'."
 ---
 
-# Conventions du projet PeTaSsE_gAnG_Additions
+# Conventions du projet PeTaSsE_gAnG_Additions (Fabric 1.21.1)
 
 ## Identifiants clés
 
@@ -11,91 +11,137 @@ description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions : Mod ID
 |-----------|--------|
 | MOD_ID | `petasse_gang_additions` |
 | Package racine | `com.petassegang.addons` |
-| Version MC | `26.1` |
-| Version Forge | `62.0.x` |
-| Java | `25` |
+| Version mod | `0.6.0` |
+| Version MC | `1.21.1` |
+| Fabric Loader | `0.16.9` |
+| Fabric API | `0.102.0+1.21.1` |
+| Java | `21` |
 
 ## Structure des packages
 
-```
+```text
 com.petassegang.addons/
-├── PeTaSsEgAnGAdditionsMod.java   ← @Mod, lifecycle, registration wiring
-├── config/ModConfig.java        ← ForgeConfigSpec
-├── creative/ModCreativeTab.java ← creative tab DeferredRegister
-├── init/ModItems.java           ← DeferredRegister<Item>
-│   (init/ModBlocks, ModEntities, ModSounds…)
-├── item/                        ← classes d'items custom
-├── block/                       ← classes de blocs custom
-├── entity/                      ← classes d'entités custom
-├── world/                       ← génération monde / dimensions
-├── network/                     ← packets
-├── client/                      ← CLIENT-only (renderers, GUI)
-└── util/ModConstants.java       ← MOD_ID, MOD_NAME, LOGGER
+|- PeTaSsEgAnGAdditionsMod.java       ← ModInitializer (entrypoint principal)
+|- PeTaSsEgAnGAdditionsClientMod.java ← ClientModInitializer (entrypoint client)
+|- block/
+|- client/
+|  `- debug/performance/
+|- config/
+|- creative/ModCreativeTab.java
+|- debug/performance/
+|- init/
+|  |- ModBlockEntities.java
+|  |- ModBlocks.java
+|  |- ModChunkGenerators.java
+|  `- ModItems.java
+|- item/
+|- network/
+|- util/ModConstants.java
+`- world/backrooms/
+   |- BackroomsConstants.java
+   `- level0/
+      |- LevelZeroChunkGenerator.java
+      |- LevelZeroLayout.java
+      |- LevelZeroSurfaceBiome.java
+      |- coord/
+      |- debug/
+      |- layout/
+      |  `- sector/
+      |- stage/
+      |  |- biome/
+      |  |- geometry/
+      |  |- light/
+      |  |- region/
+      |  `- topology/
+      `- write/
+         |- profiling/
+         `- structure/
 ```
+
+Pour le Level 0, l'arborescence ci-dessus doit rester lisible et refléter la séparation
+actuelle `coord / layout / stage / write / debug`.
 
 ## Conventions de nommage
 
 | Type | Convention | Exemple |
 |------|-----------|---------|
 | Classe Java | PascalCase | `GangBadgeItem` |
-| Méthode | camelCase | `appendHoverText` |
-| Constante | UPPER_SNAKE | `GANG_BADGE`, `MOD_ID` |
+| Méthode | camelCase | `appendTooltip` |
+| Constante | UPPER_SNAKE_CASE | `GANG_BADGE` |
 | Resource ID | lowercase_snake | `gang_badge` |
 | Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
-| Lang key block | `block.<mod_id>.<id>` | |
-| Lang key tab | `itemGroup.<mod_id>.<id>` | |
+| Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.level_zero_wallpaper` |
+| Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petasse_gang_additions.petassegang` |
 
-## Pattern DeferredRegister (à toujours respecter)
+## Pattern d'enregistrement Fabric
 
 ```java
-// Dans init/ModFoos.java
-public static final DeferredRegister<Foo> FOOS =
-    DeferredRegister.create(ForgeRegistries.FOOS, ModConstants.MOD_ID);
+// Dans ModItems.java — pas de DeferredRegister, pas de RegistryObject :
+public static final Item GANG_BADGE = Registry.register(
+        Registries.ITEM,
+        Identifier.of(ModConstants.MOD_ID, "gang_badge"),
+        new GangBadgeItem(new Item.Settings().maxCount(1).rarity(Rarity.EPIC))
+);
 
-public static final RegistryObject<Foo> MY_FOO = FOOS.register(
-    "my_foo", () -> new MyFoo(/* properties */));
-
-public static void register(BusGroup modBusGroup) { FOOS.register(modBusGroup); }
+// Le champ contient directement l'objet — pas de .get() :
+ModItems.GANG_BADGE  // ✅
+ModItems.GANG_BADGE.get()  // ❌ n'existe pas
 ```
+
+## API Fabric vs Forge — correspondances
+
+| Forge | Fabric / Yarn |
+|-------|---------------|
+| `Item.Properties` | `Item.Settings` |
+| `.stacksTo(n)` | `.maxCount(n)` |
+| `.setId(key)` | (supprimé) |
+| `isFoil(stack)` | `hasGlint(stack)` |
+| `getDefaultMaxStackSize()` | `getMaxCount()` |
+| `finishUsingItem()` | `finishUsing()` |
+| `Component.translatable()` | `Text.translatable()` |
+| `ResourceLocation` | `Identifier` |
+| `Identifier.fromNamespaceAndPath()` | `Identifier.of()` |
+| `@OnlyIn(Dist.CLIENT)` | `@Environment(EnvType.CLIENT)` |
+| `ModList.get().isLoaded()` | `FabricLoader.getInstance().isModLoaded()` |
+| `net.minecraft.world.item.Item` | `net.minecraft.item.Item` |
+| `net.minecraft.world.level.block.Block` | `net.minecraft.block.Block` |
+| `ServerLevel` | `ServerWorld` |
+| `InteractionResultHolder` | `TypedActionResult` |
 
 ## Imports standards
 
-```java
-import java.util.List;
-
-import net.minecraft.network.chat.Component;
-import net.minecraft.world.item.Item;
-
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
-
-import com.petassegang.addons.util.ModConstants;
-```
+Ordre attendu :
+1. `java`
+2. `javax`
+3. `net.minecraft`
+4. `net.fabricmc`
+5. `com.petassegang`
 
 ## Règles qualité
 
-- Zéro import wildcard (`import java.util.*` interdit)
-- Zéro allocation dans hot-paths (tick, render) — utiliser `static final`
-- Commentaires, logs et messages d'erreur en français, avec majuscule et point
-- Logger uniquement via `ModConstants.LOGGER`
-- Code CLIENT-only → `client/` package + guard `FMLEnvironment.dist`
-
-## Séparation client/serveur
-
-```java
-// Dans @Mod constructor :
-if (FMLEnvironment.dist == Dist.CLIENT) {
-    FMLClientSetupEvent.getBus(modBusGroup).addListener(this::clientSetup);
-}
-// Dans clientSetup : registrations client (renderers, screens)
-// Tout ce qui est CLIENT-only doit être dans client/ package
-```
+- Zéro import wildcard.
+- Zéro `System.out` et `printStackTrace`.
+- Commentaires, logs et messages d'erreur en français, avec majuscule et point.
+- Code client uniquement dans `client/` ou sous `@Environment(EnvType.CLIENT)`.
+- Utiliser `Text.translatable(...)` pour tout texte visible en jeu.
+- Les batches touchant `world/backrooms/` doivent relire :
+  `docs/backrooms/backrooms-level0-roadmap.md`,
+  `docs/backrooms/backrooms-level0-pipeline-v6.md`
+  et `docs/backrooms/to-check/TO CHECK.md`.
+- Toute réorganisation interne du Level 0 doit être journalisée dans `CLEANUP_LOG.md`.
+- Le monitor de performance reste un outil debug opt-in ; ne jamais le traiter comme
+  une feature gameplay.
+- Les textures de blocs du Level 0 suivent la convention locale `32×32`.
+- Les loot tables vivent dans `data/<modid>/loot_table/blocks/`.
+- Les murs du Level 0 sont pensés comme fixes et indestructibles en survie.
+- `level_zero_wallpaper_adaptive` est réservé aux transitions mixtes ; les murs simples restent en blocs simples.
+- Le cœur non exposé des murs du Level 0 reste en `minecraft:bedrock`.
+- `dirt_provider` (pas `below_trunk_provider`) dans `minecraft:tree` configured_feature.
 
 ## Mise à jour obligatoire après chaque ajout
 
-- `lang/en_us.json` + `lang/fr_fr.json`
-- `docs/ITEMS.md` (ou BLOCKS.md, etc.)
+- `lang/en_us.json`
+- `lang/fr_fr.json`
 - `docs/CHANGELOG.md`
-- Test correspondant dans `src/test/`
+- La doc métier adaptée : `docs/BLOCKS.md`, `docs/ITEMS.md`, `docs/DIMENSIONS.md`, etc.
+- Le test associé dans `src/test/`

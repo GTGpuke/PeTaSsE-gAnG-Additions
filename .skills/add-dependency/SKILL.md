@@ -1,14 +1,14 @@
 ---
 name: add-dependency
-description: "Ajouter une dépendance externe, une librairie, un mod API, ou un framework au mod PeTaSsE_gAnG_Additions. Utilise ce skill dès qu'on veut intégrer une librairie Java, un mod API (JEI, Curios, Patchouli, GeckoLib, etc.), ou toute dépendance Maven/CurseForge. Déclenche pour 'ajoute une lib', 'ajoute une dépendance', 'intègre JEI', 'ajoute GeckoLib', 'librairie', 'dépendance', 'API', 'framework', 'intégration', 'import externe', 'dependency'."
+description: "Ajouter une dépendance externe, une librairie, un mod API, ou un framework au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Utilise ce skill dès qu'on veut intégrer une librairie Java, un mod API (REI, GeckoLib, Patchouli, etc.), ou toute dépendance Maven/Modrinth. Déclenche pour 'ajoute une lib', 'ajoute une dépendance', 'intègre REI', 'ajoute GeckoLib', 'librairie', 'dépendance', 'API', 'framework', 'intégration', 'import externe', 'dependency'."
 ---
 
-# Skill — Ajouter une Dépendance Externe
+# Skill — Ajouter une Dépendance Externe (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
 - "Ajoute une dépendance [nom]"
-- "Intègre [JEI / GeckoLib / Curios / Patchouli / autre mod]"
+- "Intègre [REI / GeckoLib / Patchouli / autre mod]"
 - "J'ai besoin de la librairie [nom]"
 - "Le mod doit fonctionner avec [mod API]"
 - Tout ce qui implique ajouter une ligne dans `dependencies {}` de `build.gradle`
@@ -17,42 +17,40 @@ description: "Ajouter une dépendance externe, une librairie, un mod API, ou un 
 
 ## Types de dépendances
 
-### Type A — Mod Forge (deobfusqué avec `fg.deobf`)
-
-Quand tu intègres un autre mod comme dépendance. Doit être deobfusqué pour que le classpath soit cohérent.
+### Type A — Mod Fabric (hard dependency)
 
 ```groovy
-// API compile-only (tu codes contre l'API, le joueur doit installer le mod séparément)
-compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION:api")
+// API compile-only (le joueur installe le mod séparément)
+modCompileOnly "maven.modrinth:rei:VERSION:api"
 
 // Mod complet aussi au runtime (dev/test local)
-runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION")
+modRuntimeOnly "maven.modrinth:rei:VERSION"
 
-// Les deux ensemble (le plus courant)
-compileOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION:api")
-runtimeOnly fg.deobf("mezz.jei:jei-${minecraft_version}-forge:VERSION")
+// Les deux ensemble (le plus courant pour les APIs)
+modCompileOnly "maven.modrinth:rei:VERSION:api"
+modRuntimeOnly "maven.modrinth:rei:VERSION"
 ```
 
 ### Type B — Librairie Java (Maven Central)
 
-Libs Java pures déjà présentes dans le classpath Forge ou à inclure.
+Libs Java pures incluses dans le classpath ou à embarquer.
 
 ```groovy
 implementation "com.google.code.gson:gson:2.11.0"
 implementation "org.apache.commons:commons-lang3:3.14.0"
-implementation "com.github.ben-manes.caffeine:caffeine:3.1.8"
 ```
 
-### Type C — Librairie embarquée dans le JAR (JarJar)
+### Type C — Librairie embarquée dans le JAR (JiJ — Jar-in-Jar)
 
 Quand la lib doit voyager avec le JAR et ne pas être installée séparément.
+Fabric Loom l'extrait et la charge automatiquement.
 
 ```groovy
-// Activer JarJar dans les plugins :
-// plugins { id 'net.minecraftforge.jarjar' }
-
-jarJar(group: "com.example", name: "lib", version: "[1.0,2.0)")
+// Dans le bloc dependencies {} :
+include modImplementation("software.bernie.geckolib:geckolib-fabric-1.21.1:VERSION")
 ```
+
+> **Note Fabric :** JiJ s'active via `include` directement — pas de `jarJar.enable()` ni de plugin supplémentaire.
 
 ### Type D — Compile-only
 
@@ -60,7 +58,6 @@ Pour les annotations processors ou les APIs qui ne doivent pas être dans le JAR
 
 ```groovy
 compileOnly "org.jetbrains:annotations:24.0.0"
-compileOnly annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 ```
 
 ---
@@ -69,12 +66,13 @@ compileOnly annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 
 | Mod | Usage | Type | Coordonnées (adapter VERSION) |
 |-----|-------|------|-------------------------------|
-| **JEI** | Recettes in-game | compileOnly + runtimeOnly | `mezz.jei:jei-${minecraft_version}-forge:VERSION:api` / `mezz.jei:jei-${minecraft_version}-forge:VERSION` |
-| **GeckoLib** | Mobs/items animés (modèles 3D) | implementation | `software.bernie.geckolib:geckolib-forge-${minecraft_version}:VERSION` |
-| **Curios** | Slots d'équipement custom | compileOnly + runtimeOnly | `top.theillusivec4.curios:curios-forge:VERSION:api` / `top.theillusivec4.curios:curios-forge:VERSION` |
-| **Patchouli** | Livres de doc in-game | compileOnly + runtimeOnly | `vazkii.patchouli:Patchouli:${minecraft_version}-VERSION:api` |
-| **Jade** | Info-bulles sur les blocs | compileOnly | `snownee.jade:Jade-${minecraft_version}-forge:VERSION:api` |
-| **The One Probe** | Informations sur blocs/entités | compileOnly | `mcjty.theoneprobe:theoneprobe-${minecraft_version}:VERSION:api` |
+| **REI** | Recettes in-game (remplace JEI) | modCompileOnly + modRuntimeOnly | `me.shedaniel.cloth:cloth-config-fabric:VERSION` |
+| **GeckoLib** | Mobs/items animés (JiJ) | include modImplementation | `software.bernie.geckolib:geckolib-fabric-1.21.1:VERSION` |
+| **Patchouli** | Livres de doc in-game | modCompileOnly + modRuntimeOnly | `vazkii.patchouli:Patchouli-1.21.1-FABRIC:VERSION` |
+| **Iris** | Shaders (JiJ optionnel) | modCompileOnly | via ModrinthMaven |
+| **Trinkets** | Slots d'équipement custom | modCompileOnly + modRuntimeOnly | `dev.emi:trinkets:VERSION+1.21.1` |
+| **Jade** | Info-bulles sur les blocs | modCompileOnly | via ModrinthMaven |
+| **Sodium** | Optimisation rendu | modCompileOnly | via ModrinthMaven |
 
 ---
 
@@ -82,9 +80,9 @@ compileOnly annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 
 ### 1. Identifier la dépendance
 
-- **Nom exact + version** : chercher sur CurseForge, Modrinth, Maven Central, ou le README du mod
-- **Type** : mod Forge, lib Java, ou API pure ?
-- **Obligatoire ou optionnelle** (soft vs hard dependency) ?
+- **Nom exact + version** : chercher sur Modrinth, Maven Central, ou le README du mod
+- **Type** : mod Fabric, lib Java, ou API pure ?
+- **Obligatoire ou optionnelle** (hard vs soft dependency) ?
 
 ### 2. Trouver les coordonnées Maven
 
@@ -92,77 +90,76 @@ compileOnly annotationProcessor("com.google.auto.service:auto-service:1.1.1")
 # Maven Central
 # → https://search.maven.org (chercher par groupe:artifactId)
 
-# Mods Forge — souvent sur le repo du mod ou CurseForge Maven
-# → https://cursemaven.com (tous les mods CurseForge)
-# Format CurseForge : curse.maven:mod-slug-PROJECTID:FILEID
+# Mods Fabric — souvent sur Modrinth Maven
+# → https://modrinth.com/maven (tous les mods Modrinth)
+# Format Modrinth : maven.modrinth:mod-slug:VERSION
 ```
 
-Si via CurseForge Maven, ajouter le repository dans `build.gradle` :
+Si via Modrinth Maven, ajouter le repository dans `build.gradle` :
 
 ```groovy
 repositories {
-    mavenCentral()
-    maven { name = 'MinecraftForge';  url = 'https://maven.minecraftforge.net' }
-    maven { name = 'CurseMaven';      url = 'https://cursemaven.com' }          // ← ajouter si besoin
-    maven { name = 'ModMaven';        url = 'https://modmaven.dev' }            // ← alternative
-    maven { name = 'BlameJared';      url = 'https://maven.blamejared.com' }    // ← JEI, Patchouli
-    maven { name = 'TheillusiveC4';   url = 'https://maven.theillusivec4.top' } // ← Curios
+    maven { name = 'Modrinth'; url = 'https://api.modrinth.com/maven' }
+    maven { name = 'GeckoLib'; url = 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/' }
+    maven { name = 'BlameJared'; url = 'https://maven.blamejared.com' }
+    maven { name = 'TerraformersMC'; url = 'https://maven.terraformersmc.com/releases' }
+    maven { name = 'Shedaniel'; url = 'https://maven.shedaniel.me/' }
 }
 ```
 
 ### 3. Ajouter dans build.gradle
 
-Localiser la section `// DÉPENDANCES EXTERNES` dans `build.gradle` et ajouter :
+Localiser la section `dependencies {}` dans `build.gradle` et ajouter :
 
 ```groovy
 // [Nom du mod/lib] — [description courte de pourquoi]
-implementation fg.deobf("groupe:artefact:version")
+modImplementation "groupe:artefact:version"
 ```
 
-### 4. Mettre à jour mods.toml (si mod Forge uniquement)
+### 4. Mettre à jour fabric.mod.json (si mod Fabric)
 
-Ajouter dans `src/main/resources/META-INF/mods.toml` :
+Ajouter dans `src/main/resources/fabric.mod.json` :
 
-```toml
-[[dependencies.petasse_gang_additions]]
-    modId        = "nom_du_mod"
-    mandatory    = false          # true si requis, false si optionnel
-    versionRange = "[VERSION,)"
-    ordering     = "NONE"
-    side         = "BOTH"         # ou "CLIENT" / "SERVER" selon le cas
-```
-
-### 5. Créer un wrapper d'intégration (soft dependency recommandé)
-
-Si la dépendance est optionnelle (`mandatory = false`), isoler l'intégration :
-
-```
-src/main/java/com/petassegang/addons/compat/
-└── jei/
-    └── JEICompat.java
-```
-
-```java
-package com.petassegang.addons.compat.jei;
-
-// Chargé uniquement si JEI est présent
-public final class JEICompat {
-    public static void register() {
-        // Intégration JEI ici
-    }
-    private JEICompat() {}
+```json
+{
+  "depends": {
+    "nom_du_mod": ">=VERSION"
+  }
 }
 ```
 
-Dans `PeTaSsEgAnGAdditionsMod.commonSetup()` :
+Pour une dépendance optionnelle, utiliser `"recommends"` ou `"suggests"` à la place de `"depends"`.
+
+### 5. Créer un wrapper d'intégration (soft dependency recommandé)
+
+Si la dépendance est optionnelle (`"suggests"`), isoler l'intégration :
+
+```
+src/main/java/com/petassegang/addons/compat/
+└── rei/
+    └── REICompat.java
+```
 
 ```java
-import net.minecraftforge.fml.ModList;
+package com.petassegang.addons.compat.rei;
 
-// Dans commonSetup() :
-if (ModList.get().isLoaded("jei")) {
-    JEICompat.register();
-    ModConstants.LOGGER.info("JEI integration enabled");
+public final class REICompat {
+    public static void register() {
+        // Intégration REI ici
+    }
+    private REICompat() {}
+}
+```
+
+Dans `PeTaSsEgAnGAdditionsMod.onInitialize()` :
+
+```java
+import net.fabricmc.loader.api.FabricLoader;
+
+// Dans onInitialize() :
+if (FabricLoader.getInstance().isModLoaded("roughlyenoughitems")) {
+    REICompat.register();
+    ModConstants.LOGGER.info("Intégration REI activée.");
 }
 ```
 
@@ -189,10 +186,10 @@ Si erreur de résolution :
 
 - [ ] Coordonnées Maven vérifiées (groupe + artefact + version exacts)
 - [ ] Repository Maven ajouté dans `build.gradle` (si non-standard)
-- [ ] Ligne de dépendance ajoutée dans la section `DÉPENDANCES EXTERNES`
-- [ ] `mods.toml` mis à jour (si mod Forge)
+- [ ] Ligne de dépendance ajoutée (`modImplementation` / `modCompileOnly` / `include`)
+- [ ] `fabric.mod.json` mis à jour (`depends` / `recommends` / `suggests`)
 - [ ] Package `compat/<mod>/` créé si soft dependency
-- [ ] `ModList.get().isLoaded()` check si soft dependency
+- [ ] `FabricLoader.getInstance().isModLoaded()` check si soft dependency
 - [ ] `./gradlew build` passe sans erreur
 - [ ] Intégration testée en jeu (ou test unitaire ajouté)
 - [ ] `docs/ARCHITECTURE.md` mis à jour

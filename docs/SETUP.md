@@ -4,37 +4,37 @@
 
 | Outil | Version | Vérification |
 |-------|---------|-------------|
-| Java JDK | **25** | `java -version` |
+| Java JDK | **21** | `java -version` |
 | Gradle | **9.3.0+** (optionnel, le wrapper suffit) | `gradle --version` |
 | Git | any | `git --version` |
 | VS Code | latest | — |
 
 ---
 
-## 1. Installer Java 25
+## 1. Installer Java 21
 
 ### Windows (recommandé : Temurin via winget)
 ```powershell
-winget install EclipseAdoptium.Temurin.25.JDK
+winget install EclipseAdoptium.Temurin.21.JDK
 ```
 
 ### Windows (SDKMAN via Git Bash)
 ```bash
 curl -s "https://get.sdkman.io" | bash
 source "$HOME/.sdkman/bin/sdkman-init.sh"
-sdk install java 25-tem
+sdk install java 21-tem
 ```
 
 ### Vérifier
 ```bash
 java -version
-# java version "25" ...
+# openjdk version "21" ...
 ```
 
 ### Configurer JAVA_HOME
 ```powershell
 # PowerShell (admin)
-[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Eclipse Adoptium\jdk-25", "Machine")
+[System.Environment]::SetEnvironmentVariable("JAVA_HOME", "C:\Program Files\Eclipse Adoptium\jdk-21", "Machine")
 ```
 
 ---
@@ -61,9 +61,6 @@ gradle wrapper --gradle-version 9.3.0
 # %GRADLE_HOME%\lib\plugins\gradle-wrapper-*.jar → gradle/wrapper/gradle-wrapper.jar
 ```
 
-Alternativement, télécharge le [Forge MDK](https://files.minecraftforge.net) pour
-MC 26.1 (Forge 62.0.x) qui contient déjà le wrapper.
-
 ---
 
 ## 4. Setup VS Code
@@ -78,19 +75,14 @@ Le projet dispose d'une tâche VS Code préconfigurée :
 
 **Ctrl+Shift+B** → sélectionner **runClient**
 
-Ou depuis le terminal (PowerShell) :
-```powershell
-$env:JAVA_HOME="C:\Program Files\Java\jdk-25.0.2"; ./gradlew runClient
-```
-
-> **Note FG7 :** Les fichiers `.launch` générés par `genEclipseRuns` ne fonctionnent pas directement dans VS Code (containers classpath Eclipse-only). Toujours passer par Gradle ou la tâche VS Code.
-
-### Régénérer les run configs (optionnel)
-
+Ou depuis le terminal :
 ```bash
-./gradlew genEclipseRuns
+./gradlew runClient
 ```
-Les `.launch` sont ignorés par git (`.gitignore`). À régénérer après un `clean`.
+
+> **Note encodage Windows :** Si le chemin du projet contient un caractère accentué (ex : `Développement`),
+> la propriété `-Dfile.encoding=COMPAT` dans `gradle.properties` est nécessaire pour que le worker
+> de test Gradle trouve les classes. Cette propriété est déjà présente dans le repo.
 
 ### Vérifier l'import Gradle
 VS Code devrait automatiquement détecter `build.gradle` et proposer d'importer le projet.
@@ -101,26 +93,20 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 ## 5. Commandes Gradle utiles
 
 ```bash
-# Générer les run configs (à faire une fois)
-./gradlew genEclipseRuns
-
 # Lancer le client Minecraft avec le mod
-./gradlew runClient  # ou via IDE après genEclipseRuns
+./gradlew runClient
 
 # Lancer le serveur dédié
-./gradlew runServer  # ou via IDE après genEclipseRuns
+./gradlew runServer
 
-# Build (produit build/libs/petasse_gang_additions-0.3.0.jar)
+# Build (produit build/libs/petasse_gang_additions-0.6.0.jar)
 ./gradlew build
 
 # Tests unitaires
 ./gradlew test
 
-# Tests in-game (GameTest framework)
-./gradlew runGameTestServer
-
-# Génération de données (data generation)
-./gradlew runData
+# Benchmark de performance Level 0
+./gradlew benchmarkLevelZeroGeneration
 
 # Nettoyer le build
 ./gradlew clean
@@ -134,9 +120,10 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 ## 6. Installer le mod sur le serveur
 
 1. Build : `./gradlew build`
-2. Copie `build/libs/petasse_gang_additions-0.3.0.jar` dans le dossier `mods/` du serveur
-3. Le serveur et TOUS les clients doivent avoir le même JAR
-4. Redémarre le serveur
+2. Copie `build/libs/petasse_gang_additions-0.6.0.jar` dans le dossier `mods/` du serveur
+3. Copie également `fabric-api-*.jar` et `fabric-loader-*.jar` si non présents
+4. Le serveur et TOUS les clients doivent avoir le même JAR
+5. Redémarre le serveur
 
 ---
 

@@ -37,7 +37,7 @@ Format : `type(scope): message`
 Exemples :
 ```
 feat(item): add Gang Badge with EPIC rarity and foil effect
-fix(config): enableGangBadge default was inverted
+fix(worldgen): replace below_trunk_provider with dirt_provider in cursed_tree.json
 docs(items): add Gang Badge to ITEMS.md
 test(item): add GangBadgeItem tooltip assertions
 ```
@@ -47,7 +47,7 @@ test(item): add GangBadgeItem tooltip assertions
 ## Checklist avant de push
 
 - [ ] `./gradlew build` passe sans warning ni erreur
-- [ ] `./gradlew test` — tous les tests verts
+- [ ] `./gradlew test` — tous les tests verts (ou failures justifiées avec Bootstrap)
 - [ ] Nouveau contenu = nouveau test dans `src/test/`
 - [ ] `docs/ITEMS.md` (ou BLOCKS.md, etc.) mis à jour
 - [ ] `docs/CHANGELOG.md` mis à jour
@@ -64,6 +64,7 @@ test(item): add GangBadgeItem tooltip assertions
 | Indentation | 4 espaces (pas de tabs) |
 | Longueur de ligne | 120 chars max |
 | Imports | Pas de wildcard (`import java.util.*` interdit) |
+| Ordre imports | `java` → `net.minecraft` → `net.fabricmc` → `com.petassegang` |
 | Javadoc | Classes publiques + méthodes publiques non triviales |
 | Commentaires | En français, avec majuscule et point |
 | Logs | Via `ModConstants.LOGGER` uniquement |
@@ -93,8 +94,8 @@ Claude Code lit automatiquement le skill approprié et suit les étapes.
 
 ## Ajout de contenu — règles non négociables
 
-1. **Un RegistryObject par ligne** dans les fichiers `init/`
+1. **Un champ `static final` par enregistrement** dans les fichiers `init/`
 2. **Zéro allocation dans les hot-paths** (render, tick) — utilise des champs `static final`
-3. **Séparation client/serveur** — tout code `@OnlyIn(CLIENT)` dans `client/`
+3. **Séparation client/serveur** — tout code `@Environment(EnvType.CLIENT)` dans `client/`
 4. **Tests** — chaque classe `item/`, `block/`, `entity/` a sa classe de test correspondante
 5. **CHANGELOG** — toujours mettre à jour avant de tag une version

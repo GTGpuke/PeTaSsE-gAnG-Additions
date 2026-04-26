@@ -22,6 +22,23 @@ description: "Audit pré-push obligatoire avant tout commit final, push ou décl
 6. **Si une correction est nécessaire** : corrige → ré-exécute la commande → confirme que c'est ✅ → continue.
 7. **À la fin, affiche le rapport complet** avec le verdict.
 
+### Adaptation obligatoire au projet actuel
+
+- Le projet tourne sur **Windows + PowerShell** : les snippets bash de ce skill
+  sont des intentions de vérification, pas des commandes à recopier aveuglément.
+- Si une commande bash n'est pas adaptée au shell courant, utiliser l'équivalent
+  PowerShell natif ou `rg`.
+- Pour ce projet, les commandes minimales fiables sont :
+  - `./gradlew compileTestJava --stacktrace`
+  - `./gradlew test --stacktrace`
+  - `./gradlew runClient`
+- Pour tout audit touchant `world/backrooms/`, relire avant l'audit :
+  - `docs/backrooms/backrooms-level0-roadmap.md`
+  - `docs/backrooms/backrooms-level0-pipeline-v6.md`
+  - `docs/backrooms/to-check/TO CHECK.md`
+- Toute suppression ou réorganisation réellement effectuée pendant l'audit doit
+  être journalisée dans `CLEANUP_LOG.md`.
+
 ### Workflow :
 ```
 Pour chaque section de l'audit :
@@ -39,6 +56,13 @@ Pour chaque section de l'audit :
 ## ÉTAPE 1 — Compilation et build
 
 Exécute ces commandes UNE PAR UNE et montre chaque sortie :
+
+Pour ce projet, si tu dois choisir une variante compatible en priorité :
+
+```powershell
+./gradlew compileTestJava --stacktrace
+./gradlew test --stacktrace
+```
 
 ```bash
 echo "========== ÉTAPE 1.1 — Clean build =========="
@@ -63,7 +87,7 @@ jar tf build/libs/petasse_gang_additions-*.jar | head -40
 Vérifie :
 - ✅/❌ Le JAR existe et a une taille > 10KB ?
 - ✅/❌ Contient les classes dans `com/petassegang/addons/` ?
-- ✅/❌ Contient `META-INF/mods.toml` ?
+- ✅/❌ Contient `fabric.mod.json` ?
 - ✅/❌ Contient les assets dans `assets/petasse_gang_additions/` ?
 
 ---
@@ -107,6 +131,16 @@ echo "========== ÉTAPE 2.7 — Imports client hors package client/ =========="
 grep -rn "import net.minecraft.client" src/main/java/com/petassegang/addons/ --include="*.java" | grep -v "/client/" | grep -v "compat/" || echo "✅ Aucun import client dans les classes communes."
 ```
 
+```bash
+echo "========== ÉTAPE 2.8 — Résidus Forge =========="
+grep -rn "net\.minecraftforge\|DeferredRegister\|RegistryObject\|DeferredHolder\|ForgeRegistries\|ModList\.get\(\)" src/main/java/ --include="*.java" || echo "✅ Aucun résidu Forge trouvé."
+```
+
+```bash
+echo "========== ÉTAPE 2.9 — below_trunk_provider interdit =========="
+grep -rn "below_trunk_provider" src/main/resources/ || echo "✅ Aucun below_trunk_provider trouvé."
+```
+
 Pour chaque résultat non vide : CORRIGE immédiatement → ré-exécute → confirme ✅.
 
 ---
@@ -136,10 +170,10 @@ Vérifie CHAQUE message de log :
 
 ```bash
 echo "========== ÉTAPE 3.3 — Textes in-game non traduits (texte en dur) =========="
-grep -rn 'new TextComponent\|Component.literal' src/main/java/ --include="*.java" | grep -v "test\|Test" || echo "✅ Aucun texte en dur trouvé."
+grep -rn "Text\.literal\|Text\.of(" src/main/java/com/petassegang/addons/ --include="*.java" | grep -v "test\|Test" || echo "✅ Aucun texte en dur trouvé."
 ```
 
-Si des `Component.literal()` sont trouvés dans le code principal (pas les tests) : remplace par `Component.translatable()` → ajoute les clés dans les fichiers de langue.
+Si des `Text.literal()` sont trouvés dans le code principal (pas les tests) : remplace par `Text.translatable()` → ajoute les clés dans les fichiers de langue.
 
 ---
 
@@ -346,23 +380,36 @@ echo "========== ÉTAPE 9.2 — Tests finaux =========="
 ./gradlew test 2>&1
 ```
 
+Pour ce projet, ajoute aussi si la modification touche le runtime ou le rendu :
+
+```powershell
+./gradlew runClient
+```
+
+Et si la zone auditée touche `backrooms`, confirmer explicitement :
+- que la roadmap et la pipeline v6 ont été relues ;
+- qu'aucune régression de comportement n'a été introduite dans la pipeline active ;
+- que les éventuels écarts volontaires restent documentés.
+
 - ✅/❌ Build : BUILD SUCCESSFUL, 0 warning ?
 - ✅/❌ Tests : tous passent ?
 
 ```bash
-echo "========== ÉTAPE 9.3 — Vérification des fichiers existants =========="
-echo "--- Items enregistrés ---"
-grep -rn "DeferredRegister\|RegistryObject\|DeferredHolder" src/main/java/com/petassegang/addons/init/ --include="*.java"
+echo "========== ÉTAPE 9.3 — Vérification des enregistrements Fabric =========="
+echo "--- Enregistrements Registry.register dans init/ ---"
+grep -rn "Registry\.register" src/main/java/com/petassegang/addons/init/ --include="*.java"
 echo "--- Traductions existantes ---"
 python3 -c "import json; d=json.load(open('src/main/resources/assets/petasse_gang_additions/lang/en_us.json')); print(f'{len(d)} clés EN'); d=json.load(open('src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json')); print(f'{len(d)} clés FR')"
 echo "--- Textures existantes ---"
 find src/main/resources/assets/petasse_gang_additions/textures -name "*.png" -type f
+echo "--- fabric.mod.json valide ---"
+python3 -c "import json; json.load(open('src/main/resources/fabric.mod.json')); print('✅ fabric.mod.json valide')"
 ```
 
-- ✅/❌ Tous les éléments existants sont toujours enregistrés ?
+- ✅/❌ Tous les éléments existants sont toujours enregistrés via `Registry.register()` ?
 - ✅/❌ Aucune traduction supprimée ?
 - ✅/❌ Aucune texture supprimée ?
-- ✅/❌ La config existante est compatible ?
+- ✅/❌ `fabric.mod.json` est valide ?
 
 ---
 

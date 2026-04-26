@@ -1,9 +1,9 @@
 ---
 name: add-dimension
-description: "Ajouter une dimension au mod PeTaSsE_gAnG_Additions. Déclenche pour 'dimension', 'monde', 'portail', 'téléportation', 'monde custom', 'realm', 'dimension custom'."
+description: "Ajouter une dimension au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'dimension', 'monde', 'portail', 'téléportation', 'monde custom', 'realm', 'dimension custom'."
 ---
 
-# Skill — Ajouter une Dimension
+# Skill — Ajouter une Dimension (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
@@ -23,28 +23,21 @@ description: "Ajouter une dimension au mod PeTaSsE_gAnG_Additions. Déclenche po
 | Biome | custom ou vanilla (`minecraft:plains`, etc.) |
 | Type de dimension | normal, nether-like, end-like |
 | Portail | bloc de portail custom ou téléportation par commande |
-| Génération | flat, void, custom noise |
+| Génération | flat, void, custom chunk generator |
 
 ---
 
-### 2. Fichiers de data generation (JSON)
+### 2. Fichiers JSON (data pack)
 
-Les dimensions dans Forge modernes sont entièrement définies par des fichiers JSON dans le dossier `data/`.
+Les dimensions dans Fabric sont entièrement définies par des fichiers JSON dans `data/`.
 
 **Structure :**
 ```
 data/petasse_gang_additions/
 ├── dimension/
 │   └── gang_realm.json           ← définit la dimension
-├── dimension_type/
-│   └── gang_realm_type.json      ← type (lumière, brouillard, hauteur)
-└── worldgen/
-    ├── biome/
-    │   └── gang_biome.json       ← biome custom (si nécessaire)
-    ├── noise_settings/
-    │   └── gang_realm.json       ← paramètres de génération de terrain
-    └── world_preset/
-        └── gang_realm.json       ← preset optionnel
+└── dimension_type/
+    └── gang_realm_type.json      ← type (lumière, brouillard, hauteur)
 ```
 
 ---
@@ -61,8 +54,10 @@ data/petasse_gang_additions/
   "has_skylight": true,
   "has_ceiling": false,
   "ambient_light": 0.0,
-  "fixed_time": false,
-  "monster_spawn_light_level": { "type": "minecraft:uniform", "value": { "min_inclusive": 0, "max_inclusive": 7 } },
+  "monster_spawn_light_level": {
+    "type": "minecraft:uniform",
+    "value": { "min_inclusive": 0, "max_inclusive": 7 }
+  },
   "monster_spawn_block_light_limit": 0,
   "piglin_safe": false,
   "bed_works": true,
@@ -72,8 +67,7 @@ data/petasse_gang_additions/
   "height": 384,
   "logical_height": 384,
   "infiniburn": "#minecraft:infiniburn_overworld",
-  "effects": "minecraft:overworld",
-  "created_automatically": false
+  "effects": "minecraft:overworld"
 }
 ```
 
@@ -104,37 +98,46 @@ data/petasse_gang_additions/
 Crée un item ou bloc de portail qui téléporte vers la dimension :
 
 ```java
-// Dans un Item.use() ou Block.use() :
-if (!level.isClientSide()) {
-    ServerPlayer serverPlayer = (ServerPlayer) player;
-    ResourceKey<Level> dimensionKey = ResourceKey.create(
-        Registries.DIMENSION,
-        new ResourceLocation("petasse_gang_additions", "gang_realm")
+// Dans un Item.use() ou Block.onUse() :
+if (world instanceof ServerWorld serverWorld) {
+    RegistryKey<World> dimensionKey = RegistryKey.of(
+            RegistryKeys.WORLD,
+            Identifier.of("petasse_gang_additions", "gang_realm")
     );
-    ServerLevel targetLevel = serverPlayer.server.getLevel(dimensionKey);
-    if (targetLevel != null) {
-        serverPlayer.teleportTo(targetLevel,
-            serverPlayer.getX(), serverPlayer.getY(), serverPlayer.getZ(),
-            serverPlayer.getYRot(), serverPlayer.getXRot());
+    ServerWorld targetWorld = serverWorld.getServer().getWorld(dimensionKey);
+    if (targetWorld != null && player instanceof ServerPlayerEntity serverPlayer) {
+        serverPlayer.teleport(targetWorld,
+                player.getX(), player.getY(), player.getZ(),
+                player.getYaw(), player.getPitch());
     }
 }
 ```
 
 ---
 
-### 6. Enregistrer la dimension
+### 6. Enregistrement automatique
 
-Les dimensions JSON dans `data/` sont automatiquement reconnues par Forge/MC.
-Aucune registration Java supplémentaire nécessaire pour une dimension basique.
+Les dimensions JSON dans `data/` sont automatiquement reconnues par Minecraft/Fabric.
+Aucune registration Java supplémentaire n'est nécessaire pour une dimension basique.
+
+Pour un chunk generator custom (comme `LevelZeroChunkGenerator`), il faut enregistrer le CODEC :
+```java
+// Dans ModChunkGenerators.java :
+public static final MapCodec<LevelZeroChunkGenerator> LEVEL_ZERO =
+        Registry.register(Registries.CHUNK_GENERATOR,
+                Identifier.of(ModConstants.MOD_ID, "level_zero"),
+                LevelZeroChunkGenerator.CODEC);
+```
 
 ---
 
 ## Checklist finale
 
-- [ ] `data/petasse_gang_additions/dimension_type/my_dim.json`
+- [ ] `data/petasse_gang_additions/dimension_type/my_dim_type.json`
 - [ ] `data/petasse_gang_additions/dimension/my_dim.json`
 - [ ] Biome custom si nécessaire
 - [ ] Portail/téléportation si souhaité
+- [ ] Chunk generator custom enregistré dans `ModChunkGenerators.java` si nécessaire
 - [ ] Lang key pour le nom de la dimension
 - [ ] `docs/DIMENSIONS.md` + `CHANGELOG.md` mis à jour
 - [ ] Testé en jeu : `/execute in petasse_gang_additions:my_dim run teleport @s 0 64 0`

@@ -49,6 +49,7 @@ src/main/resources/META-INF/accesstransformer.cfg
 !gradle/wrapper/gradle-wrapper.jar
 hs_err_pid*
 replay_pid*
+.gradle-user/
 
 # ── OS — macOS ───────────────────────────────────────────────
 .DS_Store

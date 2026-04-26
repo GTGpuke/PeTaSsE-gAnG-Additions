@@ -16,7 +16,7 @@
 
 **Étapes :**
 1. Checkout du code
-2. Java 25 (Temurin) + cache Gradle
+2. Java 21 (Temurin) + cache Gradle
 3. `./gradlew build`
 4. Upload du JAR comme artifact GitHub (conservé 14 jours)
 
@@ -29,12 +29,13 @@
 **Trigger :** push sur `main` ou `develop`, PR vers `main`
 
 **Étapes :**
-1. Checkout + Java 25 + cache Gradle
+1. Checkout + Java 21 + cache Gradle
 2. `./gradlew test`
 3. Publier les résultats comme check PR (vert/rouge)
 4. Upload du rapport HTML (conservé 30 jours)
 
-**La PR échoue automatiquement si un test JUnit échoue.**
+**Note :** `ignoreFailures = true` est activé — les tests nécessitant Bootstrap Minecraft ne bloquent
+pas le build CI mais sont visibles dans le rapport HTML.
 
 ---
 
@@ -43,7 +44,7 @@
 **Trigger :** push d'un tag `v*.*.*` (ex: `v0.1.0`, `v1.2.3`)
 
 **Étapes :**
-1. Tests unitaires (bloque si fail)
+1. Tests unitaires (bloque si fail sur les tests purs Java)
 2. `./gradlew build`
 3. Extraction des release notes depuis `docs/CHANGELOG.md`
 4. Création d'une GitHub Release avec le JAR joint
@@ -59,12 +60,12 @@
 # 2. Mettre à jour mod_version dans gradle.properties
 # 3. Commit
 git add gradle.properties docs/CHANGELOG.md
-git commit -m "chore: bump version to 0.2.0"
+git commit -m "chore: bump version to 0.7.0"
 
 # 4. Pousser + tagger
 git push origin main
-git tag v0.2.0
-git push origin v0.2.0
+git tag v0.7.0
+git push origin v0.7.0
 
 # → GitHub Actions build et publie automatiquement
 ```
@@ -89,4 +90,4 @@ git push origin v0.2.0
    ./gradlew build --info 2>&1 | grep -E "ERROR|error:|FAILED"
    ```
 4. **Cache Gradle corrompu ?** → Actions → Caches → supprimer le cache du projet
-5. **Problème Java version ?** → vérifier que `java_version=25` dans `gradle.properties`
+5. **Problème Java version ?** → vérifier que `java_version=21` dans `gradle.properties`

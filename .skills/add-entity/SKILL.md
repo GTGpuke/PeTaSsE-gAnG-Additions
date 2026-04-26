@@ -1,9 +1,9 @@
 ---
 name: add-entity
-description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions. Déclenche pour 'mob', 'entité', 'monstre', 'boss', 'NPC', 'créature', 'animal', 'pet', 'entity'."
+description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'mob', 'entité', 'monstre', 'boss', 'NPC', 'créature', 'animal', 'pet', 'entity'."
 ---
 
-# Skill — Ajouter une Entité / Mob
+# Skill — Ajouter une Entité / Mob (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
@@ -21,9 +21,9 @@ description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions. Déclenche 
 |-----------|--------|
 | `ENTITY_ID` | `gang_member`, `petasse_boss` |
 | `ClassName` | `GangMemberEntity`, `PetasseBossEntity` |
-| Catégorie | `MobCategory.CREATURE` / `MONSTER` / `AMBIENT` / `WATER_CREATURE` |
-| HP | `20.0f` (10 coeurs) |
-| Taille | `EntityDimensions.scalable(0.6f, 1.95f)` (humanoid) |
+| Catégorie | `SpawnGroup.CREATURE` / `MONSTER` / `AMBIENT` / `WATER_CREATURE` |
+| HP | `20.0f` (10 cœurs) |
+| Taille | `EntityDimensions.changing(0.6f, 1.95f)` (humanoïde) |
 
 ---
 
@@ -34,36 +34,34 @@ description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions. Déclenche 
 ```java
 package com.petassegang.addons.entity;
 
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.PathfinderMob;
-import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
-import net.minecraft.world.entity.ai.goal.FloatGoal;
-import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
-import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
-import net.minecraft.world.level.Level;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ai.goal.LookAroundGoal;
+import net.minecraft.entity.ai.goal.WanderAroundFarGoal;
+import net.minecraft.entity.attribute.DefaultAttributeContainer;
+import net.minecraft.entity.attribute.EntityAttributes;
+import net.minecraft.entity.mob.PathAwareEntity;
+import net.minecraft.world.World;
 
 /**
  * [Nom] — [Description].
  */
-public class MyEntity extends PathfinderMob {
+public class MyEntity extends PathAwareEntity {
 
-    public MyEntity(EntityType<? extends MyEntity> type, Level level) {
-        super(type, level);
+    public MyEntity(EntityType<? extends MyEntity> type, World world) {
+        super(type, world);
     }
 
-    public static AttributeSupplier.Builder createAttributes() {
-        return PathfinderMob.createMobAttributes()
-                .add(Attributes.MAX_HEALTH, 20.0)
-                .add(Attributes.MOVEMENT_SPEED, 0.25)
-                .add(Attributes.ATTACK_DAMAGE, 3.0);
+    public static DefaultAttributeContainer.Builder createAttributes() {
+        return PathAwareEntity.createMobAttributes()
+                .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0)
+                .add(EntityAttributes.GENERIC_MOVEMENT_SPEED, 0.25)
+                .add(EntityAttributes.GENERIC_ATTACK_DAMAGE, 3.0);
     }
 
     @Override
-    protected void registerGoals() {
-        goalSelector.addGoal(0, new FloatGoal(this));
-        goalSelector.addGoal(1, new WaterAvoidingRandomStrollGoal(this, 1.0));
-        goalSelector.addGoal(2, new RandomLookAroundGoal(this));
+    protected void initGoals() {
+        goalSelector.add(1, new WanderAroundFarGoal(this, 1.0));
+        goalSelector.add(2, new LookAroundGoal(this));
     }
 }
 ```
@@ -77,86 +75,86 @@ public class MyEntity extends PathfinderMob {
 ```java
 package com.petassegang.addons.init;
 
+import com.petassegang.addons.entity.MyEntity;
 import com.petassegang.addons.util.ModConstants;
-import net.minecraft.world.entity.EntityType;
-import net.minecraft.world.entity.MobCategory;
-import net.minecraftforge.eventbus.api.bus.BusGroup;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.ForgeRegistries;
-import net.minecraftforge.registries.RegistryObject;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnGroup;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.util.Identifier;
 
 public final class ModEntities {
 
-    public static final DeferredRegister<EntityType<?>> ENTITIES =
-            DeferredRegister.create(ForgeRegistries.ENTITY_TYPES, ModConstants.MOD_ID);
+    public static final EntityType<MyEntity> MY_ENTITY = Registry.register(
+            Registries.ENTITY_TYPE,
+            Identifier.of(ModConstants.MOD_ID, "my_entity"),
+            EntityType.Builder.create(MyEntity::new, SpawnGroup.CREATURE)
+                    .dimensions(0.6f, 1.95f)
+                    .build()
+    );
 
-    public static final RegistryObject<EntityType<MyEntity>> MY_ENTITY =
-            ENTITIES.register("my_entity", () ->
-                    EntityType.Builder.of(MyEntity::new, MobCategory.CREATURE)
-                            .sized(0.6f, 1.95f)
-                            .clientTrackingRange(10)
-                            .build("my_entity")
-            );
+    public static void initialize() { }
 
-    public static void register(BusGroup modBusGroup) { ENTITIES.register(modBusGroup); }
-
-    private ModEntities() { throw new UnsupportedOperationException("Registry class"); }
+    private ModEntities() { throw new UnsupportedOperationException("Classe utilitaire."); }
 }
 ```
+
+Appeler `ModEntities.initialize()` dans `onInitialize()`.
 
 ---
 
 ### 4. Enregistrer les attributs
 
-Dans `PeTaSsEgAnGAdditionsMod.commonSetup()` (via `FMLCommonSetupEvent`), ou via un `EntityAttributeCreationEvent` :
+Dans `PeTaSsEgAnGAdditionsMod.onInitialize()`, via l'event Fabric :
 
 ```java
-@SubscribeEvent
-public static void onEntityAttributeCreation(EntityAttributeCreationEvent event) {
-    event.put(ModEntities.MY_ENTITY.get(), MyEntity.createAttributes().build());
-}
+// Dans onInitialize() :
+FabricDefaultAttributeRegistry.register(ModEntities.MY_ENTITY, MyEntity.createAttributes());
 ```
 
 ---
 
-### 5. Créer le renderer (CLIENT only)
+### 5. Créer le renderer (CLIENT uniquement)
 
 **Fichier :** `src/main/java/com/petassegang/addons/client/renderer/MyEntityRenderer.java`
 
 ```java
 package com.petassegang.addons.client.renderer;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import net.minecraft.client.renderer.entity.EntityRendererProvider;
-import net.minecraft.client.renderer.entity.MobRenderer;
-import net.minecraft.resources.ResourceLocation;
+import com.petassegang.addons.entity.MyEntity;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.render.entity.EntityRendererFactory;
+import net.minecraft.client.render.entity.MobEntityRenderer;
+import net.minecraft.util.Identifier;
 
-public class MyEntityRenderer extends MobRenderer<MyEntity, MyEntityModel<MyEntity>> {
+@Environment(EnvType.CLIENT)
+public class MyEntityRenderer extends MobEntityRenderer<MyEntity, MyEntityModel<MyEntity>> {
 
-    private static final ResourceLocation TEXTURE =
-            new ResourceLocation("petasse_gang_additions", "textures/entity/my_entity.png");
+    private static final Identifier TEXTURE =
+            Identifier.of("petasse_gang_additions", "textures/entity/my_entity.png");
 
-    public MyEntityRenderer(EntityRendererProvider.Context context) {
-        super(context, new MyEntityModel<>(context.bakeLayer(MyEntityModel.LAYER_LOCATION)), 0.5f);
+    public MyEntityRenderer(EntityRendererFactory.Context context) {
+        super(context, new MyEntityModel<>(context.getPart(MyEntityModel.MODEL_LAYER)), 0.5f);
     }
 
     @Override
-    public ResourceLocation getTextureLocation(MyEntity entity) {
+    public Identifier getTexture(MyEntity entity) {
         return TEXTURE;
     }
 }
 ```
 
-Enregistrer dans `clientSetup` :
+Enregistrer dans `PeTaSsEgAnGAdditionsClientMod.onInitializeClient()` :
 ```java
-EntityRenderers.register(ModEntities.MY_ENTITY.get(), MyEntityRenderer::new);
+EntityRendererRegistry.register(ModEntities.MY_ENTITY, MyEntityRenderer::new);
 ```
 
 ---
 
 ### 6. Fichiers ressources
 
-- `textures/entity/my_entity.png` — texture du mob
+- `textures/entity/my_entity.png` — texture du mob (64×32 ou 64×64)
 - `lang/en_us.json` : `"entity.petasse_gang_additions.my_entity": "My Entity"`
 - `lang/fr_fr.json` : traduction FR
 
@@ -165,10 +163,11 @@ EntityRenderers.register(ModEntities.MY_ENTITY.get(), MyEntityRenderer::new);
 ## Checklist finale
 
 - [ ] `entity/MyEntity.java`
-- [ ] `init/ModEntities.java` — RegistryObject ajouté
-- [ ] Attributs enregistrés
-- [ ] `PeTaSsEgAnGAdditionsMod` — `ModEntities.register(modBusGroup)` + renderer
-- [ ] `client/renderer/MyEntityRenderer.java`
+- [ ] `init/ModEntities.java` — champ `static final` via `Registry.register(Registries.ENTITY_TYPE, ...)`
+- [ ] `ModEntities.initialize()` appelé dans `onInitialize()`
+- [ ] `FabricDefaultAttributeRegistry.register()` dans `onInitialize()`
+- [ ] `client/renderer/MyEntityRenderer.java` avec `@Environment(EnvType.CLIENT)`
+- [ ] Renderer enregistré dans `onInitializeClient()`
 - [ ] `textures/entity/my_entity.png`
 - [ ] Lang keys EN + FR
 - [ ] `docs/ENTITIES.md` + `CHANGELOG.md` mis à jour

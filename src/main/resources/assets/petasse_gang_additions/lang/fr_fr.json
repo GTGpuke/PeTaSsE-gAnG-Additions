@@ -1,25 +1,43 @@
 {
   "item.petasse_gang_additions.gang_badge": "Badge de la Gang",
-  "itemGroup.petasse_gang_additions.petassegang": "PétasseGang",
+  "itemGroup.petasse_gang_additions.petassegang": "PetasseGang",
 
-  "tooltip.petasse_gang_additions.gang_badge.member": "Membre Officiel de la PétasseGang",
+  "tooltip.petasse_gang_additions.gang_badge.member": "Membre Officiel de la PetasseGang",
   "tooltip.petasse_gang_additions.gang_badge.flavour": "Ne le perds pas, il n'y a pas de remplacement.",
 
-  "item.petasse_gang_additions.cursed_snack": "Casse-croûte Maudit",
-  "tooltip.petasse_gang_additions.cursed_snack.warning": "T'aurais pas dû manger ça.",
+  "item.petasse_gang_additions.cursed_snack": "Casse-croute Maudit",
+  "tooltip.petasse_gang_additions.cursed_snack.warning": "T'aurais pas du manger ca.",
 
   "block.petasse_gang_additions.cursed_log": "Tronc Maudit",
   "block.petasse_gang_additions.cursed_leaves": "Feuilles Maudites",
   "block.petasse_gang_additions.cursed_sapling": "Pousse Maudite",
   "block.petasse_gang_additions.cursed_planks": "Planches Maudites",
+  "block.petasse_gang_additions.level_zero_wallpaper": "Papier Peint du Niveau 0",
+  "block.petasse_gang_additions.level_zero_wallpaper_aged": "Papier Peint Blanc du Niveau 0",
+  "block.petasse_gang_additions.level_zero_wallpaper_adaptive": "Papier Peint Adaptatif du Niveau 0",
+  "block.petasse_gang_additions.level_zero_damp_carpet": "Moquette Humide du Niveau 0",
+  "block.petasse_gang_additions.level_zero_damp_carpet_aged": "Moquette Rouge du Niveau 0",
+  "block.petasse_gang_additions.level_zero_ceiling_tile": "Dalle de Plafond du Niveau 0",
+  "block.petasse_gang_additions.level_zero_fluorescent_light": "Neon du Niveau 0",
+  "block.petasse_gang_additions.level_zero_baseboard": "Plinthe du Niveau 0",
 
   "item.petasse_gang_additions.cursed_log": "Tronc Maudit",
   "item.petasse_gang_additions.cursed_leaves": "Feuilles Maudites",
   "item.petasse_gang_additions.cursed_sapling": "Pousse Maudite",
   "item.petasse_gang_additions.cursed_planks": "Planches Maudites",
+  "item.petasse_gang_additions.level_zero_wallpaper": "Papier Peint du Niveau 0",
+  "item.petasse_gang_additions.level_zero_wallpaper_aged": "Papier Peint Blanc du Niveau 0",
+  "item.petasse_gang_additions.level_zero_wallpaper_adaptive": "Papier Peint Adaptatif du Niveau 0",
+  "item.petasse_gang_additions.level_zero_damp_carpet": "Moquette Humide du Niveau 0",
+  "item.petasse_gang_additions.level_zero_damp_carpet_aged": "Moquette Rouge du Niveau 0",
+  "item.petasse_gang_additions.level_zero_ceiling_tile": "Dalle de Plafond du Niveau 0",
+  "item.petasse_gang_additions.level_zero_fluorescent_light": "Neon du Niveau 0",
+  "item.petasse_gang_additions.level_zero_baseboard": "Plinthe du Niveau 0",
+
+  "dimension.petasse_gang_additions.backrooms_level_0": "Backrooms - Niveau 0",
 
   "config.petasse_gang_additions.title": "Config PeTaSsE_gAnG_Additions",
   "config.petasse_gang_additions.items": "Objets",
   "config.petasse_gang_additions.items.enableGangBadge": "Activer le Badge de la Gang",
-  "config.petasse_gang_additions.items.enableGangBadge.tooltip": "Mettre à false pour désactiver complètement le Badge de la Gang."
+  "config.petasse_gang_additions.items.enableGangBadge.tooltip": "Mettre a false pour desactiver completement le Badge de la Gang."
 }

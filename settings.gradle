@@ -1,15 +1,12 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         maven {
-            name = 'MinecraftForge'
-            url  = 'https://maven.minecraftforge.net'
+            name = 'Fabric'
+            url  = 'https://maven.fabricmc.net/'
         }
+        gradlePluginPortal()
+        mavenCentral()
     }
 }
-
-// Note: Java 25 must be installed manually and JAVA_HOME must point to it.
-// Auto-provisioning via foojay is NOT used because JvmVendorSpec.IBM_SEMERU
-// was removed in Gradle 9.x, breaking the foojay resolver.
 
 rootProject.name = 'petasse_gang_additions'

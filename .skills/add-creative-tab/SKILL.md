@@ -1,9 +1,9 @@
 ---
 name: add-creative-tab
-description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions. Déclenche pour 'onglet créatif', 'creative tab', 'catégorie d'items', 'nouvel onglet', 'déplacer item dans tab', 'changer l'icône du tab'."
+description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'onglet créatif', 'creative tab', 'catégorie d'items', 'nouvel onglet', 'déplacer item dans tab', 'changer l'icône du tab'."
 ---
 
-# Skill — Ajouter / Modifier un Creative Tab
+# Skill — Ajouter / Modifier un Creative Tab (Fabric 1.21.1)
 
 ## Quand utiliser ce skill
 
@@ -21,20 +21,21 @@ description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions
 **Fichier :** `src/main/java/com/petassegang/addons/creative/ModCreativeTab.java`
 
 ```java
-private static void displayItems(CreativeModeTab.ItemDisplayParameters params,
-                                 CreativeModeTab.Output output) {
+private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Entries entries) {
     // Items existants
-    output.accept(ModItems.GANG_BADGE.get());
+    entries.add(ModItems.GANG_BADGE);
 
     // Ajouter ici :
-    output.accept(ModItems.MY_NEW_ITEM.get());
+    entries.add(ModItems.MY_NEW_ITEM);
 }
 ```
+
+**Pas de `.get()`** — les champs `ModItems.*` sont directement les instances d'`Item`.
 
 ### Changer l'icône du tab
 
 ```java
-.icon(() -> new ItemStack(ModItems.MY_NEW_ICON_ITEM.get()))
+.icon(() -> new ItemStack(ModItems.MY_NEW_ICON_ITEM))
 ```
 
 ---
@@ -44,33 +45,70 @@ private static void displayItems(CreativeModeTab.ItemDisplayParameters params,
 **Fichier :** `src/main/java/com/petassegang/addons/creative/ModCreativeTab.java`
 
 ```java
-public static final RegistryObject<CreativeModeTab> MY_NEW_TAB =
-        CREATIVE_MODE_TABS.register("my_tab", () ->
-                CreativeModeTab.builder()
-                        .title(Component.translatable("itemGroup.petasse_gang_additions.my_tab"))
-                        .icon(() -> new ItemStack(ModItems.MY_ICON_ITEM.get()))
-                        // Positionner après le tab PétasseGang :
-                        .withTabsBefore(ModCreativeTab.PETASSEGANG_TAB.getKey())
-                        .displayItems((params, output) -> {
-                            output.accept(ModItems.SOME_ITEM.get());
-                        })
-                        .build()
-        );
+package com.petassegang.addons.creative;
+
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
+import net.minecraft.item.ItemGroup;
+import net.minecraft.item.ItemStack;
+import net.minecraft.registry.Registries;
+import net.minecraft.registry.Registry;
+import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
+
+import com.petassegang.addons.init.ModItems;
+import com.petassegang.addons.util.ModConstants;
+
+public final class ModCreativeTab {
+
+    public static final ItemGroup MY_NEW_TAB = Registry.register(
+            Registries.ITEM_GROUP,
+            Identifier.of(ModConstants.MOD_ID, "my_tab"),
+            FabricItemGroup.builder()
+                    .displayName(Text.translatable("itemGroup.petasse_gang_additions.my_tab"))
+                    .icon(() -> new ItemStack(ModItems.MY_ICON_ITEM))
+                    .entries((context, entries) -> {
+                        entries.add(ModItems.SOME_ITEM);
+                    })
+                    .build()
+    );
+
+    public static void register() { }
+
+    private ModCreativeTab() { throw new UnsupportedOperationException("Classe de registre."); }
+}
+```
+
+Appeler `ModCreativeTab.register()` dans `PeTaSsEgAnGAdditionsMod.onInitialize()`.
+
+---
+
+## Ajouter des items dans un tab vanilla existant
+
+Pour injecter des items dans un onglet vanilla (outils, combat, etc.) sans créer de nouveau tab :
+
+```java
+import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroupEvents;
+import net.minecraft.item.ItemGroups;
+
+// Dans onInitialize() :
+FabricItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(context -> {
+    context.add(ModItems.MY_ITEM);
+});
 ```
 
 ---
 
-## Ajouter des items vanilla dans le tab
+## Ajouter des items vanilla dans le tab du mod
 
 ```java
-.displayItems((params, output) -> {
+private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Entries entries) {
     // Items du mod
-    output.accept(ModItems.GANG_BADGE.get());
+    entries.add(ModItems.GANG_BADGE);
 
     // Items vanilla (ex: pour contexte/thématique)
-    output.accept(Items.DIAMOND);
-    output.accept(Items.GOLD_INGOT);
-})
+    entries.add(Items.DIAMOND);
+    entries.add(Items.GOLD_INGOT);
+}
 ```
 
 ---
@@ -89,8 +127,11 @@ public static final RegistryObject<CreativeModeTab> MY_NEW_TAB =
 
 ## Checklist finale
 
-- [ ] `CREATIVE_MODE_TABS.register(...)` ajouté (si nouvel onglet)
-- [ ] `displayItems` mis à jour
+- [ ] `Registry.register(Registries.ITEM_GROUP, ...)` ajouté (si nouvel onglet)
+- [ ] `FabricItemGroup.builder()` utilisé (pas `CreativeModeTab.builder()`)
+- [ ] `.displayName(Text.translatable(...))` (pas `Component.translatable`)
+- [ ] Champs `ModItems.*` utilisés **sans** `.get()`
+- [ ] `register()` appelé dans `onInitialize()` (si nouvel onglet)
 - [ ] Lang key ajoutée EN + FR
 - [ ] `docs/CHANGELOG.md` mis à jour
 - [ ] `./gradlew build` passe

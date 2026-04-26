@@ -1,51 +1,10 @@
 package com.petassegang.addons.gametest;
 
-import com.petassegang.addons.creative.ModCreativeTab;
-import com.petassegang.addons.init.ModItems;
-import com.petassegang.addons.util.ModConstants;
-import net.minecraft.gametest.framework.GameTestHelper;
-import net.minecraftforge.gametest.GameTest;
-import net.minecraftforge.gametest.GameTestDontPrefix;
-import net.minecraftforge.gametest.GameTestNamespace;
-
 /**
- * In-game Forge GameTests for PeTaSsE_gAnG_Additions.
- *
- * <p>Run with: {@code ./gradlew runGameTestServer}
- *
- * <p>Each method annotated with {@link GameTest} is a test case.
- * The test passes when {@link GameTestHelper#succeed()} is called,
- * and fails if an assertion throws or the timeout is exceeded.
+ * @deprecated Tests en jeu Forge GameTest — non applicables en Fabric.
+ *             A reimplementer avec le framework de test en jeu Fabric si necessaire.
  */
-@GameTestNamespace(ModConstants.MOD_ID)
-@GameTestDontPrefix
-public class PetasseGangGameTests {
-
-    /**
-     * Verifies that the Gang Badge item has been registered in the item registry.
-     */
-    @GameTest(structure = "petasse_gang_additions:empty")
-    public static void gangBadgeItemIsRegistered(GameTestHelper helper) {
-        helper.assertTrue(
-                ModItems.GANG_BADGE.isPresent(),
-                "GANG_BADGE RegistryObject must be bound after registration"
-        );
-        helper.assertTrue(
-                ModItems.GANG_BADGE.get() != null,
-                "GANG_BADGE item must not be null in the game registry"
-        );
-        helper.succeed();
-    }
-
-    /**
-     * Verifies that the PétasseGang creative tab is registered.
-     */
-    @GameTest(structure = "petasse_gang_additions:empty")
-    public static void creativeTabIsRegistered(GameTestHelper helper) {
-        helper.assertTrue(
-                ModCreativeTab.PETASSEGANG_TAB.isPresent(),
-                "PETASSEGANG_TAB must be registered"
-        );
-        helper.succeed();
-    }
+@Deprecated
+final class PetasseGangGameTests {
+    private PetasseGangGameTests() {}
 }

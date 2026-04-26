@@ -2,9 +2,42 @@
 
 Catalogue de toutes les dimensions custom du mod.
 
-> Aucune dimension pour l'instant. Pour en ajouter une, dis à Claude Code :
-> "Ajoute une dimension [description]"
-> Ou suis le skill `/.skills/add-dimension/SKILL.md`.
+---
+
+## Backrooms — Level 0 (`backrooms_level_0`)
+
+| Propriété | Valeur |
+|-----------|--------|
+| ID complet | `petasse_gang_additions:backrooms_level_0` |
+| Portail | Aucun pour l'instant |
+| Biome(s) | `minecraft:the_void` |
+| Génération | `LevelZeroChunkGenerator` monocouche |
+| Gravité | normale |
+| Ciel | noir, sans skybox |
+
+### Description
+
+Première passe du Level 0 basée sur le script Python de référence.
+Le niveau génère un labyrinthe monocouche de couloirs et de salles via :
+- superposition de maze,
+- salles rectangulaires,
+- salles à piliers,
+- salles polygonales.
+
+### Fichiers principaux
+
+- `src/main/java/com/petassegang/addons/world/backrooms/BackroomsConstants.java`
+- `src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroChunkGenerator.java`
+- `src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroLayout.java`
+- `src/main/resources/data/petasse_gang_additions/dimension/backrooms_level_0.json`
+- `src/main/resources/data/petasse_gang_additions/dimension_type/backrooms_level_0_type.json`
+- `docs/dimensions/backrooms-level0-dimension-type-multilayer.json`
+
+### Accès
+
+```mcfunction
+/execute in petasse_gang_additions:backrooms_level_0 run teleport @s 0 63 0
+```
 
 ---
 
@@ -25,6 +58,7 @@ Catalogue de toutes les dimensions custom du mod.
 ...
 
 ### Accès
-```
+
+```mcfunction
 /execute in petasse_gang_additions:nom_de_la_dimension run teleport @s 0 64 0
 ```

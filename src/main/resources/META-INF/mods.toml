@@ -30,3 +30,59 @@ license     = "MIT"
     versionRange = "${minecraft_version_range}"
     ordering     = "NONE"
     side         = "BOTH"
+
+# ── Dépendances embarquées (JiJ) ──────────────────────────────
+# Déclarées en mandatory=false tant qu'aucune version MC 26.1 n'est disponible.
+# Passer à mandatory=true + décommenter les entrées build.gradle dès qu'une
+# release compatible est publiée.
+
+[[dependencies.${mod_id}]]
+    modId        = "geckolib"
+    mandatory    = false
+    versionRange = "[4.4,5.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "patchouli"
+    mandatory    = false
+    versionRange = "[1.0-SNAPSHOT,2.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "konkrete"
+    mandatory    = false
+    versionRange = "[1.6,2.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "fancymenu"
+    mandatory    = false
+    versionRange = "[3.2,4.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "fusion"
+    mandatory    = false
+    versionRange = "[1.1,2.0)"
+    ordering     = "BEFORE"
+    side         = "BOTH"
+
+# ── Dépendances optionnelles (soft-dep) ───────────────────────
+
+[[dependencies.${mod_id}]]
+    modId        = "imm_ptl_core"
+    mandatory    = false
+    versionRange = "*"
+    ordering     = "NONE"
+    side         = "BOTH"
+
+[[dependencies.${mod_id}]]
+    modId        = "oculus"
+    mandatory    = false
+    versionRange = "*"
+    ordering     = "NONE"
+    side         = "BOTH"

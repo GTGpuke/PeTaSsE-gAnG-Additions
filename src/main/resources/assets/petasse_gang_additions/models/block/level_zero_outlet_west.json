@@ -1,0 +1,33 @@
+{
+  "parent": "minecraft:block/block",
+  "textures": {
+    "plate": "petasse_gang_additions:block/level_zero_fixture_plate",
+    "detail": "petasse_gang_additions:block/level_zero_outlet_detail"
+  },
+  "elements": [
+    {
+      "from": [-0.36, 6.1, 6.6],
+      "to": [0.12, 9.9, 9.4],
+      "faces": {
+        "north": { "texture": "#plate" },
+        "south": { "texture": "#plate" },
+        "west": { "texture": "#plate" },
+        "east": { "texture": "#plate" },
+        "up": { "texture": "#plate" },
+        "down": { "texture": "#plate" }
+      }
+    },
+    {
+      "from": [-0.72, 6.85, 7.15],
+      "to": [0.28, 9.15, 8.85],
+      "faces": {
+        "north": { "texture": "#plate" },
+        "south": { "texture": "#plate" },
+        "west": { "texture": "#detail" },
+        "east": { "texture": "#plate" },
+        "up": { "texture": "#plate" },
+        "down": { "texture": "#plate" }
+      }
+    }
+  ]
+}

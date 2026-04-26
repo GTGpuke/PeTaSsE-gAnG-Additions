@@ -1,124 +1,184 @@
 # PeTaSsE_gAnG_Additions
 
-Custom content mod for the PétasseGang Minecraft server.
+Custom content mod for the PetasseGang Minecraft server.
 
 [![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
 [![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
-![MC](https://img.shields.io/badge/Minecraft-26.1-brightgreen)
-![Forge](https://img.shields.io/badge/Forge-62.0.x-orange)
+![MC](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)
+![Fabric](https://img.shields.io/badge/Fabric-0.16.9-blue)
 ![License](https://img.shields.io/badge/License-MIT-blue)
 
 ---
 
 ## Quick Start
 
-**Prérequis :** Java 25, Git. Gradle est fourni via le wrapper (`gradlew`).
+Prérequis : Java 21 et Git. Gradle est fourni via le wrapper.
 
 ```bash
 # 1. Clone
 git clone https://github.com/PetasseGang/petasse_gang_additions.git
 cd petasse_gang_additions
 
-# 2. Lancer le client Minecraft avec le mod
+# 2. Run the dev client
 ./gradlew runClient
-# → ou dans VS Code : Ctrl+Shift+B → "runClient"
 
-# 3. Build
+# 3. Build the mod
 ./gradlew build
-# → build/libs/petasse_gang_additions-0.3.0.jar
 ```
 
-> **Première fois ?** Voir [docs/SETUP.md](docs/SETUP.md) pour l'installation complète de Java 25 et la configuration VS Code.
+Les détails d'installation sont dans [docs/SETUP.md](docs/SETUP.md).
 
 ---
 
-## Structure du projet
+## Current State
 
-```
+Le projet inclut actuellement :
+
+- une installation Fabric 1.21.1 avec Fabric API,
+- une première dimension Backrooms Level 0 jouable,
+- un générateur de chunk multi-layer custom inspiré du script Python de référence,
+- des biomes cosmétiques Level 0 qui changent le papier peint et la moquette sans modifier la topologie du labyrinthe,
+- un rendu de papier peint adaptatif par face exposée, réservé aux transitions mixtes entre biomes de surface,
+- un cœur de mur en bedrock vanilla pour que le bloc adaptatif ne s'applique qu'aux surfaces visibles,
+- une pile verticale canonique Level 0 avec layers seedés indépendamment,
+- un pipeline Level 0 réorganisé et documenté par responsabilités,
+- un monitoring de performance debug pour observer les coûts en jeu,
+- le Gang Badge et le contenu de l'Arbre Maudit d'origine,
+- une suite de tests JUnit 5.
+
+---
+
+## Project Structure
+
+```text
 petasse_gang_additions/
-├── src/main/java/com/petassegang/addons/
-│   ├── PeTaSsEgAnGAdditionsMod.java   ← entry-point @Mod
-│   ├── init/ModItems.java          ← registres items
-│   ├── item/GangBadgeItem.java     ← Gang Badge (premier item)
-│   ├── creative/ModCreativeTab.java
-│   ├── config/ModConfig.java
-│   └── util/ModConstants.java
-├── src/main/resources/
-│   ├── META-INF/mods.toml
-│   └── assets/petasse_gang_additions/  ← textures, modèles, lang
-├── src/test/                       ← JUnit 5 + GameTests
-├── .github/workflows/              ← CI/CD GitHub Actions
-├── .skills/                        ← Skills Claude Code
-└── docs/                           ← Documentation complète
+|- src/main/java/com/petassegang/addons/
+|  |- PeTaSsEgAnGAdditionsMod.java
+|  |- PeTaSsEgAnGAdditionsClientMod.java
+|  |- client/
+|  |- config/
+|  |- creative/ModCreativeTab.java
+|  |- init/
+|  |  |- ModBlocks.java
+|  |  |- ModBlockEntities.java
+|  |  |- ModChunkGenerators.java
+|  |  `- ModItems.java
+|  |- item/
+|  |- network/
+|  |- util/ModConstants.java
+|  `- world/backrooms/
+|     |- BackroomsConstants.java
+|     `- level0/
+|        |- LevelZeroChunkGenerator.java
+|        |- LevelZeroLayout.java
+|        `- LevelZeroSurfaceBiome.java
+|- src/main/resources/
+|  |- fabric.mod.json
+|  |- assets/petasse_gang_additions/
+|  `- data/petasse_gang_additions/
+|- src/test/
+|- docs/
+`- build.gradle
 ```
 
 ---
 
-## Ajouter du contenu avec Claude Code
-
-Les skills dans `.skills/` guident Claude Code pas-à-pas pour chaque type de contenu.
-Il suffit de décrire ce que tu veux :
-
-```
-"Ajoute un item épée custom appelée GangSword avec un tooltip violet"
-"Crée un bloc de minerai gangite_ore avec une texture dorée"
-"Ajoute un mob PetasseMob qui drop le Gang Badge"
-"Crée une recette craft pour le Gang Badge avec des lingots d'or"
-```
-
-| Skill | Déclenche pour |
-|-------|----------------|
-| `add-item` | item, outil, arme, badge, carte, consommable |
-| `add-block` | bloc, minerai, dalle, mur, porte |
-| `add-entity` | mob, entité, boss, NPC, créature |
-| `add-dimension` | dimension, portail, monde custom |
-| `add-recipe` | recette, craft, fondre, cuisiner |
-| `add-sound` | son, bruit, musique, ambiance |
-| `add-creative-tab` | onglet créatif, catégorie d'items |
-
----
-
-## Tests
+## Main Commands
 
 ```bash
-# Tests unitaires (JUnit 5)
+# Compiler les sources principales
+./gradlew compileJava
+
+# Lancer les tests unitaires
 ./gradlew test
-# Rapport : build/reports/tests/test/index.html
 
-# Tests in-game (Forge GameTest)
-./gradlew runGameTestServer
-```
+# Lancer le client dev
+./gradlew runClient
 
----
+# Lancer le client dev avec monitoring de performance actif
+./gradlew runClient -PdebugPerformanceMonitor=true
 
-## Build & Distribution
+# Lancer le client dev avec monitoring actif et logs plus frequents
+./gradlew runClient -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
 
-```bash
-# Build le JAR
+# Build complet (produit build/libs/petasse_gang_additions-<version>-dev.jar)
 ./gradlew build
-
-# Artefact :
-build/libs/petasse_gang_additions-0.3.0.jar
 ```
-
-Pour installer sur le serveur : copier le JAR dans le dossier `mods/` du serveur.
-Tous les clients doivent avoir le même JAR.
 
 ---
 
-## CI/CD
+## Level 0 Notes
 
-- **Push** sur `main`/`develop` → build automatique
-- **Pull Request** → build + tests, bloque si test échoue
-- **Tag `v*.*.*`** → build + GitHub Release + JAR joint automatiquement
+L'implémentation actuelle du Level 0 repose sur un pipeline de layout déterministe :
 
-Pour créer une release :
+- génération de labyrinthe traduite du prototype Python de référence,
+- salles rectangulaires, salles à piliers, salles polygonales,
+- `1 cellule logique = 3×3 blocs` en monde,
+- plafond bas et éclairage fluorescent fort pour l'effet oppressif voulu.
+
+La couche de biomes cosmétiques ne modifie que l'aspect de surface. Elle ne change pas la forme du layout.
+Le rendu de papier peint adapte chaque face exposée uniquement sur les vraies transitions mixtes entre biomes de surface adjacents.
+Les murs jaunes simples et les murs blancs simples sont des blocs simples sans `BlockEntity`.
+Le masque de face exposée est calculé à la génération, stocké dans une `BlockEntity` synchronisée pour les cas mixtes uniquement, et relu par le renderer client.
+Si la `ModelData` synchronisée n'est pas encore disponible côté client, le modèle adaptatif relit d'abord les blocs de sol déjà générés, puis retombe sur l'échantillonneur déterministe en dernier recours.
+Le cœur non exposé des murs utilise de la bedrock vanilla.
+Le cache de layout est intentionnellement borné pour limiter la mémoire retenue.
+
+Les textures de blocs du Level 0 suivent la convention `32×32`.
+
+---
+
+## Testing
+
 ```bash
-git tag v0.3.0
-git push origin v0.3.0
+# Tests JUnit 5
+./gradlew test
+
+# Benchmark de performance Level 0
+./gradlew benchmarkLevelZeroGeneration
+
+# Benchmark avec budget max autorise par chunk
+./gradlew benchmarkLevelZeroGeneration -PlevelZeroPerfBudgetMsPerChunk=0.350
 ```
 
-Voir [docs/CICD.md](docs/CICD.md) pour les détails.
+Sur Windows avec un chemin de projet contenant des caractères accentués, consulter
+[docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) pour les problèmes d'encodage Gradle connus.
+
+---
+
+## Performance Debug
+
+Le mod inclut un monitoring de performance opt-in pour le runtime general et
+pour les sections profilees du pipeline Level 0.
+
+Activation rapide :
+
+```bash
+./gradlew runClient -PdebugPerformanceMonitor=true
+```
+
+Commandes utiles :
+
+```bash
+# Resume perf toutes les 5 secondes dans les logs
+./gradlew runClient -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
+
+# Monitoring actif pendant le benchmark deterministe Level 0
+./gradlew benchmarkLevelZeroGeneration -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
+```
+
+Quand le monitoring est actif :
+
+- des resumes periodiques `[perf]` sont ecrits dans les logs ;
+- le F3/debug HUD affiche une synthese courte client + serveur ;
+- les sections profilees du Level 0 remontent dans le top serveur ;
+- la RAM JVM, la charge CPU processus/systeme et les FPS client sont echantillonnes.
+
+Limites actuelles :
+
+- le GPU n'est pas exposable proprement via l'API Java/Fabric seule ;
+- le benchmark `benchmarkLevelZeroGeneration` mesure surtout le cout CPU du pipeline deterministe ;
+- sous Windows, le wrapper Gradle peut finir par `exit /b 1` meme quand `BUILD SUCCESSFUL` est bien affiche.
 
 ---
 
@@ -126,16 +186,27 @@ Voir [docs/CICD.md](docs/CICD.md) pour les détails.
 
 | Document | Description |
 |----------|-------------|
-| [docs/SETUP.md](docs/SETUP.md) | Installation complète |
+| [docs/SETUP.md](docs/SETUP.md) | Installation locale |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture et conventions |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Guide de contribution |
-| [docs/TESTING.md](docs/TESTING.md) | Guide des tests |
+| [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Plan de dépendances Backrooms |
+| [docs/DIMENSIONS.md](docs/DIMENSIONS.md) | Référence des dimensions |
+| [docs/BLOCKS.md](docs/BLOCKS.md) | Catalogue des blocs |
 | [docs/ITEMS.md](docs/ITEMS.md) | Catalogue des items |
+| [docs/TESTING.md](docs/TESTING.md) | Guide des tests |
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | Historique des versions |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Résolution de problèmes |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Problèmes courants |
 
 ---
 
-## Licence
+## Build Output
 
-MIT — voir [LICENSE](LICENSE).
+```bash
+build/libs/petasse_gang_additions-<version>.jar        # JAR non-remap (dev)
+build/libs/petasse_gang_additions-<version>-dev.jar    # JAR remappé (production)
+```
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).

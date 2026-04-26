@@ -1,0 +1,31 @@
+{
+  "_comment": "Template de reference du format multi-layer actif du Level 0.",
+  "ultrawarm": false,
+  "natural": false,
+  "coordinate_scale": 1.0,
+  "bed_works": false,
+  "respawn_anchor_works": false,
+  "has_skylight": false,
+  "has_ceiling": true,
+  "ambient_light": 0.0,
+  "piglin_safe": false,
+  "has_raids": false,
+  "monster_spawn_light_level": {
+    "type": "minecraft:uniform",
+    "value": {
+      "min_inclusive": 0,
+      "max_inclusive": 7
+    }
+  },
+  "monster_spawn_block_light_limit": 0,
+  "logical_height": 64,
+  "height": 64,
+  "min_y": 0,
+  "infiniburn": "#minecraft:infiniburn_overworld",
+  "effects": "minecraft:overworld",
+  "_notes": [
+    "Correspond a 5 layers canoniques de 10 blocs chacun dans les 50 premiers blocs utiles.",
+    "La dimension reste a 64 blocs de haut pour respecter la contrainte Minecraft height % 16 == 0.",
+    "Le fichier actif backrooms_level_0_type.json suit maintenant ce format multi-layer a 64 blocs de haut."
+  ]
+}
