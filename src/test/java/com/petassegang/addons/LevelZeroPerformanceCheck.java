@@ -4,14 +4,14 @@ import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
 
-import com.petassegang.addons.world.backrooms.BackroomsConstants;
-import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
-import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureProfile;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureResolver;
+import com.petassegang.addons.backrooms.BackroomsConstants;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroLayout;
+import com.petassegang.addons.backrooms.level.level0.biome.LevelZeroSurfaceBiome;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroCoords;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellState;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellTopology;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureProfile;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureResolver;
 
 /**
  * Benchmark local et deterministe du pipeline de generation du Level 0.

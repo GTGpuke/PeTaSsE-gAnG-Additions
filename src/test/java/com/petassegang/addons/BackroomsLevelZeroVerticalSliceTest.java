@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroLayerStackLayout;
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalSlice;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroLayerStackLayout;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroVerticalLayout;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroVerticalSlice;
 
 class BackroomsLevelZeroVerticalSliceTest {
 

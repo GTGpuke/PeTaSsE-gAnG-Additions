@@ -3,8 +3,8 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroBlockPalette;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroFoundationWriteStage;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroBlockPalette;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroFoundationWriteStage;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -36,7 +36,7 @@ class BackroomsLevelZeroFoundationWriteStageTest {
         assertNotNull(LevelZeroFoundationWriteStage.class.getDeclaredMethod(
                         "writeColumnSample",
                         net.minecraft.block.BlockState[].class,
-                        com.petassegang.addons.world.backrooms.level0.write.LevelZeroResolvedColumn.class),
+                        com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroResolvedColumn.class),
                 "Le stage des fondations doit exposer writeColumnSample.");
     }
 }

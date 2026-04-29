@@ -26,10 +26,10 @@ description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Dé
 
 ### 2. Créer la classe bloc si un comportement custom est nécessaire
 
-**Fichier :** `src/main/java/com/petassegang/addons/block/MyBlock.java`
+**Fichier :** `src/main/java/com/petassegang/addons/feature/my_feature/block/my_block/MyBlock.java`
 
 ```java
-package com.petassegang.addons.block;
+package com.petassegang.addons.feature.my_feature.block.my_block;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.AbstractBlock;
@@ -46,6 +46,11 @@ public final class MyBlock extends Block {
 ```
 
 Pour un bloc simple, utiliser directement `Block` dans `ModBlocks`.
+
+**Rangement v4 :**
+- Bloc lie a une feature : `feature/<feature>/block/<block_id>/`.
+- Bloc Backrooms Level 0 : `backrooms/level/level0/block/`.
+- Eviter de recreer un package racine `block/`.
 
 ### 3. Enregistrer le bloc dans `ModBlocks.java`
 

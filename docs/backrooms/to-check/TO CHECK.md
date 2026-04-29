@@ -18,7 +18,7 @@ Objectif de la session : nettoyage, réorganisation et optimisation **sans régr
 
 ### Exceptions pré-autorisées (validation utilisateur déjà donnée)
 
-Les actions suivantes sont **pré-autorisées** et peuvent être exécutées sans demander de confirmation à chaque fois, à condition que les critères listés soient respectés et que chaque action soit **journalisée dans `CLEANUP_LOG.md`** (cf. §9).
+Les actions suivantes sont **pré-autorisées** et peuvent être exécutées sans demander de confirmation à chaque fois, à condition que les critères listés soient respectés et que chaque action soit **journalisée dans `docs/audit/CLEANUP_LOG.md`** (cf. §9).
 
 **Exception A — Suppression de fichiers/code morts** : autorisée si **TOUS** ces critères sont remplis :
 - 0 référence trouvée par `grep` dans tout le projet (code, mixins, JSON, datagen, resources).
@@ -33,7 +33,7 @@ Les actions suivantes sont **pré-autorisées** et peuvent être exécutées san
 - Toutes les références (imports, mixins, datagen, JSON, lang) sont mises à jour dans le **même commit** que le déplacement.
 - **Aucun ID de registry** n'est modifié au passage (les `Identifier` restent identiques).
 - Le build passe (`./gradlew build`) après chaque batch de réorganisation.
-- Un récapitulatif "ancien chemin → nouveau chemin" est livré à la fin et ajouté au `CLEANUP_LOG.md`.
+- Un récapitulatif "ancien chemin → nouveau chemin" est livré à la fin et ajouté au `docs/audit/CLEANUP_LOG.md`.
 - Si pendant la réorganisation Codex découvre du code mort dans `backrooms`, l'**exception A** s'applique aussi.
 
 > Toute action **hors de ces deux exceptions** retombe sous la règle d'or n°1 (confirmation explicite obligatoire).
@@ -105,7 +105,7 @@ Les actions suivantes sont **pré-autorisées** et peuvent être exécutées san
 
 ## 6. Suppression et condensation
 
-28. **Code mort** : lister chaque candidat avec preuve (`grep` 0 référence, 0 mixin target, 0 entrée registry). Suppression **autorisée sans confirmation** si tous les critères de l'**Exception A** (§0) sont remplis ET que le résultat est journalisé dans `CLEANUP_LOG.md`. Sinon → confirmation au cas par cas.
+28. **Code mort** : lister chaque candidat avec preuve (`grep` 0 référence, 0 mixin target, 0 entrée registry). Suppression **autorisée sans confirmation** si tous les critères de l'**Exception A** (§0) sont remplis ET que le résultat est journalisé dans `docs/audit/CLEANUP_LOG.md`. Sinon → confirmation au cas par cas.
 29. **Condensation de fichiers** : autorisée **uniquement si TOUS les critères suivants sont remplis** :
     - Les deux features partagent >70% de leur logique.
     - Aucune des deux n'a de sens sans l'autre.
@@ -157,7 +157,7 @@ Les actions suivantes sont **pré-autorisées** et peuvent être exécutées san
     - Justification de chaque suppression ou condensation.
     - Risques de régression identifiés.
     - Commande de test recommandée.
-48. Tenir à jour un fichier `CLEANUP_LOG.md` à la racine, avec :
+48. Tenir à jour `docs/audit/CLEANUP_LOG.md`, avec :
     - Ce qui a été fait (date, batch, résumé).
     - Ce qui reste à faire.
     - Ce qui a été **refusé ou reporté** par l'utilisateur (avec raison).

@@ -3,14 +3,14 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalSlice;
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroVerticalLayout;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroBaseboardStyle;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroLayoutSampler;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroConnectedDetailVariant;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroWallFixture;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroWallPropProfile;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroWallPropResolver;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroVerticalSlice;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroVerticalLayout;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroBaseboardStyle;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroLayoutSampler;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroConnectedDetailVariant;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroWallFixture;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroWallPropProfile;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroWallPropResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

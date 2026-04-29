@@ -3,10 +3,10 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroConnectedDetailVariant;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroSurfaceDetail;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroSurfaceDetailProfile;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellConnections;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroConnectedDetailVariant;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroSurfaceDetail;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroSurfaceDetailProfile;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

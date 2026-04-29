@@ -108,6 +108,12 @@ Si ce n'est pas le cas : **Ctrl+Shift+P → Java: Clean Java Language Server Wor
 # Benchmark de performance Level 0
 ./gradlew benchmarkLevelZeroGeneration
 
+# Lancer le client avec le monitor de performance debug
+./gradlew runClient -PdebugPerformanceMonitor=true
+
+# Monitor de performance avec logs plus fréquents
+./gradlew runClient -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
+
 # Nettoyer le build
 ./gradlew clean
 

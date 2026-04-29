@@ -19,7 +19,7 @@ Tu démarres sans contexte sur ce projet. Lis les fichiers suivants dans cet ord
 - [`src/main/resources/fabric.mod.json`](../../src/main/resources/fabric.mod.json) — Déclaration Fabric, entrypoints, dépendances
 
 ### 4. Code source principal
-- [`src/main/java/com/petassegang/addons/util/ModConstants.java`](../../src/main/java/com/petassegang/addons/util/ModConstants.java) — MOD_ID, MOD_NAME, LOGGER
+- [`src/main/java/com/petassegang/addons/core/ModConstants.java`](../../src/main/java/com/petassegang/addons/core/ModConstants.java) — MOD_ID, MOD_NAME, LOGGER
 - [`src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java`](../../src/main/java/com/petassegang/addons/PeTaSsEgAnGAdditionsMod.java) — ModInitializer, init des registres
 - [`src/main/java/com/petassegang/addons/init/ModItems.java`](../../src/main/java/com/petassegang/addons/init/ModItems.java) — Pattern Registry.register() pour les items
 

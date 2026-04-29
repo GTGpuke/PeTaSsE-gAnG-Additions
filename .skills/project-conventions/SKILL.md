@@ -23,43 +23,48 @@ description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions (Fabric 
 com.petassegang.addons/
 |- PeTaSsEgAnGAdditionsMod.java       ← ModInitializer (entrypoint principal)
 |- PeTaSsEgAnGAdditionsClientMod.java ← ClientModInitializer (entrypoint client)
-|- block/
-|- client/
-|  `- debug/performance/
+|- backrooms/
+|  |- BackroomsConstants.java
+|  `- level/level0/
+|     |- biome/
+|     |- block/
+|     |- client/model/
+|     `- generation/
+|        |- LevelZeroChunkGenerator.java
+|        |- coord/
+|        |- layout/
+|        |  `- sector/
+|        |- noise/
+|        |- stage/
+|        |  |- biome/
+|        |  |- geometry/
+|        |  |- light/
+|        |  |- region/
+|        |  `- topology/
+|        `- write/
+|           |- profiling/
+|           `- structure/
 |- config/
+|- core/ModConstants.java
 |- creative/ModCreativeTab.java
-|- debug/performance/
+|- feature/
+|  |- cursed/item/cursed_snack/
+|  `- gang/
+|     |- client/
+|     |- item/gang_badge/
+|     `- network/c2s/
 |- init/
 |  |- ModBlockEntities.java
 |  |- ModBlocks.java
 |  |- ModChunkGenerators.java
 |  `- ModItems.java
-|- item/
 |- network/
-|- util/ModConstants.java
-`- world/backrooms/
-   |- BackroomsConstants.java
-   `- level0/
-      |- LevelZeroChunkGenerator.java
-      |- LevelZeroLayout.java
-      |- LevelZeroSurfaceBiome.java
-      |- coord/
-      |- debug/
-      |- layout/
-      |  `- sector/
-      |- stage/
-      |  |- biome/
-      |  |- geometry/
-      |  |- light/
-      |  |- region/
-      |  `- topology/
-      `- write/
-         |- profiling/
-         `- structure/
+`- perf/section/
+   `- client/
 ```
 
 Pour le Level 0, l'arborescence ci-dessus doit rester lisible et refléter la séparation
-actuelle `coord / layout / stage / write / debug`.
+actuelle `coord / layout / noise / stage / write / debug`.
 
 ## Conventions de nommage
 
@@ -124,11 +129,11 @@ Ordre attendu :
 - Commentaires, logs et messages d'erreur en français, avec majuscule et point.
 - Code client uniquement dans `client/` ou sous `@Environment(EnvType.CLIENT)`.
 - Utiliser `Text.translatable(...)` pour tout texte visible en jeu.
-- Les batches touchant `world/backrooms/` doivent relire :
+- Les batches touchant `backrooms/level/level0/` doivent relire :
   `docs/backrooms/backrooms-level0-roadmap.md`,
   `docs/backrooms/backrooms-level0-pipeline-v6.md`
   et `docs/backrooms/to-check/TO CHECK.md`.
-- Toute réorganisation interne du Level 0 doit être journalisée dans `CLEANUP_LOG.md`.
+- Toute réorganisation interne du Level 0 doit être journalisée dans `docs/audit/CLEANUP_LOG.md`.
 - Le monitor de performance reste un outil debug opt-in ; ne jamais le traiter comme
   une feature gameplay.
 - Les textures de blocs du Level 0 suivent la convention locale `32×32`.

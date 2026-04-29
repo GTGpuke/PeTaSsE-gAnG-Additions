@@ -3,9 +3,9 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroBlockPalette;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroColumnMaterial;
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroResolvedColumnResolver;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroBlockPalette;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroColumnMaterial;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroResolvedColumnResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

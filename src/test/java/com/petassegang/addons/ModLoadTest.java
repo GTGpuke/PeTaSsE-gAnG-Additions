@@ -1,6 +1,6 @@
 package com.petassegang.addons;
 
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.core.ModConstants;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 

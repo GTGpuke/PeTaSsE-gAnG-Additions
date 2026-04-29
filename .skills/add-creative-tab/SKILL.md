@@ -56,7 +56,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import com.petassegang.addons.init.ModItems;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.core.ModConstants;
 
 public final class ModCreativeTab {
 

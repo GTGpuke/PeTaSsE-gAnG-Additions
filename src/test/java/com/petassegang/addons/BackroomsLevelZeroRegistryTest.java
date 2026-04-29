@@ -3,10 +3,10 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
+import com.petassegang.addons.backrooms.level.level0.block.LevelZeroWallpaperBlock;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModItems;
-import com.petassegang.addons.world.backrooms.level0.LevelZeroChunkGenerator;
+import com.petassegang.addons.backrooms.level.level0.generation.LevelZeroChunkGenerator;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

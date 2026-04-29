@@ -1,6 +1,6 @@
 package com.petassegang.addons.init;
 
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.core.ModConstants;
 
 /**
  * Registre des block entities du mod.

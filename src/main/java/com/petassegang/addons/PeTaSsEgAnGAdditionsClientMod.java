@@ -4,12 +4,12 @@ import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
-import com.petassegang.addons.client.debug.performance.ClientPerformanceMonitorHook;
-import com.petassegang.addons.client.handler.GangBadgeClientHandler;
-import com.petassegang.addons.client.model.backrooms.LevelZeroBaseboardModelHandler;
-import com.petassegang.addons.client.model.backrooms.LevelZeroWallpaperModelHandler;
-import com.petassegang.addons.network.packet.GangBadgeActivatePayload;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.perf.section.client.ClientPerformanceMonitorHook;
+import com.petassegang.addons.feature.gang.client.GangBadgeClientHandler;
+import com.petassegang.addons.backrooms.level.level0.client.model.LevelZeroBaseboardModelHandler;
+import com.petassegang.addons.backrooms.level.level0.client.model.LevelZeroWallpaperModelHandler;
+import com.petassegang.addons.feature.gang.network.c2s.GangBadgeActivatePayload;
+import com.petassegang.addons.core.ModConstants;
 
 /**
  * Point d'entree client du mod PeTaSsE_gAnG_Additions.

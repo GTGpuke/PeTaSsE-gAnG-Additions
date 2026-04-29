@@ -4,15 +4,15 @@ import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
-import com.petassegang.addons.debug.performance.ModPerformanceMonitor;
+import com.petassegang.addons.perf.section.ModPerformanceMonitor;
 import com.petassegang.addons.creative.ModCreativeTab;
 import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModChunkGenerators;
 import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.network.ModNetworking;
-import com.petassegang.addons.util.ModConstants;
-import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
+import com.petassegang.addons.core.ModConstants;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroLayout;
 
 /**
  * Point d'entree commun du mod PeTaSsE_gAnG_Additions (Fabric).

@@ -4,8 +4,8 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
-import com.petassegang.addons.util.ModConstants;
-import com.petassegang.addons.world.backrooms.level0.LevelZeroChunkGenerator;
+import com.petassegang.addons.core.ModConstants;
+import com.petassegang.addons.backrooms.level.level0.generation.LevelZeroChunkGenerator;
 
 /**
  * Registre des codecs de generateurs de chunks custom du mod.

@@ -9,7 +9,7 @@ import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
 import com.petassegang.addons.init.ModItems;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.core.ModConstants;
 
 /**
  * Onglet creatif personnalise pour PeTaSsE_gAnG_Additions.

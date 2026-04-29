@@ -76,7 +76,7 @@ public class MyEntity extends PathAwareEntity {
 package com.petassegang.addons.init;
 
 import com.petassegang.addons.entity.MyEntity;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.core.ModConstants;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.registry.Registries;

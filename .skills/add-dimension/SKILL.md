@@ -129,6 +129,9 @@ public static final MapCodec<LevelZeroChunkGenerator> LEVEL_ZERO =
                 LevelZeroChunkGenerator.CODEC);
 ```
 
+Dans l'arborescence v4, un generateur de niveau Backrooms doit rester dans
+`backrooms/level/<level_id>/generation/`, avec ses helpers proches de sa feature.
+
 ---
 
 ## Checklist finale

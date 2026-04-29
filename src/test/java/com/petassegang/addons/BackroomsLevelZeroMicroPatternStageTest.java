@@ -3,13 +3,13 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellContext;
-import com.petassegang.addons.world.backrooms.level0.stage.geometry.LevelZeroLegacyMicroPatternStage;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellConnections;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellMicroPattern;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellTopology;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroGeometryFeature;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroGeometryMask;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroCellContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.geometry.LevelZeroLegacyMicroPatternStage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

@@ -3,8 +3,8 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellContext;
-import com.petassegang.addons.world.backrooms.level0.stage.topology.LevelZeroLargeRoomStage;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroCellContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.topology.LevelZeroLargeRoomStage;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 

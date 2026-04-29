@@ -6,6 +6,17 @@ Versioning follows [Semantic Versioning](https://semver.org/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **Architecture v4** : alignement de la documentation publique et des skills sur la nouvelle arborescence.
+  - `ModConstants` est documente dans `core/`.
+  - Les contenus Gang et Cursed sont documentes sous `feature/`.
+  - Le Level 0 est documente sous `backrooms/level/level0/`.
+  - Le monitoring de performance debug est documente sous `perf/section/`.
+
+---
+
 ## [0.7.0] - 2026-04-21
 
 ### Changed

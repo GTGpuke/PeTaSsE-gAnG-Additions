@@ -9,7 +9,7 @@ Catalogue de tous les items du mod.
 | Propriété | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:gang_badge` |
-| Classe | `com.petassegang.addons.item.GangBadgeItem` |
+| Classe | `com.petassegang.addons.feature.gang.item.gang_badge.GangBadgeItem` |
 | Rareté | EPIC (nom violet) |
 | Stack max | 1 |
 | Glint (foil) | Toujours activé (`hasGlint()` → `true`) |
@@ -36,7 +36,9 @@ Gang Badge
 ### Fichiers associés
 | Fichier | Rôle |
 |---------|------|
-| `item/GangBadgeItem.java` | Logique (tooltip, hasGlint, use) |
+| `feature/gang/item/gang_badge/GangBadgeItem.java` | Logique (tooltip, hasGlint, use) |
+| `feature/gang/network/c2s/GangBadgeActivatePayload.java` | Paquet C2S de déclenchement |
+| `feature/gang/client/GangBadgeClientHandler.java` | Animation client |
 | `init/ModItems.java` | Enregistrement via `Registry.register()` |
 | `items/gang_badge.json` | Définition de rendu MC 1.21.1 |
 | `models/item/gang_badge.json` | Modèle 3D |
@@ -51,7 +53,7 @@ Gang Badge
 | Propriété | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:cursed_snack` |
-| Classe | `com.petassegang.addons.item.CursedSnackItem` |
+| Classe | `com.petassegang.addons.feature.cursed.item.cursed_snack.CursedSnackItem` |
 | Rareté | COMMON |
 | Stack max | 16 |
 | Consommable | Oui — animation `EAT`, toujours mangeable |
@@ -66,7 +68,7 @@ Peut être mangé même le ventre plein (`alwaysEdible()` dans `FoodComponent`).
 ### Fichiers associés
 | Fichier | Rôle |
 |---------|------|
-| `item/CursedSnackItem.java` | Logique (`finishUsing`, tooltip) |
+| `feature/cursed/item/cursed_snack/CursedSnackItem.java` | Logique (`finishUsing`, tooltip) |
 | `init/ModItems.java` | Enregistrement |
 | `items/cursed_snack.json` | Définition de rendu MC 1.21.1 |
 | `models/item/cursed_snack.json` | Modèle 2D (`item/generated`) |

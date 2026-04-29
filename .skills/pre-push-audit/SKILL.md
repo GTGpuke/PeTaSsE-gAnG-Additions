@@ -32,12 +32,12 @@ description: "Audit pré-push obligatoire avant tout commit final, push ou décl
   - `./gradlew compileTestJava --stacktrace`
   - `./gradlew test --stacktrace`
   - `./gradlew runClient`
-- Pour tout audit touchant `world/backrooms/`, relire avant l'audit :
+- Pour tout audit touchant `backrooms/level/level0/`, relire avant l'audit :
   - `docs/backrooms/backrooms-level0-roadmap.md`
   - `docs/backrooms/backrooms-level0-pipeline-v6.md`
   - `docs/backrooms/to-check/TO CHECK.md`
 - Toute suppression ou réorganisation réellement effectuée pendant l'audit doit
-  être journalisée dans `CLEANUP_LOG.md`.
+  être journalisée dans `docs/audit/CLEANUP_LOG.md`.
 
 ### Workflow :
 ```

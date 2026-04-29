@@ -5,20 +5,20 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.LevelZeroLayout;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroChunkCellWindow;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellState;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionGrid;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionLayout;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionLayoutBuilder;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionWalkability;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorWalkabilitySampler;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorData;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorGenerator;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayoutPipeline;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroRegionContext;
-import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionLayoutStage;
-import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionWalkabilityStage;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroLayout;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroChunkCellWindow;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellState;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroRegionGrid;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroRegionLayout;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroRegionLayoutBuilder;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroRegionWalkability;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorWalkabilitySampler;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorData;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorGenerator;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroLegacyLayoutPipeline;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroRegionContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.region.LevelZeroLegacyRegionLayoutStage;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.region.LevelZeroLegacyRegionWalkabilityStage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
