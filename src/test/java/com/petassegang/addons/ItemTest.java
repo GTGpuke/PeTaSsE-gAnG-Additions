@@ -5,7 +5,7 @@ import net.minecraft.util.TypedActionResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.item.GangBadgeItem;
+import com.petassegang.addons.feature.gang.item.gang_badge.GangBadgeItem;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

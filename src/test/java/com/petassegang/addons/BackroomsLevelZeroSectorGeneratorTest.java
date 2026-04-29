@@ -3,9 +3,9 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorData;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorGenerator;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorData;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorGenerator;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorRoomKind;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;

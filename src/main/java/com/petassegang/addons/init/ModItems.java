@@ -8,9 +8,9 @@ import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Rarity;
 
-import com.petassegang.addons.item.CursedSnackItem;
-import com.petassegang.addons.item.GangBadgeItem;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.feature.cursed.item.cursed_snack.CursedSnackItem;
+import com.petassegang.addons.feature.gang.item.gang_badge.GangBadgeItem;
+import com.petassegang.addons.core.ModConstants;
 
 /**
  * Registre central des items pour PeTaSsE_gAnG_Additions.

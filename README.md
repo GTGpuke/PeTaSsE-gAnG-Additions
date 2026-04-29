@@ -55,23 +55,34 @@ petasse_gang_additions/
 |- src/main/java/com/petassegang/addons/
 |  |- PeTaSsEgAnGAdditionsMod.java
 |  |- PeTaSsEgAnGAdditionsClientMod.java
-|  |- client/
+|  |- backrooms/
+|  |  |- BackroomsConstants.java
+|  |  `- level/level0/
+|  |     |- biome/LevelZeroSurfaceBiome.java
+|  |     |- block/
+|  |     |- client/model/
+|  |     `- generation/
+|  |        |- LevelZeroChunkGenerator.java
+|  |        |- layout/LevelZeroLayout.java
+|  |        |- stage/
+|  |        |- write/
+|  |        `- noise/
 |  |- config/
+|  |- core/ModConstants.java
 |  |- creative/ModCreativeTab.java
+|  |- feature/
+|  |  |- cursed/item/cursed_snack/CursedSnackItem.java
+|  |  `- gang/
+|  |     |- client/GangBadgeClientHandler.java
+|  |     |- item/gang_badge/GangBadgeItem.java
+|  |     `- network/c2s/GangBadgeActivatePayload.java
 |  |- init/
 |  |  |- ModBlocks.java
 |  |  |- ModBlockEntities.java
 |  |  |- ModChunkGenerators.java
 |  |  `- ModItems.java
-|  |- item/
 |  |- network/
-|  |- util/ModConstants.java
-|  `- world/backrooms/
-|     |- BackroomsConstants.java
-|     `- level0/
-|        |- LevelZeroChunkGenerator.java
-|        |- LevelZeroLayout.java
-|        `- LevelZeroSurfaceBiome.java
+|  `- perf/section/
 |- src/main/resources/
 |  |- fabric.mod.json
 |  |- assets/petasse_gang_additions/
@@ -101,7 +112,7 @@ petasse_gang_additions/
 # Lancer le client dev avec monitoring actif et logs plus frequents
 ./gradlew runClient -PdebugPerformanceMonitor=true -PperformanceLogIntervalSeconds=5
 
-# Build complet (produit build/libs/petasse_gang_additions-<version>-dev.jar)
+# Build complet (produit build/libs/petasse_gang_additions-<version>.jar)
 ./gradlew build
 ```
 
@@ -125,6 +136,10 @@ Le cœur non exposé des murs utilise de la bedrock vanilla.
 Le cache de layout est intentionnellement borné pour limiter la mémoire retenue.
 
 Les textures de blocs du Level 0 suivent la convention `32×32`.
+
+Les classes Java du Level 0 gardent le prefixe historique `LevelZero*` pour
+eviter un renommage massif inutile ; l'arborescence v4 les range toutefois sous
+`backrooms/level/level0/`.
 
 ---
 
@@ -186,6 +201,7 @@ Limites actuelles :
 
 | Document | Description |
 |----------|-------------|
+| [docs/INDEX.md](docs/INDEX.md) | Index complet de la documentation |
 | [docs/SETUP.md](docs/SETUP.md) | Installation locale |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture et conventions |
 | [docs/DEPENDENCIES.md](docs/DEPENDENCIES.md) | Plan de dépendances Backrooms |
@@ -201,8 +217,8 @@ Limites actuelles :
 ## Build Output
 
 ```bash
-build/libs/petasse_gang_additions-<version>.jar        # JAR non-remap (dev)
-build/libs/petasse_gang_additions-<version>-dev.jar    # JAR remappé (production)
+build/libs/petasse_gang_additions-<version>.jar          # JAR principal remappé
+build/libs/petasse_gang_additions-<version>-sources.jar  # Sources
 ```
 
 ---

@@ -3,12 +3,13 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellContext;
-import com.petassegang.addons.world.backrooms.level0.stage.geometry.LevelZeroLegacyMicroPatternStage;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellConnections;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellMicroPattern;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellTopology;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroGeometryFeature;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroGeometryMask;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroCellContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.geometry.LevelZeroLegacyMicroPatternStage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -46,5 +47,43 @@ class BackroomsLevelZeroMicroPatternStageTest {
 
         assertEquals(LevelZeroCellMicroPattern.FULL_OPEN, pattern,
                 "Sans variante geometrique, une cellule traversable doit rester pleinement ouverte.");
+    }
+
+    @Test
+    @DisplayName("Un gap vertical garde uniquement une colonne ouverte")
+    void testVerticalGapKeepsSingleOpenColumn() {
+        LevelZeroLegacyMicroPatternStage stage = new LevelZeroLegacyMicroPatternStage();
+        int mask = LevelZeroGeometryMask.with(LevelZeroGeometryMask.none(), LevelZeroGeometryFeature.GAP_MIDDLE);
+
+        int pattern = stage.sample(
+                new LevelZeroCellContext(8, -4, 12345L),
+                LevelZeroCellTopology.CORRIDOR,
+                LevelZeroCellConnections.NORTH | LevelZeroCellConnections.SOUTH,
+                mask);
+
+        int expected = LevelZeroCellMicroPattern.bit(1, 0)
+                | LevelZeroCellMicroPattern.bit(1, 1)
+                | LevelZeroCellMicroPattern.bit(1, 2);
+        assertEquals(expected, pattern,
+                "Un gap vertical doit ouvrir une seule colonne de 1x3.");
+    }
+
+    @Test
+    @DisplayName("Un gap horizontal garde uniquement une ligne ouverte")
+    void testHorizontalGapKeepsSingleOpenRow() {
+        LevelZeroLegacyMicroPatternStage stage = new LevelZeroLegacyMicroPatternStage();
+        int mask = LevelZeroGeometryMask.with(LevelZeroGeometryMask.none(), LevelZeroGeometryFeature.GAP_RIGHT);
+
+        int pattern = stage.sample(
+                new LevelZeroCellContext(8, -4, 12345L),
+                LevelZeroCellTopology.CORRIDOR,
+                LevelZeroCellConnections.EAST | LevelZeroCellConnections.WEST,
+                mask);
+
+        int expected = LevelZeroCellMicroPattern.bit(0, 2)
+                | LevelZeroCellMicroPattern.bit(1, 2)
+                | LevelZeroCellMicroPattern.bit(2, 2);
+        assertEquals(expected, pattern,
+                "Un gap horizontal doit ouvrir une seule ligne de 1x3.");
     }
 }

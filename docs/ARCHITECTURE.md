@@ -32,6 +32,9 @@ com.petassegang.addons/
 |-- PeTaSsEgAnGAdditionsMod.java        <- ModInitializer — point d'entrée principal
 |-- PeTaSsEgAnGAdditionsClientMod.java  <- ClientModInitializer — entrée client uniquement
 |
+|-- core/
+|   `-- ModConstants.java               <- MOD_ID, MOD_NAME, LOGGER central
+|
 |-- config/
 |   `-- ModConfig.java                  <- Constantes de configuration (plain booleans)
 |
@@ -44,38 +47,33 @@ com.petassegang.addons/
 |   |-- ModChunkGenerators.java         <- Registry.register(Registries.CHUNK_GENERATOR, ...)
 |   `-- ModItems.java                   <- Registry.register(Registries.ITEM, ...)
 |
-|-- item/                               <- Classes d'items custom
-|   |-- CursedSnackItem.java
-|   `-- GangBadgeItem.java
+|-- feature/                            <- Features gameplay rangees verticalement
+|   |-- gang/
+|   |   |-- item/gang_badge/GangBadgeItem.java
+|   |   |-- network/c2s/GangBadgeActivatePayload.java
+|   |   `-- client/GangBadgeClientHandler.java
+|   `-- cursed/
+|       `-- item/cursed_snack/CursedSnackItem.java
 |
-|-- block/                              <- Classes de blocs custom
-|   |-- LevelZeroWallpaperBlock.java    <- Bloc technique adaptatif (BlockEntity)
-|   `-- entity/
-|       `-- LevelZeroWallpaperBlockEntity.java <- BlockEntity pour le faceMask adaptatif
+|-- backrooms/                          <- Feature Backrooms
+|   |-- BackroomsConstants.java         <- IDs et hauteurs du Level 0
+|   `-- level/level0/
+|       |-- biome/LevelZeroSurfaceBiome.java
+|       |-- block/                      <- Blocs propres au Level 0
+|       |-- client/model/               <- Model handlers client du Level 0
+|       `-- generation/
+|           |-- LevelZeroChunkGenerator.java
+|           |-- layout/LevelZeroLayout.java
+|           |-- stage/
+|           |-- write/
+|           `-- noise/
 |
 |-- network/                            <- Packets réseau
-|   |-- ModNetworking.java
-|   `-- packet/
-|       `-- GangBadgeActivatePayload.java
+|   `-- ModNetworking.java
 |
-|-- world/
-|   `-- backrooms/
-|       |-- BackroomsConstants.java      <- IDs et hauteurs du Level 0
-|       `-- level0/
-|           |-- LevelZeroChunkGenerator.java  <- Génération monocouche
-|           |-- LevelZeroLayout.java          <- Traduction déterministe du script Python
-|           `-- LevelZeroSurfaceBiome.java    <- Biomes cosmétiques internes (BASE, RED)
-|
-|-- client/                             <- Handlers, renderers, GUI (CLIENT uniquement)
-|   |-- handler/
-|   |   `-- GangBadgeClientHandler.java
-|   `-- model/
-|       |-- LevelZeroWallpaperBlockStateModel.java
-|       |-- LevelZeroWallpaperBakedModel.java
-|       `-- LevelZeroWallpaperModelHandler.java
-|
-`-- util/
-    `-- ModConstants.java               <- MOD_ID, MOD_NAME, LOGGER central
+`-- perf/section/                       <- Monitoring debug opt-in
+    |-- ModPerformanceMonitor.java
+    `-- client/ClientPerformanceMonitorHook.java
 ```
 
 ---
@@ -128,9 +126,9 @@ JVM load -> static fields exécutés (Registration immédiate)
 
 | Règle | Détail |
 |-------|--------|
-| Tout code dans `item/`, `block/`, `init/` | Compatible dedicated server |
+| Tout code dans `feature/*`, `backrooms/*`, `init/` hors sous-dossier client | Compatible dedicated server |
 | `@Environment(EnvType.CLIENT)` | Pour renderers, GUI, particles |
-| Package `client/` | Tout ce qui est client-only |
+| Dossiers `client/` sous une feature | Tout ce qui est client-only pour cette feature |
 | Jamais de `MinecraftClient.getInstance()` hors CLIENT | Évite les crashs serveur |
 | `ClientModInitializer` séparé | Point d'entrée client dédié |
 
@@ -143,7 +141,7 @@ JVM load -> static fields exécutés (Registration immédiate)
 | Classe | PascalCase | `GangBadgeItem` |
 | Méthode | camelCase | `appendTooltip()` |
 | Constante | UPPER_SNAKE_CASE | `MOD_ID`, `GANG_BADGE` |
-| Package | lowercase | `com.petassegang.addons.item` |
+| Package | lowercase | `com.petassegang.addons.feature.gang.item.gang_badge` |
 | Mod ID | lowercase_snake | `petasse_gang_additions` |
 | Resource path | lowercase_snake | `gang_badge` |
 | Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
@@ -155,7 +153,7 @@ JVM load -> static fields exécutés (Registration immédiate)
 ## Flow d'ajout de contenu
 
 ### Item
-1. `item/MyCustomItem.java`
+1. `feature/<feature>/item/<item_id>/MyCustomItem.java`
 2. `init/ModItems.java` — `Registry.register(Registries.ITEM, ...)`
 3. `creative/ModCreativeTab.java` — `FabricItemGroupEvents.modifyEntriesEvent()`
 4. `assets/.../models/item/my_item.json`
@@ -165,7 +163,7 @@ JVM load -> static fields exécutés (Registration immédiate)
 8. `src/test/.../ItemTest.java`
 
 ### Block
-1. `block/MyCustomBlock.java`
+1. `feature/<feature>/block/<block_id>/MyCustomBlock.java`
 2. `init/ModBlocks.java` — `Registry.register(Registries.BLOCK, ...)`
 3. `init/ModItems.java` — `BlockItem` pour le block item
 4. `assets/.../blockstates/my_block.json`

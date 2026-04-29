@@ -11,14 +11,18 @@ Catalogue de toutes les dimensions custom du mod.
 | ID complet | `petasse_gang_additions:backrooms_level_0` |
 | Portail | Aucun pour l'instant |
 | Biome(s) | `minecraft:the_void` |
-| Génération | `LevelZeroChunkGenerator` monocouche |
+| Génération | `LevelZeroChunkGenerator` multi-layer |
 | Gravité | normale |
 | Ciel | noir, sans skybox |
 
 ### Description
 
 Première passe du Level 0 basée sur le script Python de référence.
-Le niveau génère un labyrinthe monocouche de couloirs et de salles via :
+Le niveau génère un labyrinthe déterministe par layer, avec une pile verticale
+canonique et des slices seedées indépendamment. Chaque layer réutilise le coeur
+historique du layout pour garantir une topologie stable.
+
+Le layout combine :
 - superposition de maze,
 - salles rectangulaires,
 - salles à piliers,
@@ -26,9 +30,10 @@ Le niveau génère un labyrinthe monocouche de couloirs et de salles via :
 
 ### Fichiers principaux
 
-- `src/main/java/com/petassegang/addons/world/backrooms/BackroomsConstants.java`
-- `src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroChunkGenerator.java`
-- `src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroLayout.java`
+- `src/main/java/com/petassegang/addons/backrooms/BackroomsConstants.java`
+- `src/main/java/com/petassegang/addons/backrooms/level/level0/generation/LevelZeroChunkGenerator.java`
+- `src/main/java/com/petassegang/addons/backrooms/level/level0/generation/layout/LevelZeroLayout.java`
+- `src/main/java/com/petassegang/addons/backrooms/level/level0/biome/LevelZeroSurfaceBiome.java`
 - `src/main/resources/data/petasse_gang_additions/dimension/backrooms_level_0.json`
 - `src/main/resources/data/petasse_gang_additions/dimension_type/backrooms_level_0_type.json`
 - `docs/dimensions/backrooms-level0-dimension-type-multilayer.json`

@@ -85,29 +85,36 @@ Sous-taches :
 Arborescence cible conseillee :
 
 ```text
-world/backrooms/level0/
+backrooms/level/level0/
+|- biome/
+|  `- LevelZeroSurfaceBiome.java
+|- block/
+|- client/model/
+`- generation/
 |- LevelZeroChunkGenerator.java
-|- LevelZeroSettings.java
 |- coord/
 |  |- LevelZeroCoords.java
 |  `- LevelZeroVerticalLayout.java
 |- noise/
 |  `- StageRandom.java
 |- layout/
-|  |- LevelZeroLayout.java              // facade legacy temporaire
+|  |- LevelZeroLayout.java              // facade du coeur historique stable
 |  |- LevelZeroRegionLayout.java
 |  `- LevelZeroChunkSlice.java
 |- stage/
-|  |- LevelZeroStage.java
-|  |- maze/...
 |  |- biome/...
+|  |- geometry/...
 |  |- light/...
-|  |- detail/...
-|  `- structure/...
+|  |- region/...
+|  `- topology/...
 `- write/
    |- LevelZeroBlockPalette.java
+   |- structure/...
    `- LevelZeroBlockWriter.java
 ```
+
+Note : les classes gardent le prefixe `LevelZero*` pour limiter le bruit de refactor,
+meme si l'arborescence v4 les range sous `level0`.
 
 Validation :
 

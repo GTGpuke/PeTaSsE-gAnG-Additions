@@ -3,13 +3,13 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.coord.LevelZeroCoords;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureCellRole;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureGameplayPointKind;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureKind;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureProfile;
-import com.petassegang.addons.world.backrooms.level0.write.structure.LevelZeroStructureResolver;
+import com.petassegang.addons.backrooms.level.level0.generation.coord.LevelZeroCoords;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorRoomKind;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureCellRole;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureGameplayPointKind;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureKind;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureProfile;
+import com.petassegang.addons.backrooms.level.level0.generation.write.structure.LevelZeroStructureResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

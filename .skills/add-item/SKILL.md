@@ -31,10 +31,10 @@ description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions (Fabric 1.21.
 
 ### 2. Créer la classe item
 
-**Fichier :** `src/main/java/com/petassegang/addons/item/MyItem.java`
+**Fichier :** `src/main/java/com/petassegang/addons/feature/my_feature/item/my_item/MyItem.java`
 
 ```java
-package com.petassegang.addons.item;
+package com.petassegang.addons.feature.my_feature.item.my_item;
 
 import java.util.List;
 
@@ -75,6 +75,11 @@ public class MyItem extends Item {
 ```
 
 **Pour un item simple sans comportement custom :** inutile de créer une classe, utiliser directement `Item` dans ModItems.
+
+**Rangement v4 :**
+- Item lie a une feature : `feature/<feature>/item/<item_id>/`.
+- Item Backrooms Level 0 : `backrooms/level/level0/...` si le code est specifique a ce niveau.
+- Eviter de recreer un package racine `item/`.
 
 ---
 
@@ -238,7 +243,7 @@ void testMyItemStackSize() {
 
 ## Checklist finale
 
-- [ ] Classe `item/MyItem.java` créée (ou pas nécessaire si item simple)
+- [ ] Classe `feature/<feature>/item/<item_id>/MyItem.java` créée (ou pas nécessaire si item simple)
 - [ ] `init/ModItems.java` — champ `static final` ajouté avec `Registry.register()`
 - [ ] `creative/ModCreativeTab.java` — `entries.add()` ajouté
 - [ ] `items/my_item_id.json` créé (obligatoire MC 1.21.1 — sinon carré violet)

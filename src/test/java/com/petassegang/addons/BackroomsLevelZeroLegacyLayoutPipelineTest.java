@@ -3,19 +3,19 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellMicroPattern;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryFeature;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionWalkability;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellContext;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellEvaluation;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroLegacyLayoutPipeline;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroRegionContext;
-import com.petassegang.addons.world.backrooms.level0.stage.region.LevelZeroLegacyRegionWalkabilityStage;
+import com.petassegang.addons.backrooms.level.level0.biome.LevelZeroSurfaceBiome;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellConnections;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellTopology;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellMicroPattern;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroGeometryFeature;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroGeometryMask;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroRegionWalkability;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorRoomKind;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroCellContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroCellEvaluation;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroLegacyLayoutPipeline;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroRegionContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.region.LevelZeroLegacyRegionWalkabilityStage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -96,7 +96,7 @@ class BackroomsLevelZeroLegacyLayoutPipelineTest {
         LevelZeroLegacyLayoutPipeline pipeline = new LevelZeroLegacyLayoutPipeline(7);
         LevelZeroCellContext context = new LevelZeroCellContext(5, 9, 24680L);
         LevelZeroRegionWalkability walkability = new LevelZeroLegacyRegionWalkabilityStage((x, z) -> x == 5 && z >= 8 && z <= 10)
-                .sample(new LevelZeroRegionContext(new com.petassegang.addons.world.backrooms.level0.layout.LevelZeroChunkCellWindow(0, 0, 4, 8, 6, 10), 24680L));
+                .sample(new LevelZeroRegionContext(new com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroChunkCellWindow(0, 0, 4, 8, 6, 10), 24680L));
         LevelZeroCellEvaluation evaluation = pipeline.evaluateCell(context, walkability);
 
         assertEquals(context, evaluation.context(),
@@ -131,7 +131,7 @@ class BackroomsLevelZeroLegacyLayoutPipelineTest {
         LevelZeroLegacyLayoutPipeline disabledPipeline = new LevelZeroLegacyLayoutPipeline(7, false);
         LevelZeroLegacyLayoutPipeline enabledPipeline = new LevelZeroLegacyLayoutPipeline(7, true);
         LevelZeroRegionWalkability walkability = new LevelZeroLegacyRegionWalkabilityStage((x, z) -> x == 17 && z >= -4 && z <= -2)
-                .sample(new LevelZeroRegionContext(new com.petassegang.addons.world.backrooms.level0.layout.LevelZeroChunkCellWindow(0, 0, 16, -4, 18, -2), 778899L));
+                .sample(new LevelZeroRegionContext(new com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroChunkCellWindow(0, 0, 16, -4, 18, -2), 778899L));
 
         LevelZeroCellEvaluation disabledEvaluation = disabledPipeline.evaluateCell(
                 new LevelZeroCellContext(17, -3, 778899L),
@@ -157,7 +157,7 @@ class BackroomsLevelZeroLegacyLayoutPipelineTest {
         LevelZeroRegionWalkability walkability = new LevelZeroLegacyRegionWalkabilityStage(
                 (x, z) -> x == 18 && z >= -4 && z <= 4)
                 .sample(new LevelZeroRegionContext(
-                        new com.petassegang.addons.world.backrooms.level0.layout.LevelZeroChunkCellWindow(0, 0, 17, -5, 19, 5),
+                        new com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroChunkCellWindow(0, 0, 17, -5, 19, 5),
                         778899L));
         boolean foundLightedCell = false;
 

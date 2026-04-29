@@ -14,9 +14,9 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
-import com.petassegang.addons.block.backrooms.LevelZeroBaseboardBlock;
-import com.petassegang.addons.block.backrooms.LevelZeroWallpaperBlock;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.backrooms.level.level0.block.LevelZeroBaseboardBlock;
+import com.petassegang.addons.backrooms.level.level0.block.LevelZeroWallpaperBlock;
+import com.petassegang.addons.core.ModConstants;
 
 /**
  * Registre central des blocs pour PeTaSsE_gAnG_Additions.

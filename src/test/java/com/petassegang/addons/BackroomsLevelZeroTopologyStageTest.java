@@ -3,12 +3,12 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellConnections;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroCellTopology;
-import com.petassegang.addons.world.backrooms.level0.layout.LevelZeroRegionWalkability;
-import com.petassegang.addons.world.backrooms.level0.layout.sector.LevelZeroSectorRoomKind;
-import com.petassegang.addons.world.backrooms.level0.stage.LevelZeroCellContext;
-import com.petassegang.addons.world.backrooms.level0.stage.topology.LevelZeroLegacyTopologyStage;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellConnections;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroCellTopology;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.LevelZeroRegionWalkability;
+import com.petassegang.addons.backrooms.level.level0.generation.layout.sector.LevelZeroSectorRoomKind;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.LevelZeroCellContext;
+import com.petassegang.addons.backrooms.level.level0.generation.stage.topology.LevelZeroLegacyTopologyStage;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

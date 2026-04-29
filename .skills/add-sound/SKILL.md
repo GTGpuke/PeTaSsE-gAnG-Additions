@@ -63,7 +63,7 @@ La clé (`"item.gang_badge.equip"`) devient la partie après `petasse_gang_addit
 ```java
 package com.petassegang.addons.init;
 
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.core.ModConstants;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.sound.SoundEvent;

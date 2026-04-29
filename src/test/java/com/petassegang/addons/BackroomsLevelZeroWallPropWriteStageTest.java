@@ -3,7 +3,7 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.world.backrooms.level0.write.LevelZeroWallPropWriteStage;
+import com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroWallPropWriteStage;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
@@ -42,7 +42,7 @@ class BackroomsLevelZeroWallPropWriteStageTest {
         assertNotNull(LevelZeroWallPropWriteStage.class.getDeclaredMethod(
                         "writeColumnSample",
                         net.minecraft.block.BlockState[].class,
-                        com.petassegang.addons.world.backrooms.level0.write.LevelZeroResolvedColumn.class),
+                        com.petassegang.addons.backrooms.level.level0.generation.write.LevelZeroResolvedColumn.class),
                 "Le stage des details muraux doit exposer writeColumnSample.");
     }
 }

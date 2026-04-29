@@ -43,7 +43,7 @@ Bloc simple blanc réservé au second biome de surface. Sert aussi de source de 
 | Propriété | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:level_zero_wallpaper_adaptive` |
-| Classe | `com.petassegang.addons.block.LevelZeroWallpaperBlock` |
+| Classe | `com.petassegang.addons.backrooms.level.level0.block.LevelZeroWallpaperBlock` |
 | Hardness | 3.0 |
 | Blast resistance | 9.0 |
 | Luminosité | 0 |
@@ -121,7 +121,7 @@ Voir [docs/ITEMS.md](ITEMS.md) pour le catalogue des blocs de l'Arbre Maudit (`c
 | Propriété | Valeur |
 |-----------|--------|
 | ID complet | `petasse_gang_additions:nom_du_bloc` |
-| Classe | `com.petassegang.addons.block.NomDuBlocBlock` |
+| Classe | `com.petassegang.addons.feature.<feature>.block.<block_id>.NomDuBlocBlock` |
 | Hardness | X.X |
 | Blast resistance | X.X |
 | Luminosité | 0–15 |

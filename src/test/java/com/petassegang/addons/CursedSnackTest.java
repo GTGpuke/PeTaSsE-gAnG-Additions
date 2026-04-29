@@ -3,7 +3,7 @@ package com.petassegang.addons;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.petassegang.addons.item.CursedSnackItem;
+import com.petassegang.addons.feature.cursed.item.cursed_snack.CursedSnackItem;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

@@ -4,8 +4,8 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.server.network.ServerPlayerEntity;
 
-import com.petassegang.addons.network.packet.GangBadgeActivatePayload;
-import com.petassegang.addons.util.ModConstants;
+import com.petassegang.addons.feature.gang.network.c2s.GangBadgeActivatePayload;
+import com.petassegang.addons.core.ModConstants;
 
 /**
  * Gestionnaire du reseau du mod.

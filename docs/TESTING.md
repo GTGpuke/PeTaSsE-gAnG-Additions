@@ -6,6 +6,7 @@
 |------|-----------|---------|---------|
 | Tests unitaires | JUnit 5 | `./gradlew test` | `build/reports/tests/test/index.html` |
 | Benchmark perf Level 0 | JavaExec local | `./gradlew benchmarkLevelZeroGeneration` | Console |
+| Monitor perf runtime | Client dev opt-in | `./gradlew runClient -PdebugPerformanceMonitor=true` | Logs + debug HUD |
 
 ---
 
@@ -61,7 +62,8 @@ Le benchmark :
 - utilise toujours la même liste de seeds ;
 - scanne la même zone de chunks ;
 - affiche le temps moyen total, le temps moyen par chunk et des compteurs
-  utiles (`wallColumns`, `exposedColumns`, `mixedColumns`, `faceSamples`) ;
+  utiles (`wallColumns`, `exposedColumns`, `mixedColumns`, `faceSamples`,
+  structures, lights, roles de cellules et points gameplay) ;
 - échoue si le budget `levelZeroPerfBudgetMsPerChunk` est dépassé.
 
 Cette vérification sert surtout à détecter :
