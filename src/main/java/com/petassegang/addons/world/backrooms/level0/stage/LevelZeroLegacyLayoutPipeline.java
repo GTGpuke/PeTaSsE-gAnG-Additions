@@ -175,7 +175,7 @@ public final class LevelZeroLegacyLayoutPipeline {
         boolean lighted = walkable && sampleLight(context, surfaceBiome, largeRoomLighting, roomKind, regionWalkability);
         int geometryMask = lighted
                 ? com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask.none()
-                : geometryStage.sample(context, topology, connectionMask);
+                : geometryStage.sample(context, topology, connectionMask, regionWalkability);
         int microPattern = topology == LevelZeroCellTopology.WALL
                 ? LevelZeroCellMicroPattern.FULL_CLOSED
                 : geometryMask == com.petassegang.addons.world.backrooms.level0.layout.LevelZeroGeometryMask.none()

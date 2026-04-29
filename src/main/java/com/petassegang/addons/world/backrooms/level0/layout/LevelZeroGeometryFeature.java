@@ -3,15 +3,19 @@ package com.petassegang.addons.world.backrooms.level0.layout;
 /**
  * Features geometriques fines appliquees localement au-dessus de la grille 3x3.
  *
- * <p>La liste est volontairement remise a zero : aucune variante procedurale
- * n'est active tant que sa forme n'a pas ete ajoutee et validee une par une.
- * Le masque reste en place pour conserver une pipeline stable et faciliter la
- * prochaine variante.
+ * <p>Chaque variante doit rester petite, testable et ajoutee une par une afin
+ * d'eviter de melanger plusieurs problemes visuels dans le meme pass.
  */
 public enum LevelZeroGeometryFeature {
 
     /** Aucun ajustement geometrique local. */
-    NONE(0);
+    NONE(0),
+    /** Passage resserre sur le bord gauche de la cellule 3x3. */
+    GAP_LEFT(1),
+    /** Passage resserre au centre de la cellule 3x3. */
+    GAP_MIDDLE(1 << 1),
+    /** Passage resserre sur le bord droit de la cellule 3x3. */
+    GAP_RIGHT(1 << 2);
 
     private final int bit;
 
