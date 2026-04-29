@@ -2,8 +2,8 @@
 
 Custom content mod for the PetasseGang Minecraft server.
 
-[![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
-[![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
+[![CI](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/ci.yml/badge.svg)](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/ci.yml)
+[![Release](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/release.yml/badge.svg)](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/release.yml)
 ![MC](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)
 ![Fabric](https://img.shields.io/badge/Fabric-0.16.9-blue)
 ![License](https://img.shields.io/badge/License-MIT-blue)

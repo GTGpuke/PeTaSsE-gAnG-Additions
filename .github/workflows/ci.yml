@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verification:
+    name: Verification Java 21
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Gradle wrapper
+        uses: gradle/actions/wrapper-validation@v4
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x ./gradlew
+
+      - name: Compile main sources
+        run: ./gradlew compileJava --no-daemon --console=plain --warning-mode all
+
+      - name: Compile test sources
+        run: ./gradlew compileTestJava --no-daemon --console=plain --warning-mode all
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon --console=plain --warning-mode all
+
+      - name: Fail on JUnit failures
+        run: |
+          if grep -R -E 'failures="[1-9][0-9]*"|errors="[1-9][0-9]*"' build/test-results/test/*.xml; then
+            echo "Des tests JUnit sont en echec."
+            exit 1
+          fi
+
+      - name: Run Level 0 generation benchmark
+        run: ./gradlew benchmarkLevelZeroGeneration --no-daemon --console=plain
+
+      - name: Build distributable JARs
+        run: ./gradlew build -x test --no-daemon --console=plain --warning-mode all
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: petasse_gang_additions-${{ github.sha }}
+          path: build/libs/*.jar
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-report-${{ github.sha }}
+          path: build/reports/tests/test/
+          if-no-files-found: ignore
+          retention-days: 14

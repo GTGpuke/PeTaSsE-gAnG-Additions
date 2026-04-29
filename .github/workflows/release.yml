@@ -3,59 +3,87 @@ name: Release
 on:
   push:
     tags:
-      - 'v*.*.*'
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de release a publier, par exemple v0.7.0."
+        required: true
+        type: string
 
 permissions:
-  contents: write   # Required to create GitHub Releases
+  contents: write
 
 jobs:
   release:
-    name: Build & Publish Release
+    name: Build and publish release
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # Full history — needed for changelog extraction
-
-      - name: Set up Java 25
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '25'
-          cache: 'gradle'
+          fetch-depth: 0
 
       - name: Validate Gradle wrapper
-        uses: gradle/actions/wrapper-validation@v3
+        uses: gradle/actions/wrapper-validation@v4
 
-      - name: Make gradlew executable
+      - name: Set up Java 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
         run: chmod +x ./gradlew
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '9.3.0'
-
-      - name: Run tests
-        run: ./gradlew test --no-daemon
-        env:
-          GRADLE_OPTS: "-Xmx4G"
-
-      - name: Build release JAR
-        run: ./gradlew build --no-daemon
-        env:
-          GRADLE_OPTS: "-Xmx4G"
+      - name: Resolve release tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "name=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "name=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Extract version from tag
         id: version
-        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+        run: echo "VERSION=${{ steps.tag.outputs.name }}" | sed 's/^VERSION=v/VERSION=/' >> "$GITHUB_OUTPUT"
+
+      - name: Run tests
+        run: ./gradlew test --no-daemon --console=plain --warning-mode all
+
+      - name: Fail on JUnit failures
+        run: |
+          if grep -R -E 'failures="[1-9][0-9]*"|errors="[1-9][0-9]*"' build/test-results/test/*.xml; then
+            echo "Des tests JUnit sont en echec."
+            exit 1
+          fi
+
+      - name: Run Level 0 generation benchmark
+        run: ./gradlew benchmarkLevelZeroGeneration --no-daemon --console=plain
+
+      - name: Build release JARs
+        run: ./gradlew clean build -x test --no-daemon --console=plain --warning-mode all
+
+      - name: Validate release version
+        run: |
+          VERSION="${{ steps.version.outputs.VERSION }}"
+          GRADLE_VERSION=$(grep '^mod_version=' gradle.properties | cut -d '=' -f 2)
+          if [ "$VERSION" != "$GRADLE_VERSION" ]; then
+            echo "Le tag v$VERSION ne correspond pas a mod_version=$GRADLE_VERSION."
+            exit 1
+          fi
+          test -f "build/libs/petasse_gang_additions-${VERSION}.jar"
+          test -f "build/libs/petasse_gang_additions-${VERSION}-sources.jar"
 
       - name: Extract changelog for this version
-        id: changelog
         run: |
-          VERSION=${{ steps.version.outputs.VERSION }}
-          # Extract the section for this version from CHANGELOG.md
+          VERSION="${{ steps.version.outputs.VERSION }}"
           NOTES=$(awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" docs/CHANGELOG.md)
           if [ -z "$NOTES" ]; then
             NOTES="See docs/CHANGELOG.md for details."
@@ -65,10 +93,13 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: "PétasseGang Addons v${{ steps.version.outputs.VERSION }}"
+          tag_name: ${{ steps.tag.outputs.name }}
+          name: "PeTaSsE_gAnG_Additions v${{ steps.version.outputs.VERSION }}"
           body_path: release_notes.md
-          files: build/libs/petassegang_addons-${{ steps.version.outputs.VERSION }}.jar
+          files: |
+            build/libs/petasse_gang_additions-${{ steps.version.outputs.VERSION }}.jar
+            build/libs/petasse_gang_additions-${{ steps.version.outputs.VERSION }}-sources.jar
           draft: false
-          prerelease: ${{ contains(github.ref_name, '-') }}
+          prerelease: ${{ contains(steps.tag.outputs.name, '-') }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
