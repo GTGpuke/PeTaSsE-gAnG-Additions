@@ -1,0 +1,172 @@
+package com.petassegang.addons.backrooms.portal.sync;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Predicate;
+
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.IntIterator;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongSet;
+import org.jetbrains.annotations.Nullable;
+
+import net.minecraft.entity.Entity;
+import net.minecraft.network.listener.ClientPlayPacketListener;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.network.PlayerAssociatedNetworkHandler;
+import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.TypeFilter;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.ChunkPos;
+import net.minecraft.world.World;
+
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+
+import com.petassegang.addons.mixin.EntityTrackerAccessor;
+import com.petassegang.addons.mixin.ServerChunkLoadingManagerAccessor;
+
+/**
+ * Entities d'une dimension distante suivies pour un joueur.
+ *
+ * <p>Pour chaque entity de la fenetre, le joueur est ajoute aux auditeurs du suivi vanilla de cette
+ * entity : il recoit alors les memes paquets que les joueurs presents dans cette dimension, enveloppes
+ * avec la dimension par {@link #sendPacket}. Quand l'entity quitte la fenetre ou disparait, il en est
+ * retire et son client la supprime.
+ */
+final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
+
+    private static final TypeFilter<Entity, Entity> ENTITY_FILTER = TypeFilter.instanceOf(Entity.class);
+    private static final Predicate<Entity> ANY = entity -> true;
+
+    private final ServerPlayerEntity viewer;
+    private final RegistryKey<World> dimension;
+    private final Identifier dimensionId;
+    private final IntOpenHashSet tracked = new IntOpenHashSet();
+    private final IntOpenHashSet seen = new IntOpenHashSet();
+    private final List<Entity> scratch = new ArrayList<>();
+    /** Boite des chunks synchronises, reconstruite seulement quand leurs bornes changent. */
+    private @Nullable Box window;
+    private int windowMinChunkX;
+    private int windowMinChunkZ;
+    private int windowMaxChunkX;
+    private int windowMaxChunkZ;
+
+    RemoteEntityView(ServerPlayerEntity viewer, RegistryKey<World> dimension) {
+        this.viewer = viewer;
+        this.dimension = dimension;
+        this.dimensionId = dimension.getValue();
+    }
+
+    RegistryKey<World> dimension() {
+        return this.dimension;
+    }
+
+    @Override
+    public ServerPlayerEntity getPlayer() {
+        return this.viewer;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public void sendPacket(Packet<?> packet) {
+        ServerPlayNetworking.send(this.viewer, new RemoteEntityPacketPayload(this.dimensionId, (Packet<? super ClientPlayPacketListener>) packet));
+    }
+
+    /**
+     * Aligne le suivi sur les entities presentes dans la fenetre.
+     *
+     * @param destination monde distant
+     * @param window boite englobant les chunks envoyes au joueur
+     */
+    void update(ServerWorld destination, LongSet chunks) {
+        Box window = windowBox(destination, chunks);
+        Int2ObjectMap<?> trackers = trackers(destination);
+        this.scratch.clear();
+        this.seen.clear();
+        destination.collectEntitiesByType(ENTITY_FILTER, window, ANY, this.scratch);
+        for (int i = 0; i < this.scratch.size(); i++) {
+            Entity entity = this.scratch.get(i);
+            int id = entity.getId();
+            this.seen.add(id);
+            if (this.tracked.contains(id) || !(trackers.get(id) instanceof EntityTrackerAccessor tracker)) {
+                continue;
+            }
+            tracker.backrooms$getListeners().add(this);
+            tracker.backrooms$getEntry().sendPackets(this.viewer, this::sendPacket);
+            this.tracked.add(id);
+        }
+        IntIterator iterator = this.tracked.iterator();
+        while (iterator.hasNext()) {
+            int id = iterator.nextInt();
+            if (!this.seen.contains(id)) {
+                iterator.remove();
+                untrack(trackers, id, true);
+            }
+        }
+        this.scratch.clear();
+    }
+
+    /**
+     * Debranche toutes les entities.
+     *
+     * @param destination monde distant, ou {@code null} s'il n'existe plus
+     * @param notifyClient {@code false} quand le client repart de zero (changement de monde, deconnexion)
+     */
+
+    /** Boite englobant les chunks synchronises, sur toute la hauteur du monde ; la meme instance tant que les bornes tiennent. */
+    private Box windowBox(ServerWorld world, LongSet chunks) {
+        int minX = Integer.MAX_VALUE;
+        int minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE;
+        int maxZ = Integer.MIN_VALUE;
+        LongIterator iterator = chunks.iterator();
+        while (iterator.hasNext()) {
+            long key = iterator.nextLong();
+            int x = ChunkPos.getPackedX(key);
+            int z = ChunkPos.getPackedZ(key);
+            minX = Math.min(minX, x);
+            maxX = Math.max(maxX, x);
+            minZ = Math.min(minZ, z);
+            maxZ = Math.max(maxZ, z);
+        }
+        Box current = this.window;
+        if (current == null || minX != this.windowMinChunkX || minZ != this.windowMinChunkZ
+                || maxX != this.windowMaxChunkX || maxZ != this.windowMaxChunkZ) {
+            current = new Box(minX * 16.0, world.getBottomY(), minZ * 16.0, (maxX + 1) * 16.0, world.getTopY(), (maxZ + 1) * 16.0);
+            this.window = current;
+            this.windowMinChunkX = minX;
+            this.windowMinChunkZ = minZ;
+            this.windowMaxChunkX = maxX;
+            this.windowMaxChunkZ = maxZ;
+        }
+        return current;
+    }
+
+    /** La vue est oubliee : ses ecouteurs quittent les trackers de la dimension, et le client efface ses copies si demande. */
+    void clear(ServerWorld destination, boolean notifyClient) {
+        Int2ObjectMap<?> trackers = trackers(destination);
+        IntIterator iterator = this.tracked.iterator();
+        while (iterator.hasNext()) {
+            untrack(trackers, iterator.nextInt(), notifyClient);
+        }
+        this.tracked.clear();
+    }
+
+    private void untrack(Int2ObjectMap<?> trackers, int id, boolean notifyClient) {
+        if (trackers.get(id) instanceof EntityTrackerAccessor tracker) {
+            tracker.backrooms$getListeners().remove(this);
+        }
+        if (notifyClient) {
+            sendPacket(new EntitiesDestroyS2CPacket(id));
+        }
+    }
+
+    private static Int2ObjectMap<?> trackers(ServerWorld world) {
+        return ((ServerChunkLoadingManagerAccessor) world.getChunkManager().chunkLoadingManager).backrooms$getEntityTrackers();
+    }
+}

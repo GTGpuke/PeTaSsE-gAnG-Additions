@@ -1,47 +1,49 @@
 // ============================================================
-//  PeTaSsE_gAnG_Additions — build.gradle
-//  Fabric Loader ${loader_version} pour Minecraft ${minecraft_version}
+//  PeTaSsE_gAnG_Additions — build.gradle (Fabric 1.21.1)
 // ============================================================
 
 plugins {
-    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id 'fabric-loom' version "${loom_version}"
     id 'java-library'
+    id 'jacoco'
+    id 'checkstyle'
 }
 
-// ── Project metadata ─────────────────────────────────────────
-version        = mod_version
-group          = mod_group
+version = mod_version
+group = mod_group
 base.archivesName = mod_id
 
-// ── Java toolchain ───────────────────────────────────────────
 java {
     toolchain.languageVersion = JavaLanguageVersion.of(java_version as int)
     withSourcesJar()
 }
 
-// ── Fabric Loom configuration ─────────────────────────────────
+// Toggles debug/perf passes en -D au client de dev et au benchmark.
+// Usage : ./gradlew runClient -PdebugPerformanceMonitor=true -PportalFeature=false
+def passthroughProperties = [
+        levelZeroNoiseGeometry            : 'petassegang.levelZero.noiseGeometry',
+        levelZeroDebugMicroGeometry       : 'petassegang.levelZero.debugMicroGeometry',
+        levelZeroDebugWallProps           : 'petassegang.levelZero.debugWallProps',
+        debugPerformanceMonitor           : 'petassegang.debugPerformanceMonitor',
+        performanceLogIntervalSeconds     : 'petassegang.performanceLogIntervalSeconds',
+        portalFeature                     : 'petassegang.portal.enablePortalFeature',
+        portalActivationRadiusBlocks      : 'petassegang.portal.activationRadiusBlocks',
+        portalPreloadRadiusChunks         : 'petassegang.portal.preloadRadiusChunks',
+        portalRenderDistanceBlocks        : 'petassegang.portal.renderDistanceBlocks',
+        portalTeleportCooldownTicks       : 'petassegang.portal.teleportCooldownTicks',
+        portalDebugRendering              : 'petassegang.portal.debugRendering',
+]
+def activeSystemProperties = passthroughProperties.findAll { project.hasProperty(it.key) }
+        .collectEntries { [(it.value): project.property(it.key)] }
+
 loom {
     runs {
         client {
             client()
-            defaultMainClass = 'net.fabricmc.devlaunchinjector.Main'
-            if (project.hasProperty('levelZeroNoiseGeometry')) {
-                vmArg "-Dpetassegang.levelZero.noiseGeometry=${project.property('levelZeroNoiseGeometry')}"
-            }
-            if (project.hasProperty('levelZeroDebugMicroGeometry')) {
-                vmArg "-Dpetassegang.levelZero.debugMicroGeometry=${project.property('levelZeroDebugMicroGeometry')}"
-            }
-            if (project.hasProperty('levelZeroDebugWallProps')) {
-                vmArg "-Dpetassegang.levelZero.debugWallProps=${project.property('levelZeroDebugWallProps')}"
-            }
-            if (project.hasProperty('levelZeroDebugStructures')) {
-                vmArg "-Dpetassegang.levelZero.debugStructures=${project.property('levelZeroDebugStructures')}"
-            }
-            if (project.hasProperty('debugPerformanceMonitor')) {
-                vmArg "-Dpetassegang.debugPerformanceMonitor=${project.property('debugPerformanceMonitor')}"
-            }
-            if (project.hasProperty('performanceLogIntervalSeconds')) {
-                vmArg "-Dpetassegang.performanceLogIntervalSeconds=${project.property('performanceLogIntervalSeconds')}"
+            activeSystemProperties.each { key, value -> vmArg "-D${key}=${value}" }
+            // ./gradlew runClient -PquickPlayWorld="Nom du monde" : charge directement un monde solo.
+            if (project.hasProperty('quickPlayWorld')) {
+                programArgs '--quickPlaySingleplayer', project.property('quickPlayWorld').toString()
             }
         }
         server {
@@ -51,99 +53,231 @@ loom {
     }
 }
 
-// ── Repositories ─────────────────────────────────────────────
+// Tests en jeu : source set dedie (src/gametest), mod separe charge par runGameTest seulement, jamais dans le JAR.
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = 'petasse_gang_additions_gametest'
+        enableGameTests = true
+        enableClientGameTests = false
+    }
+}
+afterEvaluate {
+    loom.runs.named('gameTest') {
+        vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get().asFile}/junit.xml"
+        // Les tests en jeu exercent le cooldown de traversee, nul par defaut : trois ticks suffisent a le voir agir.
+        vmArg '-Dpetassegang.portal.teleportCooldownTicks=3'
+    }
+}
+
+// Conventions du code (CLAUDE.md), celles qu'un outil verifie : config/checkstyle/checkstyle.xml.
+checkstyle {
+    toolVersion = '10.21.1'
+    configDirectory = file('config/checkstyle')
+    maxWarnings = 0
+}
+tasks.withType(Checkstyle).configureEach {
+    reports {
+        xml.required = false
+        html.required = true
+    }
+}
+
 repositories {
     mavenCentral()
     maven {
         name = 'Fabric'
-        url  = 'https://maven.fabricmc.net/'
+        url = 'https://maven.fabricmc.net/'
     }
 }
 
-// ── Dependencies ─────────────────────────────────────────────
 dependencies {
-    // Minecraft + mappings Yarn
     minecraft "com.mojang:minecraft:${minecraft_version}"
     mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
-
-    // Fabric Loader + Fabric API
     modImplementation "net.fabricmc:fabric-loader:${loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
 
-    // ---- Tests (JUnit 5) -----------------------------------
-    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.10.3'
-    testImplementation 'org.junit.jupiter:junit-jupiter-params:5.10.3'
-    testRuntimeOnly    'org.junit.jupiter:junit-jupiter-engine:5.10.3'
-    testRuntimeOnly    'org.junit.platform:junit-platform-launcher:1.10.3'
+    testImplementation platform("org.junit:junit-bom:${junit_version}")
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // Lance JUnit sous le classloader Fabric : registres, blocs et mixins utilisables en test.
+    testImplementation "net.fabricmc:fabric-loader-junit:${loader_version}"
 }
 
-// ── Test configuration ───────────────────────────────────────
 test {
-    useJUnitPlatform()
-    ignoreFailures = true
-    maxHeapSize = '1G'
-    environment 'JDK_JAVA_OPTIONS', '-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8'
+    useJUnitPlatform {
+        excludeTags 'benchmark'
+    }
+    maxHeapSize = '2G'
     jvmArgs '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8', '-Dstderr.encoding=UTF-8'
     testLogging {
-        events 'passed', 'failed', 'skipped'
-        showStandardStreams = false
+        events 'failed', 'skipped'
+        exceptionFormat = 'full'
+    }
+    finalizedBy jacocoTestReport
+}
+
+// Couverture : classes mesurees. Hors mesure : la colle OpenGL du client (un contexte GL est obligatoire, hors de
+// portee de JUnit comme du serveur GameTest), les mixins (tisses dans les classes vanilla) et les gametests eux-memes.
+// La logique client pure (transformation de vue, etat de rendu) reste mesuree.
+def coverageExcludes = [
+        'com/petassegang/addons/PeTaSsEgAnGAdditionsClientMod*',
+        'com/petassegang/addons/backrooms/level0/client/**',
+        'com/petassegang/addons/backrooms/portal/client/entity/**',
+        'com/petassegang/addons/backrooms/portal/client/interaction/**',
+        'com/petassegang/addons/backrooms/portal/client/transition/**',
+        'com/petassegang/addons/backrooms/portal/client/view/PortalStencilRenderer*',
+        'com/petassegang/addons/backrooms/portal/client/view/ViewAreaRenderer*',
+        'com/petassegang/addons/backrooms/portal/client/world/**',
+        'com/petassegang/addons/feature/gang/client/**',
+        'com/petassegang/addons/perf/client/**',
+        'com/petassegang/addons/mixin/**',
+]
+def coverageClassDirs = { files(sourceSets.main.output.classesDirs.collect { fileTree(dir: it, exclude: coverageExcludes) }) }
+def coverageExecutionData = fileTree(layout.buildDirectory.dir('jacoco')) { include 'test.exec', 'gametest.exec' }
+
+// Rapport des seuls tests unitaires, produit a chaque ./gradlew test.
+jacocoTestReport {
+    dependsOn test
+    reports {
+        xml.required = true
+        csv.required = true
+        html.required = true
+    }
+    classDirectories.setFrom(coverageClassDirs())
+}
+
+// Les tests en jeu tournent sous l'agent JaCoCo : leur couverture se fusionne avec celle des tests unitaires.
+afterEvaluate {
+    tasks.named('runGameTest') {
+        def gametestExec = layout.buildDirectory.file('jacoco/gametest.exec').get().asFile
+        outputs.file gametestExec
+        doFirst {
+            def agentJar = zipTree(configurations.jacocoAgent.singleFile).matching { include 'jacocoagent.jar' }.singleFile
+            jvmArgs "-javaagent:${agentJar}=destfile=${gametestExec},append=false,includes=com.petassegang.addons.*"
+        }
     }
 }
 
-// ── Benchmark task ───────────────────────────────────────────
-tasks.register('benchmarkLevelZeroGeneration', JavaExec) {
+tasks.register('jacocoFullReport', JacocoReport) {
     group = 'verification'
-    description = 'Lance un benchmark deterministe du pipeline de generation du Level 0.'
-    dependsOn testClasses
-    classpath = sourceSets.test.runtimeClasspath
-    mainClass = 'com.petassegang.addons.LevelZeroPerformanceCheck'
+    description = 'Rapport JaCoCo fusionne : tests unitaires et tests en jeu.'
+    dependsOn test, 'runGameTest'
+    executionData coverageExecutionData
+    sourceDirectories.setFrom(sourceSets.main.allSource.srcDirs)
+    classDirectories.setFrom(coverageClassDirs())
+    reports {
+        xml.required = true
+        html.required = true
+        xml.outputLocation = layout.buildDirectory.file('reports/jacoco/full/jacocoFullReport.xml')
+        html.outputLocation = layout.buildDirectory.dir('reports/jacoco/full/html')
+    }
+}
 
+// Verrou : chaque instruction du code mesure est couverte par un test unitaire ou un test en jeu, et au moins 96 % des branches.
+tasks.register('jacocoCoverageVerification', JacocoCoverageVerification) {
+    group = 'verification'
+    description = 'Echoue sous 100 % des instructions ou 96 % des branches du code mesure (tests unitaires + tests en jeu).'
+    dependsOn test, 'runGameTest'
+    executionData coverageExecutionData
+    classDirectories.setFrom(coverageClassDirs())
+    violationRules {
+        rule {
+            limit {
+                counter = 'INSTRUCTION'
+                value = 'COVEREDRATIO'
+                minimum = 1.0
+            }
+            limit {
+                counter = 'BRANCH'
+                value = 'COVEREDRATIO'
+                minimum = 0.96
+            }
+        }
+    }
+}
+check.dependsOn 'jacocoCoverageVerification'
+
+// Le JAR ne contient que le mod : ni dependance embarquee, ni classe tierce, ni test en jeu.
+def allowedJarEntry = { String name ->
+    name.endsWith('/')
+            || name == 'fabric.mod.json' || name == 'pack.mcmeta' || name == "${mod_id}.mixins.json" || name == 'META-INF/MANIFEST.MF'
+            || name.startsWith("assets/${mod_id}/") || name.startsWith("data/${mod_id}/") || name.startsWith('data/minecraft/tags/')
+            || (name.startsWith('com/petassegang/addons/') && !name.startsWith('com/petassegang/addons/gametest/'))
+}
+tasks.register('verifyJarContents') {
+    group = 'verification'
+    description = 'Echoue si le JAR embarque autre chose que le mod : dependance, classe tierce, test en jeu.'
+    dependsOn 'remapJar'
+    def jarFile = tasks.named('remapJar').flatMap { it.archiveFile }
+    inputs.file(jarFile)
+    outputs.upToDateWhen { false }
+    doLast {
+        def stray = []
+        new java.util.zip.ZipFile(jarFile.get().asFile).withCloseable { zip ->
+            zip.entries().each { entry ->
+                if (!allowedJarEntry(entry.name)) {
+                    stray << entry.name
+                }
+            }
+            def modJson = new groovy.json.JsonSlurper().parse(zip.getInputStream(zip.getEntry('fabric.mod.json')))
+            if (modJson.jars) {
+                stray << 'fabric.mod.json : cle "jars" (dependance embarquee)'
+            }
+        }
+        if (!stray.isEmpty()) {
+            throw new GradleException("Contenu inattendu dans le JAR du mod : ${stray.take(20)}")
+        }
+    }
+}
+check.dependsOn 'verifyJarContents'
+
+// Le benchmark est un test JUnit tague 'benchmark' : il tourne sous le classloader Fabric
+// (bootstrap Minecraft et registres du mod disponibles) mais reste exclu de ./gradlew test.
+tasks.register('benchmarkLevelZeroGeneration', Test) {
+    group = 'verification'
+    description = 'Benchmark deterministe de la generation du Level 0 (layout + ecriture des blocs).'
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    useJUnitPlatform {
+        includeTags 'benchmark'
+    }
+    maxHeapSize = '2G'
+    jvmArgs '-Dfile.encoding=UTF-8', '-Dstdout.encoding=UTF-8'
+    testLogging {
+        showStandardStreams = true
+        events 'failed'
+        exceptionFormat = 'full'
+    }
+    jacoco.enabled = false
+    outputs.upToDateWhen { false }
     if (project.hasProperty('levelZeroPerfBudgetMsPerChunk')) {
         systemProperty 'levelZeroPerfBudgetMsPerChunk', project.property('levelZeroPerfBudgetMsPerChunk')
     }
-    if (project.hasProperty('levelZeroNoiseGeometry')) {
-        systemProperty 'petassegang.levelZero.noiseGeometry', project.property('levelZeroNoiseGeometry')
-    }
-    if (project.hasProperty('levelZeroDebugMicroGeometry')) {
-        systemProperty 'petassegang.levelZero.debugMicroGeometry', project.property('levelZeroDebugMicroGeometry')
-    }
-    if (project.hasProperty('levelZeroDebugWallProps')) {
-        systemProperty 'petassegang.levelZero.debugWallProps', project.property('levelZeroDebugWallProps')
-    }
-    if (project.hasProperty('levelZeroDebugStructures')) {
-        systemProperty 'petassegang.levelZero.debugStructures', project.property('levelZeroDebugStructures')
-    }
-    if (project.hasProperty('debugPerformanceMonitor')) {
-        systemProperty 'petassegang.debugPerformanceMonitor', project.property('debugPerformanceMonitor')
-    }
-    if (project.hasProperty('performanceLogIntervalSeconds')) {
-        systemProperty 'petassegang.performanceLogIntervalSeconds', project.property('performanceLogIntervalSeconds')
-    }
+    activeSystemProperties.each { key, value -> systemProperty key, value }
 }
 
-// ── Token substitution dans fabric.mod.json ──────────────────
 processResources {
     def props = [
-        mod_id         : mod_id,
-        mod_name       : mod_name,
-        mod_version    : mod_version,
-        mod_authors    : mod_authors,
-        mod_description: mod_description,
-        loader_version : loader_version,
-        minecraft_version: minecraft_version,
+            mod_id           : mod_id,
+            mod_name         : mod_name,
+            mod_version      : mod_version,
+            mod_authors      : mod_authors,
+            mod_description  : mod_description,
+            loader_version   : loader_version,
+            minecraft_version: minecraft_version,
     ]
     inputs.properties props
     filesMatching('fabric.mod.json') { expand props }
-    filesMatching('pack.mcmeta')     { expand props }
+    filesMatching('pack.mcmeta') { expand props }
 }
 
-// ── Jar — évite les doublons pack.mcmeta injectés par Loom ──────────────────
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-// ── Compilation options ──────────────────────────────────────
-compileJava {
-    options.encoding   = 'UTF-8'
-    options.compilerArgs += ['-Xlint:all', '-Xlint:-processing', '-Xlint:-serial']
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    // -classfile : annotations ErrorProne absentes des jars Guava/Minecraft, hors de notre controle.
+    options.compilerArgs += ['-Xlint:all', '-Xlint:-processing', '-Xlint:-serial', '-Xlint:-classfile']
 }

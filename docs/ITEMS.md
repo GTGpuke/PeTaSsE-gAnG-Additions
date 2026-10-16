@@ -1,6 +1,7 @@
 # Items — PeTaSsE_gAnG_Additions
 
-Catalogue de tous les items du mod.
+Catalogue des items du mod, tous enregistrés dans `init/ModItems.java` et listés dans `ModCreativeTab.ENTRIES`
+ou `ModCreativeTab.PORTAL_ENTRIES` (deux onglets créatifs : *PetasseGang* et *PetasseGang - Portails*).
 
 ---
 
@@ -8,43 +9,19 @@ Catalogue de tous les items du mod.
 
 | Propriété | Valeur |
 |-----------|--------|
-| ID complet | `petasse_gang_additions:gang_badge` |
-| Classe | `com.petassegang.addons.feature.gang.item.gang_badge.GangBadgeItem` |
-| Rareté | EPIC (nom violet) |
+| Classe | `feature/gang/GangBadgeItem.java` |
+| Rareté | EPIC |
 | Stack max | 1 |
-| Glint (foil) | Toujours activé (`hasGlint()` → `true`) |
-| Craftable | Non (obtenu via créatif ou commande) |
+| Brillance | toujours (`hasGlint` → `true`) |
+| Clic droit | miaulement (`ENTITY_CAT_AMBIENT`) + payload `gang_badge_activate` → animation de totem côté client |
+| Tooltip | « PetasseGang Official Member » (or, gras) + « Don't lose it, there's no replacement » (gris, italique) |
 
-### Comportement au clic droit
+Fichiers : `GangBadgeItem`, `GangBadgeActivatePayload` (S2C, sans données, enregistré par `ModNetworking`),
+`client/GangBadgeClientHandler`, `models/item/gang_badge.json`, `textures/item/gang_badge.png`.
 
-Clic droit → son de chat + animation du totem (overlay visuel).
-L'item **n'est pas consommé**.
-
-### Tooltip
-
-```
-Gang Badge
-  PétasseGang Official Member        [or/gras]
-  Don't lose it, there's no replacement  [gris/italique]
-```
-
-### Obtenir en jeu
-```
+```mcfunction
 /give @p petasse_gang_additions:gang_badge
 ```
-
-### Fichiers associés
-| Fichier | Rôle |
-|---------|------|
-| `feature/gang/item/gang_badge/GangBadgeItem.java` | Logique (tooltip, hasGlint, use) |
-| `feature/gang/network/c2s/GangBadgeActivatePayload.java` | Paquet C2S de déclenchement |
-| `feature/gang/client/GangBadgeClientHandler.java` | Animation client |
-| `init/ModItems.java` | Enregistrement via `Registry.register()` |
-| `items/gang_badge.json` | Définition de rendu MC 1.21.1 |
-| `models/item/gang_badge.json` | Modèle 3D |
-| `textures/item/gang_badge.png` | Texture 16×16 (badge doré avec étoile) |
-| `lang/en_us.json` | Nom EN |
-| `lang/fr_fr.json` | Nom FR |
 
 ---
 
@@ -52,66 +29,37 @@ Gang Badge
 
 | Propriété | Valeur |
 |-----------|--------|
-| ID complet | `petasse_gang_additions:cursed_snack` |
-| Classe | `com.petassegang.addons.feature.cursed.item.cursed_snack.CursedSnackItem` |
-| Rareté | COMMON |
+| Classe | `feature/cursed/CursedSnackItem.java` |
 | Stack max | 16 |
-| Consommable | Oui — animation `EAT`, toujours mangeable |
-| Effet | Retire 2 points de nourriture (min 0) |
-
-### Comportement à la consommation
-
-Manger le Casse-croûte Maudit déclenche l'animation standard de repas,
-puis **soustrait 2 points de faim** (`HungerManager.add(-2, 0)`).
-Peut être mangé même le ventre plein (`alwaysEdible()` dans `FoodComponent`).
-
-### Fichiers associés
-| Fichier | Rôle |
-|---------|------|
-| `feature/cursed/item/cursed_snack/CursedSnackItem.java` | Logique (`finishUsing`, tooltip) |
-| `init/ModItems.java` | Enregistrement |
-| `items/cursed_snack.json` | Définition de rendu MC 1.21.1 |
-| `models/item/cursed_snack.json` | Modèle 2D (`item/generated`) |
-| `textures/item/cursed_snack.png` | Texture 16×16 (biscuit moisi) |
+| Nourriture | nutrition 0, saturation 0, toujours mangeable |
+| Effet | retire `HUNGER_PENALTY` = 2 points de faim (jamais sous 0) |
+| Tooltip | « Maybe don't eat that. » (rouge sombre, italique) |
 
 ---
 
-## Arbre Maudit
+## Blocs sous forme d'item
 
-Ensemble de 4 blocs au thème violet/or. La pousse génère un arbre custom via `ModBlocks.CURSED_TREE_GROWER`.
-
-| ID | Classe | Description |
-|----|--------|-------------|
-| `cursed_log` | `PillarBlock` | Tronc orientable (X/Y/Z), écorce violette veinée d'or |
-| `cursed_leaves` | `LeavesBlock` | Feuilles violettes semi-transparentes |
-| `cursed_sapling` | `SaplingBlock` | Pousse violette (génère un Arbre Maudit) |
-| `cursed_planks` | `Block` | Planches violettes |
-
-`cursed_log` est dans le tag `minecraft:logs` — nécessaire pour que les feuilles persistent.
-
-La structure de l'arbre est définie dans :
-`data/petasse_gang_additions/worldgen/configured_feature/cursed_tree.json`
-
-Le champ `dirt_provider` (type `minecraft:simple_state_provider`, `minecraft:dirt`) est **obligatoire**
-en MC 1.21.1 — `below_trunk_provider` n'existe pas dans cette version.
-
-### Fichiers associés (par bloc)
-| Pattern | Fichiers |
-|---------|---------|
-| `blockstates/cursed_*.json` | État (axis pour log, simple pour les autres) |
-| `models/block/cursed_*.json` | Modèle 3D (cube_column, leaves, cross, cube_all) |
-| `models/item/cursed_*.json` | Modèle inventaire |
-| `items/cursed_*.json` | Définition de rendu MC 1.21.1 |
-| `textures/block/cursed_*.png` | Textures 16×16 |
-| `data/petasse_gang_additions/loot_table/blocks/cursed_*.json` | Tables de butin |
-| `data/petasse_gang_additions/worldgen/configured_feature/cursed_tree.json` | Structure de l'arbre |
-| `data/minecraft/tags/block/logs.json` | Tag logs (persistance des feuilles) |
+Chaque bloc de [BLOCKS.md](BLOCKS.md) possède un `BlockItem` du même identifiant :
+`level_zero_wallpaper`, `level_zero_wallpaper_aged`, `level_zero_wallpaper_adaptive`, `level_zero_damp_carpet`,
+`level_zero_damp_carpet_aged`, `level_zero_ceiling_tile`, `level_zero_fluorescent_light`, `cursed_log`,
+`cursed_leaves`, `cursed_sapling`, `cursed_planks` (onglet *PetasseGang*) et `backrooms_door` (onglet *PetasseGang - Portails*).
 
 ---
 
-## Ajouter un nouvel item
+## Porte des Backrooms (`backrooms_door`)
 
-Dis à Claude Code :
-> "Ajoute un item [description]"
+| Propriété | Valeur |
+|-----------|--------|
+| Classe | `BlockItem` de `backrooms/portal/block/BackroomsDoorBlock.java` |
+| Onglet | *PetasseGang - Portails* (`ModCreativeTab.PORTAL_TAB`, icône de l'onglet) |
+| Pose | orientée face au joueur ; la block entity trouve seule sa destination et pose ses deux portails |
+| Détail | [PORTALS.md](PORTALS.md) |
 
-Ou suis le skill `/.skills/add-item/SKILL.md` manuellement.
+---
+
+## Ajouter un item
+
+1. Champ `static final` dans `ModItems` + entrée dans `ModCreativeTab.ENTRIES` (ou `PORTAL_ENTRIES` pour un item lié aux portails).
+2. `models/item/<id>.json` (parent `item/generated` ou `item/handheld`) + texture 16x16.
+3. Clé `item.petasse_gang_additions.<id>` en EN et FR.
+4. Un test dans `src/test/java/com/petassegang/addons/feature/...` qui vérifie le comportement (pas la réflexion).

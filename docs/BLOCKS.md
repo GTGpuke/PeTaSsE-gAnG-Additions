@@ -1,137 +1,54 @@
-# Blocks — PeTaSsE_gAnG_Additions
+# Blocs — PeTaSsE_gAnG_Additions
 
-Catalogue de tous les blocs du mod.
+Catalogue des blocs du mod. Tous sont enregistrés dans `init/ModBlocks.java` ; les `BlockItem`
+correspondants dans `init/ModItems.java`. Textures du Level 0 en 32x32.
 
 ---
 
 ## Backrooms — Level 0
 
-Ensemble principal de blocs servant de palette visuelle au premier niveau des Backrooms.
+| ID | Classe | Copie les réglages de | Rôle |
+|----|--------|-----------------------|------|
+| `level_zero_wallpaper` | `Block` | `end_stone` | Papier peint jauni, bloc décoratif simple (item créatif). |
+| `level_zero_wallpaper_aged` | `Block` | `end_stone` | Papier peint blanc, bloc décoratif simple ; sert aussi de modèle aux faces blanches du mur adaptatif. |
+| `level_zero_wallpaper_adaptive` | `LevelZeroWallpaperBlock` | `end_stone` | **Mur posé par le générateur sur toutes les colonnes visibles.** Propriété `face_mask` (0-15) : faces affichant la variante blanche. Les colonnes enfouies sont en `minecraft:bedrock`. |
+| `level_zero_damp_carpet` | `Block` | `yellow_wool` | Sol du biome de base. |
+| `level_zero_damp_carpet_aged` | `Block` | `yellow_wool` | Sol rouge du biome alternatif (layers 1 et 3). |
+| `level_zero_ceiling_tile` | `Block` | `calcite` | Plafond. |
+| `level_zero_fluorescent_light` | `Block` | `sea_lantern`, luminance 15 | Néon posé au centre du plafond d'une cellule éclairée. |
+| `backrooms_door` | `BackroomsDoorBlock` (block entity) | `iron_door`, résistance 3, non opaque | **Porte des Backrooms** : posée hors du Level 0 elle y mène, posée dedans elle ramène à la surface. Sa block entity pose un portail devant elle et un portail de retour à l'arrivée ; les deux disparaissent avec elle. Voir [PORTALS.md](PORTALS.md). |
 
-Convention visuelle actuelle : les textures de blocs du Level 0 sont en `32×32`.
-Cette exception ne change pas automatiquement la résolution des autres blocs du mod.
+Chaque bloc a un blockstate, un modèle, un modèle d'item et une loot table
+(`data/petasse_gang_additions/loot_table/blocks/<id>.json`) ; le mur adaptatif donne `level_zero_wallpaper`.
+Le test `ModRegistriesTest` vérifie la présence de ces fichiers.
 
-### Level 0 Wallpaper (`level_zero_wallpaper`)
+### Mur adaptatif et détails muraux
 
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_wallpaper` |
-| Classe | `net.minecraft.block.Block` |
-| Hardness | 3.0 |
-| Blast resistance | 9.0 |
-| Luminosité | 0 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper.json` |
+Le masque de faces est calculé à la génération par `LevelZeroWallSampler` (biome de la première colonne
+d'air en face de chaque face). Un mur posé à la main recalcule son masque depuis le monde (`onBlockAdded`).
+Côté client, `LevelZeroWallpaperBakedModel` dessine en overlay :
 
-Mur principal du Level 0.
-Version simple jaune du mur — utilisé directement quand toute la colonne appartient à la variante de base, sans `BlockEntity`.
+- une plinthe sur chaque face exposée de la ligne basse de chaque layer (`level_zero_baseboard_{north,...}.json`) ;
+- rarement un interrupteur (deux blocs au-dessus du sol) ou une prise (un bloc), déterministes par colonne.
 
-### Level 0 White Wallpaper (`level_zero_wallpaper_aged`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_wallpaper_aged` |
-| Classe | `net.minecraft.block.Block` |
-| Hardness | 3.0 |
-| Blast resistance | 9.0 |
-| Luminosité | 0 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_wallpaper_aged.json` |
-
-Bloc simple blanc réservé au second biome de surface. Sert aussi de source de modèle pour les transitions mixtes.
-
-### Level 0 Adaptive Wallpaper (`level_zero_wallpaper_adaptive`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_wallpaper_adaptive` |
-| Classe | `com.petassegang.addons.backrooms.level.level0.block.LevelZeroWallpaperBlock` |
-| Hardness | 3.0 |
-| Blast resistance | 9.0 |
-| Luminosité | 0 |
-
-Bloc technique utilisé pour les transitions mixtes.
-Posé uniquement sur les colonnes de mur vraiment mixtes, quand deux faces visibles doivent afficher des variantes différentes.
-Le `faceMask` est calculé à la génération, stocké dans une `BlockEntity` synchronisée, puis relu par le modèle client.
-Si la `ModelData` n'est pas encore prête côté client, le modèle adaptatif relit d'abord les blocs de sol déjà posés.
-Le cœur des murs non exposés est en `minecraft:bedrock`.
-
-### Level 0 Damp Carpet (`level_zero_damp_carpet`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_damp_carpet` |
-| Classe | `net.minecraft.block.Block` |
-| Hardness | 0.8 |
-| Blast resistance | 0.8 |
-| Luminosité | 0 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_damp_carpet.json` |
-
-Sol humide du Level 0.
-
-### Level 0 Red Carpet (`level_zero_damp_carpet_aged`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_damp_carpet_aged` |
-| Classe | `net.minecraft.block.Block` |
-| Hardness | 0.8 |
-| Blast resistance | 0.8 |
-| Luminosité | 0 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_damp_carpet_aged.json` |
-
-Moquette rouge réservée aux grandes zones cosmétiques du second biome du Level 0.
-
-### Level 0 Ceiling Tile (`level_zero_ceiling_tile`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_ceiling_tile` |
-| Classe | `net.minecraft.block.Block` |
-| Hardness | 0.75 |
-| Blast resistance | 0.75 |
-| Luminosité | 0 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_ceiling_tile.json` |
-
-Plafond du Level 0.
-
-### Level 0 Fluorescent Light (`level_zero_fluorescent_light`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:level_zero_fluorescent_light` |
-| Classe | `net.minecraft.block.Block` |
-| Hardness | 0.3 |
-| Blast resistance | 0.3 |
-| Luminosité | 15 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/level_zero_fluorescent_light.json` |
-
-Bloc lumineux placé au plafond dans les zones ouvertes.
+Aucun bloc supplémentaire n'existe dans le monde pour ces détails.
 
 ---
 
 ## Arbre Maudit
 
-Voir [docs/ITEMS.md](ITEMS.md) pour le catalogue des blocs de l'Arbre Maudit (`cursed_log`, `cursed_leaves`, `cursed_sapling`, `cursed_planks`).
+| ID | Classe | Description |
+|----|--------|-------------|
+| `cursed_log` | `PillarBlock` | Tronc orientable, dans le tag `minecraft:logs` (persistance des feuilles). |
+| `cursed_leaves` | `LeavesBlock` | Feuilles. |
+| `cursed_sapling` | `SaplingBlock` | Pousse ; génère l'arbre via la configured feature `cursed_tree` (`dirt_provider` obligatoire en 1.21.1). |
+| `cursed_planks` | `Block` | Planches. |
 
 ---
 
-## Template de documentation de bloc
+## Ajouter un bloc
 
-### NomDuBloc (`nom_du_bloc`)
-
-| Propriété | Valeur |
-|-----------|--------|
-| ID complet | `petasse_gang_additions:nom_du_bloc` |
-| Classe | `com.petassegang.addons.feature.<feature>.block.<block_id>.NomDuBlocBlock` |
-| Hardness | X.X |
-| Blast resistance | X.X |
-| Luminosité | 0–15 |
-| Loot table | `data/petasse_gang_additions/loot_table/blocks/nom_du_bloc.json` |
-
-### Description
-...
-
-### Obtenir en jeu
-
-```mcfunction
-/give @p petasse_gang_additions:nom_du_bloc
-```
+1. Champ `static final` dans `ModBlocks`, puis `BlockItem` dans `ModItems`, puis entrée dans `ModCreativeTab.ENTRIES`.
+2. `blockstates/<id>.json`, `models/block/<id>.json`, `models/item/<id>.json`, texture, loot table.
+3. Clés `block.petasse_gang_additions.<id>` et `item.petasse_gang_additions.<id>` dans `en_us.json` **et** `fr_fr.json`.
+4. `./gradlew test` : `ModRegistriesTest` échoue tant qu'un fichier ou une traduction manque.

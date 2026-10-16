@@ -6,12 +6,9 @@ leur rôle, leur mode d'inclusion, leur état actuel et les points de vigilance 
 ---
 
 ## État actuel du projet
-
-Le projet est sur Fabric 1.21.1. Les dépendances Backrooms ne sont pas encore activées dans le build :
-
-- les bibliothèques sont déclarées en `suggests` dans `fabric.mod.json` (soft-dep optionnel) ;
-- aucune dépendance externe n'est embarquée dans le JAR pour l'instant ;
-- la documentation sert de source de vérité pour l'activation future.
+Le projet est sur Fabric 1.21.1 et ne dépend que de Fabric API. Aucune des bibliothèques ci-dessous
+n'est déclarée dans `build.gradle` ni dans `fabric.mod.json` (les anciens `suggests` sans effet ont été
+retirés en 0.8.0) : ce document est une étude préalable, à relire au moment d'activer une dépendance.
 
 ---
 
@@ -64,20 +61,10 @@ Notes de design :
 
 Ces bibliothèques ne doivent pas être embarquées dans le JAR du mod.
 
-### Immersive Portals
+### Portails
 
-| Propriété | Valeur |
-|-----------|--------|
-| Rôle | Portails seamless et géométrie non-euclidienne si disponible |
-| Mode | Soft dependency |
-| Inclusion | `compileOnly` |
-| Détection runtime | `FabricLoader.getInstance().isModLoaded("imm_ptl_core")` |
-| Déclaration `fabric.mod.json` | `suggests` |
-| État actuel | Déclaré dans `suggests`, `compileOnly` pas encore ajouté |
-
-Comportement attendu :
-- si présent : activer les portails seamless et les espaces non-euclidiens prévus ;
-- si absent : fallback sur téléports silencieux et effets VHS.
+Les portails sont une fonctionnalité native du mod (`backrooms/portal`, voir [PORTALS.md](./PORTALS.md)) : rendu
+stencil, vue distante, téléportation et synchronisation des chunks sont implémentés ici, sans dépendance optionnelle.
 
 ### Iris Shaders (remplace Oculus en Fabric)
 

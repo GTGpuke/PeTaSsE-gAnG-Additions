@@ -18,7 +18,7 @@ description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions
 
 ### Ajouter un item au tab existant
 
-**Fichier :** `src/main/java/com/petassegang/addons/creative/ModCreativeTab.java`
+**Fichier :** `src/main/java/com/petassegang/addons/init/ModCreativeTab.java`
 
 ```java
 private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Entries entries) {
@@ -42,10 +42,10 @@ private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Ent
 
 ## Créer un nouvel onglet
 
-**Fichier :** `src/main/java/com/petassegang/addons/creative/ModCreativeTab.java`
+**Fichier :** `src/main/java/com/petassegang/addons/init/ModCreativeTab.java`
 
 ```java
-package com.petassegang.addons.creative;
+package com.petassegang.addons.init;
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.item.ItemGroup;

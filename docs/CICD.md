@@ -1,93 +1,41 @@
 # CI/CD — PeTaSsE_gAnG_Additions
 
-## Vue d'ensemble des workflows
+## Workflows
 
-| Workflow | Fichier | Trigger | Ce qu'il fait |
-|----------|---------|---------|--------------|
-| Build | `build.yml` | push main/develop, PR | Compile + produit le JAR |
-| Tests | `test.yml` | push main/develop, PR | JUnit 5, rapport HTML |
-| Release | `release.yml` | tag `v*.*.*` | Build + GitHub Release + JAR joint |
+| Workflow | Fichier | Déclencheur | Étapes |
+|----------|---------|-------------|--------|
+| CI | `.github/workflows/ci.yml` | push et PR sur `master`, manuel | validation du wrapper, Java 21, Checkstyle sur les trois source sets (zéro warning javac), `test` (JaCoCo), `runGameTest` (sous agent JaCoCo), `jacocoFullReport` + `jacocoCoverageVerification` (100 % des instructions, 96 % des branches), `build` (assemble le JAR et vérifie son contenu : ni dépendance embarquée, ni test), `benchmarkLevelZeroGeneration`, upload des JARs et des rapports (Checkstyle, tests, couverture, logs du serveur de test) |
+| Release | `.github/workflows/release.yml` | tag `v*.*.*`, manuel | `clean build` (toutes les vérifications ci-dessus), vérification tag = `mod_version`, release GitHub avec JAR et sources, notes extraites du CHANGELOG |
+| Dependabot | `.github/dependabot.yml` | mensuel | PR de mise à jour des actions GitHub. Les dépendances Gradle (Fabric, Yarn, Loom) suivent la version de Minecraft et se mettent à jour à la main |
 
----
-
-## Workflow Build (`build.yml`)
-
-**Trigger :** push sur `main` ou `develop`, PR vers `main`
-
-**Étapes :**
-1. Checkout du code
-2. Java 21 (Temurin) + cache Gradle
-3. `./gradlew build`
-4. Upload du JAR comme artifact GitHub (conservé 14 jours)
-
-**Artifact :** `petasse_gang_additions-{sha}` → contient les JARs compilés.
-
----
-
-## Workflow Tests (`test.yml`)
-
-**Trigger :** push sur `main` ou `develop`, PR vers `main`
-
-**Étapes :**
-1. Checkout + Java 21 + cache Gradle
-2. `./gradlew test`
-3. Publier les résultats comme check PR (vert/rouge)
-4. Upload du rapport HTML (conservé 30 jours)
-
-**Note :** `ignoreFailures = true` est activé — les tests nécessitant Bootstrap Minecraft ne bloquent
-pas le build CI mais sont visibles dans le rapport HTML.
-
----
-
-## Workflow Release (`release.yml`)
-
-**Trigger :** push d'un tag `v*.*.*` (ex: `v0.1.0`, `v1.2.3`)
-
-**Étapes :**
-1. Tests unitaires (bloque si fail sur les tests purs Java)
-2. `./gradlew build`
-3. Extraction des release notes depuis `docs/CHANGELOG.md`
-4. Création d'une GitHub Release avec le JAR joint
-
-**Tags pre-release :** si le tag contient `-` (ex: `v0.2.0-beta.1`), la release est marquée pre-release.
+Chaque étape de la CI est une tâche Gradle que `./gradlew build` enchaîne aussi en local : la CI ne fait rien de plus
+que le build, elle le fait sur une machine neuve. Un test, une violation Checkstyle ou un seuil de couverture en échec
+fait échouer la tâche, donc le job. Un seul job, pas de matrice : le mod ne vise qu'une version de Minecraft et un JDK.
 
 ---
 
 ## Créer une release
 
 ```bash
-# 1. Mettre à jour docs/CHANGELOG.md
-# 2. Mettre à jour mod_version dans gradle.properties
-# 3. Commit
+# 1. docs/CHANGELOG.md : section [x.y.z] - date
+# 2. gradle.properties : mod_version=x.y.z
 git add gradle.properties docs/CHANGELOG.md
-git commit -m "chore: bump version to 0.7.0"
-
-# 4. Pousser + tagger
-git push origin main
-git tag v0.7.0
-git push origin v0.7.0
-
-# → GitHub Actions build et publie automatiquement
+git commit -m "chore: bump version to x.y.z"
+git push origin master
+git tag vx.y.z
+git push origin vx.y.z
 ```
+
+Un tag contenant `-` (ex. `v0.9.0-beta.1`) produit une pré-release.
 
 ---
 
-## Badges pour le README
+## Débugger un job rouge
 
-```markdown
-[![Build](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/build.yml)
-[![Tests](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml/badge.svg)](https://github.com/PetasseGang/petasse_gang_additions/actions/workflows/test.yml)
-```
-
----
-
-## Débugger un build qui échoue
-
-1. **Onglet Actions → workflow en échec → cliquer sur le job**
-2. **Expand l'étape qui a échoué** pour voir les logs complets
-3. **Reproduire localement :**
-   ```bash
-   ./gradlew build --info 2>&1 | grep -E "ERROR|error:|FAILED"
-   ```
-4. **Cache Gradle corrompu ?** → Actions → Caches → supprimer le cache du projet
-5. **Problème Java version ?** → vérifier que `java_version=21` dans `gradle.properties`
+1. Onglet Actions → job → étape en échec ; les rapports sont dans l'artefact `rapports-<sha>`.
+2. Reproduire localement avec la même commande (`./gradlew checkstyleMain`, `./gradlew test`, `./gradlew runGameTest`,
+   `./gradlew jacocoCoverageVerification`, `./gradlew build`...).
+3. Pour `runGameTest`, le rapport par test est dans `build/junit.xml` et les logs du serveur dans `build/run/gameTest/logs/`.
+4. Pour la couverture, le rapport fusionné est `build/reports/jacoco/full/html/index.html` ; pour Checkstyle,
+   `build/reports/checkstyle/`.
+5. Cache Gradle suspect → Actions → Caches → supprimer.

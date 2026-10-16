@@ -1,50 +1,33 @@
 package com.petassegang.addons.backrooms;
 
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
+import net.minecraft.world.World;
 
 import com.petassegang.addons.core.ModConstants;
 
 /**
- * Constantes partagees pour les Backrooms.
+ * Constantes partagees de la feature Backrooms.
  */
 public final class BackroomsConstants {
 
-    /** Identifiant de la dimension du Level 0. */
+    /** Identifiant (path) de la dimension du Level 0. */
     public static final String LEVEL_ZERO_DIMENSION = "backrooms_level_0";
 
-    /** Identifiant du type de dimension du Level 0. */
-    public static final String LEVEL_ZERO_DIMENSION_TYPE = "backrooms_level_0_type";
+    /** Cle de registre de la dimension du Level 0. */
+    public static final RegistryKey<World> LEVEL_ZERO_WORLD =
+            RegistryKey.of(RegistryKeys.WORLD, Identifier.of(ModConstants.MOD_ID, LEVEL_ZERO_DIMENSION));
 
-    /** Identifiant du generateur de chunk du Level 0. */
+    /** Identifiant (path) du generateur de chunk du Level 0. */
     public static final String LEVEL_ZERO_CHUNK_GENERATOR = "backrooms_level_zero";
 
-    /** Cle du random principal du layout. */
+    /** Cle du random principal du layout, derivee du seed monde par Minecraft. */
     public static final Identifier LEVEL_ZERO_LAYOUT_RANDOM =
             Identifier.of(ModConstants.MOD_ID, "backrooms_level_zero_layout");
 
-    /** Echelle de conversion entre une cellule du script et les blocs Minecraft. */
+    /** Taille en blocs d'une cellule logique du labyrinthe. */
     public static final int LEVEL_ZERO_CELL_SCALE = 3;
-
-    /** Couche de bedrock. */
-    public static final int LEVEL_ZERO_BEDROCK_Y = 60;
-
-    /** Sous-sol technique. */
-    public static final int LEVEL_ZERO_SUBFLOOR_Y = 61;
-
-    /** Sol visible. */
-    public static final int LEVEL_ZERO_FLOOR_Y = 62;
-
-    /** Debut de l'air jouable. */
-    public static final int LEVEL_ZERO_AIR_MIN_Y = 63;
-
-    /** Fin de l'air jouable. */
-    public static final int LEVEL_ZERO_AIR_MAX_Y = 66;
-
-    /** Plafond du niveau. */
-    public static final int LEVEL_ZERO_CEILING_Y = 67;
-
-    /** Profondeur totale du generateur. */
-    public static final int LEVEL_ZERO_GEN_DEPTH = 96;
 
     private BackroomsConstants() {
         throw new UnsupportedOperationException("Classe utilitaire.");

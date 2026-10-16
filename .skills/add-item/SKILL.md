@@ -31,10 +31,10 @@ description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions (Fabric 1.21.
 
 ### 2. Créer la classe item
 
-**Fichier :** `src/main/java/com/petassegang/addons/feature/my_feature/item/my_item/MyItem.java`
+**Fichier :** `src/main/java/com/petassegang/addons/feature/my_feature/MyItem.java`
 
 ```java
-package com.petassegang.addons.feature.my_feature.item.my_item;
+package com.petassegang.addons.feature.my_feature;
 
 import java.util.List;
 
@@ -76,10 +76,10 @@ public class MyItem extends Item {
 
 **Pour un item simple sans comportement custom :** inutile de créer une classe, utiliser directement `Item` dans ModItems.
 
-**Rangement v4 :**
-- Item lie a une feature : `feature/<feature>/item/<item_id>/`.
-- Item Backrooms Level 0 : `backrooms/level/level0/...` si le code est specifique a ce niveau.
-- Eviter de recreer un package racine `item/`.
+**Rangement :**
+- Item lié à une feature : `feature/<feature>/MaClasseItem.java`, une classe par item, pas de sous-package `item/`.
+- Item propre au Level 0 : `backrooms/level0/...`.
+- Pas de package racine `item/`.
 
 ---
 
@@ -109,33 +109,14 @@ public static final Item MY_ITEM = Registry.register(
 
 ### 4. Ajouter au creative tab
 
-**Fichier :** `src/main/java/com/petassegang/addons/creative/ModCreativeTab.java`
+**Fichier :** `src/main/java/com/petassegang/addons/init/ModCreativeTab.java`
 
-```java
-// Dans le FabricItemGroupEvents.modifyEntriesEvent callback :
-entries.add(ModItems.MY_ITEM);
-```
+Ajouter `ModItems.MY_ITEM` à la liste `ENTRIES` (onglet PétasseGang) ou `PORTAL_ENTRIES` (onglet Portails) :
+`register(...)` construit l'onglet à partir de cette liste. `ModCreativeTabTest` vérifie que chaque item y figure.
 
 ---
 
-### 5. Créer la définition d'item (obligatoire en MC 1.21.1)
-
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/items/my_item_id.json`
-
-```json
-{
-  "model": {
-    "type": "minecraft:model",
-    "model": "petasse_gang_additions:item/my_item_id"
-  }
-}
-```
-
-> **MC 1.21.1 exige ce fichier.** Sans lui, l'item s'affiche comme un carré violet/noir.
-
----
-
-### 6. Créer le modèle JSON
+### 5. Créer le modèle JSON
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/models/item/my_item_id.json`
 
@@ -150,9 +131,11 @@ entries.add(ModItems.MY_ITEM);
 
 Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
+> En 1.21.1, seul `models/item/<id>.json` compte : les définitions `assets/<ns>/items/*.json` n'existent qu'à partir de 1.21.4.
+
 ---
 
-### 7. Ajouter la texture
+### 6. Ajouter la texture
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/textures/item/my_item_id.png`
 
@@ -161,7 +144,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ---
 
-### 8. Ajouter les traductions
+### 7. Ajouter les traductions
 
 **Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/en_us.json`
 ```json
@@ -177,7 +160,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ---
 
-### 9. Ajouter une recette (optionnel)
+### 8. Ajouter une recette (optionnel)
 
 **Fichier :** `data/petasse_gang_additions/recipes/my_item_id.json`
 
@@ -203,36 +186,38 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ---
 
-### 10. Écrire le test
+### 9. Écrire le test
 
-**Fichier :** `src/test/java/com/petassegang/addons/ItemTest.java`
+**Fichier :** `src/test/java/com/petassegang/addons/feature/my_feature/MyItemTest.java`
+
+Un test de comportement par méthode (pas de test par réflexion), sous le classloader Fabric avec les vrais registres :
 
 ```java
-// Test sans bootstrap (constantes/champs statiques uniquement) :
-@Test
-@DisplayName("MY_ITEM n'est pas null")
-void testMyItemNotNull() {
-    assertNotNull(ModItems.MY_ITEM, "Le champ MY_ITEM doit être non-null.");
-}
+@DisplayName("Mon item")
+class MyItemTest {
 
-// Test avec bootstrap (instanciation MC) :
-@BeforeAll
-static void bootstrapMinecraft() {
-    SharedConstants.createGameVersion();
-    Bootstrap.bootstrap();
-}
+    @BeforeAll
+    static void bootstrap() {
+        MinecraftTestBootstrap.ensure();
+    }
 
-@Test
-@DisplayName("MyItem stack size is 1")
-void testMyItemStackSize() {
-    var item = new MyItem(new Item.Settings().maxCount(1));
-    assertEquals(1, item.getMaxCount(), "La taille de pile doit être 1.");
+    @Test
+    @DisplayName("L'item est unique par pile et rare")
+    void properties() {
+        ItemStack stack = new ItemStack(ModItems.MY_ITEM);
+        assertEquals(1, ModItems.MY_ITEM.getMaxCount(), "Pile de un.");
+        assertEquals(Rarity.RARE, stack.get(DataComponentTypes.RARITY), "Rarete RARE.");
+    }
 }
 ```
 
+Modèle, texture, traductions EN et FR et onglet créatif sont vérifiés automatiquement par `ModRegistriesTest` et
+`ModCreativeTabTest` (`src/test/java/com/petassegang/addons/init/`). La couverture fusionnée exige que chaque
+instruction de la classe soit exécutée par un test unitaire ou un test en jeu (`docs/TESTING.md`).
+
 ---
 
-### 11. Mettre à jour la documentation
+### 10. Mettre à jour la documentation
 
 - [ ] `docs/ITEMS.md` — ajouter la fiche de l'item
 - [ ] `docs/CHANGELOG.md` — ajouter sous `### Added`
@@ -243,16 +228,15 @@ void testMyItemStackSize() {
 
 ## Checklist finale
 
-- [ ] Classe `feature/<feature>/item/<item_id>/MyItem.java` créée (ou pas nécessaire si item simple)
+- [ ] Classe `feature/<feature>/MyItem.java` créée (ou pas nécessaire si item simple)
 - [ ] `init/ModItems.java` — champ `static final` ajouté avec `Registry.register()`
-- [ ] `creative/ModCreativeTab.java` — `entries.add()` ajouté
-- [ ] `items/my_item_id.json` créé (obligatoire MC 1.21.1 — sinon carré violet)
+- [ ] `init/ModCreativeTab.java` — item ajouté à `ENTRIES` ou `PORTAL_ENTRIES`
 - [ ] `models/item/my_item_id.json` créé
 - [ ] `textures/item/my_item_id.png` créé (16×16)
 - [ ] `lang/en_us.json` mis à jour
 - [ ] `lang/fr_fr.json` mis à jour
 - [ ] Recette ajoutée (si applicable)
-- [ ] Test ajouté (RegistryTest ou ItemTest)
+- [ ] Test de comportement ajouté (`feature/<feature>/MyItemTest`) ; `ModRegistriesTest` vert
 - [ ] `docs/ITEMS.md` mis à jour
 - [ ] `docs/CHANGELOG.md` mis à jour
 - [ ] `./gradlew build` passe sans erreur

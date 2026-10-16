@@ -1,0 +1,19 @@
+{
+  "variants": {
+    "facing=north": {
+      "model": "petasse_gang_additions:block/backrooms_door"
+    },
+    "facing=east": {
+      "model": "petasse_gang_additions:block/backrooms_door",
+      "y": 90
+    },
+    "facing=south": {
+      "model": "petasse_gang_additions:block/backrooms_door",
+      "y": 180
+    },
+    "facing=west": {
+      "model": "petasse_gang_additions:block/backrooms_door",
+      "y": 270
+    }
+  }
+}

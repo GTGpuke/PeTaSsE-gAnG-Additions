@@ -5,22 +5,15 @@
 | Couche | Technologie |
 |--------|-------------|
 | Jeu | Minecraft 1.21.1 (Yarn mappings 1.21.1+build.3) |
-| Mod loader | Fabric Loader 0.16.9 |
-| API | Fabric API 0.102.0+1.21.1 |
+| Mod loader | Fabric Loader 0.19.5 |
+| API | Fabric API 0.116.17+1.21.1 |
 | Langage | Java 21 |
-| Build | Gradle 9.3.0 + Fabric Loom 1.9 |
-| Tests | JUnit 5 |
+| Build | Gradle 9.8.1 (wrapper) + Fabric Loom 1.17.21 |
+| Tests | JUnit 5.11 + fabric-loader-junit, JaCoCo, Fabric GameTest |
 | CI/CD | GitHub Actions |
 
-### Dépendances prévues (pas encore activées)
-
-Ces bibliothèques sont documentées dans [docs/DEPENDENCIES.md](DEPENDENCIES.md) et déclarées
-en `suggests` dans `fabric.mod.json`, mais pas encore incluses dans le build.
-
-| Bibliothèque | Rôle |
-|-------------|------|
-| GeckoLib | Animations 3D (mobs Backrooms) |
-| Patchouli | Livre/guide in-game (lore Backrooms) |
+Aucune dépendance runtime externe en dehors de Fabric API. Le cache de secteurs utilise
+`java.util.LinkedHashMap` plutôt que Guava pour rester sans dépendance.
 
 ---
 
@@ -29,95 +22,117 @@ en `suggests` dans `fabric.mod.json`, mais pas encore incluses dans le build.
 ```text
 com.petassegang.addons/
 |
-|-- PeTaSsEgAnGAdditionsMod.java        <- ModInitializer — point d'entrée principal
-|-- PeTaSsEgAnGAdditionsClientMod.java  <- ClientModInitializer — entrée client uniquement
+|-- PeTaSsEgAnGAdditionsMod.java        <- ModInitializer : registerContent() + hooks serveur + flag portail
+|-- PeTaSsEgAnGAdditionsClientMod.java  <- ClientModInitializer : payloads (badge, chunks distants), modèle adaptatif, renderer portail
 |
-|-- core/
-|   `-- ModConstants.java               <- MOD_ID, MOD_NAME, LOGGER central
+|-- core/ModConstants.java              <- MOD_ID, MOD_NAME, LOGGER
+|-- config/ModConfig.java               <- options lues au démarrage via -D (debug, portails)
 |
-|-- config/
-|   `-- ModConfig.java                  <- Constantes de configuration (plain booleans)
+|-- init/                               <- un registre par type, champs static final
+|   |-- ModBlocks.java
+|   |-- ModItems.java
+|   |-- ModBlockEntities.java
+|   |-- ModChunkGenerators.java
+|   |-- ModCreativeTab.java             <- ENTRIES = liste ordonnée de l'onglet
+|   `-- ModNetworking.java              <- types de payloads
 |
-|-- creative/
-|   `-- ModCreativeTab.java             <- Onglet créatif (ItemGroup + FabricItemGroupEvents)
+|-- feature/
+|   |-- gang/GangBadgeItem, GangBadgeActivatePayload, client/GangBadgeClientHandler
+|   `-- cursed/CursedSnackItem
 |
-|-- init/                               <- Registres (un fichier par type)
-|   |-- ModBlockEntities.java           <- Registry.register(Registries.BLOCK_ENTITY_TYPE, ...)
-|   |-- ModBlocks.java                  <- Registry.register(Registries.BLOCK, ...)
-|   |-- ModChunkGenerators.java         <- Registry.register(Registries.CHUNK_GENERATOR, ...)
-|   `-- ModItems.java                   <- Registry.register(Registries.ITEM, ...)
+|-- backrooms/
+|   |-- BackroomsConstants.java         <- clé de dimension, identifiants, échelle de cellule
+|   |-- level0/
+|   |   |-- biome/LevelZeroSurfaceBiome          <- palettes cosmétiques par région et par layer
+|   |   |-- block/LevelZeroWallpaperBlock        <- mur adaptatif (face_mask 0-15)
+|   |   |-- client/model/                        <- LevelZeroWallpaperBakedModel + handler
+|   |   `-- generation/
+|   |       |-- LevelZeroChunkGenerator          <- orchestre les 5 layers
+|   |       |-- coord/   LevelZeroCoords, LevelZeroLayerStackLayout, LevelZeroVerticalSlice
+|   |       |-- noise/   StageRandom, LevelZeroSeedResolver
+|   |       |-- sector/  LevelZeroSectorGenerator, LevelZeroSectorData, LevelZeroSectorCache, LevelZeroSectorRoomKind
+|   |       |-- layout/  LevelZeroLayout, LevelZeroRegionWalkability, LevelZeroCellEvaluator,
+|   |       |            LevelZeroTopology, LevelZeroLargeRooms, LevelZeroLightPattern, LevelZeroCorridorGaps,
+|   |       |            LevelZeroCellEvaluation, LevelZeroCellContext, enums et masques
+|   |       `-- write/   LevelZeroBlockPalette, LevelZeroBlockWriter, LevelZeroWallSampler,
+|   |                    LevelZeroWallProps, LevelZeroDebugPalette
+|   `-- portal/                          <- portails : entity, block, transition, sync, client (voir §Portails)
 |
-|-- feature/                            <- Features gameplay rangees verticalement
-|   |-- gang/
-|   |   |-- item/gang_badge/GangBadgeItem.java
-|   |   |-- network/c2s/GangBadgeActivatePayload.java
-|   |   `-- client/GangBadgeClientHandler.java
-|   `-- cursed/
-|       `-- item/cursed_snack/CursedSnackItem.java
-|
-|-- backrooms/                          <- Feature Backrooms
-|   |-- BackroomsConstants.java         <- IDs et hauteurs du Level 0
-|   `-- level/level0/
-|       |-- biome/LevelZeroSurfaceBiome.java
-|       |-- block/                      <- Blocs propres au Level 0
-|       |-- client/model/               <- Model handlers client du Level 0
-|       `-- generation/
-|           |-- LevelZeroChunkGenerator.java
-|           |-- layout/LevelZeroLayout.java
-|           |-- stage/
-|           |-- write/
-|           `-- noise/
-|
-|-- network/                            <- Packets réseau
-|   `-- ModNetworking.java
-|
-`-- perf/section/                       <- Monitoring debug opt-in
-    |-- ModPerformanceMonitor.java
-    `-- client/ClientPerformanceMonitorHook.java
+|-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
+`-- mixin/                               <- MixinServerChunkManager (commun) + client/ (rendu des portails)
 ```
+
+Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/petassegang/addons/gametest/`, rangé par
+domaine comme le code (`support/`, `backrooms/level0/`, `backrooms/portal/`, `feature/`) : un mod
+`petasse_gang_additions_gametest` chargé par `runGameTest` seulement, jamais dans le JAR (`verifyJarContents` le vérifie).
 
 ---
 
-## Pattern d'enregistrement Fabric
-
-En Fabric, tous les objets sont enregistrés via `Registry.register()` dans des champs `static final`.
-Il n'y a pas de `DeferredRegister` ni de `RegistryObject`.
-
-```java
-// ModItems.java
-public static final Item GANG_BADGE = Registry.register(
-        Registries.ITEM,
-        Identifier.of(ModConstants.MOD_ID, "gang_badge"),
-        new GangBadgeItem(new Item.Settings().maxCount(1).rarity(Rarity.EPIC))
-);
-```
-
-Le champ contient directement l'objet enregistré — pas de `.get()` nécessaire.
-
-Flow complet :
+## Pipeline de génération du Level 0
 
 ```text
-JVM load -> static fields exécutés (Registration immédiate)
-         -> ModInitializer.onInitialize() -> setup réseau, creative tabs
-         -> Monde chargé
+NoiseConfig ──LevelZeroSeedResolver──> seed de layout ──> seed par layer (0..4)
+                                                                │
+   LevelZeroSectorCache (LRU 256) ◄── LevelZeroSectorGenerator  │  secteur 240x135 cellules :
+          │   traversabilité + type de salle par cellule        │  mini-labyrinthes (Prim) + salles
+          ▼                                                     ▼
+   LevelZeroRegionWalkability : fenêtre du chunk + marge de 2 cellules
+          │
+          ▼
+   LevelZeroCellEvaluator (par cellule 3x3 du chunk)
+      grande pièce ─> biome ─> connexions/topologie ─> néon ─> gap de couloir ─> motif 3x3
+          │
+          ▼
+   LevelZeroLayout (cellules évaluées du chunk) ──> LevelZeroBlockWriter
+                                                      bedrock inter-layer, sol, air|mur, plafond|néon
+                                                      murs visibles : LevelZeroWallSampler (exposition, faces blanches)
 ```
+
+Points clés :
+
+- **Déterminisme** : tout dérive de `StageRandom.mix(seed, stage, x, z)`. Les sels sont figés.
+  `LevelZeroGoldenTest` verrouille les empreintes de génération pour trois seeds et cinq layers.
+- **Marge de région** : la fenêtre de traversabilité déborde de deux cellules autour du chunk, ce qui
+  rend topologie, néons et gaps identiques des deux côtés d'une frontière de chunk.
+- **Biomes sans seed** : `LevelZeroSurfaceBiome` ne dépend pas du seed monde, le client recalcule
+  la palette et les détails muraux sans synchronisation.
+- **Pile verticale** : cinq layers de dix blocs (sol 0, air 1-4, plafond 5, bedrock 6-9), dimension de 64 blocs.
+- **Un seul chemin d'écriture** : `LevelZeroBlockWriter.writeColumn` alimente aussi bien le chunk que
+  l'échantillon de colonne demandé par le moteur, via l'interface fonctionnelle `BlockSink`.
 
 ---
 
-## Cycle de vie du mod
+## Rendu client du Level 0
+
+Le mur visible est toujours `level_zero_wallpaper_adaptive`. Sa propriété `face_mask` (4 bits) dit quelles
+faces montrent la variante blanche ; elle est calculée par le générateur et relue par
+`LevelZeroWallpaperBakedModel`, qui ajoute en overlay les plinthes (ligne basse de chaque layer) et les
+rares interrupteurs ou prises (`LevelZeroWallProps`, déterministes). Aucune block entity, aucun bloc
+supplémentaire dans le monde.
+
+---
+
+## Portails
+
+`backrooms/portal/` relie le monde normal et le Level 0 par une porte : entity portail persistante,
+block entity qui trouve seule sa destination et pose un portail de chaque côté, téléportation serveur
+(joueurs prédits par le client, objets et mobs transposés par le serveur), synchronisation des entités de
+l'autre côté par le suivi vanilla, un niveau de portails imbriqués, interaction à travers le cadre,
+par traversée du plan, synchronisation serveur → client des chunks de l'autre dimension (payloads
+`portal_remote_*`), et rendu client du monde distant à travers le cadre (stencil, caméra transposée,
+projection à plan proche oblique). Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout
+(porte décorative, mixins inertes). Conception, protocole et limites : [PORTALS.md](PORTALS.md).
+
+---
+
+## Cycle de vie
 
 ```text
-1. Chargement JVM
-   `-- static initialisers (tous les Registry.register() s'exécutent ici)
-
-2. ModInitializer.onInitialize()
-   |-- setup réseau (ModNetworking.register())
-   `-- enregistrement onglet créatif
-
-3. ClientModInitializer.onInitializeClient()  [CLIENT seulement]
-   `-- renderers, key bindings, model handlers
-
-4. Monde chargé / Serveur démarré
+1. Fabric charge le mod ; les mixins client s'appliquent (sans effet si portails désactivés).
+2. onInitialize() : registerContent() (blocs -> block entities -> entity -> items -> onglet -> payloads),
+   hooks de tick serveur (perf), vidage du cache de secteurs à l'arrêt, runtime portail si activé.
+3. onInitializeClient() : récepteurs des payloads (badge, chunks distants), hook FPS, modèle adaptatif, renderer portail.
+4. Chargement du monde : le datapack déclare la dimension, qui référence le codec du générateur.
 ```
 
 ---
@@ -126,48 +141,23 @@ JVM load -> static fields exécutés (Registration immédiate)
 
 | Règle | Détail |
 |-------|--------|
-| Tout code dans `feature/*`, `backrooms/*`, `init/` hors sous-dossier client | Compatible dedicated server |
-| `@Environment(EnvType.CLIENT)` | Pour renderers, GUI, particles |
-| Dossiers `client/` sous une feature | Tout ce qui est client-only pour cette feature |
-| Jamais de `MinecraftClient.getInstance()` hors CLIENT | Évite les crashs serveur |
-| `ClientModInitializer` séparé | Point d'entrée client dédié |
+| Code commun | `init/`, `feature/*` (hors `client/`), `backrooms/level0/{biome,block,generation}`, `backrooms/portal/{entity,block,transition,sync,debug}`, `mixin/MixinServerChunkManager`, `perf/ModPerformanceMonitor` |
+| Code client | sous-packages `client/` et `mixin/client/` uniquement ; jamais de `MinecraftClient` ailleurs |
+| Point d'entrée | `ClientModInitializer` séparé, déclaré dans `fabric.mod.json` |
 
 ---
 
-## Conventions de nommage
+## Conventions
 
 | Type | Convention | Exemple |
 |------|------------|---------|
-| Classe | PascalCase | `GangBadgeItem` |
-| Méthode | camelCase | `appendTooltip()` |
-| Constante | UPPER_SNAKE_CASE | `MOD_ID`, `GANG_BADGE` |
-| Package | lowercase | `com.petassegang.addons.feature.gang.item.gang_badge` |
-| Mod ID | lowercase_snake | `petasse_gang_additions` |
-| Resource path | lowercase_snake | `gang_badge` |
-| Lang key item | `item.<mod_id>.<id>` | `item.petasse_gang_additions.gang_badge` |
-| Lang key block | `block.<mod_id>.<id>` | `block.petasse_gang_additions.level_zero_wallpaper` |
-| Lang key tab | `itemGroup.<mod_id>.<id>` | `itemGroup.petasse_gang_additions.petassegang` |
+| Classe | PascalCase | `LevelZeroBlockWriter` |
+| Méthode / variable | camelCase | `wallpaperFaceMask` |
+| Constante | UPPER_SNAKE_CASE | `REGION_MARGIN_CELLS` |
+| Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
+| Clé de langue | `block.<mod_id>.<id>`, `item.<mod_id>.<id>` | `block.petasse_gang_additions.cursed_log` |
+| Commentaires et logs | français, majuscule, point final, ASCII | `// Le cache evince les plus anciens.` |
+| Imports | `java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang` | — |
 
----
-
-## Flow d'ajout de contenu
-
-### Item
-1. `feature/<feature>/item/<item_id>/MyCustomItem.java`
-2. `init/ModItems.java` — `Registry.register(Registries.ITEM, ...)`
-3. `creative/ModCreativeTab.java` — `FabricItemGroupEvents.modifyEntriesEvent()`
-4. `assets/.../models/item/my_item.json`
-5. `assets/.../textures/item/my_item.png`
-6. `lang/en_us.json` + `fr_fr.json`
-7. `data/.../recipes/my_item.json` si nécessaire
-8. `src/test/.../ItemTest.java`
-
-### Block
-1. `feature/<feature>/block/<block_id>/MyCustomBlock.java`
-2. `init/ModBlocks.java` — `Registry.register(Registries.BLOCK, ...)`
-3. `init/ModItems.java` — `BlockItem` pour le block item
-4. `assets/.../blockstates/my_block.json`
-5. `assets/.../models/block/my_block.json` + `models/item/my_block.json`
-6. `assets/.../textures/block/my_block.png`
-7. `data/.../loot_table/blocks/my_block.json`
-8. Lang keys + recette
+Pas de couche d'indirection sans second usage réel : une classe = une responsabilité lisible,
+pas de stage/builder/façade spéculatifs.

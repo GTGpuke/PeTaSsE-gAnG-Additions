@@ -14,30 +14,27 @@ import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.util.Identifier;
-import com.petassegang.addons.backrooms.level.level0.block.LevelZeroBaseboardBlock;
-import com.petassegang.addons.backrooms.level.level0.block.LevelZeroWallpaperBlock;
+
+import com.petassegang.addons.backrooms.level0.block.LevelZeroWallpaperBlock;
+import com.petassegang.addons.backrooms.portal.block.BackroomsDoorBlock;
 import com.petassegang.addons.core.ModConstants;
 
 /**
- * Registre central des blocs pour PeTaSsE_gAnG_Additions.
- *
- * <p>Tous les blocs sont enregistres directement via {@link Registry#register}.
- * Les {@link net.minecraft.item.BlockItem} correspondants sont dans {@link ModItems}.
- * Appeler {@link #register()} une seule fois depuis le point d'entree du mod.
+ * Registre des blocs du mod. Les {@code BlockItem} correspondants sont dans {@link ModItems}.
  */
 public final class ModBlocks {
 
-    /** Papier peint jauni simple du Level 0. */
+    /** Papier peint jauni du Level 0 (bloc decoratif simple). */
     public static final Block LEVEL_ZERO_WALLPAPER = register(
             "level_zero_wallpaper",
             new Block(AbstractBlock.Settings.copy(Blocks.END_STONE)));
 
-    /** Variante blanche simple du papier peint du Level 0. */
+    /** Papier peint blanc du Level 0 (bloc decoratif simple). */
     public static final Block LEVEL_ZERO_WALLPAPER_AGED = register(
             "level_zero_wallpaper_aged",
             new Block(AbstractBlock.Settings.copy(Blocks.END_STONE)));
 
-    /** Bloc technique adapte aux transitions mixtes du papier peint du Level 0. */
+    /** Mur adaptatif pose par le generateur sur toutes les colonnes visibles du Level 0. */
     public static final LevelZeroWallpaperBlock LEVEL_ZERO_WALLPAPER_ADAPTIVE = register(
             "level_zero_wallpaper_adaptive",
             new LevelZeroWallpaperBlock(AbstractBlock.Settings.copy(Blocks.END_STONE)));
@@ -62,30 +59,24 @@ public final class ModBlocks {
             "level_zero_fluorescent_light",
             new Block(AbstractBlock.Settings.copy(Blocks.SEA_LANTERN).luminance(state -> 15)));
 
-    /** Plinthe adaptative decorant le bas des murs du Level 0. */
-    public static final LevelZeroBaseboardBlock LEVEL_ZERO_BASEBOARD = register(
-            "level_zero_baseboard",
-            new LevelZeroBaseboardBlock(AbstractBlock.Settings.copy(Blocks.OAK_PLANKS)
-                    .strength(0.3f)
-                    .nonOpaque()
-                    .noCollision()));
+    /** Porte des Backrooms : posee hors du Level 0 elle y mene, posee dedans elle ramene a la surface. */
+    public static final BackroomsDoorBlock BACKROOMS_DOOR = register(
+            "backrooms_door",
+            new BackroomsDoorBlock(AbstractBlock.Settings.copy(Blocks.IRON_DOOR).strength(3.0f).nonOpaque()));
 
-    /** Generateur d'arbre Maudit, pousse via la ConfiguredFeature personnalisee. */
+    /** Generateur de l'Arbre Maudit, branche sur la configured feature {@code cursed_tree}. */
     public static final SaplingGenerator CURSED_TREE_GROWER = new SaplingGenerator(
             "cursed",
             Optional.empty(),
-            Optional.of(RegistryKey.of(
-                    RegistryKeys.CONFIGURED_FEATURE,
-                    Identifier.of(ModConstants.MOD_ID, "cursed_tree"))),
-            Optional.empty()
-    );
+            Optional.of(RegistryKey.of(RegistryKeys.CONFIGURED_FEATURE, Identifier.of(ModConstants.MOD_ID, "cursed_tree"))),
+            Optional.empty());
 
-    /** Tronc de l'Arbre Maudit, s'oriente selon l'axe de placement. */
+    /** Tronc de l'Arbre Maudit. */
     public static final PillarBlock CURSED_LOG = register(
             "cursed_log",
             new PillarBlock(AbstractBlock.Settings.copy(Blocks.OAK_LOG)));
 
-    /** Feuilles de l'Arbre Maudit, transparentes et persistantes autour du tronc. */
+    /** Feuilles de l'Arbre Maudit. */
     public static final LeavesBlock CURSED_LEAVES = register(
             "cursed_leaves",
             new LeavesBlock(AbstractBlock.Settings.copy(Blocks.OAK_LEAVES)));
@@ -100,22 +91,16 @@ public final class ModBlocks {
             "cursed_planks",
             new Block(AbstractBlock.Settings.copy(Blocks.OAK_PLANKS)));
 
-    /**
-     * Enregistre tous les blocs dans le registre vanilla.
-     * Doit etre appele exactement une fois depuis le point d'entree du mod.
-     */
+    private ModBlocks() {
+        throw new UnsupportedOperationException("Classe de registre.");
+    }
+
+    /** Force le chargement de la classe, donc l'enregistrement des blocs. */
     public static void register() {
-        // L'initialisation des champs statiques suffit — cette methode
-        // force le chargement de la classe et garantit que les blocs
-        // sont bien enregistres avant les items.
         ModConstants.LOGGER.debug("Blocs du mod enregistres.");
     }
 
     private static <T extends Block> T register(String name, T block) {
         return Registry.register(Registries.BLOCK, Identifier.of(ModConstants.MOD_ID, name), block);
-    }
-
-    private ModBlocks() {
-        throw new UnsupportedOperationException("Classe de registre.");
     }
 }

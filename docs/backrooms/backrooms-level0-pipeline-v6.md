@@ -6,19 +6,20 @@
 
 Ce document reste la spec cible de référence, pas une photographie exacte du runtime actuel.
 
-Ce qui est déjà actif en code :
-- génération régionale avec extraction par chunk ;
-- pipeline de layout explicite ;
-- multi-layer réel via `layerIndex` et slices verticales canoniques ;
-- writer dédié, biomes verticaux, lumière modulaire et détails muraux actifs ;
-- instrumentation de performance opt-in.
+Ce qui est actif en code (refonte 0.8.0, `backrooms/level0/generation/`, voir `docs/ARCHITECTURE.md`) :
+- secteur brut en cache LRU, fenêtre de traversabilité chunk + marge de deux cellules, évaluation
+  par cellule (`LevelZeroCellEvaluator`) ;
+- multi-layer réel : cinq slices verticales canoniques, une seed par layer ;
+- writer unique, biomes par layer, néons en quinconce filtrés par biome, gaps de couloir,
+  plinthes et éléments muraux rendus côté client ;
+- instrumentation de performance opt-in, benchmark et empreintes de non-régression.
 
-Ce qui reste volontairement partiel ou différé :
-- la couche `surface details` connectés est gelée côté rendu ;
-- le vrai système de structures manuelles/prefabs n'est pas encore branché ;
-- les connexions verticales sont reportées à ces grosses structures manuelles ;
-- certaines structures de données de cette spec sont plus ambitieuses que le
-  socle runtime actuel.
+Ce qui n'est pas implémenté :
+- les `surface details` connectés et les `structures` rares : retirés du code en 0.8.0 (jamais
+  rendus en jeu) ; le type de salle (`LevelZeroSectorRoomKind`) reste disponible pour un futur
+  système de prefabs manuels ;
+- les connexions verticales, reportées à ces structures manuelles ;
+- certaines structures de données de cette spec sont plus ambitieuses que le socle runtime.
 
 TODO DOC - À garder visible :
 - mettre à jour cette note quand un pan de la spec passe vraiment en runtime actif ;

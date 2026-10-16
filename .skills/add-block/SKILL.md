@@ -49,7 +49,7 @@ Pour un bloc simple, utiliser directement `Block` dans `ModBlocks`.
 
 **Rangement v4 :**
 - Bloc lie a une feature : `feature/<feature>/block/<block_id>/`.
-- Bloc Backrooms Level 0 : `backrooms/level/level0/block/`.
+- Bloc Backrooms Level 0 : `backrooms/level0/block/`.
 - Eviter de recreer un package racine `block/`.
 
 ### 3. Enregistrer le bloc dans `ModBlocks.java`
@@ -81,7 +81,7 @@ public static final BlockItem MY_BLOCK = Registry.register(
 
 - `assets/<modid>/blockstates/my_block.json`
 - `assets/<modid>/models/block/my_block.json`
-- `assets/<modid>/items/my_block.json`
+- `assets/<modid>/models/item/my_block.json` (en 1.21.1, les définitions `items/*.json` n'existent pas encore)
 - `assets/<modid>/textures/block/my_block.png`
 - `data/<modid>/loot_table/blocks/my_block.json`
 
@@ -93,7 +93,7 @@ public static final BlockItem MY_BLOCK = Registry.register(
 ### 7. Finaliser
 
 - Ajouter les clés EN et FR.
-- Ajouter l'item dans l'onglet créatif si nécessaire (`FabricItemGroupEvents.modifyEntriesEvent()`).
+- Ajouter l'item dans l'onglet créatif si nécessaire (liste `ENTRIES` de `init/ModCreativeTab.java`).
 - Mettre à jour `docs/BLOCKS.md` et `docs/CHANGELOG.md`.
 - Ajouter ou ajuster les tests de registre.
 
@@ -102,8 +102,7 @@ public static final BlockItem MY_BLOCK = Registry.register(
 - [ ] Bloc enregistré dans `ModBlocks.java` via `Registry.register(Registries.BLOCK, ...)`
 - [ ] BlockItem enregistré dans `ModItems.java` via `Registry.register(Registries.ITEM, ...)`
 - [ ] Onglet créatif mis à jour si nécessaire
-- [ ] Blockstate, modèle, item model, texture et loot table présents
-- [ ] Fichier `items/my_block.json` présent (obligatoire MC 1.21.1)
+- [ ] Blockstate, modèle, item model, texture et loot table présents (`ModRegistriesTest` les vérifie)
 - [ ] Traductions EN et FR présentes
 - [ ] `docs/BLOCKS.md` et `docs/CHANGELOG.md` mis à jour
 - [ ] `./gradlew build` passe

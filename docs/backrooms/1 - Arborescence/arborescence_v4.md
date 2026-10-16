@@ -1,5 +1,10 @@
 # ARCHITECTURE.md — PeTaSsE_gAnG_Additions
 
+> **Note (refonte 0.8.0, octobre 2026)** : ce document est la **spec cible** des phases portail et shaders.
+> L'arborescence réellement en place est décrite dans `docs/ARCHITECTURE.md` ; les dossiers vides qui
+> matérialisaient cette arborescence cible ont été retirés du dépôt (un package n'existe que s'il contient
+> du code). Créer les packages au moment où une phase les remplit.
+
 > **Version** : v4 unifiée — spec exécutable par IA agentique (Codex / Claude Code / Cursor) ET référence humaine
 > **Cible** : Minecraft 1.21.1 / Fabric / Java 21 / Veil 3.x — version exacte verrouillée en Phase 0
 > **Compagnon** : `spec_veil_portail_shaders_V4_3.md` + `spec_shaders_backrooms_V2.md` (specs sources portail + shader)

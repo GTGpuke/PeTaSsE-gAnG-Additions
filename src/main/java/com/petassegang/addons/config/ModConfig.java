@@ -1,82 +1,82 @@
 package com.petassegang.addons.config;
 
 /**
- * Configuration simplifiee du mod pour Fabric.
+ * Configuration du mod, lue au demarrage depuis les proprietes systeme.
  *
- * <p>La configuration Forge (ForgeConfigSpec) n'existe pas dans Fabric.
- * Les options sont en constantes statiques avec leur valeur par defaut.
- * Une implementation complete via cloth-config peut etre ajoutee ulterieurement.
+ * <p>Toutes les options ont une valeur par defaut jouable ; les toggles de
+ * debug se passent en {@code -Dcle=valeur} (voir les {@code -P} de build.gradle).
  */
 public final class ModConfig {
 
-    /** Active ou desactive le Gang Badge. Valeur par defaut : true. */
-    public static final boolean ENABLE_GANG_BADGE = booleanProperty(
-            "petassegang.enableGangBadge",
-            true);
-    /** Active ou desactive la micro-geometrie du Level 0. */
-    public static final boolean ENABLE_LEVEL_ZERO_NOISE_GEOMETRY = booleanProperty(
-            "petassegang.levelZero.noiseGeometry",
-            true);
-    /** Active un rendu debug des micro-features du Level 0. */
-    public static final boolean DEBUG_LEVEL_ZERO_MICRO_GEOMETRY = booleanProperty(
-            "petassegang.levelZero.debugMicroGeometry",
-            false);
-    /**
-     * Met en pause toute la couche de details surfaciques du Level 0.
-     *
-     * <p>Les taches, l'humidite, l'usure et les overlays muraux sont
-     * volontairement desactives pour se concentrer sur les plinthes,
-     * interrupteurs et prises.
-     */
-    public static final boolean ENABLE_LEVEL_ZERO_SURFACE_DETAILS = booleanProperty(
-            "petassegang.levelZero.surfaceDetails",
-            false);
-    /** Active un rendu debug des petits details muraux du Level 0. */
-    public static final boolean DEBUG_LEVEL_ZERO_WALL_PROPS = booleanProperty(
-            "petassegang.levelZero.debugWallProps",
-            false);
-    /**
-     * Active un rendu debug des structures rares du Level 0.
-     *
-     * <p>Ce toggle ne spawn pas de vraies structures finales. Il affiche
-     * seulement la couche semantique encore en cours de maturation.
-     */
-    public static final boolean DEBUG_LEVEL_ZERO_STRUCTURES = booleanProperty(
-            "petassegang.levelZero.debugStructures",
-            false);
-    /**
-     * Active un monitoring de performance opt-in.
-     *
-     * <p>Ce mode publie des resumes periodiques dans les logs et ajoute une
-     * synthese au F3 du Level 0.
-     */
-    public static final boolean DEBUG_PERFORMANCE_MONITOR = booleanProperty(
-            "petassegang.debugPerformanceMonitor",
-            false);
-    /** Intervalle entre deux snapshots de performance dans les logs. */
-    public static final int PERFORMANCE_LOG_INTERVAL_SECONDS = intProperty(
-            "petassegang.performanceLogIntervalSeconds",
-            10);
+    /** Active les gaps de couloir (micro-geometrie) du Level 0. */
+    public static final boolean ENABLE_LEVEL_ZERO_NOISE_GEOMETRY =
+            booleanProperty("petassegang.levelZero.noiseGeometry", true);
+
+    /** Colore en beton les cellules du Level 0 portant une micro-geometrie. */
+    public static final boolean DEBUG_LEVEL_ZERO_MICRO_GEOMETRY =
+            booleanProperty("petassegang.levelZero.debugMicroGeometry", false);
+
+    /** Pose les interrupteurs et prises du Level 0 en blocs de debug. */
+    public static final boolean DEBUG_LEVEL_ZERO_WALL_PROPS =
+            booleanProperty("petassegang.levelZero.debugWallProps", false);
+
+    /** Active le moniteur de performance (logs periodiques et F3). */
+    public static final boolean DEBUG_PERFORMANCE_MONITOR =
+            booleanProperty("petassegang.debugPerformanceMonitor", false);
+
+    /** Intervalle entre deux resumes de performance dans les logs. */
+    public static final int PERFORMANCE_LOG_INTERVAL_SECONDS =
+            intProperty("petassegang.performanceLogIntervalSeconds", 10);
+
+    /** Active les portails Backrooms : porte, teleportation et rendu du monde distant. */
+    public static final boolean ENABLE_PORTAL_FEATURE =
+            booleanProperty("petassegang.portal.enablePortalFeature", true);
+
+    /** Ticks de cooldown apres une traversee de portail par un joueur ; zero par defaut, on enchaine aller et retour librement. */
+    public static final int PORTAL_TELEPORT_COOLDOWN_TICKS =
+            intProperty("petassegang.portal.teleportCooldownTicks", 0);
+
+    /** Distance d'activation du prechargement destination autour d'un portail. */
+    public static final int PORTAL_ACTIVATION_RADIUS_BLOCKS =
+            intProperty("petassegang.portal.activationRadiusBlocks", 16);
+
+    /** Rayon de prechargement des chunks destination autour d'un portail. */
+    public static final int PORTAL_PRELOAD_RADIUS_CHUNKS =
+            intProperty("petassegang.portal.preloadRadiusChunks", 3);
+
+    /** Distance maximale de rendu d'un portail. */
+    public static final int PORTAL_RENDER_DISTANCE_BLOCKS =
+            intProperty("petassegang.portal.renderDistanceBlocks", 64);
+
+    /** Active les logs detailles du rendu de portail. */
+    public static final boolean DEBUG_PORTAL_RENDERING =
+            booleanProperty("petassegang.portal.debugRendering", false);
 
     private ModConfig() {
         throw new UnsupportedOperationException("Classe de configuration.");
     }
 
     private static boolean booleanProperty(String key, boolean defaultValue) {
-        String value = System.getProperty(key);
-        if (value == null || value.isBlank()) {
-            return defaultValue;
-        }
-        return Boolean.parseBoolean(value);
+        return parseBoolean(System.getProperty(key), defaultValue);
     }
 
     private static int intProperty(String key, int defaultValue) {
-        String value = System.getProperty(key);
-        if (value == null || value.isBlank()) {
+        return parseInt(System.getProperty(key), defaultValue);
+    }
+
+    static boolean parseBoolean(String rawValue, boolean defaultValue) {
+        if (rawValue == null || rawValue.isBlank()) {
+            return defaultValue;
+        }
+        return Boolean.parseBoolean(rawValue.trim());
+    }
+
+    static int parseInt(String rawValue, int defaultValue) {
+        if (rawValue == null || rawValue.isBlank()) {
             return defaultValue;
         }
         try {
-            return Integer.parseInt(value);
+            return Integer.parseInt(rawValue.trim());
         } catch (NumberFormatException ignored) {
             return defaultValue;
         }

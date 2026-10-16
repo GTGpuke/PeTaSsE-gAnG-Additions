@@ -1,7 +1,8 @@
 {
-  "item.petasse_gang_additions.gang_badge": "Badge de la Gang",
   "itemGroup.petasse_gang_additions.petassegang": "PetasseGang",
+  "itemGroup.petasse_gang_additions.portals": "PetasseGang - Portails",
 
+  "item.petasse_gang_additions.gang_badge": "Badge de la Gang",
   "tooltip.petasse_gang_additions.gang_badge.member": "Membre Officiel de la PetasseGang",
   "tooltip.petasse_gang_additions.gang_badge.flavour": "Ne le perds pas, il n'y a pas de remplacement.",
 
@@ -19,7 +20,8 @@
   "block.petasse_gang_additions.level_zero_damp_carpet_aged": "Moquette Rouge du Niveau 0",
   "block.petasse_gang_additions.level_zero_ceiling_tile": "Dalle de Plafond du Niveau 0",
   "block.petasse_gang_additions.level_zero_fluorescent_light": "Neon du Niveau 0",
-  "block.petasse_gang_additions.level_zero_baseboard": "Plinthe du Niveau 0",
+  "block.petasse_gang_additions.backrooms_door": "Porte des Backrooms",
+  "entity.petasse_gang_additions.backrooms_portal": "Portail des Backrooms",
 
   "item.petasse_gang_additions.cursed_log": "Tronc Maudit",
   "item.petasse_gang_additions.cursed_leaves": "Feuilles Maudites",
@@ -32,12 +34,7 @@
   "item.petasse_gang_additions.level_zero_damp_carpet_aged": "Moquette Rouge du Niveau 0",
   "item.petasse_gang_additions.level_zero_ceiling_tile": "Dalle de Plafond du Niveau 0",
   "item.petasse_gang_additions.level_zero_fluorescent_light": "Neon du Niveau 0",
-  "item.petasse_gang_additions.level_zero_baseboard": "Plinthe du Niveau 0",
+  "item.petasse_gang_additions.backrooms_door": "Porte des Backrooms",
 
-  "dimension.petasse_gang_additions.backrooms_level_0": "Backrooms - Niveau 0",
-
-  "config.petasse_gang_additions.title": "Config PeTaSsE_gAnG_Additions",
-  "config.petasse_gang_additions.items": "Objets",
-  "config.petasse_gang_additions.items.enableGangBadge": "Activer le Badge de la Gang",
-  "config.petasse_gang_additions.items.enableGangBadge.tooltip": "Mettre a false pour desactiver completement le Badge de la Gang."
+  "dimension.petasse_gang_additions.backrooms_level_0": "Backrooms - Niveau 0"
 }

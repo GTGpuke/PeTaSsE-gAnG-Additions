@@ -1,0 +1,10 @@
+# Mises a jour des actions GitHub utilisees par les workflows (une PR par action, une fois par mois).
+# Les dependances Gradle (Fabric, Yarn, Loom) suivent la version de Minecraft et se mettent a jour a la main.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels:
+      - ci

@@ -1,0 +1,29 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.petassegang.addons.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "client.MixinWorldRenderer",
+    "client.MixinGameRenderer",
+    "client.MixinClientPlayNetworkHandler",
+    "client.MixinMinecraftClient",
+    "client.MixinFramebuffer",
+    "client.WorldRendererAccessor",
+    "client.CameraAccessor",
+    "client.MinecraftClientAccessor",
+    "client.LightmapTextureManagerAccessor",
+    "client.ClientPlayNetworkHandlerAccessor",
+    "client.FrustumAccessor"
+  ],
+  "mixins": [
+    "MixinServerChunkManager",
+    "MixinChunkDataSender",
+    "EntityAccessor",
+    "EntityTrackerAccessor",
+    "ServerChunkLoadingManagerAccessor"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

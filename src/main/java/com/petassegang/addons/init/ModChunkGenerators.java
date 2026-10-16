@@ -4,27 +4,25 @@ import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 
+import com.petassegang.addons.backrooms.BackroomsConstants;
+import com.petassegang.addons.backrooms.level0.generation.LevelZeroChunkGenerator;
 import com.petassegang.addons.core.ModConstants;
-import com.petassegang.addons.backrooms.level.level0.generation.LevelZeroChunkGenerator;
 
 /**
- * Registre des codecs de generateurs de chunks custom du mod.
+ * Registre des generateurs de chunks du mod.
  */
 public final class ModChunkGenerators {
 
-    /**
-     * Enregistre le codec du generateur du Level 0.
-     * Doit etre appele avant le chargement des dimensions.
-     */
+    private ModChunkGenerators() {
+        throw new UnsupportedOperationException("Classe de registre.");
+    }
+
+    /** Enregistre le codec du generateur du Level 0 ; a appeler avant le chargement des dimensions. */
     public static void register() {
         Registry.register(
                 Registries.CHUNK_GENERATOR,
-                Identifier.of(ModConstants.MOD_ID, "backrooms_level_zero"),
+                Identifier.of(ModConstants.MOD_ID, BackroomsConstants.LEVEL_ZERO_CHUNK_GENERATOR),
                 LevelZeroChunkGenerator.CODEC);
-        ModConstants.LOGGER.debug("Codec du generateur de chunks enregistre.");
-    }
-
-    private ModChunkGenerators() {
-        throw new UnsupportedOperationException("Classe de registre.");
+        ModConstants.LOGGER.debug("Generateur de chunks du Level 0 enregistre.");
     }
 }

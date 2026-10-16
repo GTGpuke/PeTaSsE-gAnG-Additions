@@ -20,27 +20,29 @@ passer a la suivante.
 
 ## Etat actuel resume
 
-Le code actuel n'est plus un simple generateur monocouche monolithique.
-La base active est deja bien plus avancee :
+Mise a jour octobre 2026 (refonte 0.8.0, voir `docs/AUDIT.md`). La base active, dans
+`backrooms/level0/generation/` :
 
-- `LevelZeroLayout` reste la facade principale du layout et reste deterministe.
-- `LevelZeroChunkGenerator` genere maintenant plusieurs `verticalSlice` canoniques.
-- `LevelZeroLayerStackLayout` et `LevelZeroVerticalSlice` portent la verticale canonique active.
-- `LevelZeroRegionGrid` assure bien une separation nette `region cachee / extraction chunk`.
-- `LevelZeroLegacyLayoutPipeline` expose deja une vraie pipeline par etapes explicites.
-- `LevelZeroSurfaceBiome` est decouple de la topologie et varie maintenant aussi selon le layer.
-- `LevelZeroBlockWriter` et `LevelZeroResolvedColumnResolver` separent bien la logique et
-  l'ecriture finale.
-- Le benchmark `benchmarkLevelZeroGeneration` tourne toujours et sert maintenant aussi de
-  baseline pour la couche structurelle et les points de gameplay potentiels.
+- `LevelZeroChunkGenerator` orchestre cinq `LevelZeroVerticalSlice` canoniques
+  (`LevelZeroLayerStackLayout`), une seed par layer (`LevelZeroSeedResolver`).
+- `LevelZeroSectorGenerator` + `LevelZeroSectorCache` (LRU borne) : le labyrinthe brut, inchange.
+- `LevelZeroLayout` construit une `LevelZeroRegionWalkability` (chunk + marge de deux cellules)
+  puis evalue chaque cellule du chunk avec `LevelZeroCellEvaluator`, qui enchaine
+  `LevelZeroLargeRooms`, `LevelZeroSurfaceBiome`, `LevelZeroTopology`, `LevelZeroLightPattern`
+  et `LevelZeroCorridorGaps`. Les stages/facades/builders intermediaires ont disparu : meme
+  sortie, verrouillee par `LevelZeroGoldenTest`.
+- `LevelZeroBlockWriter` traduit le layout en colonnes (chunk et echantillon par le meme code),
+  `LevelZeroWallSampler` decide exposition et faces blanches, `LevelZeroWallProps` les plinthes
+  et elements muraux rendus cote client.
+- Le benchmark `benchmarkLevelZeroGeneration` mesure layout froid, layout chaud et layout + ecriture.
 
-En revanche, plusieurs pans de la spec v6 restent volontairement partiels ou differes :
+Pans de la spec v6 volontairement non implementes :
 
-- le systeme de `surface details` connectes est conserve comme socle, mais gele cote rendu ;
-- le vrai systeme de structures manuelles/prefabs n'est pas encore actif ;
-- les connexions verticales restent volontairement reportees a ces grosses structures manuelles ;
-- la passe visuelle finale (lumieres, grandes rooms, details) reste a finir en toute fin ;
-- une partie de la spec v6 reste plus ambitieuse que les structures de donnees runtime actuelles.
+- les `surface details` connectes et la couche semantique de `structures` rares ont ete retires du
+  code (jamais rendus en jeu) ; la metadonnee `LevelZeroSectorRoomKind` reste disponible pour un
+  futur systeme de structures manuelles/prefabs ;
+- les connexions verticales restent reportees a ces structures manuelles ;
+- la passe visuelle finale (lumieres, grandes rooms, details) reste a faire en jeu.
 
 TODO DOC - A garder visible :
 

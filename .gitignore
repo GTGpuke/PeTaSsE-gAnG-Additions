@@ -1,5 +1,5 @@
 # ============================================================
-#  .gitignore — PétasseGang Addons (Forge / Minecraft)
+#  .gitignore — PeTaSsE_gAnG_Additions (Fabric / Minecraft)
 # ============================================================
 
 # ── Gradle ───────────────────────────────────────────────────
@@ -8,23 +8,18 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !gradle/wrapper/gradle-wrapper.properties
 
-# ── IDE — IntelliJ IDEA ──────────────────────────────────────
+# ── IDE ──────────────────────────────────────────────────────
 .idea/
 *.iml
 *.ipr
 *.iws
-.claude
+.claude/
 out/
-
-# ── IDE — Eclipse / ForgeGradle run configs ──────────────────
 .project
 .classpath
 .settings/
 bin/
-# Générés par `./gradlew genEclipseRuns` — non versionnés
 *.launch
-
-# ── IDE — VS Code ────────────────────────────────────────────
 .vscode/
 !.vscode/launch.json
 !.vscode/settings.json
@@ -32,16 +27,12 @@ bin/
 !.vscode/extensions.json
 *.code-workspace
 
-# ── Forge / Minecraft ────────────────────────────────────────
+# ── Minecraft (runs de dev) ──────────────────────────────────
 run/
 logs/
 *.log
 crash-reports/
 src/generated/
-
-# Forge MDK example files (supprimés mais au cas où)
-src/main/java/com/example/
-src/main/resources/META-INF/accesstransformer.cfg
 
 # ── Java ─────────────────────────────────────────────────────
 *.class
@@ -49,29 +40,16 @@ src/main/resources/META-INF/accesstransformer.cfg
 !gradle/wrapper/gradle-wrapper.jar
 hs_err_pid*
 replay_pid*
-.gradle-user/
 
-# ── OS — macOS ───────────────────────────────────────────────
+# ── OS ───────────────────────────────────────────────────────
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# ── OS — Windows ─────────────────────────────────────────────
 Thumbs.db
-Thumbs.db:encryptable
-ehthumbs.db
 desktop.ini
 $RECYCLE.BIN/
-
-# ── OS — Linux ───────────────────────────────────────────────
-*~
-.fuse_hidden*
-.Trash-*
 
 # ── Divers ───────────────────────────────────────────────────
 *.bak
 *.tmp
 *.swp
-*.swo
+*.orig
 .env
-generate_texture.py

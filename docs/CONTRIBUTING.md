@@ -1,101 +1,57 @@
-# Contributing — PeTaSsE_gAnG_Additions
-
-Guide de développement pour les membres de la gang.
-
----
+# Contribuer — PeTaSsE_gAnG_Additions
 
 ## Workflow Git
 
-```
-main          ← production stable, tagged releases
-develop       ← intégration ongoing
-feature/xxx   ← branche par feature
-fix/xxx       ← branche par bugfix
-```
-
-### Branches
-```bash
-git checkout develop
-git checkout -b feature/my-awesome-item
-# ... code ...
-git push origin feature/my-awesome-item
-# Ouvre une PR vers develop
+```text
+master        ← stable, releases taguées
+feature/xxx   ← une branche par feature
+fix/xxx       ← une branche par correctif
 ```
 
-### Commits
-Format : `type(scope): message`
+Commits : `type(scope): message` avec `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`.
 
-| Type | Usage |
-|------|-------|
-| `feat` | Nouveau contenu (item, block, entité…) |
-| `fix` | Correction de bug |
-| `refactor` | Refactoring sans changement fonctionnel |
-| `docs` | Documentation seulement |
-| `test` | Ajout/modification de tests |
-| `chore` | Gradle, CI, tooling |
-
-Exemples :
-```
-feat(item): add Gang Badge with EPIC rarity and foil effect
-fix(worldgen): replace below_trunk_provider with dirt_provider in cursed_tree.json
-docs(items): add Gang Badge to ITEMS.md
-test(item): add GangBadgeItem tooltip assertions
+```text
+feat(level0): ajoute un second motif de gap de couloir
+fix(wallpaper): recalcule le masque de faces a la bonne hauteur
+test(generation): verrouille les empreintes du layer 4
 ```
 
 ---
 
 ## Checklist avant de push
 
-- [ ] `./gradlew build` passe sans warning ni erreur
-- [ ] `./gradlew test` — tous les tests verts (ou failures justifiées avec Bootstrap)
-- [ ] Nouveau contenu = nouveau test dans `src/test/`
-- [ ] `docs/ITEMS.md` (ou BLOCKS.md, etc.) mis à jour
-- [ ] `docs/CHANGELOG.md` mis à jour
-- [ ] Lang keys ajoutées en `en_us.json` ET `fr_fr.json`
-- [ ] Modèle JSON + texture PNG présents
+- [ ] `./gradlew clean build --warning-mode all` : succès, **zéro warning**
+- [ ] `./gradlew test` : vert (JaCoCo généré)
+- [ ] `./gradlew runGameTest` : vert (le build l'enchaîne de toute façon)
+- [ ] Couverture fusionnée : 100 % des instructions, 96 % des branches (`jacocoCoverageVerification`, dans le build)
+- [ ] Checkstyle vert (`config/checkstyle/`, dans le build) et JAR sans dépendance ni test (`verifyJarContents`, dans le build)
+- [ ] `LevelZeroGoldenTest` : si les empreintes changent, c'est voulu et c'est dans le CHANGELOG
+- [ ] Nouveau contenu = test de comportement (pas de réflexion), clés EN **et** FR, modèle + texture + loot table
+- [ ] `docs/CHANGELOG.md` et la doc métier concernée (`BLOCKS.md`, `ITEMS.md`, `DIMENSIONS.md`) à jour
+
+Le détail pas à pas est dans `docs/prompt/BEFOREPUSH.md`.
 
 ---
 
-## Style de code
+## Style
 
 | Règle | Détail |
 |-------|--------|
-| Encodage | UTF-8 partout |
-| Indentation | 4 espaces (pas de tabs) |
-| Longueur de ligne | 120 chars max |
-| Imports | Pas de wildcard (`import java.util.*` interdit) |
-| Ordre imports | `java` → `net.minecraft` → `net.fabricmc` → `com.petassegang` |
-| Javadoc | Classes publiques + méthodes publiques non triviales |
-| Commentaires | En français, avec majuscule et point |
-| Logs | Via `ModConstants.LOGGER` uniquement |
-| Nulls | Jamais sans commentaire justifiant pourquoi c'est safe |
+| Encodage | UTF-8 ; sources Java en ASCII (pas d'accents dans le code ni les commentaires) |
+| Indentation | 4 espaces, lignes ≤ 130 caractères |
+| Imports | `java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang`, aucun wildcard |
+| Javadoc | classes publiques et méthodes non triviales, en français |
+| Commentaires et logs | français, majuscule initiale, point final, via `ModConstants.LOGGER` |
+| Allocation | aucune dans les méthodes tick/render ; noms de sections perf en constantes |
+| Abstraction | pas d'interface, de stage ou de builder sans second usage réel |
+| Génération | déterministe : seeds via `StageRandom`, sels figés |
 
 ---
 
-## Utiliser les Skills Claude Code
+## Règles non négociables
 
-Les skills sous `/.skills/` sont des guides autonomes pour Claude Code.
-Au lieu de décrire manuellement ce que tu veux, utilise la phrase magique :
-
-```
-# Ajouter un item
-"Ajoute un item épée en diamant custom nommé GangSword"
-
-# Ajouter un bloc
-"Crée un bloc de minerai custom appelé gangite_ore"
-
-# Ajouter une recette
-"Ajoute une recette craft pour le Gang Badge"
-```
-
-Claude Code lit automatiquement le skill approprié et suit les étapes.
-
----
-
-## Ajout de contenu — règles non négociables
-
-1. **Un champ `static final` par enregistrement** dans les fichiers `init/`
-2. **Zéro allocation dans les hot-paths** (render, tick) — utilise des champs `static final`
-3. **Séparation client/serveur** — tout code `@Environment(EnvType.CLIENT)` dans `client/`
-4. **Tests** — chaque classe `item/`, `block/`, `entity/` a sa classe de test correspondante
-5. **CHANGELOG** — toujours mettre à jour avant de tag une version
+1. Un champ `static final` par enregistrement dans `init/`.
+2. Code client uniquement sous `client/` ou `mixin/client/`.
+3. Tout texte visible en jeu passe par `Text.translatable` et existe en EN et FR.
+4. Aucune évolution de la génération du Level 0 sans mise à jour des empreintes et du CHANGELOG.
+5. Pas de dossier vide, pas de `.gitkeep`, pas de code « pour plus tard » sans utilisation.
