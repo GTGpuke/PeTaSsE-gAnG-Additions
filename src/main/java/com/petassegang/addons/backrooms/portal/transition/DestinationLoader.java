@@ -7,6 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -24,21 +27,27 @@ import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.core.ModConstants;
+import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
  * Garde charges les chunks d'arrivee des portails qu'un joueur regarde.
  *
  * <p>Un ticket de chunk par fenetre d'arrivee, partage entre les portails qui menent au meme endroit
- * et retire des qu'aucun joueur ne regarde plus. Le chargement reste asynchrone : la synchronisation
+ * et retire dix secondes apres que plus aucun joueur ne regarde : un coup d'oeil ailleurs ne decharge
+ * rien, et la fenetre survit a celle du client, dechargee avant elle. Le chargement reste asynchrone : la synchronisation
  * vers le client envoie chaque chunk des qu'il est pret.
  */
 public final class DestinationLoader {
 
     /** Intervalle de reevaluation des portails regardes. */
-    static final int CHECK_INTERVAL_TICKS = 10;
+    private static final int CHECK_INTERVAL_TICKS = 10;
     /** A cette distance d'un portail, la traversee est imminente : fenetre synchronisee plus large, arrivee chargee comme si le joueur y etait. */
-    static final double NEAR_DISTANCE_BLOCKS = 8.0;
-    static final int NEAR_EXTRA_RADIUS = 2;
+    private static final double NEAR_DISTANCE_BLOCKS = 8.0;
+    /** Chunks ajoutes au rayon de la fenetre synchronisee quand le joueur est pres du portail. */
+    private static final int NEAR_EXTRA_RADIUS = 2;
+    /** Ticks pendant lesquels une fenetre reste chargee apres que plus personne ne regarde son portail : plus que la fenetre client. */
+    private static final int RELEASE_GRACE_TICKS = 200;
+    private static final String PERF_DESTINATION_TICK = "portal.destination.tick";
 
     private static final ChunkTicketType<ChunkPos> TICKET_TYPE =
             ChunkTicketType.create("petassegang_portal", Comparator.comparingLong(ChunkPos::toLong));
@@ -50,6 +59,8 @@ public final class DestinationLoader {
     private static final Map<DestinationWindow, Integer> TICKET_RADIUS = new HashMap<>();
     private static final Map<DestinationWindow, Integer> WANTED_RADIUS_SCRATCH = new HashMap<>();
     private static final List<UUID> RELEASE_SCRATCH = new ArrayList<>();
+    /** Tick ou chaque portail actif a cesse d'etre regarde ; absent tant qu'il l'est. */
+    private static final Object2LongMap<UUID> UNWATCHED_SINCE = new Object2LongOpenHashMap<>();
     private static boolean initialized;
 
     /** Dimension et chunk central d'une fenetre d'arrivee. */
@@ -71,7 +82,7 @@ public final class DestinationLoader {
     }
 
     /** Rayon, en chunks, de la fenetre chargee autour de chaque arrivee. */
-    public static int preloadRadius() {
+    private static int preloadRadius() {
         return Math.max(0, ModConfig.PORTAL_PRELOAD_RADIUS_CHUNKS);
     }
 
@@ -90,32 +101,43 @@ public final class DestinationLoader {
         return near ? Math.max(syncRadius(true), server.getPlayerManager().getViewDistance()) : syncRadius(false);
     }
 
+    @SuppressWarnings("try")
     private static void tick(MinecraftServer server) {
         if (server.getTicks() % CHECK_INTERVAL_TICKS != 0) {
             return;
         }
-        List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
-        for (int i = 0; i < portals.size(); i++) {
-            BackroomsPortalEntity portal = portals.get(i);
-            boolean watched = isWatched(portal);
-            boolean active = ACTIVE.containsKey(portal.getUuid());
-            if (watched && !active) {
-                acquire(server, portal);
-            } else if (!watched && active) {
-                release(server, portal.getUuid());
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_DESTINATION_TICK)) {
+            List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
+            for (int i = 0; i < portals.size(); i++) {
+                BackroomsPortalEntity portal = portals.get(i);
+                boolean watched = isWatched(portal);
+                boolean active = ACTIVE.containsKey(portal.getUuid());
+                if (watched) {
+                    UNWATCHED_SINCE.removeLong(portal.getUuid());
+                    if (!active) {
+                        acquire(server, portal);
+                    }
+                } else if (active) {
+                    long since = UNWATCHED_SINCE.getOrDefault(portal.getUuid(), -1L);
+                    if (since < 0L) {
+                        UNWATCHED_SINCE.put(portal.getUuid(), (long) server.getTicks());
+                    } else if (server.getTicks() - since >= RELEASE_GRACE_TICKS) {
+                        release(server, portal.getUuid());
+                    }
+                }
             }
-        }
-        // Portails decharges ou supprimes depuis la derniere passe.
-        RELEASE_SCRATCH.clear();
-        for (UUID uuid : ACTIVE.keySet()) {
-            if (!isLoaded(uuid, portals)) {
-                RELEASE_SCRATCH.add(uuid);
+            // Portails decharges ou supprimes depuis la derniere passe.
+            RELEASE_SCRATCH.clear();
+            for (UUID uuid : ACTIVE.keySet()) {
+                if (!isLoaded(uuid, portals)) {
+                    RELEASE_SCRATCH.add(uuid);
+                }
             }
+            for (int i = 0; i < RELEASE_SCRATCH.size(); i++) {
+                release(server, RELEASE_SCRATCH.get(i));
+            }
+            resizeTickets(server, portals);
         }
-        for (int i = 0; i < RELEASE_SCRATCH.size(); i++) {
-            release(server, RELEASE_SCRATCH.get(i));
-        }
-        resizeTickets(server, portals);
     }
 
     /** Le ticket de chaque fenetre suit le joueur le plus proche de l'un de ses portails. */
@@ -166,11 +188,10 @@ public final class DestinationLoader {
 
     private static boolean isWatched(BackroomsPortalEntity portal) {
         ServerWorld world = (ServerWorld) portal.getWorld();
-        double maxDistance = Math.max(ModConfig.PORTAL_ACTIVATION_RADIUS_BLOCKS, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
         List<ServerPlayerEntity> players = world.getPlayers();
         for (int i = 0; i < players.size(); i++) {
             ServerPlayerEntity player = players.get(i);
-            if (PortalRelevance.isRelevant(player.getEyePos(), player.getRotationVec(1.0f), portal.getPos(), maxDistance)) {
+            if (PortalRelevance.isRelevant(player.getEyePos(), player.getRotationVec(1.0f), portal.getPos(), PortalRelevance.MAX_DISTANCE)) {
                 return true;
             }
         }
@@ -199,6 +220,7 @@ public final class DestinationLoader {
 
     /** Retire un portail actif ; le dernier portail d'une fenetre emporte son ticket. */
     private static void release(MinecraftServer server, UUID portalUuid) {
+        UNWATCHED_SINCE.removeLong(portalUuid);
         DestinationWindow window = ACTIVE.remove(portalUuid);
         int remaining = LEASES.merge(window, -1, Integer::sum);
         if (remaining <= 0) {
@@ -211,6 +233,7 @@ public final class DestinationLoader {
 
     /** Arret du serveur : ses mondes disparaissent avec leurs tickets, on oublie tout. */
     private static void releaseAll() {
+        UNWATCHED_SINCE.clear();
         ACTIVE.clear();
         LEASES.clear();
         TICKET_RADIUS.clear();

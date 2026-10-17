@@ -1,0 +1,7 @@
+{
+  "parent": "minecraft:block/door_top_left_open",
+  "textures": {
+    "bottom": "petasse_gang_additions:block/backrooms_door",
+    "top": "petasse_gang_additions:block/backrooms_door_top"
+  }
+}

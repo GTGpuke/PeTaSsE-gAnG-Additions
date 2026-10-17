@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
@@ -15,9 +16,11 @@ import net.minecraft.util.hit.HitResult;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
+import com.petassegang.addons.backrooms.portal.client.world.RemoteWorld;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.sync.PortalBlockActionPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalEntityActionPayload;
+import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
 
 /**
  * Clics du joueur quand il vise a travers un portail : frapper, miner, utiliser.
@@ -27,7 +30,7 @@ import com.petassegang.addons.backrooms.portal.sync.PortalEntityActionPayload;
  * garde la main (un coup dans le vide, manger, lancer). Le minage n'est pas predit : le client annonce le
  * debut et l'abandon, le serveur compte la progression et casse le bloc.
  */
-public final class CrossPortalActions {
+public final class RemoteActions {
 
     /** Delais vanilla : quatre ticks entre deux utilisations, cinq entre deux blocs casses en creatif. */
     private static final int USE_COOLDOWN_TICKS = 4;
@@ -40,7 +43,7 @@ public final class CrossPortalActions {
     private static @Nullable UUID miningPortal;
     private static @Nullable Identifier miningDimension;
 
-    private CrossPortalActions() {
+    private RemoteActions() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
 
@@ -55,7 +58,7 @@ public final class CrossPortalActions {
     }
 
     /** Deconnexion : plus rien en cours. */
-    public static void reset() {
+    public static void clear() {
         useCooldown = 0;
         breakCooldown = 0;
         miningHit = null;
@@ -70,11 +73,11 @@ public final class CrossPortalActions {
      */
     public static boolean attack(MinecraftClient client) {
         ClientPlayerEntity player = client.player;
-        BackroomsPortalEntity portal = CrossPortalTargeting.portal();
+        BackroomsPortalEntity portal = RemoteTargeting.portal();
         if (player == null || portal == null) {
             return false;
         }
-        EntityHitResult entityHit = CrossPortalTargeting.entityHit();
+        EntityHitResult entityHit = RemoteTargeting.entityHit();
         if (entityHit != null) {
             ClientPlayNetworking.send(new PortalEntityActionPayload(portal.getUuid(), portal.destinationDim().getValue(),
                     entityHit.getEntity().getId(), PortalEntityActionPayload.Action.ATTACK));
@@ -82,7 +85,7 @@ public final class CrossPortalActions {
             player.swingHand(Hand.MAIN_HAND);
             return true;
         }
-        BlockHitResult blockHit = CrossPortalTargeting.blockHit();
+        BlockHitResult blockHit = RemoteTargeting.blockHit();
         if (blockHit == null) {
             // Le regard traverse le cadre sans rien toucher : coup dans le vide, vanilla s'en charge.
             return false;
@@ -99,8 +102,8 @@ public final class CrossPortalActions {
      */
     public static boolean handleBlockBreaking(MinecraftClient client, boolean breaking) {
         ClientPlayerEntity player = client.player;
-        BackroomsPortalEntity portal = CrossPortalTargeting.portal();
-        BlockHitResult blockHit = CrossPortalTargeting.blockHit();
+        BackroomsPortalEntity portal = RemoteTargeting.portal();
+        BlockHitResult blockHit = RemoteTargeting.blockHit();
         if (player == null || portal == null || blockHit == null) {
             // La cible a quitte le portail : vanilla reprend la main, le serveur efface les fissures.
             abortMining();
@@ -126,8 +129,8 @@ public final class CrossPortalActions {
      */
     public static boolean use(MinecraftClient client) {
         ClientPlayerEntity player = client.player;
-        BackroomsPortalEntity portal = CrossPortalTargeting.portal();
-        HitResult hit = CrossPortalTargeting.hit();
+        BackroomsPortalEntity portal = RemoteTargeting.portal();
+        HitResult hit = RemoteTargeting.hit();
         if (player == null || portal == null || hit == null) {
             return false;
         }
@@ -144,6 +147,34 @@ public final class CrossPortalActions {
         }
         player.swingHand(Hand.MAIN_HAND);
         return true;
+    }
+
+    /**
+     * Clic molette. Si le regard ressort de l'autre cote d'un portail sur une cible, le choix vanilla s'execute avec
+     * cette cible et le monde ou elle se trouve a la place de la cible et du monde du joueur : bloc choisi, donnees de
+     * block entity en creatif (Ctrl), oeuf d'une creature en creatif, comme si elle etait devant lui.
+     *
+     * @param client client du joueur
+     * @param vanilla choix vanilla, execute une fois dans tous les cas
+     */
+    public static void pick(MinecraftClient client, Runnable vanilla) {
+        HitResult hit = RemoteTargeting.hit();
+        RemoteWorld view = RemoteTargeting.view();
+        ClientWorld world = client.world;
+        if (hit == null || view == null || world == null) {
+            vanilla.run();
+            return;
+        }
+        HitResult crosshair = client.crosshairTarget;
+        MinecraftClientAccessor accessor = (MinecraftClientAccessor) client;
+        client.crosshairTarget = hit;
+        accessor.backrooms$setWorld(view.world());
+        try {
+            vanilla.run();
+        } finally {
+            accessor.backrooms$setWorld(world);
+            client.crosshairTarget = crosshair;
+        }
     }
 
     /** Le minage vanilla d'un bloc du monde du joueur ne doit pas continuer en aveugle pendant qu'il vise a travers un portail. */

@@ -4,6 +4,7 @@ import net.minecraft.block.Block;
 import net.minecraft.component.type.FoodComponent;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
+import net.minecraft.item.TallBlockItem;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
@@ -30,8 +31,8 @@ public final class ModItems {
     public static final BlockItem LEVEL_ZERO_FLUORESCENT_LIGHT =
             blockItem("level_zero_fluorescent_light", ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT);
 
-    /** Porte des Backrooms : une par passage, elle pose ses portails toute seule. */
-    public static final BlockItem BACKROOMS_DOOR = blockItem("backrooms_door", ModBlocks.BACKROOMS_DOOR);
+    /** Porte des Backrooms : deux blocs de haut, posee comme une porte ; ouverte, elle pose ses portails toute seule. */
+    public static final BlockItem BACKROOMS_DOOR = register("backrooms_door", new TallBlockItem(ModBlocks.BACKROOMS_DOOR, new Item.Settings()));
 
     /** Badge de la Gang : jeton d'appartenance, unique par pile, rarete EPIC. */
     public static final GangBadgeItem GANG_BADGE = register(

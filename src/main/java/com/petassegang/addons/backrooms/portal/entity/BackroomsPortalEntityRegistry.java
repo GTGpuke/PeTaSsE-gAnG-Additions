@@ -6,18 +6,24 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 
 /**
  * Liste serveur des portails charges, tenue a jour par les evenements de chargement d'entity.
  *
  * <p>Evite de parcourir toutes les entities de tous les mondes a chaque tick : la teleportation,
- * le prechargement et la synchronisation ne lisent que cette liste, iteree par index sans allocation.
+ * le prechargement et la synchronisation ne lisent que cette liste, iteree par index sans allocation. Le registre
+ * retire aussi, de temps en temps, les portails dont la porte a disparu.
  */
 public final class BackroomsPortalEntityRegistry {
+
+    /** Intervalle de verification des portes proprietaires. */
+    private static final int OWNER_CHECK_INTERVAL_TICKS = 100;
 
     private static final List<BackroomsPortalEntity> PORTALS = new ArrayList<>();
     private static boolean initialized;
@@ -41,8 +47,23 @@ public final class BackroomsPortalEntityRegistry {
                 PORTALS.remove(portal);
             }
         });
+        ServerTickEvents.END_SERVER_TICK.register(BackroomsPortalEntityRegistry::discardOrphans);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> PORTALS.clear());
         initialized = true;
+    }
+
+    /** Toutes les cinq secondes, les portails dont la porte proprietaire a disparu sont retires. */
+    private static void discardOrphans(MinecraftServer server) {
+        if (server.getTicks() % OWNER_CHECK_INTERVAL_TICKS != 0) {
+            return;
+        }
+        // A rebours : un portail retire quitte la liste, les suivants changent d'indice.
+        for (int i = PORTALS.size() - 1; i >= 0; i--) {
+            BackroomsPortalEntity portal = PORTALS.get(i);
+            if (portal.isOrphan(server)) {
+                portal.discard();
+            }
+        }
     }
 
     /** Portails actuellement charges ; liste vivante, a lire par index et a ne pas modifier. */

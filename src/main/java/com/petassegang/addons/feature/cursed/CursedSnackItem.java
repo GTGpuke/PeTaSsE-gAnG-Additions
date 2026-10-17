@@ -3,10 +3,10 @@ package com.petassegang.addons.feature.cursed;
 import java.util.List;
 
 import net.minecraft.entity.LivingEntity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
@@ -31,7 +31,8 @@ public class CursedSnackItem extends Item {
     @Override
     public ItemStack finishUsing(ItemStack stack, World world, LivingEntity user) {
         ItemStack result = super.finishUsing(stack, world, user);
-        if (!world.isClient() && user instanceof PlayerEntity player) {
+        // La faim se decide cote serveur, qui la synchronise ensuite au client.
+        if (user instanceof ServerPlayerEntity player) {
             player.getHungerManager().setFoodLevel(penalizedFoodLevel(player.getHungerManager().getFoodLevel()));
         }
         return result;

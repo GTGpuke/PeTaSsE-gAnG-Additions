@@ -96,20 +96,21 @@ Prototype fonctionnel mais fragile : échange du monde client courant pendant la
 | Constat | Décision |
 |---------|----------|
 | `PortalStencilRenderer.renderAllVisiblePortals` parcourait **toutes les entités du monde à chaque frame** même feature désactivée. | Retour immédiat si le flag est faux. |
-| `MixinFramebuffer` attachait un stencil à chaque framebuffer même feature désactivée (coût GPU et risque de conflit Sodium/Iris). | Retour immédiat si le flag est faux. |
+| `MixinFramebuffer` attachait un stencil à chaque framebuffer même feature désactivée (coût GPU et risque de conflit avec un mod de rendu). | Retour immédiat si le flag est faux. |
 | 3 loggers `LoggerFactory.getLogger(Classe)` au lieu du logger commun. | `ModConstants.LOGGER`. |
 | `ClientWorldRegistry.init()/start()/stop()` vides. | Supprimés. |
 | Texture d'entity `textures/entity/backrooms_portal.png` inexistante. | Texture vanilla (le renderer ne l'échantillonne jamais). |
 | `BackroomsDoorBlockEntity.readNbt` : `Identifier.tryParse("")` renvoie `minecraft:` et non `null`, une porte sans cible se chargeait avec une dimension fantôme. | Test de présence de la clé avant parsing (trouvé par le nouveau test NBT). |
 | Ordre des imports non conforme dans ~12 fichiers portail non modifiés. | Laissé tel quel (cosmétique) ; corrigé dans les fichiers touchés. |
 
-Recommandation (octobre 2026) : choisir entre (a) des portails rendus par le mod lui-même (stencil et vue distante) ou (b) Veil.
+Recommandation (octobre 2026) : choisir entre (a) des portails rendus par le mod lui-même (stencil et vue distante) ou (b) une bibliothèque de rendu externe.
 
 **Décision 0.9.0** : option (a), par une réécriture complète et non une reprise du prototype : géométrie du
 passage corrigée (rotation de 180°, plus de demi-tour face au portail de sortie), porte autonome avec portail
 de retour, synchronisation serveur → client des chunks distants (le prototype ne marchait qu'en solo),
 plus de déplacement du joueur pendant la frame (substitution de caméra par mixin), projection à plan proche
-oblique, lightmap recalculée par dimension, coupe-circuit en cas d'échec GL. Détail : `PORTALS.md`.
+oblique (remplacée après 0.9.0 par une découpe dans les shaders, `gl_ClipDistance`), lightmap recalculée par dimension, coupe-circuit en
+cas d'échec GL. Détail : `PORTALS.md`.
 
 ### 2.6 Features gameplay, config, perf
 
@@ -204,4 +205,4 @@ Sources : `backrooms/level/**` (remplacé par `backrooms/level0/**`), `creative/
 tous les `package-info.java`, tous les `.gitkeep`.
 Ressources : `META-INF/mods.toml`, `atlases/blocks.json`, `items/*.json` (13), `blockstates/level_zero_baseboard.json`,
 `models/block/level_zero_baseboard.json`, `models/item/level_zero_baseboard.json`.
-Docs : `docs/audit/*` (ère Forge), `docs/backrooms/3 - Veil Portails/` (copie identique de `3 - Portails/spec_veil_portail_shaders_V4_3.md`).
+Docs : `docs/audit/*` (ère Forge), un dossier de `docs/backrooms/` qui dupliquait à l'identique la spécification de `3 - Portails/`.

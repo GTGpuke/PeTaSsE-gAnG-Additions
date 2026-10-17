@@ -7,8 +7,13 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+import it.unimi.dsi.fastutil.objects.Object2LongMap;
+import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.s2c.play.DifficultyS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
@@ -31,12 +36,14 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
+import com.petassegang.addons.backrooms.portal.propagation.PortalPursuit;
 import com.petassegang.addons.backrooms.portal.sync.PortalCrossPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalTeleportPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalViewTracker;
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.mixin.EntityAccessor;
+import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
  * Fait passer joueurs, objets, mobs et projectiles d'un cote a l'autre des portails, cote serveur.
@@ -45,28 +52,33 @@ import com.petassegang.addons.mixin.EntityAccessor;
  * chemin normal, verifie puis applique avec l'etat exact du client pour que sa prediction tienne), et
  * en secours le serveur detecte lui-meme le passage des pieds entre deux ticks. Un changement de
  * dimension suit la sequence vanilla sans le paquet de respawn : le client bascule sur le monde
-* distant qu'il a deja charge, sans ecran de chargement. Les autres entities sont teleportees par le
- * serveur seul, d'apres leur deplacement du tick, avec le cooldown de portail vanilla.
+ * distant qu'il a deja charge, sans ecran de chargement. Un joueur qui vient de traverser attend
+ * {@link ModConfig#PORTAL_TELEPORT_COOLDOWN_TICKS} ticks avant de pouvoir repasser. Les autres entities sont
+ * teleportees par le serveur seul, d'apres leur deplacement du tick, avec le cooldown de portail vanilla.
  */
 public final class TeleportExecutor {
 
     /** Jeu minuscule devant le portail d'arrivee : le joueur ressort exactement la ou il est entre, sans rester dans le plan. */
     public static final double EXIT_OFFSET = 0.02;
     /** Ticks laisses au client pour annoncer lui-meme un franchissement que le serveur a detecte : sa prediction doit gagner. */
-    static final int CLIENT_PREDICTION_GRACE_TICKS = 5;
-    /** Marge autour du cadre dans laquelle une traversee compte (demi-largeur du joueur et un peu de jeu). */
-    static final double CROSSING_MARGIN = 0.5;
+    private static final int CLIENT_PREDICTION_GRACE_TICKS = 5;
+    /** Distance au cadre a laquelle la position annoncee par un client qui traverse reste plausible. */
+    private static final double ANNOUNCED_POSITION_TOLERANCE = 1.5;
     /** Ecart tolere entre la position annoncee par le client et celle connue du serveur (un tick d'avance). */
-    static final double MAX_PREDICTION_DRIFT = 3.0;
+    private static final double MAX_PREDICTION_DRIFT = 3.0;
     /** Au-dela de ce deplacement par tick (ou par image, cote client), ce n'est pas une marche mais un saut de position (respawn, commande). */
     public static final double MAX_STEP_SQUARED = 8.0 * 8.0;
     /** Cooldown de portail vanilla pose sur un objet, un mob ou un projectile qui vient de passer : evite l'aller-retour immediat entre deux cadres proches. */
-    static final int ENTITY_PORTAL_COOLDOWN_TICKS = 10;
+    private static final int ENTITY_PORTAL_COOLDOWN_TICKS = 10;
     /** Hauteur maximale de remontee pour sortir le joueur d'un bloc a l'arrivee. */
     private static final double MAX_LIFT = 0.30;
     private static final double LIFT_STEP = 0.02;
+    private static final String PERF_TELEPORT_PLAYER = "portal.teleport.player";
+    private static final String PERF_TELEPORT_VANILLA = "portal.teleport.vanilla";
 
     private static final Map<UUID, Vec3d> LAST_PLAYER_POS = new HashMap<>();
+    /** Tick de la derniere traversee de chaque joueur, pour son cooldown. */
+    private static final Object2LongMap<UUID> LAST_CROSSING_TICK = new Object2LongOpenHashMap<>();
     /** Franchissements detectes par le serveur, en attente de l'annonce du client. */
     private static final Map<UUID, PendingCrossing> PENDING_CROSSINGS = new HashMap<>();
     private static final TypeFilter<Entity, Entity> ENTITY_FILTER = TypeFilter.instanceOf(Entity.class);
@@ -98,12 +110,12 @@ public final class TeleportExecutor {
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
             LAST_PLAYER_POS.remove(handler.player.getUuid());
             PENDING_CROSSINGS.remove(handler.player.getUuid());
-            TpCooldownTracker.clear(handler.player.getUuid());
+            LAST_CROSSING_TICK.removeLong(handler.player.getUuid());
         });
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             LAST_PLAYER_POS.clear();
             PENDING_CROSSINGS.clear();
-            TpCooldownTracker.clearAll();
+            LAST_CROSSING_TICK.clear();
         });
         initialized = true;
     }
@@ -119,7 +131,11 @@ public final class TeleportExecutor {
         }
     }
 
-    /** @return {@code true} si le joueur vient d'etre teleporte */
+    /**
+     * Secours du serveur : un joueur dont les pieds ont franchi un plan est teleporte si son client ne l'annonce pas a temps.
+     *
+     * @return {@code true} si le joueur vient d'etre teleporte
+     */
     private static boolean processPlayer(ServerPlayerEntity player) {
         // Un joueur retire n'est plus vivant non plus.
         if (!player.isAlive()) {
@@ -133,7 +149,7 @@ public final class TeleportExecutor {
             return false;
         }
         ServerWorld world = player.getServerWorld();
-        if (TpCooldownTracker.isOnCooldown(player.getUuid(), world.getTime(), ModConfig.PORTAL_TELEPORT_COOLDOWN_TICKS)) {
+        if (isOnCooldown(player.getUuid(), world.getTime())) {
             return false;
         }
         PendingCrossing pending = PENDING_CROSSINGS.get(player.getUuid());
@@ -144,12 +160,13 @@ public final class TeleportExecutor {
             }
             PENDING_CROSSINGS.remove(player.getUuid());
             BackroomsPortalEntity portal = BackroomsPortalEntityRegistry.find(world, pending.portal());
-            return portal != null && portal.teleportable() && execute(player, portal, currentPos, player.getVelocity(), player.getYaw(), player.getPitch(), false);
+            return portal != null && portal.teleportable() && execute(player, portal);
         }
         List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            if (portal.getWorld() == world && portal.teleportable() && crossedPortalPlane(portal, lastPos, currentPos)) {
+            if (portal.getWorld() == world && portal.teleportable()
+                    && crossedPortalPlane(portal, player, lastPos.x, lastPos.y, lastPos.z, currentPos.x, currentPos.y, currentPos.z)) {
                 PENDING_CROSSINGS.put(player.getUuid(), new PendingCrossing(portal.getUuid(), world.getTime() + CLIENT_PREDICTION_GRACE_TICKS));
                 return false;
             }
@@ -171,7 +188,7 @@ public final class TeleportExecutor {
             world.collectEntitiesByType(ENTITY_FILTER, portal.crossingBox(), CROSSING_CANDIDATE, ENTITY_SCRATCH);
             for (int j = 0; j < ENTITY_SCRATCH.size(); j++) {
                 Entity entity = ENTITY_SCRATCH.get(j);
-                if (crossedPortalPlane(portal, entity.prevX, entity.prevY, entity.prevZ, entity.getX(), entity.getY(), entity.getZ())) {
+                if (crossedPortalPlane(portal, entity, entity.prevX, entity.prevY, entity.prevZ, entity.getX(), entity.getY(), entity.getZ())) {
                     execute(entity, portal);
                 }
             }
@@ -187,9 +204,9 @@ public final class TeleportExecutor {
         boolean plausible = portal != null
                 && portal.teleportable()
                 && !player.hasVehicle()
-                && !TpCooldownTracker.isOnCooldown(player.getUuid(), world.getTime(), ModConfig.PORTAL_TELEPORT_COOLDOWN_TICKS)
+                && !isOnCooldown(player.getUuid(), world.getTime())
                 && payload.position().squaredDistanceTo(player.getPos()) <= MAX_PREDICTION_DRIFT * MAX_PREDICTION_DRIFT
-                && portal.detectionBox().expand(CROSSING_MARGIN + 1.0).contains(payload.position());
+                && portal.detectionBox().expand(ANNOUNCED_POSITION_TOLERANCE).contains(payload.position());
         if (plausible && execute(player, portal, payload.position(), payload.velocity(), payload.yaw(), payload.pitch(), true)) {
             return;
         }
@@ -199,30 +216,95 @@ public final class TeleportExecutor {
     }
 
     /**
-     * {@code true} si le segment {@code lastPos -> currentPos} traverse le plan du portail depuis le
-     * cote d'entree, en un point situe dans le cadre (avec marge). Sert aussi a la prediction client.
+     * {@code true} si le joueur a traverse un portail il y a moins de {@link ModConfig#PORTAL_TELEPORT_COOLDOWN_TICKS} ticks.
+     *
+     * @param player identifiant du joueur
+     * @param currentTick tick courant du monde
      */
-    public static boolean crossedPortalPlane(BackroomsPortalEntity portal, Vec3d lastPos, Vec3d currentPos) {
-        return crossedPortalPlane(portal, lastPos.x, lastPos.y, lastPos.z, currentPos.x, currentPos.y, currentPos.z);
+    private static boolean isOnCooldown(UUID player, long currentTick) {
+        return isOnCooldown(player, currentTick, ModConfig.PORTAL_TELEPORT_COOLDOWN_TICKS);
     }
 
-    /** Variante sans allocation de {@link #crossedPortalPlane(BackroomsPortalEntity, Vec3d, Vec3d)}, pour la boucle des entities. */
+    /** Meme regle pour une duree de cooldown donnee ; nulle, aucun joueur n'attend. */
+    static boolean isOnCooldown(UUID player, long currentTick, int cooldownTicks) {
+        return LAST_CROSSING_TICK.containsKey(player) && currentTick - LAST_CROSSING_TICK.getLong(player) < cooldownTicks;
+    }
+
+    /** Arme le cooldown d'un joueur qui vient de traverser. */
+    static void markCrossed(UUID player, long tick) {
+        LAST_CROSSING_TICK.put(player, tick);
+    }
+
+    /**
+     * {@code true} si les pieds d'une entity passent le plan du portail depuis le cote d'entree, entre deux positions,
+     * et que sa boite touche alors le cadre. Sert aussi a la prediction client.
+     *
+     * @param portal portail teste
+     * @param entity entity qui se deplace, pour sa largeur et sa hauteur
+     * @param lastX position precedente des pieds, X
+     * @param lastY position precedente des pieds, Y
+     * @param lastZ position precedente des pieds, Z
+     * @param currentX position courante des pieds, X
+     * @param currentY position courante des pieds, Y
+     * @param currentZ position courante des pieds, Z
+     */
     public static boolean crossedPortalPlane(
-            BackroomsPortalEntity portal, double lastX, double lastY, double lastZ, double currentX, double currentY, double currentZ) {
+            BackroomsPortalEntity portal, Entity entity, double lastX, double lastY, double lastZ, double currentX, double currentY, double currentZ) {
+        return crossedPortalPlane(portal, lastX, lastY, lastZ, currentX, currentY, currentZ, entity.getWidth() / 2.0, entity.getHeight());
+    }
+
+    /**
+     * Meme test pour une boite de dimensions donnees, sans allocation. Le corps doit toucher le cadre, pas seulement
+     * passer a cote : ressortir de l'autre cote a cote du cadre d'arrivee, ce serait ressortir dans le mur qui l'encadre.
+     *
+     * @param portal portail teste
+     * @param lastX position precedente des pieds, X
+     * @param lastY position precedente des pieds, Y
+     * @param lastZ position precedente des pieds, Z
+     * @param currentX position courante des pieds, X
+     * @param currentY position courante des pieds, Y
+     * @param currentZ position courante des pieds, Z
+     * @param halfWidth demi-largeur de la boite
+     * @param height hauteur de la boite, au-dessus des pieds
+     * @return {@code true} si les pieds passent le plan depuis le cote d'entree, la boite contre le cadre
+     */
+    static boolean crossedPortalPlane(
+            BackroomsPortalEntity portal,
+            double lastX,
+            double lastY,
+            double lastZ,
+            double currentX,
+            double currentY,
+            double currentZ,
+            double halfWidth,
+            double height) {
         double last = portal.signedDistance(lastX, lastY, lastZ);
         double current = portal.signedDistance(currentX, currentY, currentZ);
         if (last <= 0.0 || current > 0.0) {
             return false;
         }
         double t = last / (last - current);
-        return portal.frameContains(
-                lastX + (currentX - lastX) * t, lastY + (currentY - lastY) * t, lastZ + (currentZ - lastZ) * t, CROSSING_MARGIN);
+        double x = lastX + (currentX - lastX) * t;
+        double y = lastY + (currentY - lastY) * t;
+        double z = lastZ + (currentZ - lastZ) * t;
+        // Au point de passage, la boite chevauche le plan : la toucher, c'est toucher le cadre en largeur et en hauteur.
+        return portal.detectionBox().intersects(x - halfWidth, y, z - halfWidth, x + halfWidth, y + height, z + halfWidth);
+    }
+
+    /**
+     * Point de sortie d'une position qui traverse : son image de l'autre cote, a peine devant le cadre d'arrivee. Sert
+     * aussi a la prediction client.
+     */
+    public static Vec3d exitPoint(BackroomsPortalEntity portal, Vec3d position) {
+        return portal.toDestination(position).add(portal.facingDestination().normal.multiply(EXIT_OFFSET));
     }
 
     /**
      * Teleporte un objet, un mob ou un projectile a travers un portail : meme transposition que pour un
      * joueur, appliquee directement par le serveur. Le passage pose le cooldown de portail vanilla.
      *
+     * @param entity entity qui traverse, cote serveur
+     * @param portal portail traverse
      * @return {@code true} si la teleportation a eu lieu
      */
     public static boolean execute(Entity entity, BackroomsPortalEntity portal) {
@@ -233,10 +315,10 @@ public final class TeleportExecutor {
         }
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = PortalFacing.transformPoint(source, portal.getPos(), exitFacing, portal.destinationPos(), entity.getPos())
-                .add(exitFacing.normal.multiply(EXIT_OFFSET));
-        Vec3d exitVelocity = PortalFacing.transformVelocity(source, exitFacing, entity.getVelocity());
+        Vec3d exit = exitPoint(portal, entity.getPos());
+        Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, entity.getVelocity());
         Vec2f look = PortalFacing.transformLook(source, exitFacing, entity.getYaw(), entity.getPitch());
+        LivingEntity chased = PortalPursuit.targetAfterCrossing(entity, portal);
         Entity arrived;
         if (destinationWorld == world) {
             entity.refreshPositionAndAngles(exit.x, exit.y, exit.z, look.x, look.y);
@@ -251,12 +333,17 @@ public final class TeleportExecutor {
             arrived.setPitch(look.y);
         }
         arrived.setPortalCooldown(ENTITY_PORTAL_COOLDOWN_TICKS);
+        // Seul un mob poursuit, et sa proie est dans le monde d'arrivee : de ce cote, elle devient sa cible.
+        if (chased != null) {
+            ((MobEntity) arrived).setTarget(chased);
+        }
         ModConstants.LOGGER.debug("[Portal] {} traverse un portail vers {}.", entity.getType().getUntranslatedName(), portal.destinationDim().getValue());
         return true;
     }
 
     /**
-     * Teleporte un joueur a travers un portail depuis l'etat courant connu du serveur.
+     * Teleporte un joueur a travers un portail depuis l'etat courant connu du serveur : le secours quand le client
+     * n'annonce pas son franchissement.
      *
      * @param player joueur a teleporter
      * @param portal portail traverse
@@ -270,11 +357,25 @@ public final class TeleportExecutor {
      * Teleporte un joueur a travers un portail depuis un etat donne (celui du client au franchissement,
      * ou celui du serveur). Position, vitesse et regard sont transposes par {@link PortalFacing}.
      *
+     * @param player joueur a teleporter
+     * @param portal portail traverse
+     * @param position position des pieds au franchissement
+     * @param velocity vitesse au franchissement
+     * @param yaw lacet au franchissement, en degres
+     * @param pitch tangage au franchissement, en degres
      * @param predicted {@code true} si le client a lui-meme franchi le portail et annonce cet etat : il est deja de
      *                  l'autre cote, le serveur s'aligne sans paquet de teleportation vanilla
      * @return {@code true} si la teleportation a eu lieu
      */
+    @SuppressWarnings("try")
     public static boolean execute(
+            ServerPlayerEntity player, BackroomsPortalEntity portal, Vec3d position, Vec3d velocity, float yaw, float pitch, boolean predicted) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_TELEPORT_PLAYER)) {
+            return teleportPlayer(player, portal, position, velocity, yaw, pitch, predicted);
+        }
+    }
+
+    private static boolean teleportPlayer(
             ServerPlayerEntity player, BackroomsPortalEntity portal, Vec3d position, Vec3d velocity, float yaw, float pitch, boolean predicted) {
         ServerWorld destinationWorld = player.getServerWorld().getServer().getWorld(portal.destinationDim());
         if (destinationWorld == null) {
@@ -284,36 +385,39 @@ public final class TeleportExecutor {
         }
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = PortalFacing.transformPoint(source, portal.getPos(), exitFacing, portal.destinationPos(), position)
-                .add(exitFacing.normal.multiply(EXIT_OFFSET));
-        exit = liftOutOfBlocks(player, destinationWorld, exit);
-        Vec3d exitVelocity = PortalFacing.transformVelocity(source, exitFacing, velocity);
+        Vec3d exit = liftOutOfBlocks(player, destinationWorld, exitPoint(portal, position));
+        Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, velocity);
         Vec2f look = PortalFacing.transformLook(source, exitFacing, yaw, pitch);
 
         player.setCameraEntity(player);
         player.stopRiding();
+        int heldChunks = 0;
         if (destinationWorld == player.getServerWorld()) {
             placePlayer(player, exit, look.x, look.y, predicted);
             player.networkHandler.syncWithPlayerPosition();
             ServerPlayNetworking.send(player, PortalTeleportPayload.of(destinationWorld, exit, look.x, look.y, exitVelocity));
         } else {
-            changeDimension(player, destinationWorld, exit, look.x, look.y, exitVelocity, predicted);
+            heldChunks = changeDimension(player, destinationWorld, exit, look.x, look.y, exitVelocity, predicted);
         }
+        // Pas de velocityModified : le client recoit sa vitesse avec le payload, ou l'a deja s'il a predit le passage. Un
+        // paquet de vitesse vanilla arriverait un tick plus tard et ecraserait celle qu'il a depuis (un saut rejoue).
         player.setVelocity(exitVelocity);
-        player.velocityModified = true;
 
-        TpCooldownTracker.markTeleported(player.getUuid(), destinationWorld.getTime());
+        markCrossed(player.getUuid(), destinationWorld.getTime());
         LAST_PLAYER_POS.put(player.getUuid(), player.getPos());
-        ModConstants.LOGGER.info("[Portal] {} traverse un portail vers {} {}.",
-                player.getName().getString(), portal.destinationDim().getValue(), exit);
+        ModConstants.LOGGER.info("[Portal] {} traverse un portail vers {} {} ({} chunk(s) d'arrivee deja chez le client).",
+                player.getName().getString(), portal.destinationDim().getValue(), exit, heldChunks);
         return true;
     }
 
     /**
      * Changement de dimension sans paquet de respawn : la sequence de {@code ServerPlayerEntity.teleportTo},
      * precedee de notre propre annonce pour que le client bascule sur son monde distant deja charge.
+     *
+     * @return nombre de chunks de l'arrivee que le client tient deja, que vanilla ne lui renverra pas
      */
-    private static void changeDimension(
+    @SuppressWarnings("try")
+    private static int changeDimension(
             ServerPlayerEntity player, ServerWorld destination, Vec3d exit, float yaw, float pitch, Vec3d velocity, boolean predicted) {
         ServerWorld origin = player.getServerWorld();
         PlayerManager playerManager = origin.getServer().getPlayerManager();
@@ -326,16 +430,19 @@ public final class TeleportExecutor {
         player.setServerWorld(destination);
         // Avant que la destination ne suive le joueur : les chunks qu'il tient deja ne lui seront pas renvoyes, et ses
         // copies distantes d'entities sont retirees chez lui d'abord.
-        PortalViewTracker.keepHeldChunks(player, destination.getRegistryKey());
+        int heldChunks = PortalViewTracker.keepHeldChunks(player, destination.getRegistryKey());
         PortalViewTracker.onPlayerChangedWorld(player);
         placePlayer(player, exit, yaw, pitch, predicted);
         player.networkHandler.syncWithPlayerPosition();
-        destination.onDimensionChanged(player);
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_TELEPORT_VANILLA)) {
+            destination.onDimensionChanged(player);
+        }
         Criteria.CHANGED_DIMENSION.trigger(player, origin.getRegistryKey(), destination.getRegistryKey());
         player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
         playerManager.sendWorldInfo(player, destination);
         playerManager.sendPlayerStatus(player);
         playerManager.sendStatusEffects(player);
+        return heldChunks;
     }
 
     /**

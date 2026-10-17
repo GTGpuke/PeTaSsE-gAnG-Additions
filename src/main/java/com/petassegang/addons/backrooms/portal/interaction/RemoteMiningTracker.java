@@ -56,20 +56,16 @@ final class RemoteMiningTracker {
     }
 
     private static final Map<UUID, Mining> MINING = new HashMap<>();
-    private static boolean initialized;
 
     private RemoteMiningTracker() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
 
+    /** Branche le tick et le nettoyage ; appele une fois, par {@link RemoteInteractionHandler#init()}. */
     static void init() {
-        if (initialized) {
-            return;
-        }
         ServerTickEvents.END_SERVER_TICK.register(RemoteMiningTracker::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> MINING.remove(handler.player.getUuid()));
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> MINING.clear());
-        initialized = true;
     }
 
     /** Le joueur commence a miner : casse immediate en creatif, progression sinon. */

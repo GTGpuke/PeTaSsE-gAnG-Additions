@@ -33,7 +33,9 @@ import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.mixin.EntityAccessor;
 import com.petassegang.addons.mixin.client.ClientPlayNetworkHandlerAccessor;
+import com.petassegang.addons.mixin.client.LightmapTextureManagerAccessor;
 import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
+import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
  * Traversee sans coupure cote client : prediction du passage et bascule de monde sans ecran de chargement.
@@ -44,6 +46,11 @@ import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
  * vanilla continuent d'alimenter l'ancien monde, qui devient un monde distant : on peut se retourner
  * et voir d'ou l'on vient. A la confirmation, le flux de paquets suit le joueur ; les dechargements
  * que vanilla envoie alors pour l'ancien monde sont ignores pour en garder la vue.
+ *
+ * <p>Le joueur reste le meme objet d'un monde a l'autre : ses animations (marche, balancement de la vue)
+ * continuent. Tout ce qui s'interpole passe le portail avec lui, valeur courante et valeur precedente ensemble :
+ * positions, regard, tete, corps et balancement du bras qui tient l'objet. Le portail tourne souvent le joueur d'un
+ * demi-tour ; un seul angle oublie, et la main ou le corps rattrape ce demi-tour en quelques images.
  */
 public final class ClientPortalCrossing {
 
@@ -72,7 +79,7 @@ public final class ClientPortalCrossing {
     }
 
     /** Enregistre le recepteur de teleportation ; a appeler une fois depuis le point d'entree client. */
-    public static void register() {
+    public static void init() {
         ClientPlayNetworking.registerGlobalReceiver(PortalTeleportPayload.ID,
                 (payload, context) -> onServerTeleport(context.client(), payload));
     }
@@ -107,6 +114,10 @@ public final class ClientPortalCrossing {
         lastFeetZ = feetZ;
         hasLastFeet = true;
         lastFeetWorld = world;
+        // Un nouveau joueur (respawn, reconnexion) repart d'un age nul : la derniere traversee etait celle d'un autre.
+        if (player.age < lastCrossingAge) {
+            lastCrossingAge = Integer.MIN_VALUE / 2;
+        }
         if (!hasFrom || awaitingServerTicks > 0 || player.hasVehicle()
                 || player.age - lastCrossingAge < ModConfig.PORTAL_TELEPORT_COOLDOWN_TICKS
                 || squaredDistance(fromX, fromY, fromZ, feetX, feetY, feetZ) > TeleportExecutor.MAX_STEP_SQUARED) {
@@ -116,7 +127,7 @@ public final class ClientPortalCrossing {
         List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            if (TeleportExecutor.crossedPortalPlane(portal, fromX, fromY, fromZ, feetX, feetY, feetZ)) {
+            if (portal.teleportable() && TeleportExecutor.crossedPortalPlane(portal, player, fromX, fromY, fromZ, feetX, feetY, feetZ)) {
                 predict(client, player, world, portal, new Vec3d(feetX, feetY, feetZ));
                 return;
             }
@@ -141,9 +152,10 @@ public final class ClientPortalCrossing {
     }
 
     /** Deconnexion : plus rien a attendre. */
-    public static void reset() {
+    public static void clear() {
         hasLastFeet = false;
         lastFeetWorld = null;
+        lastCrossingAge = Integer.MIN_VALUE / 2;
         awaitingServerTicks = 0;
         unloadWindowTicks = 0;
         previousWorld = null;
@@ -164,9 +176,8 @@ public final class ClientPortalCrossing {
         if (unloadWindowTicks <= 0 || previousWorld == null) {
             return false;
         }
-        for (int i = 0; i < entityIds.size(); i++) {
-            previousWorld.removeEntity(entityIds.getInt(i), Entity.RemovalReason.DISCARDED);
-        }
+        // Le serveur renvoie aussitot celles que le joueur voit encore par le portail de retour : retrait differe.
+        EntityHandover.deferRemoval(previousWorld, entityIds);
         return true;
     }
 
@@ -189,21 +200,69 @@ public final class ClientPortalCrossing {
         float pitch = player.getPitch();
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = PortalFacing.transformPoint(source, portal.getPos(), exitFacing, portal.destinationPos(), feet)
-                .add(exitFacing.normal.multiply(TeleportExecutor.EXIT_OFFSET));
-        Vec3d exitVelocity = PortalFacing.transformVelocity(source, exitFacing, velocity);
+        Vec3d exit = TeleportExecutor.exitPoint(portal, feet);
+        Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, velocity);
         Vec2f look = PortalFacing.transformLook(source, exitFacing, yaw, pitch);
+        // Un portail vertical tourne le regard autour de la verticale : un meme angle pour toutes les valeurs, courantes et
+        // precedentes, ramene au plus court pour que le lacet reste continu (pas de tour complet entre deux images).
+        float yawShift = MathHelper.wrapDegrees(look.x - yaw);
+        float pitchShift = look.y - pitch;
+        // Les positions du tick courant et du tick precedent passent aussi le portail : l'interpolation de l'image continue
+        // sans a-coup, le joueur ne s'arrete pas sur le plan le temps d'un tick.
+        Vec3d thisTick = TeleportExecutor.exitPoint(portal, player.getPos());
+        Vec3d lastTick = TeleportExecutor.exitPoint(portal, new Vec3d(player.prevX, player.prevY, player.prevZ));
 
         // Le serveur doit recevoir l'annonce avant le prochain paquet de deplacement.
         ClientPlayNetworking.send(new PortalCrossPayload(portal.getUuid(), feet, velocity, yaw, pitch));
         predictedExit = exit;
         awaitingServerTicks = SERVER_ANSWER_TIMEOUT_TICKS;
         lastCrossingAge = player.age;
+        turn(player, yawShift, pitchShift);
         if (sameDimension) {
-            applyPosition(player, exit, look.x, look.y, exitVelocity);
+            place(player, thisTick, exitVelocity);
         } else {
-            switchWorld(client, remote, exit, look.x, look.y, exitVelocity, false);
+            switchWorld(client, remote, () -> place(player, thisTick, exitVelocity), false);
         }
+        continueInterpolation(player, lastTick);
+        hasLastFeet = false;
+    }
+
+    /**
+     * Tourne le joueur du meme angle que le portail, chaque valeur avec sa valeur precedente : regard, tete, corps, et
+     * balancement du bras (sans lui, la main tenue rattrape le demi-tour en quelques images).
+     */
+    private static void turn(ClientPlayerEntity player, float yawShift, float pitchShift) {
+        player.setYaw(player.getYaw() + yawShift);
+        player.prevYaw += yawShift;
+        player.setHeadYaw(player.getHeadYaw() + yawShift);
+        player.prevHeadYaw += yawShift;
+        player.setBodyYaw(player.getBodyYaw() + yawShift);
+        player.prevBodyYaw += yawShift;
+        player.renderYaw += yawShift;
+        player.lastRenderYaw += yawShift;
+        player.setPitch(player.getPitch() + pitchShift);
+        player.prevPitch += pitchShift;
+        player.renderPitch += pitchShift;
+        player.lastRenderPitch += pitchShift;
+    }
+
+    /** Pose le joueur a la sortie, sans toucher a ses angles ni a ses valeurs d'interpolation. */
+    private static void place(ClientPlayerEntity player, Vec3d position, Vec3d velocity) {
+        player.setPosition(position.x, position.y, position.z);
+        player.setVelocity(velocity);
+    }
+
+    /**
+     * Apres une prediction, l'image en cours interpole depuis la position du tick precedent, elle aussi passee par le
+     * portail : la camera comme le modele vu en troisieme personne.
+     */
+    private static void continueInterpolation(ClientPlayerEntity player, Vec3d lastTick) {
+        player.prevX = lastTick.x;
+        player.prevY = lastTick.y;
+        player.prevZ = lastTick.z;
+        player.lastRenderX = lastTick.x;
+        player.lastRenderY = lastTick.y;
+        player.lastRenderZ = lastTick.z;
     }
 
     private static void onServerTeleport(MinecraftClient client, PortalTeleportPayload payload) {
@@ -233,51 +292,52 @@ public final class ClientPortalCrossing {
             ModConstants.LOGGER.error("[Portal] Impossible de basculer vers {} : monde distant indisponible.", payload.dimension());
             return;
         }
-        switchWorld(client, remote, payload.position(), payload.yaw(), payload.pitch(), payload.velocity(), true);
+        switchWorld(client, remote,
+                () -> applyPosition(player, payload.position(), payload.yaw(), payload.pitch(), payload.velocity()), true);
     }
 
     /**
      * Echange le monde principal et un monde distant : le joueur change de monde, le client rend le
      * nouveau monde, l'ancien reste disponible pour les portails de retour.
      *
+     * @param client client du joueur
+     * @param remote monde distant d'arrivee, deja annonce par le serveur
+     * @param placement pose le joueur a l'arrivee, entre son retrait de l'ancien monde et son ajout au nouveau
      * @param confirmed {@code true} si le serveur a deja deplace le joueur : le flux de paquets suit alors le joueur
      */
-    private static void switchWorld(
-            MinecraftClient client,
-            RemoteWorld remote,
-            Vec3d position,
-            float yaw,
-            float pitch,
-            Vec3d velocity,
-            boolean confirmed) {
+    private static void switchWorld(MinecraftClient client, RemoteWorld remote, Runnable placement, boolean confirmed) {
         ClientPlayerEntity player = client.player;
         ClientWorld oldWorld = client.world;
         WorldRenderer oldRenderer = client.worldRenderer;
         if (player == null || oldWorld == null) {
             return;
         }
+        ModPerformanceMonitor.onCrossingStart();
         ClientWorld newWorld = remote.world();
-        RemoteWorldRegistry.swapMainWorld(oldWorld, oldRenderer, newWorld,
+        RemoteWorldRegistry.swapMainWorld(oldWorld, oldRenderer, remote,
                 ChunkSectionPos.getSectionCoord(player.getX()), ChunkSectionPos.getSectionCoord(player.getZ()));
 
         oldWorld.removeEntity(player.getId(), Entity.RemovalReason.CHANGED_DIMENSION);
         ((EntityAccessor) player).backrooms$unsetRemoved();
         ((EntityAccessor) player).backrooms$setWorld(newWorld);
-        applyPosition(player, position, yaw, pitch, velocity);
+        placement.run();
         newWorld.addEntity(player);
 
         MinecraftClientAccessor clientAccessor = (MinecraftClientAccessor) client;
         clientAccessor.backrooms$setWorld(newWorld);
         clientAccessor.backrooms$setWorldRenderer(remote.renderer());
-        client.particleManager.setWorld(newWorld);
         client.getBlockEntityRenderDispatcher().setWorld(newWorld);
         client.getEntityRenderDispatcher().setWorld(newWorld);
         client.setCameraEntity(player);
+        // La lightmap ne se recalcule qu'au tick : forcee ici, sinon l'autre monde s'eclaire une ou deux images avec celle
+        // de l'ancien (retour de nuit du Level 0 vers un Overworld en plein jour : une image sombre, puis la bonne).
+        ((LightmapTextureManagerAccessor) client.gameRenderer.getLightmapTextureManager()).backrooms$setDirty(true);
         hasLastFeet = false;
         lastFeetWorld = null;
         if (confirmed) {
             bindNetworkHandler(client, newWorld, oldWorld);
         }
+        ModPerformanceMonitor.onCrossingSwitched(newWorld.getRegistryKey().getValue());
         ModConstants.LOGGER.debug("[Portal] Bascule client vers {} ({}).", newWorld.getRegistryKey().getValue(),
                 confirmed ? "confirmee par le serveur" : "prediction");
     }

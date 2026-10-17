@@ -30,11 +30,13 @@ class UtilityClassesTest {
         return Stream.of(
                 "com.petassegang.addons.core.ModConstants",
                 "com.petassegang.addons.backrooms.BackroomsConstants",
+                "com.petassegang.addons.config.ModConfig",
                 "com.petassegang.addons.init.ModNetworking",
                 "com.petassegang.addons.init.ModBlocks",
                 "com.petassegang.addons.init.ModItems",
                 "com.petassegang.addons.init.ModChunkGenerators",
                 "com.petassegang.addons.init.ModBlockEntities",
+                "com.petassegang.addons.init.ModEntities",
                 "com.petassegang.addons.init.ModCreativeTab",
                 "com.petassegang.addons.perf.ModPerformanceMonitor",
                 "com.petassegang.addons.backrooms.level0.generation.coord.LevelZeroCoords",
@@ -49,19 +51,23 @@ class UtilityClassesTest {
                 "com.petassegang.addons.backrooms.level0.generation.noise.StageRandom",
                 "com.petassegang.addons.backrooms.level0.generation.write.LevelZeroDebugPalette",
                 "com.petassegang.addons.backrooms.portal.block.BackroomsDoorTargets",
+                "com.petassegang.addons.backrooms.portal.client.sound.PortalSound",
+                "com.petassegang.addons.backrooms.portal.client.view.PortalClipping",
                 "com.petassegang.addons.backrooms.portal.client.view.PortalRenderState",
                 "com.petassegang.addons.backrooms.portal.client.view.PortalViewTransform",
+                "com.petassegang.addons.backrooms.portal.client.view.ShaderClipInjector",
+                "com.petassegang.addons.backrooms.portal.client.view.ThirdPersonPortal",
                 "com.petassegang.addons.backrooms.portal.debug.DebugPortalCommand",
                 "com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry",
-                "com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityType",
                 "com.petassegang.addons.backrooms.portal.interaction.RemoteInteractionHandler",
                 "com.petassegang.addons.backrooms.portal.interaction.RemoteMiningTracker",
+                "com.petassegang.addons.backrooms.portal.propagation.PortalPursuit",
                 "com.petassegang.addons.backrooms.portal.sync.PortalViewTracker",
                 "com.petassegang.addons.backrooms.portal.sync.RemoteChunkWindow",
                 "com.petassegang.addons.backrooms.portal.transition.DestinationLoader",
+                "com.petassegang.addons.backrooms.portal.transition.PortalCollision",
                 "com.petassegang.addons.backrooms.portal.transition.PortalRelevance",
-                "com.petassegang.addons.backrooms.portal.transition.TeleportExecutor",
-                "com.petassegang.addons.backrooms.portal.transition.TpCooldownTracker");
+                "com.petassegang.addons.backrooms.portal.transition.TeleportExecutor");
     }
 
     @ParameterizedTest(name = "{0}")

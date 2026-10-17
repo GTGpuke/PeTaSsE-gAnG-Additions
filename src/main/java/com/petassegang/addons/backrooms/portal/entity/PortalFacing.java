@@ -62,7 +62,7 @@ public enum PortalFacing {
      * @param vector vecteur exprime dans le monde de la source
      * @return le meme vecteur exprime dans le monde de la destination
      */
-    public static Vec3d transformVelocity(PortalFacing source, PortalFacing destination, Vec3d vector) {
+    public static Vec3d transformVector(PortalFacing source, PortalFacing destination, Vec3d vector) {
         double w = vector.dotProduct(source.axisW);
         double h = vector.dotProduct(source.axisH);
         double n = vector.dotProduct(source.normal);
@@ -88,7 +88,7 @@ public enum PortalFacing {
             PortalFacing destination,
             Vec3d destinationCenter,
             Vec3d point) {
-        return destinationCenter.add(transformVelocity(source, destination, point.subtract(sourceCenter)));
+        return destinationCenter.add(transformVector(source, destination, point.subtract(sourceCenter)));
     }
 
     /**
@@ -101,7 +101,7 @@ public enum PortalFacing {
      * @return nouveau regard : {@code x} = yaw, {@code y} = pitch
      */
     public static Vec2f transformLook(PortalFacing source, PortalFacing destination, float yaw, float pitch) {
-        Vec3d transformed = transformVelocity(source, destination, lookVector(yaw, pitch));
+        Vec3d transformed = transformVector(source, destination, lookVector(yaw, pitch));
         double clampedY = MathHelper.clamp(transformed.y, -1.0, 1.0);
         float newPitch = (float) Math.toDegrees(-Math.asin(clampedY));
         float newYaw = (float) Math.toDegrees(Math.atan2(-transformed.x, transformed.z));

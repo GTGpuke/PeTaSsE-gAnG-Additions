@@ -13,6 +13,8 @@ import java.util.concurrent.atomic.LongAdder;
 import com.sun.management.OperatingSystemMXBean;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.util.Identifier;
+
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.core.ModConstants;
 
@@ -39,6 +41,21 @@ public final class ModPerformanceMonitor {
     private static volatile long currentServerTickStartNanos;
     private static volatile String lastServerSummary = "serveur: aucun echantillon";
     private static volatile String lastClientSummary = "client: aucun echantillon";
+    private static volatile String lastCrossingSummary = "traversee: aucune";
+
+    /** Images observees apres une bascule de monde, le temps que le nouveau monde se stabilise. */
+    static final int CROSSING_FRAMES = 120;
+    /** Au-dela de cette duree, une image compte comme un a-coup. */
+    static final long SLOW_FRAME_NANOS = 50_000_000L;
+    // Traversee en cours de mesure : ecrite et lue par le thread de rendu seulement.
+    private static long crossingStartNanos;
+    private static long crossingSwitchNanos;
+    private static String crossingDestination = "";
+    private static int crossingFramesLeft;
+    private static long crossingLastFrameNanos;
+    private static long crossingMaxFrameNanos;
+    private static int crossingSlowFrames;
+    private static int crossingChunks;
 
     private ModPerformanceMonitor() {
         throw new UnsupportedOperationException("Classe utilitaire.");
@@ -118,6 +135,7 @@ public final class ModPerformanceMonitor {
         text.add("Perf monitor : actif");
         text.add(lastServerSummary);
         text.add(lastClientSummary);
+        text.add(lastCrossingSummary);
     }
 
     /** Dernier resume serveur publie. */
@@ -125,13 +143,95 @@ public final class ModPerformanceMonitor {
         return lastServerSummary;
     }
 
+    /** Dernier bilan de traversee publie. */
+    static String lastCrossingSummary() {
+        return lastCrossingSummary;
+    }
+
+    /** Le client commence a basculer de monde : debut de la mesure de la traversee. */
+    public static void onCrossingStart() {
+        if (isEnabled()) {
+            crossingStartNanos = System.nanoTime();
+        }
+    }
+
+    /**
+     * Le client a bascule vers {@code destination} : la duree de la bascule est retenue et les images qui suivent
+     * sont observees, jusqu'au bilan.
+     *
+     * @param destination dimension d'arrivee
+     */
+    public static void onCrossingSwitched(Identifier destination) {
+        if (!isEnabled() || crossingStartNanos == 0L) {
+            return;
+        }
+        crossingSwitchNanos = System.nanoTime() - crossingStartNanos;
+        crossingStartNanos = 0L;
+        crossingDestination = destination.toString();
+        crossingFramesLeft = CROSSING_FRAMES;
+        crossingLastFrameNanos = 0L;
+        crossingMaxFrameNanos = 0L;
+        crossingSlowFrames = 0;
+        crossingChunks = 0;
+    }
+
+    /** Une image vient d'etre rendue ; hors fenetre d'observation, ne coute qu'un test d'entier. */
+    public static void onFrameRendered() {
+        if (crossingFramesLeft <= 0) {
+            return;
+        }
+        if (!isEnabled()) {
+            crossingFramesLeft = 0;
+            return;
+        }
+        long now = System.nanoTime();
+        if (crossingLastFrameNanos != 0L) {
+            long frameNanos = now - crossingLastFrameNanos;
+            if (frameNanos > crossingMaxFrameNanos) {
+                crossingMaxFrameNanos = frameNanos;
+            }
+            if (frameNanos > SLOW_FRAME_NANOS) {
+                crossingSlowFrames++;
+            }
+        }
+        crossingLastFrameNanos = now;
+        if (--crossingFramesLeft == 0) {
+            publishCrossingSummary();
+        }
+    }
+
+    /** Un chunk, vanilla ou distant, arrive chez le client : compte pendant la fenetre d'observation. */
+    public static void onChunkReceived() {
+        if (crossingFramesLeft > 0) {
+            crossingChunks++;
+        }
+    }
+
+    private static void publishCrossingSummary() {
+        lastCrossingSummary = String.format(
+                Locale.ROOT,
+                "traversee: vers %s bascule=%.3fms pic=%.3fms lentes=%d/%d chunks=%d",
+                crossingDestination,
+                nanosToMillis(crossingSwitchNanos),
+                nanosToMillis(crossingMaxFrameNanos),
+                crossingSlowFrames,
+                CROSSING_FRAMES - 1,
+                crossingChunks);
+        ModConstants.LOGGER.info("[perf] {}", lastCrossingSummary);
+    }
+
     private static boolean shouldLog(AtomicLong lastLogNanos) {
         long now = System.nanoTime();
         long last = lastLogNanos.get();
-        if (last != 0L && now - last < intervalNanos()) {
+        if (!isDue(last, now, intervalNanos())) {
             return false;
         }
         return lastLogNanos.compareAndSet(last, now);
+    }
+
+    /** {@code true} si un resume est du : jamais publie ({@code 0}), ou publie il y a au moins un intervalle. */
+    static boolean isDue(long lastNanos, long nowNanos, long intervalNanos) {
+        return lastNanos == 0L || nowNanos - lastNanos >= intervalNanos;
     }
 
     private static void logServerSummary() {

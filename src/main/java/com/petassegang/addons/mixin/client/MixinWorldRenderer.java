@@ -23,13 +23,14 @@ import net.minecraft.util.math.Vec3d;
 
 import com.petassegang.addons.backrooms.portal.client.view.PortalRenderState;
 import com.petassegang.addons.backrooms.portal.client.view.PortalStencilRenderer;
+import com.petassegang.addons.backrooms.portal.client.world.RemoteWorld;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorldRegistry;
 
 /**
- * Hooks du rendu monde pour les portails : dessin des portails en fin de frame, substitution de la
- * position du joueur par la camera distante quand {@code setupTerrain} centre le terrain d'une vue,
- * particules des mondes distants ignorees, et reconstructions de sections repercutees sur la vue
- * secondaire du monde principal.
+ * Points d'accroche du rendu monde pour les portails : dessin des portails avant la couche translucide, centre de la grille de sections
+ * d'une vue substitue a la position du joueur dans {@code setupTerrain}, ciel d'une vue rapporte a sa camera,
+ * particules des mondes distants confiees a leur propre contenu, et reconstructions de sections repercutees sur la
+ * vue secondaire du monde principal.
  */
 @Mixin(WorldRenderer.class)
 public abstract class MixinWorldRenderer {
@@ -41,7 +42,13 @@ public abstract class MixinWorldRenderer {
     @Shadow
     private @Nullable ClientWorld world;
 
-    @Inject(method = "render", at = @At("TAIL"))
+    /**
+     * Les portails se dessinent apres les blocs opaques, les entities et les block entities, et avant tout ce qui est
+     * translucide : l'eau, le verre teinte, les parties translucides des entities, les particules,
+     * les nuages et la pluie du monde du joueur se fondent ensuite par-dessus la vue, au lieu d'en cacher le cadre.
+     */
+    @Inject(method = "render", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/render/TexturedRenderLayers;getEntityTranslucentCull()Lnet/minecraft/client/render/RenderLayer;"))
     private void backrooms$renderPortals(
             RenderTickCounter tickCounter,
             boolean renderBlockOutline,
@@ -56,22 +63,25 @@ public abstract class MixinWorldRenderer {
                 tickCounter.getTickDelta(false));
     }
 
+    /** Fin du rendu du monde : le stencil qui refusait la suite, sous une vue couvrant l'ecran, est rendu. */
+    @Inject(method = "render", at = @At("TAIL"))
+    private void backrooms$endPortals(CallbackInfo ci) {
+        PortalStencilRenderer.endWorldRender();
+    }
+
     @Redirect(method = "setupTerrain", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getX()D"))
     private double backrooms$terrainCenterX(ClientPlayerEntity player) {
-        Vec3d override = PortalRenderState.cameraOverride();
-        return override != null ? override.x : player.getX();
+        return PortalRenderState.hasTerrainCenter() ? PortalRenderState.terrainCenterX() : player.getX();
     }
 
     @Redirect(method = "setupTerrain", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getY()D"))
     private double backrooms$terrainCenterY(ClientPlayerEntity player) {
-        Vec3d override = PortalRenderState.cameraOverride();
-        return override != null ? override.y : player.getY();
+        return PortalRenderState.hasTerrainCenter() ? PortalRenderState.terrainCenterY() : player.getY();
     }
 
     @Redirect(method = "setupTerrain", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getZ()D"))
     private double backrooms$terrainCenterZ(ClientPlayerEntity player) {
-        Vec3d override = PortalRenderState.cameraOverride();
-        return override != null ? override.z : player.getZ();
+        return PortalRenderState.hasTerrainCenter() ? PortalRenderState.terrainCenterZ() : player.getZ();
     }
 
     /**
@@ -90,9 +100,12 @@ public abstract class MixinWorldRenderer {
         return override != null ? override : camera.getPos();
     }
 
-    /** Le gestionnaire de particules est celui du monde principal : un monde distant tique ses entities sans particules. */
+    /**
+     * Les particules d'un monde distant (entities, effets des blocs, paquets du serveur) vont dans le contenu de
+     * particules de ce monde, dessine dans ses vues ; vanilla les aurait ajoutees au monde du joueur, a ses coordonnees.
+     */
     @Inject(method = "addParticle(Lnet/minecraft/particle/ParticleEffect;ZZDDDDDD)V", at = @At("HEAD"), cancellable = true)
-    private void backrooms$dropRemoteParticles(
+    private void backrooms$routeRemoteParticles(
             ParticleEffect parameters,
             boolean shouldAlwaysSpawn,
             boolean important,
@@ -103,15 +116,23 @@ public abstract class MixinWorldRenderer {
             double velocityY,
             double velocityZ,
             CallbackInfo ci) {
-        if (this.world != this.client.world) {
+        RemoteWorld remote = RemoteWorldRegistry.ownerOf((WorldRenderer) (Object) this);
+        if (remote != null) {
+            ci.cancel();
+            remote.spawnParticle(this.client, parameters, shouldAlwaysSpawn, important, x, y, z, velocityX, velocityY, velocityZ);
+        } else if (this.world != this.client.world && !PortalRenderState.isRendering()) {
+            // Renderer sans monde distant connu : ses particules n'ont nulle part ou aller.
             ci.cancel();
         }
     }
 
-    /** Une section du monde principal a reconstruire l'est aussi dans sa vue secondaire (portails imbriques). */
+    /**
+     * Une section du monde principal a reconstruire l'est aussi dans sa vue secondaire (portails imbriques). Pendant le
+     * rendu des portails, monde et renderer de {@code MinecraftClient} sont substitues : rien n'est relaye a ce moment-la.
+     */
     @Inject(method = "scheduleChunkRender", at = @At("HEAD"))
     private void backrooms$mirrorChunkRender(int x, int y, int z, boolean important, CallbackInfo ci) {
-        if ((Object) this == this.client.worldRenderer) {
+        if (!PortalRenderState.isRendering() && (Object) this == this.client.worldRenderer) {
             RemoteWorldRegistry.onMainChunkRenderScheduled(x, y, z, important);
         }
     }

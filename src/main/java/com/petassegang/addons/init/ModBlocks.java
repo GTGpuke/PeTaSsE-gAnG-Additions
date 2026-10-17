@@ -59,10 +59,10 @@ public final class ModBlocks {
             "level_zero_fluorescent_light",
             new Block(AbstractBlock.Settings.copy(Blocks.SEA_LANTERN).luminance(state -> 15)));
 
-    /** Porte des Backrooms : posee hors du Level 0 elle y mene, posee dedans elle ramene a la surface. */
+    /** Porte des Backrooms : une porte en chene noir ; posee hors du Level 0 elle y mene, posee dedans elle ramene a la surface. */
     public static final BackroomsDoorBlock BACKROOMS_DOOR = register(
             "backrooms_door",
-            new BackroomsDoorBlock(AbstractBlock.Settings.copy(Blocks.IRON_DOOR).strength(3.0f).nonOpaque()));
+            new BackroomsDoorBlock(AbstractBlock.Settings.copy(Blocks.DARK_OAK_DOOR)));
 
     /** Generateur de l'Arbre Maudit, branche sur la configured feature {@code cursed_tree}. */
     public static final SaplingGenerator CURSED_TREE_GROWER = new SaplingGenerator(

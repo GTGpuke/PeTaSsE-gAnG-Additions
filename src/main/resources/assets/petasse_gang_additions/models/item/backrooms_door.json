@@ -1,3 +1,6 @@
 {
-  "parent": "petasse_gang_additions:block/backrooms_door"
+  "parent": "minecraft:item/generated",
+  "textures": {
+    "layer0": "petasse_gang_additions:item/backrooms_door"
+  }
 }

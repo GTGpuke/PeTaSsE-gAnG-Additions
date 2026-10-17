@@ -11,7 +11,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
 
-import com.petassegang.addons.backrooms.portal.client.interaction.CrossPortalTargeting;
+import com.petassegang.addons.backrooms.portal.client.interaction.RemoteTargeting;
 import com.petassegang.addons.backrooms.portal.client.transition.ClientPortalCrossing;
 
 /**
@@ -33,6 +33,6 @@ public abstract class MixinGameRenderer {
 
     @Inject(method = "updateCrosshairTarget", at = @At("TAIL"))
     private void backrooms$targetThroughPortal(float tickDelta, CallbackInfo ci) {
-        CrossPortalTargeting.update(this.client, tickDelta);
+        RemoteTargeting.update(this.client, tickDelta);
     }
 }

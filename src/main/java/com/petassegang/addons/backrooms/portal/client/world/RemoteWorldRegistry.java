@@ -20,6 +20,7 @@ import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionType;
 
 import com.petassegang.addons.core.ModConstants;
+import com.petassegang.addons.mixin.client.ClientWorldAccessor;
 import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
 
 /**
@@ -110,30 +111,58 @@ public final class RemoteWorldRegistry {
         }
     }
 
+    /** Monde distant dessine par ce renderer, ou {@code null} : renderer principal ou vue secondaire. */
+    public static @Nullable RemoteWorld ownerOf(WorldRenderer renderer) {
+        for (int i = 0; i < WORLD_LIST.size(); i++) {
+            RemoteWorld remote = WORLD_LIST.get(i);
+            if (remote.renderer() == renderer) {
+                return remote;
+            }
+        }
+        return null;
+    }
+
     /**
      * Traversee d'un portail : le monde distant {@code newMainWorld} devient le monde principal et
      * l'ancien monde principal reste disponible comme monde distant, avec son renderer.
      *
      * @param oldWorld monde principal quitte
      * @param oldRenderer renderer de ce monde (celui de {@code MinecraftClient} au moment du passage)
-     * @param newMainWorld monde distant qui devient principal
+     * @param promoted monde distant qui devient principal
      * @param playerChunkX chunk du joueur dans l'ancien monde, centre de sa carte de chunks
      * @param playerChunkZ chunk du joueur dans l'ancien monde, centre de sa carte de chunks
      */
-    public static void swapMainWorld(ClientWorld oldWorld, WorldRenderer oldRenderer, ClientWorld newMainWorld, int playerChunkX, int playerChunkZ) {
+    public static void swapMainWorld(ClientWorld oldWorld, WorldRenderer oldRenderer, RemoteWorld promoted, int playerChunkX, int playerChunkZ) {
         if (vanillaRenderer == null) {
             vanillaRenderer = oldRenderer;
         }
-        RemoteWorld promoted = WORLDS.remove(newMainWorld.getRegistryKey());
-        if (promoted != null) {
-            WORLD_LIST.remove(promoted);
-        }
-        RemoteWorld adopted = RemoteWorld.adopt(oldWorld, oldRenderer, playerChunkX, playerChunkZ);
+        WORLDS.remove(promoted.world().getRegistryKey());
+        WORLD_LIST.remove(promoted);
+        // Les particules du monde d'arrivee deviennent celles du gestionnaire, celles de l'ancien monde le suivent : rien ne s'efface.
+        RemoteParticles oldParticles = promoted.particles();
+        oldParticles.exchange(MinecraftClient.getInstance().particleManager);
+        RemoteWorld adopted = RemoteWorld.adopt(oldWorld, oldRenderer, playerChunkX, playerChunkZ, oldParticles);
         WORLDS.put(oldWorld.getRegistryKey(), adopted);
         WORLD_LIST.add(adopted);
         // La vue secondaire regardait l'ancien monde principal : elle sera recreee a la demande pour le nouveau.
         disposeMirror();
-        mainWorld = newMainWorld;
+        mainWorld = promoted.world();
+    }
+
+    /**
+     * Vanilla va creer un nouveau monde principal (connexion, respawn dans une autre dimension) et le lier au renderer
+     * de {@code MinecraftClient} : le renderer vanilla, le seul que vanilla recharge avec les ressources, reprend donc sa
+     * place d'abord. Celui qu'une traversee avait promu est libere avec l'ancien monde.
+     */
+    public static void restoreVanillaRenderer() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        WorldRenderer current = client.worldRenderer;
+        if (vanillaRenderer == null || current == vanillaRenderer) {
+            return;
+        }
+        ((MinecraftClientAccessor) client).backrooms$setWorldRenderer(vanillaRenderer);
+        current.setWorld(null);
+        current.close();
     }
 
     /** Tick client : heure et meteo suivent le monde principal, les entities s'interpolent et s'animent comme les siennes. */
@@ -145,7 +174,7 @@ public final class RemoteWorldRegistry {
         for (int i = 0; i < WORLD_LIST.size(); i++) {
             RemoteWorld remote = WORLD_LIST.get(i);
             remote.syncEnvironment(client.world);
-            remote.tickEntities();
+            remote.tick(client);
         }
     }
 
@@ -156,7 +185,16 @@ public final class RemoteWorldRegistry {
         }
     }
 
-    /** Libere tous les mondes distants (deconnexion, changement de monde principal) et rend son renderer a vanilla. */
+    /**
+     * Libere tous les mondes distants (deconnexion, changement de monde principal par vanilla) et remet le renderer
+     * principal en accord avec le monde principal.
+     *
+     * <p>Un {@code ClientWorld} envoie ses mises a jour de blocs au renderer avec lequel vanilla l'a cree : celui qui
+     * etait {@code MinecraftClient.worldRenderer} a ce moment-la. {@link #restoreVanillaRenderer()} rend sa place au
+     * renderer vanilla avant que vanilla ne cree un monde ; si un monde a tout de meme ete lie a un autre renderer, c'est
+     * celui-la qui reste principal, sans quoi ses blocs changes ne se redessineraient plus. Sans monde (fin de partie),
+     * le renderer vanilla reprend sa place pour la prochaine.
+     */
     public static void dispose() {
         MinecraftClient client = MinecraftClient.getInstance();
         for (int i = 0; i < WORLD_LIST.size(); i++) {
@@ -169,10 +207,25 @@ public final class RemoteWorldRegistry {
         WORLDS.clear();
         WORLD_LIST.clear();
         disposeMirror();
-        if (vanillaRenderer != null && client.worldRenderer != vanillaRenderer) {
-            // Le renderer vanilla est le seul inscrit au rechargement des ressources : il reprend sa place.
-            ((MinecraftClientAccessor) client).backrooms$setWorldRenderer(vanillaRenderer);
-            vanillaRenderer.setWorld(client.world);
+        if (vanillaRenderer != null) {
+            WorldRenderer current = client.worldRenderer;
+            WorldRenderer expected = client.world == null ? vanillaRenderer : ((ClientWorldAccessor) client.world).backrooms$getWorldRenderer();
+            if (current != expected) {
+                ((MinecraftClientAccessor) client).backrooms$setWorldRenderer(expected);
+                if (expected == vanillaRenderer) {
+                    vanillaRenderer.setWorld(client.world);
+                }
+                if (current != vanillaRenderer) {
+                    current.setWorld(null);
+                    current.close();
+                }
+            }
+            if (expected != vanillaRenderer) {
+                vanillaRenderer.setWorld(null);
+            } else {
+                // Le renderer vanilla est de nouveau le principal : la prochaine traversee le retiendra a nouveau.
+                vanillaRenderer = null;
+            }
         }
         if (client.world != null) {
             client.getEntityRenderDispatcher().setWorld(client.world);

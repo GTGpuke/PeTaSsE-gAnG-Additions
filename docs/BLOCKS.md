@@ -16,7 +16,7 @@ correspondants dans `init/ModItems.java`. Textures du Level 0 en 32x32.
 | `level_zero_damp_carpet_aged` | `Block` | `yellow_wool` | Sol rouge du biome alternatif (layers 1 et 3). |
 | `level_zero_ceiling_tile` | `Block` | `calcite` | Plafond. |
 | `level_zero_fluorescent_light` | `Block` | `sea_lantern`, luminance 15 | Néon posé au centre du plafond d'une cellule éclairée. |
-| `backrooms_door` | `BackroomsDoorBlock` (block entity) | `iron_door`, résistance 3, non opaque | **Porte des Backrooms** : posée hors du Level 0 elle y mène, posée dedans elle ramène à la surface. Sa block entity pose un portail devant elle et un portail de retour à l'arrivée ; les deux disparaissent avec elle. Voir [PORTALS.md](PORTALS.md). |
+| `backrooms_door` | `BackroomsDoorBlock` (`DoorBlock`, block entity sur la moitié basse) | `dark_oak_door` | **Porte des Backrooms** : une vraie porte de deux blocs, orientée comme le regard, ouverte à la main ou à la redstone. Posée hors du Level 0 elle y mène, posée dedans elle ramène à la surface. Le portail remplit l'encadrement dès que la destination est connue ; fermée, la porte le cache et le ferme sans le retirer ; le portail de retour attend à l'arrivée et les deux disparaissent avec elle. Loot : une porte, depuis la moitié basse. Voir [PORTALS.md](PORTALS.md). |
 
 Chaque bloc a un blockstate, un modèle, un modèle d'item et une loot table
 (`data/petasse_gang_additions/loot_table/blocks/<id>.json`) ; le mur adaptatif donne `level_zero_wallpaper`.

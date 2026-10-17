@@ -1,0 +1,117 @@
+package com.petassegang.addons.backrooms.portal.client.sound;
+
+import java.util.List;
+
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.ClientPlayerEntity;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.client.world.ClientWorld;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
+import net.minecraft.world.World;
+
+import com.petassegang.addons.backrooms.portal.client.world.ClientPortalIndex;
+import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
+import com.petassegang.addons.config.ModConfig;
+
+/**
+ * Son qui traverse un portail : un son d'un monde distant (ou du monde du joueur, loin de
+ * lui) est rejoue au point du cadre d'arrivee qui correspond au point du cadre le plus proche de sa source, avec le
+ * volume qui lui reste apres le trajet jusqu'au cadre ({@link PortalSound}). Le joueur l'entend donc venir de la
+ * porte, d'autant plus faible que la source en est loin. Un son d'un monde distant qu'aucun portail ouvert ne
+ * rapproche du joueur n'est pas joue : a ses coordonnees brutes, il sonnerait n'importe ou.
+ */
+public final class FrameSoundPlayer {
+
+    /** Un son du monde du joueur plus proche que cela est joue tel quel par vanilla. */
+    private static final double NEAR_PLAYER_SQUARED = PortalSound.MAX_RADIUS * PortalSound.MAX_RADIUS;
+    /** Au-dela de dix blocs, vanilla retarde un son selon sa distance (vitesse du son). */
+    private static final double DELAY_THRESHOLD_SQUARED = 100.0;
+    private static final double DELAY_BLOCKS_PER_TICK = 2.0;
+
+    private FrameSoundPlayer() {
+        throw new UnsupportedOperationException("Classe utilitaire.");
+    }
+
+    /**
+     * Joue un son par le portail qui le rapproche le plus du joueur.
+     *
+     * @param soundWorld monde ou le son est emis
+     * @param x position de la source, X
+     * @param y position de la source, Y
+     * @param z position de la source, Z
+     * @param event son joue
+     * @param category categorie du son
+     * @param volume volume a la source
+     * @param pitch hauteur du son
+     * @param useDistance {@code true} pour le retard de propagation de vanilla (sons lointains)
+     * @param seed graine des variantes du son
+     * @return {@code true} si vanilla ne doit pas jouer le son : il est passe par un portail, ou il vient d'un monde
+     *         distant sans chemin jusqu'au joueur
+     */
+    public static boolean redirect(
+            ClientWorld soundWorld,
+            double x,
+            double y,
+            double z,
+            SoundEvent event,
+            SoundCategory category,
+            float volume,
+            float pitch,
+            boolean useDistance,
+            long seed) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientPlayerEntity player = client.player;
+        if (!ModConfig.ENABLE_PORTAL_FEATURE || player == null) {
+            return false;
+        }
+        World listenerWorld = player.getWorld();
+        boolean remote = soundWorld != listenerWorld;
+        Vec3d listener = client.gameRenderer.getCamera().getPos();
+        if (!remote && listener.squaredDistanceTo(x, y, z) < NEAR_PLAYER_SQUARED) {
+            return false;
+        }
+        double radius = PortalSound.radius(volume);
+        BackroomsPortalEntity best = null;
+        Vec3d bestExit = null;
+        double bestDistance = Double.MAX_VALUE;
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(soundWorld);
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity portal = portals.get(i);
+            // Un portail ferme (porte fermee, des deux cotes), cache ou invisible ne laisse passer aucun son.
+            if (!portal.isShown() || !portal.teleportable() || !portal.destinationDim().equals(listenerWorld.getRegistryKey())
+                    || portal.signedDistance(x, y, z) < -PortalSound.BEHIND_TOLERANCE) {
+                continue;
+            }
+            Vec3d entry = portal.nearestFramePoint(x, y, z);
+            double distance = Math.sqrt(entry.squaredDistanceTo(x, y, z));
+            if (distance >= bestDistance || distance > radius) {
+                continue;
+            }
+            Vec3d exit = portal.toDestination(entry);
+            if (exit.squaredDistanceTo(listener) > radius * radius) {
+                continue;
+            }
+            best = portal;
+            bestExit = exit;
+            bestDistance = distance;
+        }
+        if (best == null) {
+            return remote;
+        }
+        float through = PortalSound.volumeThroughPortal(volume, bestDistance);
+        if (through <= 0.0f) {
+            return true;
+        }
+        PositionedSoundInstance sound = new PositionedSoundInstance(event, category, through, pitch, Random.create(seed), bestExit.x, bestExit.y, bestExit.z);
+        double squared = listener.squaredDistanceTo(bestExit);
+        if (useDistance && squared > DELAY_THRESHOLD_SQUARED) {
+            client.getSoundManager().play(sound, (int) (Math.sqrt(squared) / DELAY_BLOCKS_PER_TICK));
+        } else {
+            client.getSoundManager().play(sound);
+        }
+        return true;
+    }
+}

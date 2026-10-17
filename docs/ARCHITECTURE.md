@@ -32,6 +32,7 @@ com.petassegang.addons/
 |   |-- ModBlocks.java
 |   |-- ModItems.java
 |   |-- ModBlockEntities.java
+|   |-- ModEntities.java                <- type de l'entity portail, toujours enregistré
 |   |-- ModChunkGenerators.java
 |   |-- ModCreativeTab.java             <- ENTRIES = liste ordonnée de l'onglet
 |   `-- ModNetworking.java              <- types de payloads
@@ -56,10 +57,10 @@ com.petassegang.addons/
 |   |       |            LevelZeroCellEvaluation, LevelZeroCellContext, enums et masques
 |   |       `-- write/   LevelZeroBlockPalette, LevelZeroBlockWriter, LevelZeroWallSampler,
 |   |                    LevelZeroWallProps, LevelZeroDebugPalette
-|   `-- portal/                          <- portails : entity, block, transition, sync, client (voir §Portails)
+|   `-- portal/                          <- portails : entity, block, transition, sync, interaction, propagation, client, debug (voir §Portails)
 |
 |-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
-`-- mixin/                               <- MixinServerChunkManager (commun) + client/ (rendu des portails)
+`-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs) + client/ (rendu des portails)
 ```
 
 Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/petassegang/addons/gametest/`, rangé par
@@ -115,12 +116,14 @@ supplémentaire dans le monde.
 ## Portails
 
 `backrooms/portal/` relie le monde normal et le Level 0 par une porte : entity portail persistante,
-block entity qui trouve seule sa destination et pose un portail de chaque côté, téléportation serveur
-(joueurs prédits par le client, objets et mobs transposés par le serveur), synchronisation des entités de
-l'autre côté par le suivi vanilla, un niveau de portails imbriqués, interaction à travers le cadre,
-par traversée du plan, synchronisation serveur → client des chunks de l'autre dimension (payloads
-`portal_remote_*`), et rendu client du monde distant à travers le cadre (stencil, caméra transposée,
-projection à plan proche oblique). Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout
+block entity qui trouve seule sa destination et pose un portail de chaque côté, téléportation par traversée du
+plan (joueurs prédits par le client, objets et mobs transposés par le serveur), collision à travers le cadre
+(`transition/PortalCollision`), synchronisation serveur → client des chunks et des entités de l'autre dimension
+(payloads `portal_remote_*`, suivi vanilla des entités), rendu client du monde distant à travers le cadre (stencil,
+caméra transposée, plan de découpe dans les shaders, un niveau de portails imbriqués), interaction à travers le
+cadre (`interaction/`), et ce qui traverse un portail ouvert sans être une entité : sons et particules relayés
+(`MixinPlayerManager`, `MixinServerWorld`, rejoués côté client par `client/sound` et `RemoteParticles`), regard et
+poursuite des mobs (`propagation/`). Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout
 (porte décorative, mixins inertes). Conception, protocole et limites : [PORTALS.md](PORTALS.md).
 
 ---
@@ -128,8 +131,8 @@ projection à plan proche oblique). Actif par défaut, `ModConfig.ENABLE_PORTAL_
 ## Cycle de vie
 
 ```text
-1. Fabric charge le mod ; les mixins client s'appliquent (sans effet si portails désactivés).
-2. onInitialize() : registerContent() (blocs -> block entities -> entity -> items -> onglet -> payloads),
+1. Fabric charge le mod ; les mixins communs et client s'appliquent (sans effet si portails désactivés).
+2. onInitialize() : registerContent() (générateurs de chunks -> blocs -> block entities -> entity -> items -> onglet -> payloads),
    hooks de tick serveur (perf), vidage du cache de secteurs à l'arrêt, runtime portail si activé.
 3. onInitializeClient() : récepteurs des payloads (badge, chunks distants), hook FPS, modèle adaptatif, renderer portail.
 4. Chargement du monde : le datapack déclare la dimension, qui référence le codec du générateur.
@@ -141,7 +144,7 @@ projection à plan proche oblique). Actif par défaut, `ModConfig.ENABLE_PORTAL_
 
 | Règle | Détail |
 |-------|--------|
-| Code commun | `init/`, `feature/*` (hors `client/`), `backrooms/level0/{biome,block,generation}`, `backrooms/portal/{entity,block,transition,sync,debug}`, `mixin/MixinServerChunkManager`, `perf/ModPerformanceMonitor` |
+| Code commun | `init/`, `feature/*` (hors `client/`), `backrooms/level0/{biome,block,generation}`, `backrooms/portal/{entity,block,transition,sync,interaction,propagation,debug}`, `mixin/*` (hors `client/`), `perf/ModPerformanceMonitor` |
 | Code client | sous-packages `client/` et `mixin/client/` uniquement ; jamais de `MinecraftClient` ailleurs |
 | Point d'entrée | `ClientModInitializer` séparé, déclaré dans `fabric.mod.json` |
 
@@ -157,7 +160,7 @@ projection à plan proche oblique). Actif par défaut, `ModConfig.ENABLE_PORTAL_
 | Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
 | Clé de langue | `block.<mod_id>.<id>`, `item.<mod_id>.<id>` | `block.petasse_gang_additions.cursed_log` |
 | Commentaires et logs | français, majuscule, point final, ASCII | `// Le cache evince les plus anciens.` |
-| Imports | `java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang` | — |
+| Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang` | — |
 
 Pas de couche d'indirection sans second usage réel : une classe = une responsabilité lisible,
 pas de stage/builder/façade spéculatifs.

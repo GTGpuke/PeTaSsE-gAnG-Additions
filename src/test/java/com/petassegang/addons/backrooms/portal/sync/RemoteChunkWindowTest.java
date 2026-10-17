@@ -5,7 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import it.unimi.dsi.fastutil.longs.LongArrayList;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -17,8 +17,9 @@ class RemoteChunkWindowTest {
     @Test
     @DisplayName("La fenetre part du centre, grandit anneau par anneau et couvre le carre complet")
     void windowIsOrderedFromTheCenter() {
-        LongArrayList out = new LongArrayList();
-        RemoteChunkWindow.collect(3, -7, 2, out);
+        LongLinkedOpenHashSet window = new LongLinkedOpenHashSet();
+        RemoteChunkWindow.collect(3, -7, 2, window);
+        LongArrayList out = new LongArrayList(window);
         assertEquals(25, out.size(), "Rayon 2 : 5x5 chunks.");
         assertEquals(ChunkPos.toLong(3, -7), out.getLong(0), "Le centre vient en premier.");
         for (int i = 1; i <= 8; i++) {
@@ -26,20 +27,19 @@ class RemoteChunkWindowTest {
             int distance = Math.max(Math.abs(ChunkPos.getPackedX(key) - 3), Math.abs(ChunkPos.getPackedZ(key) + 7));
             assertEquals(1, distance, "Les huit suivants sont a distance 1.");
         }
-        assertEquals(25, new LongOpenHashSet(out).size(), "Aucun doublon.");
-        LongArrayList single = new LongArrayList();
+        LongLinkedOpenHashSet single = new LongLinkedOpenHashSet();
         RemoteChunkWindow.collect(0, 0, 0, single);
         assertEquals(1, single.size(), "Rayon 0 : le seul chunk central.");
     }
 
     @Test
-    @DisplayName("Deux fenetres qui se chevauchent ne dupliquent aucun chunk")
+    @DisplayName("Deux fenetres qui se chevauchent se cumulent dans un ensemble ordonne, la premiere en tete")
     void overlappingWindowsMerge() {
-        LongArrayList out = new LongArrayList();
+        LongLinkedOpenHashSet out = new LongLinkedOpenHashSet();
         RemoteChunkWindow.collect(0, 0, 1, out);
         RemoteChunkWindow.collect(1, 0, 1, out);
         assertEquals(12, out.size(), "3x3 + 3x3 avec six chunks communs = douze chunks.");
-        assertEquals(12, new LongOpenHashSet(out).size(), "Aucun doublon.");
+        assertEquals(ChunkPos.toLong(0, 0), out.firstLong(), "La premiere fenetre garde sa place en tete.");
     }
 
     @Test

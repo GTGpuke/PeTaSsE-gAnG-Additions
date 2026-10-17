@@ -25,8 +25,12 @@ import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
  * projection couperait un quad et laisserait un vide au bord de l'ecran ; la boite est donc decoupee en logiciel
  * contre ce plan proche, et la section ouverte est refermee par un polygone. La zone couvre ainsi toujours ce que
  * la camera voit a travers le cadre : ni plus (la dimension courante reste visible a cote du cadre), ni moins.
+ *
+ * <p>La boite se dessine sans elimination des faces arriere, le temps de son seul dessin : vanilla suppose cette
+ * elimination toujours active (ses couches de terrain ne la retablissent pas), et une vue dessinee sans elle montrerait
+ * les faces arriere de la glace, du verre et de l'eau, deux fois plus opaques qu'en vrai.
  */
-public final class ViewAreaRenderer {
+public final class FrameAreaRenderer {
 
     /** Epaisseur de la boite derriere le plan : couvre le plan proche vanilla (0,05) meme vu de biais. */
     private static final double DEPTH = 0.2;
@@ -38,7 +42,6 @@ public final class ViewAreaRenderer {
     /** Une face decoupee par un plan a au plus cinq sommets ; la section d'une boite au plus six, douze avant soudure. */
     private static final int CLIPPED_MAX = 5;
     private static final int CAP_MAX = 12;
-    private static final Matrix4f IDENTITY = new Matrix4f();
     private static final Vector3f SCRATCH_VERTEX = new Vector3f();
 
     /** Coins de la boite en espace camera (x, y, z par coin) : bit 0 = +largeur, bit 1 = +hauteur, bit 2 = derriere le plan. */
@@ -57,11 +60,11 @@ public final class ViewAreaRenderer {
             {1, 5, 7, 3}, // Cote largeur positive.
     };
 
-    private ViewAreaRenderer() {
+    private FrameAreaRenderer() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
 
-    /** Zone de vue, position seule, avec le shader et les masques poses par l'appelant (marquage du stencil). */
+    /** Zone de vue, position seule (marquage du stencil) : le shader des positions est pose ici, les masques par l'appelant. */
     public static void draw(BackroomsPortalEntity portal, Vec3d cameraPos, Matrix4f positionMatrix) {
         RenderSystem.setShader(GameRenderer::getPositionProgram);
         BufferBuilder buffer = Tessellator.getInstance().begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION);
@@ -69,13 +72,28 @@ public final class ViewAreaRenderer {
         drawIfAny(buffer);
     }
 
+    /** Dessine sans eliminer les faces arriere : la boite est vue de dedans quand la camera touche le plan. */
+    private static void drawIfAny(BufferBuilder buffer) {
+        BuiltBuffer built = buffer.endNullable();
+        if (built == null) {
+            return;
+        }
+        RenderSystem.disableCull();
+        try {
+            BufferRenderer.drawWithGlobalProgram(built);
+        } finally {
+            RenderSystem.enableCull();
+        }
+    }
+
     /**
-     * N'ecrit que la profondeur de la zone : au plan lointain avant de dessiner la vue, a sa vraie profondeur
-     * apres, pour tout ce qui se dessine ensuite devant le portail.
+     * N'ecrit que la profondeur de la zone. Au plan lointain ({@code farPlane}), quelle que soit la profondeur deja
+     * ecrite : avant de dessiner la vue, ou pour effacer la sienne. Sinon a sa vraie profondeur, la face la plus proche
+     * de la boite l'emportant : juste apres un passage au plan lointain, pour tout ce qui se dessine ensuite devant le portail.
      */
     public static void writeDepth(BackroomsPortalEntity portal, Vec3d cameraPos, Matrix4f positionMatrix, boolean farPlane) {
         RenderSystem.enableDepthTest();
-        RenderSystem.depthFunc(GL11.GL_ALWAYS);
+        RenderSystem.depthFunc(farPlane ? GL11.GL_ALWAYS : GL11.GL_LEQUAL);
         RenderSystem.depthMask(true);
         RenderSystem.colorMask(false, false, false, false);
         if (farPlane) {
@@ -105,13 +123,6 @@ public final class ViewAreaRenderer {
         } finally {
             RenderSystem.depthMask(true);
             RenderSystem.enableDepthTest();
-        }
-    }
-
-    private static void drawIfAny(BufferBuilder buffer) {
-        BuiltBuffer built = buffer.endNullable();
-        if (built != null) {
-            BufferRenderer.drawWithGlobalProgram(built);
         }
     }
 
@@ -244,7 +255,7 @@ public final class ViewAreaRenderer {
     }
 
     private static void emitVertex(BufferBuilder buffer, float[] vertices, int index, boolean colored, float red, float green, float blue) {
-        buffer.vertex(IDENTITY, vertices[index * 3], vertices[index * 3 + 1], vertices[index * 3 + 2]);
+        buffer.vertex(vertices[index * 3], vertices[index * 3 + 1], vertices[index * 3 + 2]);
         if (colored) {
             buffer.color(red, green, blue, 1.0f);
         }

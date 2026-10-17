@@ -46,7 +46,7 @@
         <module name="RedundantImport"/>
         <module name="UnusedImports"/>
         <module name="ImportOrder">
-            <property name="groups" value="java,javax,/^(com\.(mojang|google|sun)|org|it|io)\./,net.minecraft,net.fabricmc,com.petassegang"/>
+            <property name="groups" value="java,javax,/^(com\.(mojang|google|sun|llamalad7)|org|it|io)\./,net.minecraft,net.fabricmc,com.petassegang"/>
             <property name="ordered" value="true"/>
             <property name="separated" value="true"/>
             <property name="option" value="top"/>

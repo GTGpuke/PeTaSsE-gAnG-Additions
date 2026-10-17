@@ -161,18 +161,27 @@ public enum LevelZeroSurfaceBiome {
                 totalWeight += biome.regionSpawnWeight;
             }
         }
-        int pick = Math.floorMod(hash, totalWeight);
-        LevelZeroSurfaceBiome picked = BASE;
+        return pickByWeight(layerIndex, Math.floorMod(hash, totalWeight));
+    }
+
+    /**
+     * Tirage pondere : {@code pick} parcourt, dans l'ordre de declaration, les poids des biomes admis sur le layer.
+     *
+     * @param layerIndex index du layer
+     * @param pick valeur tiree, dans [0, somme des poids admis[
+     * @return biome tire ; le biome de base si {@code pick} depasse la somme
+     */
+    static LevelZeroSurfaceBiome pickByWeight(int layerIndex, int pick) {
+        int remaining = pick;
         for (LevelZeroSurfaceBiome biome : VALUES) {
             if (biome.supportsLayer(layerIndex)) {
-                if (pick < biome.regionSpawnWeight) {
-                    picked = biome;
-                    break;
+                if (remaining < biome.regionSpawnWeight) {
+                    return biome;
                 }
-                pick -= biome.regionSpawnWeight;
+                remaining -= biome.regionSpawnWeight;
             }
         }
-        return picked;
+        return BASE;
     }
 
     private static int layerMask(int... layers) {

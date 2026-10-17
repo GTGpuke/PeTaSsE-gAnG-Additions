@@ -1,5 +1,6 @@
 package com.petassegang.addons.backrooms.portal.block;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -12,14 +13,18 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import net.minecraft.block.BlockRenderType;
+import net.minecraft.block.BlockSetType;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.DoorBlock;
+import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.BuiltinRegistries;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
 
 import com.petassegang.addons.MinecraftTestBootstrap;
 import com.petassegang.addons.backrooms.BackroomsConstants;
@@ -39,15 +44,22 @@ class BackroomsDoorBlockEntityTest {
     }
 
     @Test
-    @DisplayName("Le bloc porte s'oriente face au joueur et possede sa block entity")
+    @DisplayName("Le bloc porte est une vraie porte : deux moities, orientee comme le regard, entree du cote oppose")
     void doorBlock() {
         BlockState state = ModBlocks.BACKROOMS_DOOR.getDefaultState();
-        assertEquals(Direction.NORTH, state.get(BackroomsDoorBlock.FACING), "Orientation par defaut.");
-        assertEquals(4, ModBlocks.BACKROOMS_DOOR.getStateManager().getStates().size(), "Quatre orientations.");
+        assertEquals(Direction.NORTH, state.get(DoorBlock.FACING), "Orientation par defaut.");
+        assertEquals(Direction.SOUTH, BackroomsDoorBlock.entrySide(state), "On entre par le cote oppose a l'orientation.");
+        assertFalse(state.get(DoorBlock.OPEN), "Fermee par defaut.");
+        assertEquals(64, ModBlocks.BACKROOMS_DOOR.getStateManager().getStates().size(),
+                "Quatre orientations, deux moities, deux gonds, ouverte ou fermee, alimentee ou non.");
         assertTrue(ModBlocks.BACKROOMS_DOOR.createBlockEntity(BlockPos.ORIGIN, state) instanceof BackroomsDoorBlockEntity,
-                "La porte cree sa block entity.");
+                "La moitie basse cree sa block entity.");
+        assertNull(ModBlocks.BACKROOMS_DOOR.createBlockEntity(BlockPos.ORIGIN, state.with(DoorBlock.HALF, DoubleBlockHalf.UPPER)),
+                "La moitie haute n'en a pas.");
         assertEquals(ModBlockEntities.BACKROOMS_DOOR, new BackroomsDoorBlockEntity(BlockPos.ORIGIN, state).getType(),
                 "Type de block entity enregistre.");
+        assertFalse(new BackroomsDoorBlockEntity(BlockPos.ORIGIN, state).isOpen(), "La block entity lit la porte fermee.");
+        assertTrue(new BackroomsDoorBlockEntity(BlockPos.ORIGIN, state.with(DoorBlock.OPEN, true)).isOpen(), "Et la porte ouverte.");
     }
 
     @Test
@@ -73,11 +85,9 @@ class BackroomsDoorBlockEntityTest {
     }
 
     @Test
-    @DisplayName("Une porte non configuree tique sans rien faire hors serveur et ignore un NBT vide")
+    @DisplayName("Une porte non configuree ignore un NBT vide")
     void unconfiguredDoor() {
         BackroomsDoorBlockEntity door = new BackroomsDoorBlockEntity(BlockPos.ORIGIN, ModBlocks.BACKROOMS_DOOR.getDefaultState());
-        door.serverTick();
-        assertFalse(door.isConfigured(), "Sans monde, pas de destination.");
         NbtCompound empty = new NbtCompound();
         door.readNbt(empty, registries);
         NbtCompound written = new NbtCompound();
@@ -114,28 +124,32 @@ class BackroomsDoorBlockEntityTest {
     }
 
     @Test
-    @DisplayName("Le bloc porte a un codec, se rend par son modele et n'a pas de collision")
-    void doorBlockCodecAndShape() {
+    @DisplayName("Le bloc porte a un codec, sonne comme le chene noir, bloque fermee et ne tique que par sa moitie basse")
+    void doorBlockCodecShapeAndTicker() {
         BackroomsDoorBlock door = ModBlocks.BACKROOMS_DOOR;
         BlockState state = door.getDefaultState();
         assertNotNull(door.getCodec(), "Codec present.");
-        assertEquals(BlockRenderType.MODEL, door.getRenderType(state), "Rendu par modele.");
-        assertTrue(state.getCollisionShape(null, BlockPos.ORIGIN).isEmpty(), "Aucune collision : on la traverse.");
+        assertEquals(BlockSetType.DARK_OAK, door.getBlockSetType(), "Porte en chene noir : sons et ouverture a la main.");
+        assertFalse(state.getCollisionShape(null, BlockPos.ORIGIN).isEmpty(), "Fermee, la porte bloque le passage.");
+        VoxelShape open = state.with(DoorBlock.OPEN, true).getCollisionShape(null, BlockPos.ORIGIN);
+        assertEquals(3.0 / 16.0, open.getMax(Direction.Axis.X) - open.getMin(Direction.Axis.X), 1e-9, "Ouverte, seul le battant reste, sur le cote.");
+        assertNotNull(door.getTicker(null, state, ModBlockEntities.BACKROOMS_DOOR), "La moitie basse tique.");
+        assertNull(door.getTicker(null, state.with(DoorBlock.HALF, DoubleBlockHalf.UPPER), ModBlockEntities.BACKROOMS_DOOR), "La moitie haute ne tique pas.");
+        assertNull(door.getTicker(null, state, BlockEntityType.CHEST), "Un autre type de block entity ne tique pas ici.");
     }
 
     @Test
-    @DisplayName("Hors serveur ou portails desactives, la porte ne tique pas et n'a rien a retirer")
-    void inertWithoutServerOrPortals() {
+    @DisplayName("Hors serveur, la porte ne tique pas et laisse ses portails au serveur")
+    void inertWithoutServer() {
         BackroomsDoorBlockEntity door = new BackroomsDoorBlockEntity(BlockPos.ORIGIN, ModBlocks.BACKROOMS_DOOR.getDefaultState());
+        UUID attached = UUID.randomUUID();
+        NbtCompound nbt = new NbtCompound();
+        nbt.putUuid("AttachedPortal", attached);
+        door.readNbt(nbt, registries);
+        // Sans monde serveur, le moindre acces au monde planterait : le tick doit sortir avant.
+        assertDoesNotThrow(door::serverTick, "Hors serveur, le tick ne fait rien.");
         door.discardPortals();
-        assertNull(door.attachedPortalUuid(), "Rien a retirer sans monde.");
-        BackroomsDoorBlockEntity.setPortalsEnabled(false);
-        try {
-            door.serverTick();
-            assertFalse(door.isConfigured(), "Portails desactives : la porte ne cherche pas de destination.");
-        } finally {
-            BackroomsDoorBlockEntity.setPortalsEnabled(true);
-        }
+        assertEquals(attached, door.attachedPortalUuid(), "Cote client, la porte cassee ne retire rien : le serveur s'en charge.");
     }
 
     @Test

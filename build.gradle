@@ -125,9 +125,11 @@ def coverageExcludes = [
         'com/petassegang/addons/backrooms/level0/client/**',
         'com/petassegang/addons/backrooms/portal/client/entity/**',
         'com/petassegang/addons/backrooms/portal/client/interaction/**',
+        'com/petassegang/addons/backrooms/portal/client/sound/FrameSoundPlayer*',
         'com/petassegang/addons/backrooms/portal/client/transition/**',
         'com/petassegang/addons/backrooms/portal/client/view/PortalStencilRenderer*',
-        'com/petassegang/addons/backrooms/portal/client/view/ViewAreaRenderer*',
+        'com/petassegang/addons/backrooms/portal/client/view/PortalClipping*',
+        'com/petassegang/addons/backrooms/portal/client/view/FrameAreaRenderer*',
         'com/petassegang/addons/backrooms/portal/client/world/**',
         'com/petassegang/addons/feature/gang/client/**',
         'com/petassegang/addons/perf/client/**',
@@ -174,10 +176,10 @@ tasks.register('jacocoFullReport', JacocoReport) {
     }
 }
 
-// Verrou : chaque instruction du code mesure est couverte par un test unitaire ou un test en jeu, et au moins 96 % des branches.
+// Verrou : chaque instruction et chaque branche du code mesure sont couvertes par un test unitaire ou un test en jeu.
 tasks.register('jacocoCoverageVerification', JacocoCoverageVerification) {
     group = 'verification'
-    description = 'Echoue sous 100 % des instructions ou 96 % des branches du code mesure (tests unitaires + tests en jeu).'
+    description = 'Echoue sous 100 % des instructions ou des branches du code mesure (tests unitaires + tests en jeu).'
     dependsOn test, 'runGameTest'
     executionData coverageExecutionData
     classDirectories.setFrom(coverageClassDirs())
@@ -191,7 +193,7 @@ tasks.register('jacocoCoverageVerification', JacocoCoverageVerification) {
             limit {
                 counter = 'BRANCH'
                 value = 'COVEREDRATIO'
-                minimum = 0.96
+                minimum = 1.0
             }
         }
     }

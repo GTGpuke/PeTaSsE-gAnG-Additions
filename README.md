@@ -55,7 +55,7 @@ src/main/java/com/petassegang/addons/
 ├── PeTaSsEgAnGAdditionsClientMod.java    ← point d'entrée client
 ├── core/ModConstants.java                ← MOD_ID, LOGGER
 ├── config/ModConfig.java                 ← options lues en -D (toggles debug, portails)
-├── init/                                 ← ModBlocks, ModItems, ModBlockEntities, ModChunkGenerators, ModCreativeTab, ModNetworking
+├── init/                                 ← ModBlocks, ModItems, ModBlockEntities, ModEntities, ModChunkGenerators, ModCreativeTab, ModNetworking
 ├── feature/gang/, feature/cursed/        ← contenu gameplay
 ├── backrooms/
 │   ├── BackroomsConstants.java
@@ -70,11 +70,11 @@ src/main/java/com/petassegang/addons/
 │   │       ├── sector/  (labyrinthe brut + cache LRU)
 │   │       ├── layout/  (évaluation des cellules : topologie, lumière, gaps)
 │   │       └── write/   (palette, writer, détails muraux)
-│   └── portal/                           ← portails (entity, porte, transition, sync, client)
+│   └── portal/                           ← portails (entity, porte, transition, sync, interaction, propagation, client, debug)
 ├── perf/                                 ← moniteur de performance opt-in
-└── mixin/                                ← mixins (relais des blocs côté serveur, rendu client des portails)
+└── mixin/                                ← mixins (relais serveur des blocs, sons et particules, collision, mobs ; rendu client des portails)
 
-src/test/java/...                         ← ~320 tests JUnit 5 (logique pure + registres réels via fabric-loader-junit)
+src/test/java/...                         ← ~380 tests JUnit 5 (logique pure + registres réels via fabric-loader-junit)
 src/gametest/java/...                     ← tests en jeu (mod séparé, runGameTest ; jamais dans le JAR)
 docs/                                     ← documentation technique, specs Backrooms, audit
 ```
@@ -88,7 +88,7 @@ Architecture détaillée : [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Index c
 - `./gradlew test` : JUnit 5 sous le classloader Fabric ; rapport JaCoCo dans `build/reports/jacoco/test/html/`.
 - `./gradlew runGameTest` : serveur headless, sous agent JaCoCo : génération du Level 0, portails (synchronisation,
   traversée, interaction), contenu.
-- `./gradlew jacocoCoverageVerification` : couverture fusionnée, 100 % des instructions et 96 % des branches exigés.
+- `./gradlew jacocoCoverageVerification` : couverture fusionnée, 100 % des instructions et des branches exigés.
 - `./gradlew checkstyleMain checkstyleTest checkstyleGametest` : conventions du code (`config/checkstyle/`).
 - `./gradlew verifyJarContents` : le JAR ne contient que le mod, sans dépendance embarquée ni test.
 - `./gradlew benchmarkLevelZeroGeneration` : benchmark déterministe de la génération.

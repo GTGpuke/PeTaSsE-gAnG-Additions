@@ -2,6 +2,7 @@ package com.petassegang.addons.backrooms.portal.sync;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
@@ -49,6 +50,8 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
     private final IntOpenHashSet tracked = new IntOpenHashSet();
     private final IntOpenHashSet seen = new IntOpenHashSet();
     private final List<Entity> scratch = new ArrayList<>();
+    /** Envoi enveloppe, cree une fois : le suivi vanilla le recoit pour chaque entity nouvellement suivie. */
+    private final Consumer<Packet<ClientPlayPacketListener>> sender = this::sendPacket;
     /** Boite des chunks synchronises, reconstruite seulement quand leurs bornes changent. */
     private @Nullable Box window;
     private int windowMinChunkX;
@@ -81,10 +84,10 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
      * Aligne le suivi sur les entities presentes dans la fenetre.
      *
      * @param destination monde distant
-     * @param window boite englobant les chunks envoyes au joueur
+     * @param chunks chunks envoyes au joueur, dont la boite englobante delimite la fenetre
      */
     void update(ServerWorld destination, LongSet chunks) {
-        Box window = windowBox(destination, chunks);
+        Box window = windowBox(destination.getBottomY(), destination.getTopY(), chunks);
         Int2ObjectMap<?> trackers = trackers(destination);
         this.scratch.clear();
         this.seen.clear();
@@ -97,7 +100,7 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
                 continue;
             }
             tracker.backrooms$getListeners().add(this);
-            tracker.backrooms$getEntry().sendPackets(this.viewer, this::sendPacket);
+            tracker.backrooms$getEntry().sendPackets(this.viewer, this.sender);
             this.tracked.add(id);
         }
         IntIterator iterator = this.tracked.iterator();
@@ -112,14 +115,10 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
     }
 
     /**
-     * Debranche toutes les entities.
-     *
-     * @param destination monde distant, ou {@code null} s'il n'existe plus
-     * @param notifyClient {@code false} quand le client repart de zero (changement de monde, deconnexion)
+     * Boite englobant les chunks synchronises, sur toute la hauteur du monde ; la meme instance tant que les bornes
+     * tiennent. Visible du paquet pour les tests.
      */
-
-    /** Boite englobant les chunks synchronises, sur toute la hauteur du monde ; la meme instance tant que les bornes tiennent. */
-    private Box windowBox(ServerWorld world, LongSet chunks) {
+    Box windowBox(int bottomY, int topY, LongSet chunks) {
         int minX = Integer.MAX_VALUE;
         int minZ = Integer.MAX_VALUE;
         int maxX = Integer.MIN_VALUE;
@@ -137,7 +136,7 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
         Box current = this.window;
         if (current == null || minX != this.windowMinChunkX || minZ != this.windowMinChunkZ
                 || maxX != this.windowMaxChunkX || maxZ != this.windowMaxChunkZ) {
-            current = new Box(minX * 16.0, world.getBottomY(), minZ * 16.0, (maxX + 1) * 16.0, world.getTopY(), (maxZ + 1) * 16.0);
+            current = new Box(minX * 16.0, bottomY, minZ * 16.0, (maxX + 1) * 16.0, topY, (maxZ + 1) * 16.0);
             this.window = current;
             this.windowMinChunkX = minX;
             this.windowMinChunkZ = minZ;
@@ -147,7 +146,12 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
         return current;
     }
 
-    /** La vue est oubliee : ses ecouteurs quittent les trackers de la dimension, et le client efface ses copies si demande. */
+    /**
+     * La vue est oubliee : ses ecouteurs quittent les trackers de la dimension, et le client efface ses copies si demande.
+     *
+     * @param destination monde distant ; il existe tant que le serveur tourne
+     * @param notifyClient {@code false} quand le client repart de zero (changement de monde, deconnexion)
+     */
     void clear(ServerWorld destination, boolean notifyClient) {
         Int2ObjectMap<?> trackers = trackers(destination);
         IntIterator iterator = this.tracked.iterator();

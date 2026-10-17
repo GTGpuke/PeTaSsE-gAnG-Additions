@@ -141,9 +141,9 @@ public final class LevelZeroBlockWriter {
 
         if (debugWallProps && !cell.walkable() && exposedFaceMask != 0) {
             LevelZeroWallProps props = LevelZeroWallProps.resolve(worldX, worldZ, exposedFaceMask, slice);
-            BlockState fixture = LevelZeroDebugPalette.fixture(props.fixture(), props.fixtureFaceMask());
-            if (props.hasFixture() && fixture != null) {
-                sink.set(localX, props.fixtureY(), localZ, fixture);
+            // Un element mural (interrupteur, prise) a toujours son bloc de debug ; sans element, rien a poser.
+            if (props.hasFixture()) {
+                sink.set(localX, props.fixtureY(), localZ, LevelZeroDebugPalette.fixture(props.fixture(), props.fixtureFaceMask()));
             }
         }
     }

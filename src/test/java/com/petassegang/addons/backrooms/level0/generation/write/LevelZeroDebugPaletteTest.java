@@ -2,7 +2,7 @@ package com.petassegang.addons.backrooms.level0.generation.write;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
@@ -43,7 +43,8 @@ class LevelZeroDebugPaletteTest {
     @Test
     @DisplayName("Chaque element mural a un bloc distinct par face, et aucun sans element")
     void fixtureBlocksAreDistinctPerFace() {
-        assertNull(LevelZeroDebugPalette.fixture(LevelZeroWallProps.Fixture.NONE, LevelZeroWallpaperBlock.NORTH_MASK),
+        assertThrows(IllegalArgumentException.class,
+                () -> LevelZeroDebugPalette.fixture(LevelZeroWallProps.Fixture.NONE, LevelZeroWallpaperBlock.NORTH_MASK),
                 "Pas de bloc sans element.");
         for (LevelZeroWallProps.Fixture fixture : new LevelZeroWallProps.Fixture[] {
                 LevelZeroWallProps.Fixture.SWITCH, LevelZeroWallProps.Fixture.OUTLET}) {

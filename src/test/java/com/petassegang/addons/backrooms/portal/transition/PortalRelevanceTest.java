@@ -22,12 +22,14 @@ class PortalRelevanceTest {
     }
 
     @Test
-    @DisplayName("Un portail dans le dos ne compte pas, sauf s'il est tout proche")
-    void behindIsIgnoredUnlessVeryClose() {
-        assertFalse(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, 20.0), 64.0), "Derriere, a 20 blocs.");
-        assertTrue(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, 3.0), 64.0), "Derriere mais a 3 blocs.");
-        assertFalse(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, 4.5), 64.0),
-                "Derriere, juste au-dela de la distance de securite.");
+    @DisplayName("Un portail dans le dos ne compte pas, sauf a portee d'activation")
+    void behindIsIgnoredUnlessWithinActivationRange() {
+        double activation = PortalRelevance.ALWAYS_RELEVANT_DISTANCE;
+        assertFalse(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, activation + 4.0), 64.0), "Derriere, au-dela de l'activation.");
+        assertTrue(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, activation - 1.0), 64.0),
+                "Derriere mais a portee d'activation : on peut s'y engager a reculons.");
+        assertFalse(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, activation + 0.5), 64.0),
+                "Derriere, juste au-dela de la distance d'activation.");
     }
 
     @Test

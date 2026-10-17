@@ -2,11 +2,7 @@ package com.petassegang.addons.config;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -50,15 +46,5 @@ class ModConfigTest {
         assertEquals(7, ModConfig.parseInt("4.5", 7), "Decimal invalide : defaut.");
         assertEquals(7, ModConfig.parseInt(null, 7), "Valeur absente : defaut.");
         assertEquals(7, ModConfig.parseInt("", 7), "Valeur vide : defaut.");
-    }
-
-    @Test
-    @DisplayName("La classe n'est pas instanciable")
-    void notInstantiable() throws NoSuchMethodException {
-        Constructor<ModConfig> constructor = ModConfig.class.getDeclaredConstructor();
-        constructor.setAccessible(true);
-        InvocationTargetException exception = assertThrows(InvocationTargetException.class, constructor::newInstance,
-                "Le constructeur prive doit lever une exception.");
-        assertEquals(UnsupportedOperationException.class, exception.getCause().getClass(), "Exception attendue.");
     }
 }

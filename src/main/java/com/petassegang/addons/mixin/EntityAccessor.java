@@ -15,9 +15,11 @@ import net.minecraft.world.entity.EntityChangeListener;
 @Mixin(Entity.class)
 public interface EntityAccessor {
 
+    /** Change le monde de l'entity sans aucun autre effet. */
     @Invoker("setWorld")
     void backrooms$setWorld(World world);
 
+    /** Annule le retrait de l'entity : elle redevient vivante pour son nouveau monde. */
     @Invoker("unsetRemoved")
     void backrooms$unsetRemoved();
 

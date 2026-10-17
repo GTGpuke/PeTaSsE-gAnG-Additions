@@ -18,7 +18,7 @@ import com.petassegang.addons.config.ModConfig;
 
 /**
  * Remplace l'attachement de profondeur des framebuffers par un attachement profondeur + stencil,
- * necessaire au decoupage des portails. Sans effet si la feature portail est desactivee ; si le
+ * necessaire au decoupage des portails. Sans effet si la fonctionnalite portail est desactivee ; si le
  * pilote refuse l'attachement, l'ancien est retabli et le rendu distant est coupe pour la session.
  */
 @Mixin(Framebuffer.class)

@@ -44,10 +44,10 @@ la porte reste décorative. Sinon, la porte n'a pas encore trouvé de destinatio
 dimension `backrooms_level_0` existe (datapack du mod chargé) ; elle réessaie toutes les 5 secondes.
 
 ### Le portail est un cadre noir
-Le monde distant n'est pas encore arrivé (chunks envoyés 4 par 4, toutes les 5 ticks) ou la destination est
-dans la dimension du joueur (non rendue). Si c'est permanent, chercher `[Portal]` dans le log : stencil refusé
+Le monde distant n'est pas encore arrivé (chunks envoyés 8 par 8, toutes les 5 ticks) ou le chunk d'arrivée est
+hors de la fenêtre synchronisée (portail imbriqué lointain). Si c'est permanent, chercher `[Portal]` dans le log : stencil refusé
 par le pilote ou exception pendant le rendu distant (rendu coupé pour la session). `-PportalDebugRendering=true`
-logge l'état du renderer distant chaque seconde. Sodium et Iris ne sont pas supportés.
+logge l'état du renderer distant chaque seconde. Les mods qui remplacent le pipeline de rendu du terrain ne sont pas supportés.
 
 ### Crash, chargement infini ou écran noir au lancement, avec `java.lang.Error: Unresolved compilation problems`
 
@@ -61,19 +61,19 @@ En attendant, `./gradlew runClient` recompile avec javac ; si une classe douteus
 
 Un chunk du nouveau monde a été appliqué à l'ancien `ClientWorld` : un récepteur de payload a été différé derrière les
 paquets vanilla. Les récepteurs client des portails doivent rester synchrones (pas de `client.execute`, voir
-`RemoteChunkReceiver.register`).
+`RemoteSyncReceiver.init`).
 
 ### Objets de la barre ou de la main teintés (blanc bleuté, noir) quand un portail est à l'écran
 
-Le brouillard est resté actif après le rendu des portails : les objets de l'interface, dessinés en profondeur, en
-prennent la couleur. `PortalStencilRenderer.renderThroughStencil` doit se terminer par `BackgroundRenderer.clearFog()`
-comme le rendu vanilla.
+Le brouillard d'une vue est resté actif après le rendu des portails : les objets de l'interface, dessinés en
+profondeur, en prennent la couleur. `PortalStencilRenderer` garde le brouillard du monde du joueur avant les vues
+(`saveMainFog`) et le rend à la suite du rendu vanilla sur tous les chemins, exception comprise (`restoreMainFog`).
 
 ### Le ciel est noir à travers un portail (depuis une autre dimension)
 
 Le dôme du ciel (`lightSkyBuffer`, positions seules) se dessine avec le shader courant : vanilla pose le shader des
 positions juste avant `renderSky`. Si le dernier shader posé est celui des positions et couleurs (fond du cadre), son
-attribut couleur, absent du tampon, vaut noir. `RemoteWorld.renderView` doit poser `GameRenderer::getPositionProgram`
+attribut couleur, absent du tampon, vaut noir. `RemoteViewRenderer.render` doit poser `GameRenderer::getPositionProgram`
 avant `renderSky`. L'heure et la météo ne sont pas en cause : le monde distant les copie du monde principal à chaque
 tick, et son type de dimension (donc son heure fixe éventuelle) est celui annoncé par le serveur.
 
@@ -97,12 +97,13 @@ restent figées, le tick des mondes distants (`RemoteWorldRegistry.tickRemoteWor
 
 ### Des portails orphelins traînent dans le Level 0
 Ils se retirent seuls dès que le chunk de leur porte est chargé et que la porte n'y est plus. En dev :
+`/backrooms portal list` puis `/backrooms portal clear`.
 
 ### Le jeu gèle sans message
 Prendre une pile d'exécution du client avant de le tuer : `jps -l` donne le PID de la ligne `devlaunchinjector`,
-puis `jstack <PID> > dump.txt`. Le thread `Render thread` dit où ça boucle. En 0.9.0 un tel gel venait de
-`Frustum.coverBoxAroundSetPosition` nourri avec une projection oblique (voir `docs/PORTALS.md`).
-`/backrooms portal list` puis `/backrooms portal clear`.
+puis `jstack <PID> > dump.txt`. Le thread `Render thread` dit où ça boucle. Pendant le développement de 0.9.0 un
+tel gel venait de `Frustum.coverBoxAroundSetPosition` nourri avec une projection oblique ; les vues de portail
+n'utilisent plus que la projection du joueur (voir `docs/PORTALS.md`).
 
 ---
 

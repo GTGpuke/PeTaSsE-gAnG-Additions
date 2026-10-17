@@ -13,6 +13,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.util.Identifier;
+
 @DisplayName("Moniteur de performance")
 class ModPerformanceMonitorTest {
 
@@ -59,9 +61,17 @@ class ModPerformanceMonitorTest {
 
         List<String> hud = new ArrayList<>();
         ModPerformanceMonitor.appendDebugHudText(hud);
-        assertEquals(3, hud.size(), "Trois lignes au F3.");
+        assertEquals(4, hud.size(), "Quatre lignes au F3.");
         assertEquals("Perf monitor : actif", hud.get(0), "Entete du F3.");
         assertTrue(hud.get(2).startsWith("client: fps=120"), "Resume client avec les FPS : " + hud.get(2));
+    }
+
+    @Test
+    @DisplayName("Un resume est du la premiere fois, puis une fois l'intervalle ecoule")
+    void summaryDueDates() {
+        assertTrue(ModPerformanceMonitor.isDue(0L, 5L, 100L), "Jamais publie : du.");
+        assertFalse(ModPerformanceMonitor.isDue(100L, 199L, 100L), "Dans l'intervalle : pas encore.");
+        assertTrue(ModPerformanceMonitor.isDue(100L, 200L, 100L), "Intervalle ecoule : du.");
     }
 
     @Test
@@ -127,5 +137,55 @@ class ModPerformanceMonitorTest {
         List<String> hud = new ArrayList<>();
         ModPerformanceMonitor.appendDebugHudText(hud);
         assertTrue(hud.get(2).startsWith("client: fps=30"), "Le second echantillon client, dans l'intervalle, est ignore : " + hud.get(2));
+    }
+
+    @Test
+    @DisplayName("Une traversee mesure la bascule puis les images qui suivent, et compte les chunks recus")
+    void crossingMeasurement() throws InterruptedException {
+        ModPerformanceMonitor.setEnabled(true);
+        String before = ModPerformanceMonitor.lastCrossingSummary();
+        ModPerformanceMonitor.onFrameRendered();
+        ModPerformanceMonitor.onChunkReceived();
+        ModPerformanceMonitor.onCrossingSwitched(Identifier.ofVanilla("the_nether"));
+        assertEquals(before, ModPerformanceMonitor.lastCrossingSummary(), "Sans debut de mesure, une bascule est ignoree.");
+        ModPerformanceMonitor.onCrossingStart();
+        ModPerformanceMonitor.onCrossingSwitched(Identifier.ofVanilla("the_nether"));
+        ModPerformanceMonitor.onChunkReceived();
+        ModPerformanceMonitor.onChunkReceived();
+        ModPerformanceMonitor.onFrameRendered();
+        Thread.sleep(60L);
+        ModPerformanceMonitor.onFrameRendered();
+        for (int frame = 2; frame < ModPerformanceMonitor.CROSSING_FRAMES; frame++) {
+            ModPerformanceMonitor.onFrameRendered();
+        }
+        String summary = ModPerformanceMonitor.lastCrossingSummary();
+        assertTrue(summary.startsWith("traversee: vers minecraft:the_nether bascule="), "Bilan publie : " + summary + ".");
+        // Au moins l'image de soixante millisecondes : une pause de la JVM pendant la boucle en ajouterait d'autres.
+        assertTrue(summary.contains("/" + (ModPerformanceMonitor.CROSSING_FRAMES - 1)) && !summary.contains("lentes=0/"),
+                "L'image de soixante millisecondes est lente : " + summary + ".");
+        assertTrue(summary.endsWith("chunks=2"), "Les chunks de la fenetre sont comptes : " + summary + ".");
+        List<String> hud = new ArrayList<>();
+        ModPerformanceMonitor.appendDebugHudText(hud);
+        assertEquals(summary, hud.get(3), "Le bilan de traversee est au F3.");
+    }
+
+    @Test
+    @DisplayName("Inactif, le moniteur ignore les traversees ; coupe en pleine fenetre, il l'abandonne")
+    void crossingIgnoredWhenDisabled() {
+        String before = ModPerformanceMonitor.lastCrossingSummary();
+        ModPerformanceMonitor.onCrossingStart();
+        ModPerformanceMonitor.onCrossingSwitched(Identifier.ofVanilla("the_end"));
+        ModPerformanceMonitor.onFrameRendered();
+        ModPerformanceMonitor.onChunkReceived();
+        assertEquals(before, ModPerformanceMonitor.lastCrossingSummary(), "Inactif : rien n'est mesure.");
+        ModPerformanceMonitor.setEnabled(true);
+        ModPerformanceMonitor.onCrossingStart();
+        ModPerformanceMonitor.onCrossingSwitched(Identifier.ofVanilla("the_end"));
+        ModPerformanceMonitor.onFrameRendered();
+        ModPerformanceMonitor.setEnabled(false);
+        for (int frame = 0; frame <= ModPerformanceMonitor.CROSSING_FRAMES; frame++) {
+            ModPerformanceMonitor.onFrameRendered();
+        }
+        assertEquals(before, ModPerformanceMonitor.lastCrossingSummary(), "Coupe en pleine fenetre, la mesure est abandonnee sans bilan.");
     }
 }

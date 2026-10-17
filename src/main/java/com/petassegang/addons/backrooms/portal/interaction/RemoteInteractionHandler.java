@@ -20,7 +20,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.ItemActionResult;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.entity.EntityChangeListener;
@@ -56,10 +55,17 @@ public final class RemoteInteractionHandler {
     /** Portail valide devant le joueur, dimension d'arrivee et point d'ou son regard ressort. */
     record RemoteReach(BackroomsPortalEntity portal, ServerWorld destination, Vec3d transposedEye) {
 
-        /** Meme critere que {@code PlayerEntity.canInteractWithBlockAt}, depuis le point de sortie du regard. */
+        /**
+         * Meme critere que {@code PlayerEntity.canInteractWithBlockAt}, depuis le point de sortie du regard. Le minage le
+         * verifie a chaque tick : la distance a la boite du bloc se calcule sans la construire.
+         */
         boolean canReachBlock(ServerPlayerEntity player, BlockPos pos) {
             double range = player.getBlockInteractionRange() + REACH_MARGIN;
-            return new Box(pos).squaredMagnitude(this.transposedEye) < range * range;
+            Vec3d eye = this.transposedEye;
+            double dx = Math.max(0.0, Math.max(pos.getX() - eye.x, eye.x - (pos.getX() + 1.0)));
+            double dy = Math.max(0.0, Math.max(pos.getY() - eye.y, eye.y - (pos.getY() + 1.0)));
+            double dz = Math.max(0.0, Math.max(pos.getZ() - eye.z, eye.z - (pos.getZ() + 1.0)));
+            return dx * dx + dy * dy + dz * dz < range * range;
         }
 
         /** Meme critere que {@code PlayerEntity.canInteractWithEntityIn}, depuis le point de sortie du regard. */
@@ -93,7 +99,8 @@ public final class RemoteInteractionHandler {
     static @Nullable RemoteReach resolve(ServerPlayerEntity player, UUID portalUuid, Identifier dimension) {
         ServerWorld world = player.getServerWorld();
         BackroomsPortalEntity portal = BackroomsPortalEntityRegistry.find(world, portalUuid);
-        if (portal == null || !portal.visible() || !portal.destinationDim().getValue().equals(dimension)) {
+        // Un portail ferme (porte fermee, des deux cotes), cache ou invisible ne laisse rien passer.
+        if (portal == null || !portal.isShown() || !portal.teleportable() || !portal.destinationDim().getValue().equals(dimension)) {
             return null;
         }
         ServerWorld destination = world.getServer().getWorld(portal.destinationDim());
@@ -105,11 +112,7 @@ public final class RemoteInteractionHandler {
         if (distance <= 0.0 || distance > player.getBlockInteractionRange() + REACH_MARGIN) {
             return null;
         }
-        return new RemoteReach(portal, destination, transpose(portal, eye));
-    }
-
-    private static Vec3d transpose(BackroomsPortalEntity portal, Vec3d point) {
-        return PortalFacing.transformPoint(portal.facingSource(), portal.getPos(), portal.facingDestination(), portal.destinationPos(), point);
+        return new RemoteReach(portal, destination, portal.toDestination(eye));
     }
 
     private static void onEntityAction(ServerPlayerEntity player, PortalEntityActionPayload payload) {
@@ -133,7 +136,7 @@ public final class RemoteInteractionHandler {
             return;
         }
         float charge = player.getAttackCooldownProgress(0.5f);
-        transposed(player, reach, () -> player.attack(target));
+        runTransposed(player, reach, () -> player.attack(target));
         // Les sons du coup partent dans le monde du joueur, a sa position transposee : il entend le sien ici.
         player.playSoundToPlayer(
                 charge > STRONG_ATTACK_THRESHOLD ? SoundEvents.ENTITY_PLAYER_ATTACK_STRONG : SoundEvents.ENTITY_PLAYER_ATTACK_WEAK,
@@ -145,7 +148,7 @@ public final class RemoteInteractionHandler {
         if (!(target instanceof LivingEntity) || target instanceof Saddleable) {
             return;
         }
-        transposed(player, reach, () -> {
+        runTransposed(player, reach, () -> {
             for (Hand hand : HANDS) {
                 ActionResult result = player.interact(target, hand);
                 if (result.isAccepted()) {
@@ -169,7 +172,7 @@ public final class RemoteInteractionHandler {
         if (payload.action() == PortalBlockActionPayload.Action.START_MINING) {
             RemoteMiningTracker.start(player, reach, pos);
         } else {
-            transposed(player, reach, () -> useBlock(player, reach.destination(), payload.hit()));
+            runTransposed(player, reach, () -> useBlock(player, reach.destination(), payload.hit()));
         }
     }
 
@@ -180,7 +183,8 @@ public final class RemoteInteractionHandler {
     private static void useBlock(ServerPlayerEntity player, ServerWorld world, BlockHitResult hit) {
         BlockPos pos = hit.getBlockPos();
         BlockState state = world.getBlockState(pos);
-        if (player.isSpectator() || !state.getBlock().isEnabled(world.getEnabledFeatures())) {
+        // Un bloc d'une fonctionnalite desactivee ne peut pas exister dans le monde : seul le spectateur est ecarte.
+        if (player.isSpectator()) {
             return;
         }
         boolean holding = !player.getMainHandStack().isEmpty() || !player.getOffHandStack().isEmpty();
@@ -231,7 +235,7 @@ public final class RemoteInteractionHandler {
      * en place. Le gestionnaire d'entities ne voit pas ce deplacement : il sortirait le joueur de sa section,
      * voire de son suivi, si la position transposee tombe dans une zone non chargee de son propre monde.
      */
-    private static void transposed(ServerPlayerEntity player, RemoteReach reach, Runnable action) {
+    private static void runTransposed(ServerPlayerEntity player, RemoteReach reach, Runnable action) {
         BackroomsPortalEntity portal = reach.portal();
         Vec3d position = player.getPos();
         float yaw = player.getYaw();
@@ -242,7 +246,7 @@ public final class RemoteInteractionHandler {
         EntityChangeListener listener = ((EntityAccessor) player).backrooms$getChangeListener();
         player.setChangeListener(EntityChangeListener.NONE);
         try {
-            player.setPosition(transpose(portal, position));
+            player.setPosition(portal.toDestination(position));
             player.setYaw(look.x);
             player.setPitch(look.y);
             player.setHeadYaw(look.x);

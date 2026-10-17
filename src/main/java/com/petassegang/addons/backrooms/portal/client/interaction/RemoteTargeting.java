@@ -37,7 +37,7 @@ import com.petassegang.addons.config.ModConfig;
  * puis les entities de la vue. Vanilla recoit alors une cible manquee : ce qui est derriere le cadre dans
  * le monde du joueur ne se vise plus. Les actions et le contour du bloc vise lisent l'etat garde ici.
  */
-public final class CrossPortalTargeting {
+public final class RemoteTargeting {
 
     private static final TypeFilter<Entity, Entity> ENTITY_FILTER = TypeFilter.instanceOf(Entity.class);
     /** Les portails ne se visent pas ({@code canHit} faux) : ils se traversent. */
@@ -51,7 +51,7 @@ public final class CrossPortalTargeting {
     private static @Nullable RemoteWorld view;
     private static @Nullable HitResult hit;
 
-    private CrossPortalTargeting() {
+    private RemoteTargeting() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
 
@@ -70,14 +70,17 @@ public final class CrossPortalTargeting {
         return hit;
     }
 
+    /** Bloc vise de l'autre cote d'un portail, ou {@code null}. */
     public static @Nullable BlockHitResult blockHit() {
         return hit instanceof BlockHitResult blockHit ? blockHit : null;
     }
 
+    /** Entity visee de l'autre cote d'un portail, ou {@code null}. */
     public static @Nullable EntityHitResult entityHit() {
         return hit instanceof EntityHitResult entityHit ? entityHit : null;
     }
 
+    /** Oublie la cible : debut de chaque mise a jour, et deconnexion. */
     public static void clear() {
         portal = null;
         view = null;
@@ -87,6 +90,7 @@ public final class CrossPortalTargeting {
     /**
      * Appele apres {@code GameRenderer.updateCrosshairTarget} : remplace la cible vanilla si le regard traverse un portail avant elle.
      *
+     * @param client client du joueur
      * @param tickDelta fraction de tick de l'image
      */
     public static void update(MinecraftClient client, float tickDelta) {
@@ -95,6 +99,10 @@ public final class CrossPortalTargeting {
         ClientWorld world = client.world;
         if (!ModConfig.ENABLE_PORTAL_FEATURE || player == null || world == null
                 || !PortalRenderState.remoteRenderingAvailable() || client.getCameraEntity() != player) {
+            return;
+        }
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
+        if (portals.isEmpty()) {
             return;
         }
         Vec3d eye = player.getCameraPosVec(tickDelta);
@@ -108,10 +116,9 @@ public final class CrossPortalTargeting {
         }
         BackroomsPortalEntity crossed = null;
         double crossedAt = limit;
-        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity candidate = portals.get(i);
-            if (!candidate.visible()) {
+            if (!candidate.isShown()) {
                 continue;
             }
             double t = frameHit(candidate, eye, direction);
@@ -123,6 +130,13 @@ public final class CrossPortalTargeting {
         if (crossed == null) {
             return;
         }
+        if (!crossed.teleportable()) {
+            // Porte fermee de l'autre cote : on voit a travers le cadre, rien ne s'y atteint ; le regard s'arrete au plan.
+            Vec3d stop = eye.add(direction.multiply(crossedAt));
+            client.crosshairTarget = BlockHitResult.createMissed(stop, Direction.getFacing(direction), BlockPos.ofFloored(stop));
+            client.targetedEntity = null;
+            return;
+        }
         RemoteWorld target = RemoteWorldRegistry.viewOf(crossed.destinationDim());
         if (target == null) {
             return;
@@ -130,9 +144,8 @@ public final class CrossPortalTargeting {
         PortalFacing source = crossed.facingSource();
         PortalFacing exit = crossed.facingDestination();
         Vec3d crossing = eye.add(direction.multiply(crossedAt));
-        Vec3d origin = PortalFacing.transformPoint(source, crossed.getPos(), exit, crossed.destinationPos(), crossing)
-                .add(exit.normal.multiply(RAY_OFFSET));
-        Vec3d remoteDirection = PortalFacing.transformVelocity(source, exit, direction);
+        Vec3d origin = crossed.toDestination(crossing).add(exit.normal.multiply(RAY_OFFSET));
+        Vec3d remoteDirection = PortalFacing.transformVector(source, exit, direction);
         ClientWorld remoteWorld = target.world();
 
         double blockRemaining = blockReach - crossedAt;
@@ -158,20 +171,14 @@ public final class CrossPortalTargeting {
     }
 
     /** Distance le long du rayon jusqu'au cadre du portail, ou -1 si le rayon ne le traverse pas depuis le cote d'entree. */
-    private static double frameHit(BackroomsPortalEntity portal, Vec3d eye, Vec3d direction) {
-        PortalFacing facing = portal.facingSource();
-        double along = direction.dotProduct(facing.normal);
-        double distance = portal.signedDistance(eye);
+    private static double frameHit(BackroomsPortalEntity candidate, Vec3d eye, Vec3d direction) {
+        double along = direction.dotProduct(candidate.facingSource().normal);
+        double distance = candidate.signedDistance(eye);
         if (distance <= 0.0 || along >= -PARALLEL_EPSILON) {
             return -1.0;
         }
         double t = -distance / along;
-        double x = eye.x + direction.x * t - portal.getX();
-        double y = eye.y + direction.y * t - portal.getY();
-        double z = eye.z + direction.z * t - portal.getZ();
-        double w = x * facing.axisW.x + y * facing.axisW.y + z * facing.axisW.z;
-        double h = x * facing.axisH.x + y * facing.axisH.y + z * facing.axisH.z;
-        return Math.abs(w) <= portal.width() / 2.0 && Math.abs(h) <= portal.height() / 2.0 ? t : -1.0;
+        return candidate.frameContains(eye.x + direction.x * t, eye.y + direction.y * t, eye.z + direction.z * t) ? t : -1.0;
     }
 
     /** Entity la plus proche touchee par le rayon dans la vue ; {@code ProjectileUtil} travaillerait dans le monde du joueur. */

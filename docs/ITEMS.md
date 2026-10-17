@@ -50,9 +50,10 @@ Chaque bloc de [BLOCKS.md](BLOCKS.md) possède un `BlockItem` du même identifia
 
 | Propriété | Valeur |
 |-----------|--------|
-| Classe | `BlockItem` de `backrooms/portal/block/BackroomsDoorBlock.java` |
+| Classe | `TallBlockItem` de `backrooms/portal/block/BackroomsDoorBlock.java` (une `DoorBlock` en chêne noir, deux blocs de haut) |
 | Onglet | *PetasseGang - Portails* (`ModCreativeTab.PORTAL_TAB`, icône de l'onglet) |
-| Pose | orientée face au joueur ; la block entity trouve seule sa destination et pose ses deux portails |
+| Pose | comme une porte vanilla : orientée comme le regard, sur un bloc plein ; on entre par le côté du joueur |
+| Usage | le portail remplit l'encadrement dès que la block entity a trouvé sa destination ; fermée, la porte le cache et le ferme, l'ouvrir rend le passage ; le portail de retour attend à l'arrivée |
 | Détail | [PORTALS.md](PORTALS.md) |
 
 ---
@@ -60,6 +61,6 @@ Chaque bloc de [BLOCKS.md](BLOCKS.md) possède un `BlockItem` du même identifia
 ## Ajouter un item
 
 1. Champ `static final` dans `ModItems` + entrée dans `ModCreativeTab.ENTRIES` (ou `PORTAL_ENTRIES` pour un item lié aux portails).
-2. `models/item/<id>.json` (parent `item/generated` ou `item/handheld`) + texture 16x16.
+2. `models/item/<id>.json` (parent `item/generated` ou `item/handheld`) + texture 16x16 (32x32 pour les items des Backrooms, comme la porte).
 3. Clé `item.petasse_gang_additions.<id>` en EN et FR.
 4. Un test dans `src/test/java/com/petassegang/addons/feature/...` qui vérifie le comportement (pas la réflexion).

@@ -1,6 +1,6 @@
 package com.petassegang.addons.backrooms.portal.sync;
 
-import it.unimi.dsi.fastutil.longs.LongList;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.util.math.ChunkPos;
 
@@ -24,24 +24,22 @@ public final class RemoteChunkWindow {
     }
 
     /**
-     * Ajoute a {@code out} les chunks de la fenetre carree, du centre vers l'exterieur, sans doublon.
+     * Ajoute a {@code out} les chunks de la fenetre carree, du centre vers l'exterieur ; un chunk deja present n'est pas
+     * repete.
      *
      * @param centerX chunk central X
      * @param centerZ chunk central Z
      * @param radius rayon de la fenetre en chunks (0 = le seul chunk central)
-     * @param out liste de cles {@link ChunkPos#toLong(int, int)} a completer
+     * @param out cles {@link ChunkPos#toLong(int, int)} a completer ; un ensemble ordonne garde l'ordre d'ajout
      */
-    public static void collect(int centerX, int centerZ, int radius, LongList out) {
+    public static void collect(int centerX, int centerZ, int radius, LongSet out) {
         for (int ring = 0; ring <= radius; ring++) {
             for (int dx = -ring; dx <= ring; dx++) {
                 for (int dz = -ring; dz <= ring; dz++) {
                     if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
                         continue;
                     }
-                    long key = ChunkPos.toLong(centerX + dx, centerZ + dz);
-                    if (!out.contains(key)) {
-                        out.add(key);
-                    }
+                    out.add(ChunkPos.toLong(centerX + dx, centerZ + dz));
                 }
             }
         }

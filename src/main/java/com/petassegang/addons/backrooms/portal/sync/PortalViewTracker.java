@@ -6,14 +6,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import it.unimi.dsi.fastutil.longs.LongArrayList;
 import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongList;
+import it.unimi.dsi.fastutil.longs.LongLinkedOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldEventS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -37,7 +41,7 @@ import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.petassegang.addons.backrooms.portal.transition.DestinationLoader;
 import com.petassegang.addons.backrooms.portal.transition.PortalRelevance;
-import com.petassegang.addons.config.ModConfig;
+import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
  * Envoie a chaque joueur ce qu'il voit a travers ses portails, et le tient a jour : chunks, blocs et entities.
@@ -57,12 +61,15 @@ public final class PortalViewTracker {
     static final int MAX_CHUNKS_PER_UPDATE = 8;
     /** Delai avant de decharger une dimension que le joueur ne regarde plus : un demi-tour ne doit pas tout renvoyer. */
     static final int UNLOAD_GRACE_TICKS = 100;
+    private static final String PERF_SYNC_TICK = "portal.sync.tick";
+    private static final String PERF_SYNC_CHUNKS = "portal.sync.chunks";
+    private static final String PERF_SYNC_ENTITIES = "portal.sync.entities";
 
     private static final Map<UUID, PlayerView> VIEWS = new HashMap<>();
     private static final List<PlayerView> VIEW_LIST = new ArrayList<>();
     private static final List<BackroomsPortalEntity> RELEVANT_SCRATCH = new ArrayList<>();
     private static final Map<RegistryKey<World>, BackroomsPortalEntity> ANCHOR_SCRATCH = new HashMap<>();
-    private static final Map<RegistryKey<World>, LongList> WANTED_SCRATCH = new HashMap<>();
+    private static final Map<RegistryKey<World>, LongSet> WANTED_SCRATCH = new HashMap<>();
     private static final List<RegistryKey<World>> DIMENSION_SCRATCH = new ArrayList<>();
     /** Chunks de sa nouvelle dimension que le client d'un joueur tient deja, le temps que vanilla les lui propose. */
     private static final Map<UUID, LongSet> HELD_AFTER_CROSSING = new HashMap<>();
@@ -70,9 +77,12 @@ public final class PortalViewTracker {
     private static int watchedChunkCount;
     private static boolean initialized;
 
-    /** Etat de synchronisation d'un joueur. */
+    /**
+     * Etat de synchronisation d'un joueur. La vue est oubliee a la deconnexion et a chaque changement de monde ou
+     * reapparition (nouvel objet joueur) : le joueur qu'elle garde est toujours celui qui est connecte.
+     */
     private static final class PlayerView {
-        final UUID playerUuid;
+        final ServerPlayerEntity player;
         final Map<RegistryKey<World>, LongSet> sentChunks = new HashMap<>();
         final Map<RegistryKey<World>, LongSet> pendingBlockUpdates = new HashMap<>();
         final Map<RegistryKey<World>, RemoteEntityView> entities = new HashMap<>();
@@ -81,8 +91,8 @@ public final class PortalViewTracker {
         final Object2LongMap<RegistryKey<World>> lastWantedTick = new Object2LongOpenHashMap<>();
         boolean hasPendingBlockUpdates;
 
-        PlayerView(UUID playerUuid) {
-            this.playerUuid = playerUuid;
+        PlayerView(ServerPlayerEntity player) {
+            this.player = player;
         }
     }
 
@@ -145,15 +155,19 @@ public final class PortalViewTracker {
      * Le joueur passe dans {@code destination} : les chunks de cette dimension que son client tient deja (a jour, deja
      * construits) ne lui seront pas renvoyes par vanilla, voir {@code MixinChunkDataSender}. A appeler avant
      * {@link #onPlayerChangedWorld}, qui oublie la vue.
+     *
+     * @return nombre de chunks de {@code destination} que le client tient deja
      */
-    public static void keepHeldChunks(ServerPlayerEntity player, RegistryKey<World> destination) {
+    public static int keepHeldChunks(ServerPlayerEntity player, RegistryKey<World> destination) {
         PlayerView view = VIEWS.get(player.getUuid());
         LongSet sent = view == null ? null : view.sentChunks.get(destination);
-        if (sent == null || sent.isEmpty()) {
+        int held = sent == null ? 0 : sent.size();
+        if (held == 0) {
             HELD_AFTER_CROSSING.remove(player.getUuid());
-            return;
+            return 0;
         }
         HELD_AFTER_CROSSING.put(player.getUuid(), new LongOpenHashSet(sent));
+        return held;
     }
 
     /** {@code true} si vanilla peut se dispenser d'envoyer ce chunk au joueur : son client le tient deja. Consomme l'entree. */
@@ -173,14 +187,51 @@ public final class PortalViewTracker {
         return watchedChunkCount;
     }
 
-    private static void tick(MinecraftServer server) {
-        if (server.getTicks() % UPDATE_INTERVAL_TICKS == 0) {
-            List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
-            for (int i = 0; i < players.size(); i++) {
-                update(server, players.get(i));
+    /**
+     * Envoie un son, un evenement de monde ou des particules d'une dimension aux joueurs qui la voient a travers un
+     * portail, si le point tombe dans un chunk de leur fenetre ; appele par les mixins de {@code PlayerManager} et de
+     * {@code ServerWorld}, apres l'envoi vanilla aux joueurs de la dimension. C'est le client qui decide par quel
+     * portail le son lui parvient et ou s'affichent les particules.
+     *
+     * @return nombre de joueurs servis
+     */
+    public static int relayToViewers(RegistryKey<World> dimension, double x, double z, Packet<?> packet) {
+        if (watchedChunkCount == 0 || !isRelayed(packet)) {
+            return 0;
+        }
+        long chunk = ChunkPos.toLong(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
+        int served = 0;
+        for (int i = 0; i < VIEW_LIST.size(); i++) {
+            PlayerView view = VIEW_LIST.get(i);
+            // Une vue d'entities n'existe que pour une dimension dont des chunks ont ete envoyes.
+            RemoteEntityView entities = view.entities.get(dimension);
+            if (entities != null && view.sentChunks.get(dimension).contains(chunk)) {
+                entities.sendPacket(packet);
+                served++;
             }
         }
-        flushBlockUpdates(server);
+        return served;
+    }
+
+    /** Paquets qu'un joueur recoit d'une dimension vue a travers un portail, en plus de ceux de ses entities. */
+    static boolean isRelayed(Packet<?> packet) {
+        return packet instanceof PlaySoundS2CPacket
+                || packet instanceof PlaySoundFromEntityS2CPacket
+                || packet instanceof WorldEventS2CPacket
+                || packet instanceof ParticleS2CPacket;
+    }
+
+    @SuppressWarnings("try")
+    private static void tick(MinecraftServer server) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_SYNC_TICK)) {
+            if (server.getTicks() % UPDATE_INTERVAL_TICKS == 0) {
+                List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
+                for (int i = 0; i < players.size(); i++) {
+                    update(server, players.get(i));
+                }
+            }
+            flushBlockUpdates(server);
+        }
     }
 
     private static void update(MinecraftServer server, ServerPlayerEntity player) {
@@ -192,7 +243,7 @@ public final class PortalViewTracker {
             return;
         }
         if (view == null) {
-            view = new PlayerView(player.getUuid());
+            view = new PlayerView(player);
             VIEWS.put(player.getUuid(), view);
             VIEW_LIST.add(view);
         }
@@ -202,7 +253,7 @@ public final class PortalViewTracker {
             view.lastWantedTick.put(DIMENSION_SCRATCH.get(i), tick);
         }
         for (Map.Entry<RegistryKey<World>, LongSet> entry : view.sentChunks.entrySet()) {
-            // Toute dimension deja synchronisee a sa liste voulue : les listes ne quittent jamais WANTED_SCRATCH.
+            // Toute dimension deja synchronisee a son ensemble voulu : les ensembles ne quittent jamais WANTED_SCRATCH.
             boolean unwanted = WANTED_SCRATCH.get(entry.getKey()).isEmpty();
             if (unwanted && tick - view.lastWantedTick.getLong(entry.getKey()) > UNLOAD_GRACE_TICKS) {
                 unloadAll(server, player, view, entry.getKey(), entry.getValue());
@@ -219,14 +270,13 @@ public final class PortalViewTracker {
         RELEVANT_SCRATCH.clear();
         Vec3d eye = player.getEyePos();
         Vec3d look = player.getRotationVec(1.0f);
-        double maxDistance = Math.max(ModConfig.PORTAL_ACTIVATION_RADIUS_BLOCKS, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
         List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
             if (portal.getWorld() != world || !portal.visible() || portal.destinationDim().equals(world.getRegistryKey())) {
                 continue;
             }
-            if (PortalRelevance.isRelevant(eye, look, portal.getPos(), maxDistance)) {
+            if (PortalRelevance.isRelevant(eye, look, portal.getPos(), PortalRelevance.MAX_DISTANCE)) {
                 RELEVANT_SCRATCH.add(portal);
             }
         }
@@ -236,7 +286,7 @@ public final class PortalViewTracker {
     private static void computeWantedWindows(ServerPlayerEntity player) {
         ANCHOR_SCRATCH.clear();
         DIMENSION_SCRATCH.clear();
-        for (LongList wanted : WANTED_SCRATCH.values()) {
+        for (LongSet wanted : WANTED_SCRATCH.values()) {
             wanted.clear();
         }
         for (int i = 0; i < RELEVANT_SCRATCH.size(); i++) {
@@ -259,7 +309,8 @@ public final class PortalViewTracker {
                     ChunkSectionPos.getSectionCoord(anchorPos.x), ChunkSectionPos.getSectionCoord(anchorPos.z), chunkX, chunkZ, radius)) {
                 continue;
             }
-            LongList wanted = WANTED_SCRATCH.computeIfAbsent(dimension, key -> new LongArrayList());
+            // Ensemble ordonne : les chunks partent du centre vers l'exterieur, et l'appartenance se teste sans parcours.
+            LongSet wanted = WANTED_SCRATCH.computeIfAbsent(dimension, key -> new LongLinkedOpenHashSet());
             if (wanted.isEmpty()) {
                 DIMENSION_SCRATCH.add(dimension);
             }
@@ -267,12 +318,13 @@ public final class PortalViewTracker {
         }
     }
 
+    @SuppressWarnings("try")
     private static void syncDimension(
             MinecraftServer server,
             ServerPlayerEntity player,
             PlayerView view,
             RegistryKey<World> dimension,
-            LongList wanted) {
+            LongSet wanted) {
         LongSet sent = view.sentChunks.computeIfAbsent(dimension, key -> new LongOpenHashSet());
         Identifier dimensionId = dimension.getValue();
         // Dechargements d'abord : si le foyer a saute, le client recentre sa carte sur le premier chunk suivant.
@@ -289,26 +341,35 @@ public final class PortalViewTracker {
         if (destination == null) {
             return;
         }
-        int budget = MAX_CHUNKS_PER_UPDATE;
-        for (int i = 0; i < wanted.size() && budget > 0; i++) {
-            long key = wanted.getLong(i);
-            if (sent.contains(key)) {
-                continue;
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_SYNC_CHUNKS)) {
+            int budget = MAX_CHUNKS_PER_UPDATE;
+            LongIterator wantedKeys = wanted.iterator();
+            while (budget > 0 && wantedKeys.hasNext()) {
+                long key = wantedKeys.nextLong();
+                if (sent.contains(key)) {
+                    continue;
+                }
+                WorldChunk chunk = destination.getChunkManager().getWorldChunk(ChunkPos.getPackedX(key), ChunkPos.getPackedZ(key));
+                if (chunk == null) {
+                    // Pas encore charge : le ticket de DestinationLoader s'en occupe, on reessaie au prochain passage.
+                    continue;
+                }
+                announceDimension(player, view, destination);
+                ServerPlayNetworking.send(player, RemoteChunkPayload.of(destination, chunk));
+                sent.add(key);
+                watchedChunkCount++;
+                budget--;
             }
-            WorldChunk chunk = destination.getChunkManager().getWorldChunk(ChunkPos.getPackedX(key), ChunkPos.getPackedZ(key));
-            if (chunk == null) {
-                // Pas encore charge : le ticket de DestinationLoader s'en occupe, on reessaie au prochain passage.
-                continue;
-            }
-            announceDimension(player, view, destination);
-            ServerPlayNetworking.send(player, RemoteChunkPayload.of(destination, chunk));
-            sent.add(key);
-            watchedChunkCount++;
-            budget--;
         }
         if (!sent.isEmpty()) {
-            view.entities.computeIfAbsent(dimension, key -> new RemoteEntityView(player, key))
-                    .update(destination, sent);
+            try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_SYNC_ENTITIES)) {
+                RemoteEntityView entities = view.entities.get(dimension);
+                if (entities == null) {
+                    entities = new RemoteEntityView(player, dimension);
+                    view.entities.put(dimension, entities);
+                }
+                entities.update(destination, sent);
+            }
         }
     }
 
@@ -342,18 +403,15 @@ public final class PortalViewTracker {
                 continue;
             }
             view.hasPendingBlockUpdates = false;
-            ServerPlayerEntity player = server.getPlayerManager().getPlayer(view.playerUuid);
             for (Map.Entry<RegistryKey<World>, LongSet> entry : view.pendingBlockUpdates.entrySet()) {
                 LongSet pending = entry.getValue();
-                // La dimension existe tant que le serveur tourne ; la vue d'un joueur deconnecte est retiree avant ce tick.
+                // La dimension existe tant que le serveur tourne.
                 ServerWorld world = server.getWorld(entry.getKey());
-                if (player != null) {
-                    Identifier dimensionId = entry.getKey().getValue();
-                    LongIterator iterator = pending.iterator();
-                    while (iterator.hasNext()) {
-                        BlockPos pos = BlockPos.fromLong(iterator.nextLong());
-                        ServerPlayNetworking.send(player, new RemoteBlockUpdatePayload(dimensionId, pos, world.getBlockState(pos)));
-                    }
+                Identifier dimensionId = entry.getKey().getValue();
+                LongIterator iterator = pending.iterator();
+                while (iterator.hasNext()) {
+                    BlockPos pos = BlockPos.fromLong(iterator.nextLong());
+                    ServerPlayNetworking.send(view.player, new RemoteBlockUpdatePayload(dimensionId, pos, world.getBlockState(pos)));
                 }
                 pending.clear();
             }

@@ -3,6 +3,8 @@ package com.petassegang.addons.backrooms.portal.transition;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.UUID;
+
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -14,8 +16,12 @@ import com.petassegang.addons.backrooms.BackroomsConstants;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
 
-@DisplayName("Detection de traversee d'un portail")
+@DisplayName("Detection de traversee d'un portail et cooldown des joueurs")
 class TeleportExecutorTest {
+
+    /** Boite d'un joueur debout. */
+    private static final double HALF_WIDTH = 0.3;
+    private static final double HEIGHT = 1.8;
 
     private static BackroomsPortalEntity portal;
 
@@ -33,41 +39,39 @@ class TeleportExecutorTest {
                 .build();
     }
 
+    private static boolean crossed(double lastX, double lastY, double lastZ, double currentX, double currentY, double currentZ) {
+        return TeleportExecutor.crossedPortalPlane(portal, lastX, lastY, lastZ, currentX, currentY, currentZ, HALF_WIDTH, HEIGHT);
+    }
+
     @Test
-    @DisplayName("Marcher du cote d'entree vers l'arriere, dans le cadre, compte comme une traversee")
+    @DisplayName("Marcher du cote d'entree vers l'arriere, le corps dans le cadre, compte comme une traversee")
     void walkingThroughCounts() {
-        assertTrue(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(0.0, 63.0, -0.5), new Vec3d(0.0, 63.0, 0.3)),
-                "Du nord vers le sud, les pieds au bas du cadre.");
-        assertTrue(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(0.9, 63.0, -0.2), new Vec3d(0.9, 63.0, 0.1)),
-                "Juste dans la marge laterale.");
+        assertTrue(crossed(0.0, 63.0, -0.5, 0.0, 63.0, 0.3), "Du nord vers le sud, les pieds au bas du cadre.");
+        assertTrue(crossed(0.75, 63.0, -0.2, 0.75, 63.0, 0.1), "Le centre hors du cadre, mais l'epaule dedans.");
+        assertTrue(crossed(0.0, 61.5, -0.2, 0.0, 61.5, 0.1), "Les pieds sous le cadre, la tete dedans.");
     }
 
     @Test
     @DisplayName("Revenir par l'arriere, passer a cote ou s'arreter avant le plan ne compte pas")
     void otherMovesDoNotCount() {
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(0.0, 63.0, 0.3), new Vec3d(0.0, 63.0, -0.5)),
-                "Du sud vers le nord : mauvais sens.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(3.0, 63.0, -0.5), new Vec3d(3.0, 63.0, 0.3)),
-                "Trois blocs a cote du cadre.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(0.0, 63.0, -2.0), new Vec3d(0.0, 63.0, -0.1)),
-                "Le plan n'est pas atteint.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(0.0, 70.0, -0.5), new Vec3d(0.0, 70.0, 0.3)),
-                "Bien au-dessus du cadre.");
+        assertFalse(crossed(0.0, 63.0, 0.3, 0.0, 63.0, -0.5), "Du sud vers le nord : mauvais sens.");
+        assertFalse(crossed(0.85, 63.0, -0.2, 0.85, 63.0, 0.1), "Le corps passe juste a cote du cadre : il ressortirait dans le mur d'en face.");
+        assertFalse(crossed(-3.0, 63.0, -0.5, -3.0, 63.0, 0.3), "Trois blocs a l'ouest du cadre.");
+        assertFalse(crossed(0.0, 63.0, -2.0, 0.0, 63.0, -0.1), "Le plan n'est pas atteint.");
+        assertFalse(crossed(0.0, 63.0, -0.5, 0.0, 63.0, -0.5), "Immobile du cote d'entree.");
+        assertFalse(crossed(0.0, 70.0, -0.5, 0.0, 70.0, 0.3), "Bien au-dessus du cadre.");
+        assertFalse(crossed(0.0, 58.0, -0.5, 0.0, 58.0, 0.3), "Sous le cadre, la tete comprise.");
     }
 
     @Test
-    @DisplayName("La variante sans allocation donne le meme verdict que celle a vecteurs")
-    void primitiveOverloadMatches() {
-        assertTrue(TeleportExecutor.crossedPortalPlane(portal, 0.0, 63.0, -0.5, 0.0, 63.0, 0.3), "Traversee dans le cadre.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, 0.0, 63.0, 0.3, 0.0, 63.0, -0.5), "Mauvais sens.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, 3.0, 63.0, -0.5, 3.0, 63.0, 0.3), "A cote du cadre.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, 0.0, 63.0, -0.5, 0.0, 63.0, -0.5), "Immobile du cote d'entree.");
-    }
-
-    @Test
-    @DisplayName("Un franchissement hors du cadre, a gauche ou en dessous, ne compte pas")
-    void crossingOutsideTheFrameLeftOrBelow() {
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(-3.0, 63.0, -0.5), new Vec3d(-3.0, 63.0, 0.3)), "Trop a l'ouest du cadre.");
-        assertFalse(TeleportExecutor.crossedPortalPlane(portal, new Vec3d(0.0, 58.0, -0.5), new Vec3d(0.0, 58.0, 0.3)), "Sous le cadre.");
+    @DisplayName("Un joueur qui vient de traverser attend la duree du cooldown avant de repasser")
+    void cooldownWindow() {
+        UUID player = UUID.randomUUID();
+        int cooldown = 20;
+        assertFalse(TeleportExecutor.isOnCooldown(player, 100L, cooldown), "Jamais passe : pas de cooldown.");
+        TeleportExecutor.markCrossed(player, 100L);
+        assertTrue(TeleportExecutor.isOnCooldown(player, 100L, cooldown), "Au tick de la traversee : cooldown.");
+        assertTrue(TeleportExecutor.isOnCooldown(player, 100L + cooldown - 1, cooldown), "Juste avant la fin : cooldown.");
+        assertFalse(TeleportExecutor.isOnCooldown(player, 100L + cooldown, cooldown), "A la fin du cooldown : libre.");
     }
 }

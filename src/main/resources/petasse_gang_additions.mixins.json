@@ -9,19 +9,32 @@
     "client.MixinClientPlayNetworkHandler",
     "client.MixinMinecraftClient",
     "client.MixinFramebuffer",
+    "client.MixinShaderStage",
+    "client.MixinShaderProgram",
+    "client.MixinClientWorld",
     "client.WorldRendererAccessor",
     "client.CameraAccessor",
     "client.MinecraftClientAccessor",
     "client.LightmapTextureManagerAccessor",
     "client.ClientPlayNetworkHandlerAccessor",
-    "client.FrustumAccessor"
+    "client.FrustumAccessor",
+    "client.BuiltChunkStorageAccessor",
+    "client.ClientWorldAccessor",
+    "client.ParticleManagerAccessor",
+    "client.LimbAnimatorAccessor"
   ],
   "mixins": [
     "MixinServerChunkManager",
     "MixinChunkDataSender",
     "EntityAccessor",
     "EntityTrackerAccessor",
-    "ServerChunkLoadingManagerAccessor"
+    "ServerChunkLoadingManagerAccessor",
+    "MixinPlayerManager",
+    "MixinServerWorld",
+    "ActiveTargetGoalAccessor",
+    "MixinActiveTargetGoal",
+    "MixinMobEntity",
+    "MixinEntity"
   ],
   "injectors": {
     "defaultRequire": 1

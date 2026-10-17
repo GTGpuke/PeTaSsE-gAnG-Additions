@@ -7,12 +7,12 @@
 | Unitaire | JUnit 5 sous le classloader Fabric (`fabric-loader-junit`) | `./gradlew test` | `build/reports/tests/test/index.html` |
 | Couverture unitaire | JaCoCo | généré par `test` | `build/reports/jacoco/test/html/index.html` |
 | En jeu | Fabric GameTest (serveur headless, sous agent JaCoCo) | `./gradlew runGameTest` | `build/junit.xml` + console |
-| Couverture fusionnée et verrou | JaCoCo (unitaire + en jeu) : 100 % des instructions, 96 % des branches | `./gradlew jacocoCoverageVerification` (lancé par `build`) | `build/reports/jacoco/full/html/index.html` |
+| Couverture fusionnée et verrou | JaCoCo (unitaire + en jeu) : 100 % des instructions et des branches | `./gradlew jacocoCoverageVerification` (lancé par `build`) | `build/reports/jacoco/full/html/index.html` |
 | Conventions du code | Checkstyle (`config/checkstyle/`) | `./gradlew checkstyleMain checkstyleTest checkstyleGametest` (lancés par `build`) | `build/reports/checkstyle/*.html` |
 | Contenu du JAR | tâche `verifyJarContents` | `./gradlew verifyJarContents` (lancée par `build`) | console |
 | Performance | Benchmark déterministe | `./gradlew benchmarkLevelZeroGeneration` | console |
 
-Les échecs de tests font échouer le build (`ignoreFailures` n'existe plus), et la couverture aussi : voir Couverture.
+Les échecs de tests font échouer le build, et la couverture aussi : voir Couverture.
 `./gradlew build` enchaîne tout cela (`check`) : rien ne se construit sans ces vérifications.
 
 ---
@@ -21,23 +21,25 @@ Les échecs de tests font échouer le build (`ignoreFailures` n'existe plus), et
 
 `./gradlew jacocoCoverageVerification` fusionne l'exécution des tests unitaires (`build/jacoco/test.exec`) et celle des
 tests en jeu (`build/jacoco/gametest.exec`, l'agent JaCoCo accompagne le serveur GameTest) et **échoue si une seule
-instruction du code mesuré n'a été exécutée par aucun des deux, ou si moins de 96 % de ses branches l'ont été**.
-`./gradlew build` l'enchaîne après `test` et `runGameTest`. Les branches restantes sont des gardes que ni JUnit ni le
-serveur de test ne peuvent prendre (`world.isClient()` côté serveur, environnement hors développement, `instanceof`
-défensifs) : on ne les couvre pas par des tests artificiels, et on ne retire pas une garde utile pour un pourcentage.
+instruction ou une seule branche du code mesuré n'a été prise par aucun des deux**. `./gradlew build` l'enchaîne
+après `test` et `runGameTest`. Une branche qu'aucun cas réel ne prend (garde côté client d'un code qui ne tourne que
+sur le serveur, condition déjà garantie par une autre) se retire ; une décision pure enfouie dans un code d'état
+(échéance d'un journal, tirage pondéré) s'extrait en fonction testable, sans changer ce qu'elle décide.
 
 Code mesuré : tout le mod sauf ce qui exige un contexte OpenGL ou un client, hors de portée de JUnit comme du serveur
 GameTest, et les mixins (tissés dans les classes vanilla). La liste exacte est `coverageExcludes` dans `build.gradle` :
 
 | Exclu | Pourquoi |
 |-------|----------|
-| `PortalStencilRenderer`, `ViewAreaRenderer`, `portal/client/world/**` (`RemoteWorld`, `RemoteViewRenderer`, `RemoteWorldRegistry`, `RemoteChunkReceiver`, `ClientPortalIndex`) | appels GL, `WorldRenderer`, `MinecraftClient` |
-| `portal/client/transition/**`, `portal/client/interaction/**`, `portal/client/entity/**` | bascule de monde client, visée et clics du client, renderer d'entité |
+| `PortalStencilRenderer`, `FrameAreaRenderer`, `PortalClipping`, `portal/client/world/**` (`RemoteWorld`, `RemoteViewRenderer`, `ViewSectionWalker`, `RemoteParticles`, `RemoteWorldRegistry`, `RemoteSyncReceiver`, `ClientPortalIndex`) | appels GL, `WorldRenderer`, `MinecraftClient` |
+| `portal/client/transition/**`, `portal/client/interaction/**`, `portal/client/sound/FrameSoundPlayer`, `portal/client/entity/**` | bascule de monde client, visée et clics du client, son rejoué par le moteur de son du client, renderer d'entité |
 | `level0/client/**`, `feature/gang/client/**`, `perf/client/**`, `PeTaSsEgAnGAdditionsClientMod` | modèles, hooks client, point d'entrée client |
 | `mixin/**` | mesurés à travers les classes vanilla qu'ils modifient |
 
-La logique client pure reste mesurée et testée : `PortalViewTransform` (projection oblique, caméra transposée),
-`PortalRenderState`. Le rendu exclu se valide en jeu (`docs/PORTALS.md`, section Tests).
+La logique client pure reste mesurée et testée : `PortalViewTransform` (plan de découpe, caméra transposée), `ViewCone`
+(volume visible à travers le cadre), `ShaderClipInjector` (contre 54 des 55 vertex shaders vanilla du jar du jeu,
+`blit_screen` exclu), `PortalRenderState`, `ThirdPersonPortal` (recul de la caméra à travers le cadre), `PortalSound`
+(portée et volume du son à travers le cadre). Le rendu exclu se valide en jeu (`docs/PORTALS.md`, section Tests).
 
 Les classes utilitaires (constructeur privé qui refuse l'appel) sont couvertes par `UtilityClassesTest`, qui les
 énumère ; une nouvelle classe utilitaire s'y ajoute. Les tests en jeu tournent avec un cooldown de traversée de trois
@@ -80,8 +82,9 @@ static void bootstrap() {
 | Items | `GangBadgeItemTest`, `CursedSnackItemTest` | propriétés, composants, tooltips |
 | Config et perf | `ModConfigTest`, `ModPerformanceMonitorTest` | parsing, valeurs par défaut, mesure active |
 | Utilitaires et point d'entrée | `UtilityClassesTest`, `PeTaSsEgAnGAdditionsModTest`, `ModCreativeTabTest` | classes finales non instanciables, portails activés ou non, branchements idempotents, onglets remplis |
-| Client (logique pure) | `PortalViewTransformTest`, `PortalRenderStateTest` | projection oblique, caméra et regard transposés, garde de rendu, coupure du rendu distant |
-| Portails | `PortalFacingTest`, `BackroomsPortalEntityTest`, `BackroomsDoorBlockEntityTest`, `BackroomsDoorTargetsTest`, `PortalRelevanceTest`, `TeleportExecutorTest`, `TpCooldownTrackerTest`, `PortalPayloadsTest`, `RemoteChunkWindowTest`, `PortalViewTransformTest` | rotation sans miroir sur les 36 paires, NBT, cellule d'arrivée réellement libre, traversée du plan (avec et sans allocation), dix payloads dont un paquet d'entité vanilla enveloppé, fenêtre de chunks, plan proche oblique |
+| Mixins | `MixinTargetsTest` | chaque mixin déclaré (communs et client) s'applique à sa cible : les tests unitaires tournent côté client sous le chargeur Fabric, et charger la cible applique le mixin ; un mixin client cassé fait échouer le build au lieu de planter le client au lancement |
+| Client (logique pure) | `PortalViewTransformTest`, `ViewConeTest`, `ShaderClipInjectorTest`, `PortalRenderStateTest`, `RemoteViewRendererTest`, `ThirdPersonPortalTest` | plan de découpe en espace caméra, caméra et regard transposés, volume visible à travers le cadre (et sans limite), recul de la caméra à la troisième personne à travers le cadre ou au-dessus du linteau, injection du plan dans 54 des 55 vertex shaders vanilla (`blit_screen` exclu), garde de rendu et numéro d'image, coupure du rendu distant, ancrage de la grille de sections |
+| Portails | `PortalFacingTest`, `BackroomsPortalEntityTest`, `BackroomsDoorBlockEntityTest`, `BackroomsDoorTargetsTest`, `PortalRelevanceTest`, `TeleportExecutorTest`, `PortalCollisionTest`, `PortalPayloadsTest`, `PortalViewTrackerTest`, `RemoteChunkWindowTest`, `RemoteEntityViewTest`, `PortalSoundTest`, `PortalPursuitTest` | rotation sans miroir sur les 36 paires, NBT, cellule d'arrivée réellement libre, traversée du plan (la boîte de l'entité doit toucher le cadre), côté de sortie et image d'une boîte d'un portail à l'autre, entité engagée dans un cadre, dix payloads dont un paquet d'entité vanilla enveloppé, paquets relayés aux joueurs qui regardent une dimension, fenêtre de chunks et sa boîte d'entités ; volume du son après le trajet, point de passage du regard dans le cadre, cooldown des joueurs |
 
 ### Le test d'empreintes (`LevelZeroGoldenTest`)
 
@@ -109,17 +112,18 @@ n'entre dans le JAR du mod, ce que `verifyJarContents` vérifie à chaque `build
 preset plat avec l'overworld, le Nether et l'End, sans les dimensions de datapack : le Level 0 n'y existe pas, et le
 Nether tient lieu de dimension distante pour les portails. Le dossier de run (`build/run/gameTest/`) est recréé à chaque
 lancement : le Nether se génère à chaque fois, et le serveur de test tique sans attendre ; les tests qui ont besoin de
-l'arrivée la génèrent d'avance (`pregenerateArrival`, 9x9 chunks) puis guettent ses chunks au lieu de compter les ticks.
+l'arrivée la génèrent d'avance (`GameTestServerWorlds.pregenerate`, 9x9 chunks) puis guettent ses chunks au lieu de compter les ticks.
 
 L'arborescence suit celle du code : `support/` (joueurs simulés, monde prêté), `backrooms/level0/`, `backrooms/portal/`, `feature/`.
 
 | Classe | Ce qui est vérifié |
 |--------|--------------------|
 | `backrooms/level0/LevelZeroGameTests` | JSON de la dimension décodé et réencodé avec les registres du serveur, chunk d'origine généré : sol, air, plafond, bedrock sur les cinq layers ; mur adaptatif posé (masque recalculé ou déjà juste) |
-| `backrooms/portal/BackroomsDoorGameTests` | porte → deux portails liés et propriétaires → cassée → plus rien ; porte posée face au joueur, cibles par dimension, porte sans destination ou vers une dimension absente, sol irrégulier devant la porte, portail d'entrée perdu, porte tournée, portail de retour disparu ou jamais posé, Level 0 prêté au serveur |
-| `backrooms/portal/PortalGameTests` | traversée d'un joueur dans le même monde (position, regard, cooldown) ; objet lancé ; payload de chunk |
+| `backrooms/portal/BackroomsDoorGameTests` | portail de retour inverse exact de l'entrée (plan de la porte), réaligné s'il ressortait devant le battant ; porte fermée → portail d'entrée présent mais caché et infranchissable, ouverte → franchissable, refermée → refermé, cassée → plus rien (portail de retour compris) ; pose orientée comme le regard avec ses deux moitiés, cibles par dimension, porte sans destination ou vers une dimension absente, encadrement rempli quelle que soit l'orientation, portail d'entrée perdu, porte tournée, portail de retour disparu ou jamais posé, demi-porte héritée réparée, Level 0 prêté au serveur (retour suivi puis retiré avec la porte), porte inerte quand les portails sont désactivés |
+| `backrooms/portal/PortalGameTests` | traversée d'un joueur dans le même monde (position, regard, cooldown) ; objet lancé ; collision à travers le cadre (un objet poussé de biais bute sur le mur de l'autre côté, au milieu il passe ; rien derrière le plan, portail fermé, dimension absente, deux cadres engagés, joueur serveur ou portail d'un autre monde ignorés) ; payload de chunk |
 | `backrooms/portal/PortalSyncGameTests` | fenêtre de chunks envoyée à un joueur qui regarde un portail vers le Nether (foyer le plus proche, fenêtres partagées et fusionnées), entités suivies, blocs relayés, déchargement après demi-tour ; traversée vers le Nether sans renvoi des chunks tenus ; annonce client vraisemblable, invraisemblable, sous cooldown, refusée (portail fermé, sans dimension, hors du cadre, en bateau) ; marche détectée par le serveur et remontée hors d'un sol irrégulier, franchissement abandonné si le portail disparaît, se ferme ou ne mène nulle part, joueur en bateau ou qui saute de position ; entités qui ne traversent pas (cooldown, bateau et passager, mort) ; changements de monde vanilla ; portails orphelins et chargement double ; commande de debug ; ticket élargi à l'approche ; portail invisible traversé sans vue |
 | `backrooms/portal/PortalInteractionGameTests` | coups, tonte, clics, pose d'objets (main principale ou secondaire, bâton sans effet, tête sur un bloc musical) et minage à travers le cadre, en créatif et en survie, avec les refus (hors portée, derrière le portail, portail inconnu ou invisible, hors de la bordure du monde, épée en créatif, bloc de commande sauf opérateur, événement de casse, mode aventure, bloc disparu en cours de minage, portail à portée mais bloc hors portée, netherrack cassée sans récolte) |
+| `backrooms/portal/PortalPropagationGameTests` | sons, évènements de monde et particules relayés au seul joueur qui regarde l'arrivée ; un husk voit un joueur du Nether par le cadre, traverse et le cible ; un portail fermé, hors de portée de poursuite, vers une dimension absente, ou une vue masquée d'un côté ou de l'autre ne montre rien ; une cible dans un autre monde devient une poursuite, l'objectif de poursuite fait marcher le mob, la cible le suit à la traversée ; qui reçoit l'objectif (husk, slime, golem de fer, pas le chat) ; chaque règle d'une poursuite (portail ouvert, visible, devant le mob, vers un autre monde, à portée ; cible vivante, de l'autre côté ; délai) écarte à elle seule |
 | `feature/ItemGameTests` | badge et collation utilisés par un joueur, par un joueur non serveur et par une créature |
 
 Les joueurs simulés viennent de `GameTestPlayers` : connexion réelle au serveur sur un canal en mémoire (liste des
@@ -179,8 +183,8 @@ optionnel porte sur ce dernier chiffre. Les chiffres de référence sont dans `d
 - Un comportement par méthode, un message d'assertion en français qui dit ce qui devrait être vrai.
 - Pas de test par réflexion « le constructeur existe » pour une classe normale : tester ce que le code fait. Les
   classes utilitaires, elles, s'ajoutent à `UtilityClassesTest`.
-- Chaque instruction nouvelle hors colle client doit être exécutée par un test, et les branches rester couvertes à
-  96 % au moins, sinon `build` échoue : chercher la ligne rouge ou jaune dans `build/reports/jacoco/full/html/index.html`
+- Chaque instruction et chaque branche nouvelles hors colle client doivent être prises par un test, sinon `build`
+  échoue : chercher la ligne rouge ou jaune dans `build/reports/jacoco/full/html/index.html`
   et écrire le test qui la justifie, plutôt que d'exclure.
 - Les tests de génération doivent rester déterministes : seeds fixes, zones fixes.
 - Si une classe touche aux blocs ou aux registres : `MinecraftTestBootstrap.ensure()`.

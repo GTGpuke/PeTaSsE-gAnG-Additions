@@ -4,8 +4,11 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.DoorBlock;
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
@@ -18,7 +21,6 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.World;
 
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
@@ -27,30 +29,32 @@ import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.init.ModBlockEntities;
 
 /**
- * Block entity de la porte : trouve sa destination, pose ses deux portails et les retire avec elle.
+ * Block entity de la moitie basse de la porte : trouve sa destination, pose ses portails et les retire avec elle.
  *
  * <p>Une porte posee hors du Level 0 mene au Level 0 ; posee dans le Level 0, elle ramene a la surface.
- * Le portail d'entree se tient devant la porte, le portail de retour au point d'arrivee ; chacun connait
- * la porte qui le possede et disparait de lui-meme si elle n'existe plus.
+ * Le portail d'entree remplit l'encadrement des que la porte connait sa destination ; fermee, la porte le cache et
+ * rien ne le traverse, mais l'autre cote reste synchronise pour que l'ouverture soit immediate. Le portail de retour
+ * attend au point d'arrivee et ramene dans le plan meme de la porte, au milieu de son bloc : c'est l'inverse exact du
+ * portail d'entree, chaque cote montre l'autre tel qu'on le traverse. Il se ferme avec la porte ; ouverte, son battant
+ * et les murs qui l'encadrent arretent de l'autre cote ceux qui s'y engageraient de biais ({@code PortalCollision}).
+ * Chacun connait la porte qui le possede : le registre des portails retire celui dont la porte n'existe plus.
  */
 public final class BackroomsDoorBlockEntity extends BlockEntity {
 
-    /** Largeur des portails de porte, en blocs. */
-    static final float PORTAL_WIDTH = 1.0f;
-    /** Hauteur des portails de porte, en blocs. */
-    static final float PORTAL_HEIGHT = 2.0f;
-    /** Distance du plan du portail d'entree devant la face de la porte. */
-    static final double PORTAL_OFFSET = 0.55;
+    /** Largeur des portails de porte, en blocs : l'encadrement. */
+    public static final float PORTAL_WIDTH = 1.0f;
+    /** Hauteur des portails de porte, en blocs : les deux moities de la porte. */
+    public static final float PORTAL_HEIGHT = 2.0f;
     /** Delai avant de considerer le portail d'entree perdu, le temps que le chunk charge ses entities. */
-    private static final int PORTAL_GRACE_TICKS = 40;
-    /** Intervalle entre deux tentatives de resolution de la destination. */
-    private static final int TARGET_RETRY_INTERVAL_TICKS = 100;
+    public static final int PORTAL_GRACE_TICKS = 40;
+    /** Intervalle entre deux tentatives de resolution de la destination ; la premiere a lieu au premier tick. */
+    public static final int TARGET_RETRY_INTERVAL_TICKS = 100;
     /** Intervalle de verification du portail de retour, dans l'autre dimension. */
-    private static final int RETURN_CHECK_INTERVAL_TICKS = 200;
+    public static final int RETURN_CHECK_INTERVAL_TICKS = 200;
     /** Verifications consecutives sans portail de retour avant de le reposer. */
-    private static final int RETURN_MISSING_CHECKS = 2;
+    public static final int RETURN_MISSING_CHECKS = 2;
 
-    /** Portails actives par le point d'entree du mod ; desactives, la porte reste decorative et ne tique pas. */
+    /** Portails actives par le point d'entree du mod ; desactives, la porte reste une porte ordinaire, sans portail. */
     private static boolean portalsEnabled;
 
     private static final String NBT_ATTACHED_PORTAL = "AttachedPortal";
@@ -66,11 +70,15 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
     private @Nullable RegistryKey<World> destinationDim;
     private @Nullable Vec3d destinationPos;
     private @Nullable PortalFacing destinationFacing;
+    /** Centre du portail d'entree : le milieu de l'encadrement, sur les deux blocs de la porte. */
+    private final Vec3d entryPortalPos;
     private int ticksSinceLoad;
     private int returnPortalMissingChecks;
 
+    /** Block entity de la moitie basse, creee par le bloc a la pose ou au chargement. */
     public BackroomsDoorBlockEntity(BlockPos pos, BlockState state) {
         super(ModBlockEntities.BACKROOMS_DOOR, pos, state);
+        this.entryPortalPos = Vec3d.ofCenter(pos).add(0.0, PORTAL_HEIGHT / 2.0 - 0.5, 0.0);
     }
 
     /**
@@ -86,7 +94,7 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
         this.destinationFacing = destinationFacing;
         this.markDirty();
         if (this.world instanceof ServerWorld serverWorld) {
-            ensureEntryPortal(serverWorld);
+            syncEntryPortal(serverWorld);
             spawnReturnPortal(serverWorld);
         }
     }
@@ -96,22 +104,58 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
         portalsEnabled = enabled;
     }
 
-    /** Tick serveur : resout la destination si besoin, puis veille sur les deux portails. */
+    /**
+     * Tick serveur : au premier tick, complete une porte sauvegardee en un seul bloc ; puis, portails actives, resout la
+     * destination si besoin, aligne le portail d'entree sur la porte et veille sur le retour.
+     */
     public void serverTick() {
-        if (!portalsEnabled || !(this.world instanceof ServerWorld serverWorld)) {
+        if (!(this.world instanceof ServerWorld serverWorld)) {
             return;
         }
         this.ticksSinceLoad++;
+        if (this.ticksSinceLoad == 1) {
+            repairUpperHalf(serverWorld);
+        }
+        if (!portalsEnabled) {
+            return;
+        }
         if (!isConfigured()) {
             if (this.ticksSinceLoad % TARGET_RETRY_INTERVAL_TICKS == 1) {
                 resolveTarget(serverWorld);
             }
             return;
         }
-        ensureEntryPortal(serverWorld);
+        syncEntryPortal(serverWorld);
+        syncReturnPortal(serverWorld);
         if (this.ticksSinceLoad % RETURN_CHECK_INTERVAL_TICKS == 0) {
             checkReturnPortal(serverWorld);
         }
+    }
+
+    /**
+     * Moitie haute absente au chargement : la porte a ete sauvegardee quand elle tenait en un seul bloc, orientee vers son
+     * cote d'entree. Elle est retournee pour garder ce cote d'entree (celui d'une porte a deux moities est l'oppose de son
+     * orientation), et sa moitie haute est reposee, fermee comme la basse, si la place est libre ou remplacable (herbe,
+     * neige). Une porte complete garde ses deux moities ensemble : il suffit de verifier au premier tick.
+     */
+    private void repairUpperHalf(ServerWorld world) {
+        BlockPos above = this.pos.up();
+        BlockState aboveState = world.getBlockState(above);
+        BlockState lower = getCachedState();
+        if (aboveState.isOf(lower.getBlock())) {
+            return;
+        }
+        BlockState turned = lower.with(DoorBlock.FACING, lower.get(DoorBlock.FACING).getOpposite());
+        // Sans mise a jour de voisinage : seule, la moitie basse se retirerait.
+        world.setBlockState(this.pos, turned, Block.NOTIFY_LISTENERS);
+        if (aboveState.isReplaceable()) {
+            world.setBlockState(above, turned.with(DoorBlock.HALF, DoubleBlockHalf.UPPER), Block.NOTIFY_ALL);
+        }
+    }
+
+    /** {@code true} si la porte est ouverte : les deux portails ne se traversent qu'alors. */
+    public boolean isOpen() {
+        return getCachedState().get(DoorBlock.OPEN);
     }
 
     /** Retire les deux portails ; un portail dont le chunk n'est pas charge se retirera seul plus tard. */
@@ -136,16 +180,18 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
         return this.destinationDim != null && this.destinationPos != null && this.destinationFacing != null;
     }
 
+    /** Portail d'entree pose dans l'encadrement, ou {@code null} tant que la porte n'a pas de destination. */
     public @Nullable UUID attachedPortalUuid() {
         return this.attachedPortalUuid;
     }
 
+    /** Portail de retour pose au point d'arrivee, ou {@code null} s'il n'a pas pu l'etre. */
     public @Nullable UUID returnPortalUuid() {
         return this.returnPortalUuid;
     }
 
     private void resolveTarget(ServerWorld world) {
-        BackroomsDoorTargets.Target target = BackroomsDoorTargets.resolve(world, this.pos, doorFacing().direction);
+        BackroomsDoorTargets.Target target = BackroomsDoorTargets.resolve(world, this.pos, entrySide());
         if (target == null) {
             ModConstants.LOGGER.debug("[Portal] Porte {} sans destination pour l'instant.", this.pos);
             return;
@@ -153,23 +199,64 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
         configureTarget(target.dimension(), target.position(), target.facing());
     }
 
-    private void ensureEntryPortal(ServerWorld world) {
-        if (this.attachedPortalUuid != null
-                && (world.getEntity(this.attachedPortalUuid) != null || this.ticksSinceLoad < PORTAL_GRACE_TICKS)) {
+    /**
+     * Le portail d'entree existe tant que la porte connait sa destination ; la porte le ferme et le cache, elle ne le
+     * retire pas. Un portail qui ne remplit plus l'encadrement (porte tournee, sauvegarde d'un ancien placement) est
+     * remplace.
+     */
+    private void syncEntryPortal(ServerWorld world) {
+        Entity entity = this.attachedPortalUuid == null ? null : world.getEntity(this.attachedPortalUuid);
+        if (entity instanceof BackroomsPortalEntity portal) {
+            if (portal.getPos().equals(this.entryPortalPos) && portal.facingSource() == entryFacing()) {
+                boolean open = isOpen();
+                if (portal.teleportable() != open) {
+                    portal.setTeleportable(open);
+                }
+                return;
+            }
+            portal.discard();
+        } else if (this.attachedPortalUuid != null && this.ticksSinceLoad < PORTAL_GRACE_TICKS) {
+            // Le chunk vient de charger : ses entities arrivent, on laisse au portail le temps d'apparaitre.
             return;
         }
         BackroomsPortalEntity portal = BackroomsPortalEntity.builder(world)
-                .position(entryPortalPos())
-                .facingSource(doorFacing())
+                .position(this.entryPortalPos)
+                .facingSource(entryFacing())
                 .facingDestination(this.destinationFacing)
                 .destinationDim(this.destinationDim)
                 .destinationPos(this.destinationPos)
                 .size(PORTAL_WIDTH, PORTAL_HEIGHT)
+                .teleportable(isOpen())
                 .owner(world.getRegistryKey(), this.pos)
                 .build();
         world.spawnEntity(portal);
         this.attachedPortalUuid = portal.getUuid();
         this.markDirty();
+    }
+
+    /**
+     * Le portail de retour se ferme avec la porte : fermee, elle ne se traverse dans aucun sens. Il mene toujours au plan
+     * de la porte, dans son orientation : un retour qui ressortirait ailleurs (sauvegarde d'un ancien placement) y est
+     * ramene, celui d'une porte tournee depuis est repose.
+     */
+    private void syncReturnPortal(ServerWorld world) {
+        ServerWorld destination = world.getServer().getWorld(this.destinationDim);
+        Entity entity = destination == null || this.returnPortalUuid == null ? null : destination.getEntity(this.returnPortalUuid);
+        if (!(entity instanceof BackroomsPortalEntity portal)) {
+            return;
+        }
+        if (portal.facingDestination() != entryFacing()) {
+            portal.discard();
+            spawnReturnPortal(world);
+            return;
+        }
+        boolean open = isOpen();
+        if (portal.teleportable() != open) {
+            portal.setTeleportable(open);
+        }
+        if (!this.entryPortalPos.equals(portal.destinationPos())) {
+            portal.setDestinationPos(this.entryPortalPos);
+        }
     }
 
     private void spawnReturnPortal(ServerWorld world) {
@@ -182,10 +269,11 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
         BackroomsPortalEntity portal = BackroomsPortalEntity.builder(destination)
                 .position(this.destinationPos)
                 .facingSource(this.destinationFacing)
-                .facingDestination(doorFacing())
+                .facingDestination(entryFacing())
                 .destinationDim(world.getRegistryKey())
-                .destinationPos(entryPortalPos())
+                .destinationPos(this.entryPortalPos)
                 .size(PORTAL_WIDTH, PORTAL_HEIGHT)
+                .teleportable(isOpen())
                 .owner(world.getRegistryKey(), this.pos)
                 .build();
         destination.spawnEntity(portal);
@@ -212,30 +300,12 @@ public final class BackroomsDoorBlockEntity extends BlockEntity {
         }
     }
 
-    private PortalFacing doorFacing() {
-        return PortalFacing.fromDirection(getCachedState().get(BackroomsDoorBlock.FACING));
+    private Direction entrySide() {
+        return BackroomsDoorBlock.entrySide(getCachedState());
     }
 
-    /** Centre du portail d'entree : devant la face de la porte, le bas du cadre pose sur le sol trouve devant elle. */
-    private Vec3d entryPortalPos() {
-        Vec3d center = Vec3d.ofCenter(this.pos).add(doorFacing().normal.multiply(PORTAL_OFFSET));
-        return new Vec3d(center.x, floorInFrontOfDoor() + PORTAL_HEIGHT / 2.0, center.z);
-    }
-
-    /**
-     * Hauteur du sol devant la porte : dessus du premier bloc a collision, cherche du niveau de la porte jusqu'a deux
-     * blocs plus bas (porte encastree dans le sol, ou posee sur une marche). Sans sol, le bas de la porte.
-     */
-    private double floorInFrontOfDoor() {
-        BlockPos front = this.pos.offset(getCachedState().get(BackroomsDoorBlock.FACING));
-        for (int y = front.getY(); y >= front.getY() - 2; y--) {
-            BlockPos probe = new BlockPos(front.getX(), y, front.getZ());
-            VoxelShape shape = this.world.getBlockState(probe).getCollisionShape(this.world, probe);
-            if (!shape.isEmpty()) {
-                return y + shape.getMax(Direction.Axis.Y);
-            }
-        }
-        return this.pos.getY();
+    private PortalFacing entryFacing() {
+        return PortalFacing.fromDirection(entrySide());
     }
 
     private static void discard(ServerWorld world, @Nullable UUID uuid) {

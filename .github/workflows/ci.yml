@@ -52,7 +52,7 @@ jobs:
       - name: Tests en jeu (serveur headless, sous agent JaCoCo)
         run: ./gradlew runGameTest --no-daemon --console=plain --warning-mode all
 
-      - name: Couverture fusionnee (100 % des instructions, 96 % des branches)
+      - name: Couverture fusionnee (100 % des instructions et des branches)
         run: ./gradlew jacocoFullReport jacocoCoverageVerification --no-daemon --console=plain --warning-mode all
 
       - name: Build et contenu du JAR (ni dependance embarquee, ni test)

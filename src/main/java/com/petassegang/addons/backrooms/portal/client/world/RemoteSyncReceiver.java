@@ -1,9 +1,8 @@
 package com.petassegang.addons.backrooms.portal.client.world;
 
-import it.unimi.dsi.fastutil.ints.IntList;
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
@@ -12,6 +11,7 @@ import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
+import com.petassegang.addons.backrooms.portal.client.transition.EntityHandover;
 import com.petassegang.addons.backrooms.portal.sync.RemoteBlockBreakingPayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteBlockUpdatePayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteChunkPayload;
@@ -19,13 +19,15 @@ import com.petassegang.addons.backrooms.portal.sync.RemoteChunkUnloadPayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteDimensionPayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteEntityPacketPayload;
 import com.petassegang.addons.config.ModConfig;
+import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
- * Recoit les payloads de synchronisation des portails (chunks, blocs, entities) et les applique aux mondes distants.
+ * Recoit les payloads de synchronisation des portails (dimensions, chunks, blocs, paquets d'entities, fissures de minage)
+ * et les applique aux mondes distants.
  */
-public final class RemoteChunkReceiver {
+public final class RemoteSyncReceiver {
 
-    private RemoteChunkReceiver() {
+    private RemoteSyncReceiver() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
 
@@ -34,7 +36,7 @@ public final class RemoteChunkReceiver {
      * thread de rendu, dans l'ordre des paquets : les differer avec {@code client.execute} les ferait passer apres les
      * paquets vanilla deja en file (un chunk du nouveau monde applique a l'ancien, par exemple).
      */
-    public static void register() {
+    public static void init() {
         ClientPlayNetworking.registerGlobalReceiver(RemoteDimensionPayload.ID,
                 (payload, context) -> onDimension(context.client(), payload));
         ClientPlayNetworking.registerGlobalReceiver(RemoteChunkPayload.ID,
@@ -58,6 +60,7 @@ public final class RemoteChunkReceiver {
     }
 
     private static void onChunk(MinecraftClient client, RemoteChunkPayload payload) {
+        ModPerformanceMonitor.onChunkReceived();
         RemoteWorld remote = remoteWorld(client, payload.dimension());
         if (remote != null) {
             remote.loadChunk(payload.chunkX(), payload.chunkZ(), payload.chunkData(), payload.lightData());
@@ -81,12 +84,10 @@ public final class RemoteChunkReceiver {
     private static void onEntityPacket(MinecraftClient client, RemoteEntityPacketPayload payload) {
         if (client.world != null && client.world.getRegistryKey().equals(worldKey(payload.dimension()))) {
             // La dimension est devenue celle du joueur (traversee) : seules les destructions comptent, elles retirent
-            // les copies distantes que vanilla ne connait pas ; le reste du monde est a vanilla.
+            // les copies distantes que vanilla ne connait pas ; le reste du monde est a vanilla, qui renvoie aussitot
+            // celles qu'il suit (le portail de retour juste derriere le joueur) : retrait differe, sans trou.
             if (ModConfig.ENABLE_PORTAL_FEATURE && payload.packet() instanceof EntitiesDestroyS2CPacket destroy) {
-                IntList ids = destroy.getEntityIds();
-                for (int i = 0; i < ids.size(); i++) {
-                    client.world.removeEntity(ids.getInt(i), Entity.RemovalReason.DISCARDED);
-                }
+                EntityHandover.deferRemoval(client.world, destroy.getEntityIds());
             }
             return;
         }
@@ -108,7 +109,7 @@ public final class RemoteChunkReceiver {
         }
     }
 
-    private static RemoteWorld remoteWorld(MinecraftClient client, Identifier dimension) {
+    private static @Nullable RemoteWorld remoteWorld(MinecraftClient client, Identifier dimension) {
         if (!ModConfig.ENABLE_PORTAL_FEATURE) {
             return null;
         }

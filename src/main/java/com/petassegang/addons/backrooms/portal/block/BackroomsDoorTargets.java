@@ -14,6 +14,8 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.BlockView;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
 
@@ -35,9 +37,9 @@ import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
 public final class BackroomsDoorTargets {
 
     /** Rayon de recherche, en cellules, d'une cellule ouverte autour des X/Z de la porte. */
-    public static final int MAX_SEARCH_RADIUS_CELLS = 24;
-    /** Hauteur du centre d'un portail de porte au-dessus du sol : moitie de sa hauteur (2 blocs). */
-    static final double PORTAL_CENTER_ABOVE_FLOOR = 1.0;
+    private static final int MAX_SEARCH_RADIUS_CELLS = 24;
+    /** Hauteur du centre d'un portail de porte au-dessus du sol : la moitie de sa hauteur. */
+    static final double PORTAL_CENTER_ABOVE_FLOOR = BackroomsDoorBlockEntity.PORTAL_HEIGHT / 2.0;
 
     private static final PortalFacing[] HORIZONTAL_FACINGS = {
             PortalFacing.NORTH, PortalFacing.EAST, PortalFacing.SOUTH, PortalFacing.WEST,
@@ -62,11 +64,11 @@ public final class BackroomsDoorTargets {
      *
      * @param world monde ou la porte est posee
      * @param doorPos position de la porte
-     * @param doorFacing orientation de la porte
+     * @param entrySide cote par lequel on entre dans la porte : on ressort de l'autre cote vers ce meme cote
      * @return destination, ou {@code null} si la dimension cible est absente ou sans cellule ouverte
      */
-    public static @Nullable Target resolve(ServerWorld world, BlockPos doorPos, Direction doorFacing) {
-        return resolve(world.getServer(), world.getRegistryKey(), doorPos, doorFacing);
+    public static @Nullable Target resolve(ServerWorld world, BlockPos doorPos, Direction entrySide) {
+        return resolve(world.getServer(), world.getRegistryKey(), doorPos, entrySide);
     }
 
     /**
@@ -76,17 +78,18 @@ public final class BackroomsDoorTargets {
      * @param server serveur dont on lit les mondes
      * @param doorDimension dimension de la porte
      * @param doorPos position de la porte
-     * @param doorFacing orientation de la porte
+     * @param entrySide cote par lequel on entre dans la porte : on ressort de l'autre cote vers ce meme cote
      * @return destination, ou {@code null} si la dimension cible est absente ou sans cellule ouverte
      */
-    public static @Nullable Target resolve(MinecraftServer server, RegistryKey<World> doorDimension, BlockPos doorPos, Direction doorFacing) {
-        PortalFacing facing = PortalFacing.fromDirection(doorFacing);
+    public static @Nullable Target resolve(MinecraftServer server, RegistryKey<World> doorDimension, BlockPos doorPos, Direction entrySide) {
+        PortalFacing facing = PortalFacing.fromDirection(entrySide);
         if (doorDimension.equals(BackroomsConstants.LEVEL_ZERO_WORLD)) {
             ServerWorld overworld = server.getOverworld();
             // World.getTopY renvoie le fond du monde si le chunk n'est pas charge : on le charge d'abord (une fois, a la pose).
             overworld.getChunk(ChunkSectionPos.getSectionCoord(doorPos.getX()), ChunkSectionPos.getSectionCoord(doorPos.getZ()));
             int surfaceY = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING, doorPos.getX(), doorPos.getZ());
-            Vec3d center = new Vec3d(doorPos.getX() + 0.5, surfaceY + PORTAL_CENTER_ABOVE_FLOOR, doorPos.getZ() + 0.5);
+            double floor = floorHeight(overworld, doorPos.getX(), surfaceY, doorPos.getZ());
+            Vec3d center = new Vec3d(doorPos.getX() + 0.5, floor + PORTAL_CENTER_ABOVE_FLOOR, doorPos.getZ() + 0.5);
             return new Target(World.OVERWORLD, center, facing);
         }
         ServerWorld levelZero = server.getWorld(BackroomsConstants.LEVEL_ZERO_WORLD);
@@ -98,12 +101,35 @@ public final class BackroomsDoorTargets {
     }
 
     /**
+     * Hauteur exacte du sol d'une colonne : le haut de la collision du bloc qu'on y foule. Une dalle, un chemin ou une
+     * couche de neige ne font pas un bloc plein : le cadre d'arrivee se pose dessus, au demi-bloc pres, au lieu de
+     * flotter au-dessus, et celui qui le traverse depuis une porte posee sur un bloc plein garde les pieds au sol.
+     *
+     * @param world monde lu
+     * @param x coordonnee monde X de la colonne
+     * @param surfaceY premier Y libre au-dessus des blocs qui bloquent le mouvement (heightmap {@code MOTION_BLOCKING})
+     * @param z coordonnee monde Z de la colonne
+     * @return hauteur du sol, en blocs
+     */
+    public static double floorHeight(BlockView world, int x, int surfaceY, int z) {
+        BlockPos.Mutable pos = new BlockPos.Mutable(x, surfaceY, z);
+        // Un tapis ou une couche de neige peuvent ne pas compter dans la heightmap, mais on marche dessus.
+        VoxelShape above = world.getBlockState(pos).getCollisionShape(world, pos);
+        if (!above.isEmpty()) {
+            return surfaceY + above.getMax(Direction.Axis.Y);
+        }
+        pos.setY(surfaceY - 1);
+        VoxelShape ground = world.getBlockState(pos).getCollisionShape(world, pos);
+        return ground.isEmpty() ? surfaceY : surfaceY - 1 + ground.getMax(Direction.Axis.Y);
+    }
+
+    /**
      * Destination dans le layer 0 du Level 0 : centre de la cellule ouverte la plus proche des X/Z donnes.
      *
      * @param layerSeed seed du layer 0
      * @param worldX coordonnee monde X de la porte
      * @param worldZ coordonnee monde Z de la porte
-     * @param preferredFacing orientation de sortie preferee (celle de la porte)
+     * @param preferredFacing orientation de sortie preferee (le cote d'entree de la porte)
      * @return destination, ou {@code null} si aucune cellule ouverte dans le rayon de recherche
      */
     public static @Nullable Target levelZeroTarget(long layerSeed, int worldX, int worldZ, PortalFacing preferredFacing) {

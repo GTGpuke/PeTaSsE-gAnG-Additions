@@ -28,7 +28,6 @@ import net.minecraft.util.Identifier;
 import com.petassegang.addons.MinecraftTestBootstrap;
 import com.petassegang.addons.backrooms.BackroomsConstants;
 import com.petassegang.addons.backrooms.level0.generation.LevelZeroChunkGenerator;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityType;
 import com.petassegang.addons.core.ModConstants;
 
 @DisplayName("Registres du mod")
@@ -59,7 +58,7 @@ class ModRegistriesTest {
         assertEquals(14, modIds(Registries.ITEM.getIds()).size(), "Quatorze items enregistres.");
         assertEquals(Identifier.of(ModConstants.MOD_ID, "backrooms_door"),
                 Registries.BLOCK_ENTITY_TYPE.getId(ModBlockEntities.BACKROOMS_DOOR), "Block entity de la porte.");
-        assertEquals(BackroomsPortalEntityType.ID, Registries.ENTITY_TYPE.getId(BackroomsPortalEntityType.INSTANCE), "Entity portail.");
+        assertEquals(Identifier.of(ModConstants.MOD_ID, "backrooms_portal"), Registries.ENTITY_TYPE.getId(ModEntities.BACKROOMS_PORTAL), "Entity portail.");
         assertSame(LevelZeroChunkGenerator.CODEC,
                 Registries.CHUNK_GENERATOR.get(Identifier.of(ModConstants.MOD_ID, BackroomsConstants.LEVEL_ZERO_CHUNK_GENERATOR)),
                 "Codec du generateur du Level 0.");
@@ -118,7 +117,7 @@ class ModRegistriesTest {
         for (Identifier id : modIds(Registries.ITEM.getIds())) {
             assertTrue(english.has(Registries.ITEM.get(id).getTranslationKey()), "Traduction de l'item " + id + ".");
         }
-        assertTrue(english.has(BackroomsPortalEntityType.INSTANCE.getTranslationKey()), "Traduction de l'entity portail.");
+        assertTrue(english.has(ModEntities.BACKROOMS_PORTAL.getTranslationKey()), "Traduction de l'entity portail.");
         assertTrue(english.has("itemGroup.petasse_gang_additions.petassegang"), "Traduction de l'onglet principal.");
         assertTrue(english.has("itemGroup.petasse_gang_additions.portals"), "Traduction de l'onglet des portails.");
     }

@@ -1,7 +1,5 @@
 package com.petassegang.addons.backrooms.level0.generation.write;
 
-import org.jetbrains.annotations.Nullable;
-
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 
@@ -31,9 +29,10 @@ public final class LevelZeroDebugPalette {
      *
      * @param fixture element mural
      * @param faceMask face de l'element
-     * @return bloc de debug, ou {@code null} sans element
+     * @return bloc de debug
+     * @throws IllegalArgumentException sans element ({@code NONE}) : rien a poser
      */
-    public static @Nullable BlockState fixture(LevelZeroWallProps.Fixture fixture, int faceMask) {
+    public static BlockState fixture(LevelZeroWallProps.Fixture fixture, int faceMask) {
         return switch (fixture) {
             case SWITCH -> switch (faceMask) {
                 case LevelZeroWallpaperBlock.EAST_MASK -> Blocks.GREEN_CONCRETE.getDefaultState();
@@ -47,7 +46,7 @@ public final class LevelZeroDebugPalette {
                 case LevelZeroWallpaperBlock.WEST_MASK -> Blocks.RED_WOOL.getDefaultState();
                 default -> Blocks.REDSTONE_BLOCK.getDefaultState();
             };
-            case NONE -> null;
+            case NONE -> throw new IllegalArgumentException("Element mural absent : aucun bloc de debug a poser.");
         };
     }
 }

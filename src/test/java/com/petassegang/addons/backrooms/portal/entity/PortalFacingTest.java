@@ -50,7 +50,7 @@ class PortalFacingTest {
     @DisplayName("Le passage est une rotation : longueurs conservees, points et vecteurs coherents, regard coherent")
     void transformIsRigid(PortalFacing source, PortalFacing destination) {
         Vec3d velocity = new Vec3d(0.3, -0.5, 0.7);
-        assertEquals(velocity.length(), PortalFacing.transformVelocity(source, destination, velocity).length(), EPS,
+        assertEquals(velocity.length(), PortalFacing.transformVector(source, destination, velocity).length(), EPS,
                 "La vitesse garde sa norme.");
 
         Vec3d sourceCenter = new Vec3d(10.0, 64.0, 20.0);
@@ -58,16 +58,16 @@ class PortalFacingTest {
         Vec3d offset = new Vec3d(1.0, 2.0, 3.0);
         Vec3d transformedOffset = PortalFacing.transformPoint(source, sourceCenter, destination, destinationCenter,
                 sourceCenter.add(offset)).subtract(destinationCenter);
-        assertEquals(0.0, transformedOffset.subtract(PortalFacing.transformVelocity(source, destination, offset)).length(), EPS,
+        assertEquals(0.0, transformedOffset.subtract(PortalFacing.transformVector(source, destination, offset)).length(), EPS,
                 "Le point transforme suit la transformation du vecteur.");
 
-        Vec3d a = PortalFacing.transformVelocity(source, destination, source.axisW);
-        Vec3d b = PortalFacing.transformVelocity(source, destination, source.axisH);
-        assertEquals(0.0, a.crossProduct(b).subtract(PortalFacing.transformVelocity(source, destination, source.normal)).length(), EPS,
+        Vec3d a = PortalFacing.transformVector(source, destination, source.axisW);
+        Vec3d b = PortalFacing.transformVector(source, destination, source.axisH);
+        assertEquals(0.0, a.crossProduct(b).subtract(PortalFacing.transformVector(source, destination, source.normal)).length(), EPS,
                 "L'orientation de l'espace est conservee : pas de miroir.");
 
         for (float[] sample : new float[][] {{0f, 0f}, {90f, 0f}, {-135f, 45f}, {0f, 80f}}) {
-            Vec3d expectedLook = PortalFacing.transformVelocity(source, destination, lookVector(sample[0], sample[1]));
+            Vec3d expectedLook = PortalFacing.transformVector(source, destination, lookVector(sample[0], sample[1]));
             Vec2f look = PortalFacing.transformLook(source, destination, sample[0], sample[1]);
             assertEquals(0.0, expectedLook.subtract(lookVector(look.x, look.y)).length(), 1.0e-6,
                     "Le regard transforme correspond au vecteur transforme.");
@@ -86,16 +86,16 @@ class PortalFacingTest {
                 "Deux blocs devant la source = deux blocs derriere la destination.");
 
         Vec3d entering = source.normal.multiply(-0.5);
-        assertEquals(0.0, PortalFacing.transformVelocity(source, destination, entering)
+        assertEquals(0.0, PortalFacing.transformVector(source, destination, entering)
                 .subtract(destination.normal.multiply(0.5)).length(), EPS, "Entrer dans la source, c'est sortir de la destination.");
-        assertEquals(0.0, PortalFacing.transformVelocity(source, destination, source.axisH).subtract(destination.axisH).length(), EPS,
+        assertEquals(0.0, PortalFacing.transformVector(source, destination, source.axisH).subtract(destination.axisH).length(), EPS,
                 "Le haut reste le haut.");
-        assertEquals(0.0, PortalFacing.transformVelocity(source, destination, source.axisW).add(destination.axisW).length(), EPS,
+        assertEquals(0.0, PortalFacing.transformVector(source, destination, source.axisW).add(destination.axisW).length(), EPS,
                 "La largeur est retournee avec la profondeur.");
     }
 
     @Test
-    @DisplayName("Un joueur qui entre face au nord dans une porte nord ressort face a la sortie, sa droite toujours a droite")
+    @DisplayName("Un joueur qui entre par le nord dans un portail nord ressort face a la sortie, sa droite toujours a droite")
     void lookAndHandednessThroughADoor() {
         // Regarder vers le sud (yaw 0) dans un portail oriente nord, sortie orientee est.
         Vec2f look = PortalFacing.transformLook(PortalFacing.NORTH, PortalFacing.EAST, 0.0f, 10.0f);
@@ -103,7 +103,7 @@ class PortalFacingTest {
         assertEquals(10.0f, look.y, 1.0e-4f, "Le tangage est conserve.");
 
         // Un point a droite du joueur (ouest quand il regarde vers le sud) reste a sa droite (sud quand il regarde vers l'est).
-        Vec3d right = PortalFacing.transformVelocity(PortalFacing.NORTH, PortalFacing.EAST, new Vec3d(-1.0, 0.0, 0.0));
+        Vec3d right = PortalFacing.transformVector(PortalFacing.NORTH, PortalFacing.EAST, new Vec3d(-1.0, 0.0, 0.0));
         assertEquals(0.0, right.subtract(new Vec3d(0.0, 0.0, 1.0)).length(), EPS, "La droite du joueur reste sa droite.");
 
         // Nord vers sud : demi-tour complet, le regard garde son yaw.
@@ -114,7 +114,7 @@ class PortalFacingTest {
     @Test
     @DisplayName("Un portail au sol transforme une chute en sortie horizontale")
     void upToNorth() {
-        Vec3d velocity = PortalFacing.transformVelocity(PortalFacing.UP, PortalFacing.NORTH, new Vec3d(0.0, -0.5, 0.0));
+        Vec3d velocity = PortalFacing.transformVector(PortalFacing.UP, PortalFacing.NORTH, new Vec3d(0.0, -0.5, 0.0));
         assertEquals(0.5, velocity.length(), EPS, "Norme conservee.");
         assertTrue(velocity.z < 0.0, "Tomber dans un portail au sol fait ressortir vers le nord, cote sortie.");
     }

@@ -5,12 +5,16 @@ import java.util.Iterator;
 import java.util.Set;
 
 import it.unimi.dsi.fastutil.ints.IntList;
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
+import net.minecraft.client.option.ParticlesMode;
 import net.minecraft.client.render.BufferBuilderStorage;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.world.ClientChunkManager;
 import net.minecraft.client.world.ClientWorld;
@@ -36,12 +40,20 @@ import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ExperienceOrbSpawnS2CPacket;
 import net.minecraft.network.packet.s2c.play.ItemPickupAnimationS2CPacket;
 import net.minecraft.network.packet.s2c.play.LightData;
+import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket;
+import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
 import net.minecraft.network.packet.s2c.play.RemoveEntityStatusEffectS2CPacket;
+import net.minecraft.network.packet.s2c.play.WorldEventS2CPacket;
+import net.minecraft.particle.ParticleEffect;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.LightType;
 import net.minecraft.world.World;
@@ -51,6 +63,7 @@ import net.minecraft.world.chunk.WorldChunk;
 import net.minecraft.world.chunk.light.LightingProvider;
 import net.minecraft.world.dimension.DimensionType;
 
+import com.petassegang.addons.backrooms.portal.client.sound.FrameSoundPlayer;
 import com.petassegang.addons.backrooms.portal.sync.RemoteChunkWindow;
 import com.petassegang.addons.mixin.client.ClientPlayNetworkHandlerAccessor;
 import com.petassegang.addons.mixin.client.WorldRendererAccessor;
@@ -59,18 +72,22 @@ import com.petassegang.addons.mixin.client.WorldRendererAccessor;
  * Une dimension vue a travers un portail : un {@link ClientWorld} et un {@link WorldRenderer} dedie, dessines
  * depuis une camera transposee par {@link RemoteViewRenderer}.
  *
- * <p>Deux formes. Le monde distant proprement dit est nourri par les payloads du serveur (chunks,
- * blocs, paquets d'entities) et tique ses entities pour les interpoler ; il n'a ni particules, ni
- * sons, ni tick de blocs. La vue secondaire du monde principal partage le monde du joueur, deja
- * entretenu par vanilla, et ne possede que son renderer : elle sert aux portails qui ramenent dans la
- * dimension courante, directement ou imbriques dans un autre portail.
+ * <p>Deux formes. Le monde distant proprement dit est nourri par les payloads du serveur (chunks, blocs, paquets
+ * d'entities, sons, evenements et particules) : il tique ses entities pour les interpoler et, tant qu'une vue le montre,
+ * ses particules et les effets d'ambiance de ses blocs ; ses sons ressortent par le cadre qui les rapproche du joueur
+ * ({@link FrameSoundPlayer}). La vue secondaire du monde principal partage le monde du joueur, deja entretenu par
+ * vanilla, et ne possede que son renderer : elle sert aux portails qui ramenent dans la dimension courante,
+ * directement ou imbriques dans un autre portail.
  */
 public final class RemoteWorld {
 
     private static final int RENDER_BUFFER_COUNT = 2;
     private static final int SIMULATION_DISTANCE = 2;
-    /** Paquets d'entities vanilla qu'un monde distant accepte ; les autres concernent le joueur lui-meme ou son monde. */
-    private static final Set<Class<?>> ENTITY_PACKETS = Set.of(
+    /**
+     * Paquets vanilla qu'un monde distant applique avec le gestionnaire du client : ceux de ses entities et ses
+     * particules. Les autres concernent le joueur lui-meme ou son monde.
+     */
+    private static final Set<Class<?>> HANDLED_PACKETS = Set.of(
             EntitySpawnS2CPacket.class,
             ExperienceOrbSpawnS2CPacket.class,
             EntityS2CPacket.MoveRelative.class,
@@ -89,20 +106,37 @@ public final class RemoteWorld {
             EntityAnimationS2CPacket.class,
             EntityStatusS2CPacket.class,
             EntityDamageS2CPacket.class,
-            ItemPickupAnimationS2CPacket.class);
+            ItemPickupAnimationS2CPacket.class,
+            ParticleS2CPacket.class);
+    /** Les particules ne s'ajoutent que pres de la camera de la vue, comme vanilla pres de celle du joueur. */
+    private static final double PARTICLE_RANGE_SQUARED = 32.0 * 32.0;
+    /** Une vue dessinee depuis moins longtemps que cela fait vivre ses particules et ses effets d'ambiance. */
+    private static final long VIEW_RECENT_TICKS = 40L;
+    /** Tirages par tick des effets d'ambiance des blocs (flammes, fumee, gouttes), comme vanilla autour du joueur. */
+    private static final int DISPLAY_TICKS = 667;
+    private static final int DISPLAY_NEAR_RADIUS = 16;
+    private static final int DISPLAY_FAR_RADIUS = 32;
 
     private final ClientWorld world;
     private final WorldRenderer renderer;
-    /** Vrai pour la vue secondaire du monde principal : chunks, entities et paquets restent geres par vanilla. */
-    private final boolean mirror;
     private final RemoteViewRenderer viewRenderer;
+    /**
+     * Particules de ce monde ; celles de l'ancien monde principal le suivent a la traversee. Aucune pour la vue
+     * secondaire : elle montre celles du gestionnaire, et n'est jamais tiquee ni nourrie de paquets, seulement dessinee.
+     */
+    private final @Nullable RemoteParticles particles;
     private int centerChunkX = Integer.MIN_VALUE;
     private int centerChunkZ = Integer.MIN_VALUE;
+    /** Camera de la derniere vue dessinee et heure du monde a ce moment : les particules naissent et vivent autour d'elle. */
+    private @Nullable Vec3d lastViewCamera;
+    private long lastViewTime = Long.MIN_VALUE;
+    private final Random displayRandom = Random.create();
+    private final BlockPos.Mutable displayPos = new BlockPos.Mutable();
 
-    private RemoteWorld(ClientWorld world, WorldRenderer renderer, boolean mirror) {
+    private RemoteWorld(ClientWorld world, WorldRenderer renderer, @Nullable RemoteParticles particles) {
         this.world = world;
         this.renderer = renderer;
-        this.mirror = mirror;
+        this.particles = particles;
         this.viewRenderer = new RemoteViewRenderer(this);
     }
 
@@ -125,7 +159,7 @@ public final class RemoteWorld {
                 false,
                 0L);
         renderer.setWorld(world);
-        return new RemoteWorld(world, renderer, false);
+        return new RemoteWorld(world, renderer, new RemoteParticles(world));
     }
 
     /**
@@ -135,10 +169,11 @@ public final class RemoteWorld {
      * @param renderer son renderer, qui garde ses sections construites
      * @param centerChunkX chunk du joueur au moment du passage
      * @param centerChunkZ chunk du joueur au moment du passage
+     * @param particles ses particules, rendues par le gestionnaire au moment de la traversee
      * @return monde distant pret a etre rendu a travers le portail de retour
      */
-    static RemoteWorld adopt(ClientWorld world, WorldRenderer renderer, int centerChunkX, int centerChunkZ) {
-        RemoteWorld remote = new RemoteWorld(world, renderer, false);
+    static RemoteWorld adopt(ClientWorld world, WorldRenderer renderer, int centerChunkX, int centerChunkZ, RemoteParticles particles) {
+        RemoteWorld remote = new RemoteWorld(world, renderer, particles);
         remote.centerChunkX = centerChunkX;
         remote.centerChunkZ = centerChunkZ;
         // Meme carte de chunks que les mondes distants crees de zero : les chunks existants sont conserves.
@@ -151,7 +186,8 @@ public final class RemoteWorld {
     static RemoteWorld mirror(MinecraftClient client, ClientWorld world) {
         WorldRenderer renderer = newRenderer(client);
         renderer.setWorld(world);
-        return new RemoteWorld(world, renderer, true);
+        // La vue secondaire montre les particules du monde principal, celles du gestionnaire : elle n'en a pas a elle.
+        return new RemoteWorld(world, renderer, null);
     }
 
     private static WorldRenderer newRenderer(MinecraftClient client) {
@@ -162,22 +198,91 @@ public final class RemoteWorld {
                 new BufferBuilderStorage(RENDER_BUFFER_COUNT));
     }
 
+    /** Monde client de cette dimension : le monde distant, ou le monde du joueur pour la vue secondaire. */
     public ClientWorld world() {
         return this.world;
     }
 
+    /** Renderer dedie a ce monde. */
     public WorldRenderer renderer() {
         return this.renderer;
-    }
-
-    /** {@code true} pour la vue secondaire du monde principal. */
-    public boolean isMirror() {
-        return this.mirror;
     }
 
     /** Dessin de ce monde depuis une camera transposee. */
     public RemoteViewRenderer viewRenderer() {
         return this.viewRenderer;
+    }
+
+    /** Particules de ce monde. */
+    RemoteParticles particles() {
+        return this.particles;
+    }
+
+    /** Une vue de ce monde vient d'etre dessinee depuis cette camera : particules et effets d'ambiance vivent autour d'elle. */
+    void markViewed(Vec3d cameraPos) {
+        this.lastViewCamera = cameraPos;
+        this.lastViewTime = this.world.getTime();
+    }
+
+    /** {@code true} si une vue de ce monde a ete dessinee il y a peu. */
+    private boolean recentlyViewed() {
+        return this.lastViewCamera != null && this.world.getTime() - this.lastViewTime <= VIEW_RECENT_TICKS;
+    }
+
+    /**
+     * Ajoute une particule de ce monde, avec les memes regles que vanilla autour du joueur (portee, reglage des
+     * particules), autour de la camera de la derniere vue ; un monde que personne ne regarde n'en cree pas.
+     */
+    public void spawnParticle(
+            MinecraftClient client,
+            ParticleEffect effect,
+            boolean alwaysSpawn,
+            boolean important,
+            double x,
+            double y,
+            double z,
+            double velocityX,
+            double velocityY,
+            double velocityZ) {
+        if (!recentlyViewed()) {
+            return;
+        }
+        if (!alwaysSpawn && (this.lastViewCamera.squaredDistanceTo(x, y, z) > PARTICLE_RANGE_SQUARED
+                || particlesMode(client, important) == ParticlesMode.MINIMAL)) {
+            return;
+        }
+        RemoteParticles previous = this.particles.enter(client.particleManager);
+        try {
+            client.particleManager.addParticle(effect, x, y, z, velocityX, velocityY, velocityZ);
+        } finally {
+            this.particles.exit(client.particleManager, previous);
+        }
+    }
+
+    /** Reglage des particules, avec le tirage de vanilla : en reduit, une sur trois tombe ; en minimal, les importantes passent parfois. */
+    private ParticlesMode particlesMode(MinecraftClient client, boolean canSpawnOnMinimal) {
+        ParticlesMode mode = client.options.getParticles().getValue();
+        if (canSpawnOnMinimal && mode == ParticlesMode.MINIMAL && this.world.random.nextInt(10) == 0) {
+            mode = ParticlesMode.DECREASED;
+        }
+        if (mode == ParticlesMode.DECREASED && this.world.random.nextInt(3) == 0) {
+            mode = ParticlesMode.MINIMAL;
+        }
+        return mode;
+    }
+
+    /** Dessine les particules de ce monde depuis la camera d'une vue, dans le contenu du gestionnaire. */
+    void renderParticles(MinecraftClient client, LightmapTextureManager lightmap, Camera camera, float tickDelta) {
+        if (this.particles == null) {
+            client.particleManager.renderParticles(lightmap, camera, tickDelta);
+            return;
+        }
+        RemoteParticles previous = this.particles.enter(client.particleManager);
+        try {
+            client.particleManager.renderParticles(lightmap, camera, tickDelta);
+        } finally {
+            this.particles.exit(client.particleManager, previous);
+        }
     }
 
     /** Charge (ou remplace) un chunk recu du serveur, avec sa lumiere, et programme son rendu. */
@@ -234,7 +339,7 @@ public final class RemoteWorld {
      */
     public void applyEntityPacket(MinecraftClient client, Packet<? super ClientPlayPacketListener> packet) {
         ClientPlayNetworkHandler handler = client.getNetworkHandler();
-        if (this.mirror || handler == null) {
+        if (handler == null) {
             return;
         }
         if (packet instanceof EntitiesDestroyS2CPacket destroy) {
@@ -244,9 +349,36 @@ public final class RemoteWorld {
             }
             return;
         }
-        if (!ENTITY_PACKETS.contains(packet.getClass())) {
+        if (packet instanceof PlaySoundS2CPacket sound) {
+            // Vanilla jouerait le son dans le monde du joueur : il passe par le portail qui le rapproche de lui.
+            FrameSoundPlayer.redirect(this.world, sound.getX(), sound.getY(), sound.getZ(), sound.getSound().value(), sound.getCategory(),
+                    sound.getVolume(), sound.getPitch(), false, sound.getSeed());
             return;
         }
+        if (packet instanceof PlaySoundFromEntityS2CPacket sound) {
+            Entity source = this.world.getEntityById(sound.getEntityId());
+            if (source != null) {
+                FrameSoundPlayer.redirect(this.world, source.getX(), source.getY(), source.getZ(), sound.getSound().value(), sound.getCategory(),
+                        sound.getVolume(), sound.getPitch(), false, sound.getSeed());
+            }
+            return;
+        }
+        RemoteParticles previous = this.particles.enter(client.particleManager);
+        try {
+            if (packet instanceof WorldEventS2CPacket event) {
+                // Bloc casse, porte, feu d'artifice : sons et particules de l'evenement, dans ce monde.
+                if (!event.isGlobal()) {
+                    this.world.syncWorldEvent(event.getEventId(), event.getPos(), event.getData());
+                }
+            } else if (HANDLED_PACKETS.contains(packet.getClass())) {
+                applyWithHandler(handler, packet);
+            }
+        } finally {
+            this.particles.exit(client.particleManager, previous);
+        }
+    }
+
+    private void applyWithHandler(ClientPlayNetworkHandler handler, Packet<? super ClientPlayPacketListener> packet) {
         ClientPlayNetworkHandlerAccessor accessor = (ClientPlayNetworkHandlerAccessor) handler;
         ClientWorld bound = handler.getWorld();
         accessor.backrooms$setWorld(this.world);
@@ -259,19 +391,42 @@ public final class RemoteWorld {
 
     /** Heure et meteo sont celles du serveur, communes a toutes ses dimensions : le monde distant suit le monde principal. */
     public void syncEnvironment(ClientWorld main) {
-        if (this.mirror) {
-            return;
-        }
         this.world.setTime(main.getTime());
         this.world.setTimeOfDay(main.getTimeOfDay());
         this.world.setRainGradient(main.getRainGradient(1.0f));
         this.world.setThunderGradient(main.getThunderGradient(1.0f));
     }
 
-    /** Tick client : interpolation et animations des entities et block entities recues du serveur. */
-    public void tickEntities() {
-        if (!this.mirror) {
+    /**
+     * Tick client : interpolation et animations des entities et block entities recues du serveur, puis, si une vue de
+     * ce monde a ete dessinee il y a peu, vie de ses particules et effets d'ambiance de ses blocs autour de la camera
+     * de cette vue (flammes, fumee, gouttes, sons du feu). Tout se passe dans le contenu de particules de ce monde.
+     */
+    public void tick(MinecraftClient client) {
+        RemoteParticles previous = this.particles.enter(client.particleManager);
+        try {
             this.world.tickEntities();
+            if (recentlyViewed()) {
+                client.particleManager.tick();
+                displayTicks();
+            }
+        } finally {
+            this.particles.exit(client.particleManager, previous);
+        }
+        if (!recentlyViewed()) {
+            // Personne ne regarde plus : les particules restantes ne seraient jamais dessinees.
+            this.particles.clear();
+        }
+    }
+
+    /** Effets d'ambiance des blocs autour de la camera de la derniere vue, tires comme vanilla autour du joueur. */
+    private void displayTicks() {
+        int x = MathHelper.floor(this.lastViewCamera.x);
+        int y = MathHelper.floor(this.lastViewCamera.y);
+        int z = MathHelper.floor(this.lastViewCamera.z);
+        for (int i = 0; i < DISPLAY_TICKS; i++) {
+            this.world.randomBlockDisplayTick(x, y, z, DISPLAY_NEAR_RADIUS, this.displayRandom, null, this.displayPos);
+            this.world.randomBlockDisplayTick(x, y, z, DISPLAY_FAR_RADIUS, this.displayRandom, null, this.displayPos);
         }
     }
 

@@ -12,6 +12,7 @@
       "com.petassegang.addons.gametest.backrooms.portal.PortalGameTests",
       "com.petassegang.addons.gametest.backrooms.portal.PortalSyncGameTests",
       "com.petassegang.addons.gametest.backrooms.portal.PortalInteractionGameTests",
+      "com.petassegang.addons.gametest.backrooms.portal.PortalPropagationGameTests",
       "com.petassegang.addons.gametest.feature.ItemGameTests"
     ]
   },

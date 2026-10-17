@@ -23,7 +23,7 @@ test(generation): verrouille les empreintes du layer 4
 - [ ] `./gradlew clean build --warning-mode all` : succès, **zéro warning**
 - [ ] `./gradlew test` : vert (JaCoCo généré)
 - [ ] `./gradlew runGameTest` : vert (le build l'enchaîne de toute façon)
-- [ ] Couverture fusionnée : 100 % des instructions, 96 % des branches (`jacocoCoverageVerification`, dans le build)
+- [ ] Couverture fusionnée : 100 % des instructions et des branches (`jacocoCoverageVerification`, dans le build)
 - [ ] Checkstyle vert (`config/checkstyle/`, dans le build) et JAR sans dépendance ni test (`verifyJarContents`, dans le build)
 - [ ] `LevelZeroGoldenTest` : si les empreintes changent, c'est voulu et c'est dans le CHANGELOG
 - [ ] Nouveau contenu = test de comportement (pas de réflexion), clés EN **et** FR, modèle + texture + loot table
@@ -39,7 +39,7 @@ Le détail pas à pas est dans `docs/prompt/BEFOREPUSH.md`.
 |-------|--------|
 | Encodage | UTF-8 ; sources Java en ASCII (pas d'accents dans le code ni les commentaires) |
 | Indentation | 4 espaces, lignes ≤ 130 caractères |
-| Imports | `java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang`, aucun wildcard |
+| Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang`, aucun wildcard |
 | Javadoc | classes publiques et méthodes non triviales, en français |
 | Commentaires et logs | français, majuscule initiale, point final, via `ModConstants.LOGGER` |
 | Allocation | aucune dans les méthodes tick/render ; noms de sections perf en constantes |

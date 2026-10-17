@@ -53,8 +53,9 @@ public final class LevelZeroWallpaperBlock extends Block {
     @Override
     public void onBlockAdded(BlockState state, World world, BlockPos pos, BlockState oldState, boolean notify) {
         super.onBlockAdded(state, world, pos, oldState, notify);
-        // Le setBlockState ci-dessous redeclenche onBlockAdded avec oldState == ce bloc : on sort.
-        if (world.isClient() || state.isOf(oldState.getBlock())) {
+        // Vanilla n'appelle onBlockAdded que cote serveur. Le setBlockState ci-dessous la redeclenche avec oldState == ce
+        // bloc : on sort.
+        if (state.isOf(oldState.getBlock())) {
             return;
         }
         int newMask = sampleFaceMask(world, pos);

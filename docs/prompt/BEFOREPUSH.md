@@ -28,7 +28,7 @@ montre la sortie, corrige avant de passer au point suivant. Ne dis jamais « c'e
 ```bash
 ./gradlew jacocoCoverageVerification
 ```
-- [ ] Vert : 100 % des instructions et au moins 96 % des branches du code mesuré (unitaire + en jeu). Rapport fusionné :
+- [ ] Vert : 100 % des instructions et des branches du code mesuré (unitaire + en jeu). Rapport fusionné :
       `build/reports/jacoco/full/html/index.html`.
       Une instruction non couverte se lit dans ce rapport ; on écrit le test, on n'exclut pas la classe.
 
@@ -62,7 +62,7 @@ grep -rn "TODO\|FIXME" src/main/java --include=*.java
 ## 6. Documentation
 
 - [ ] `docs/CHANGELOG.md` à jour (section `[Unreleased]` ou version).
-- [ ] Doc métier concernée à jour : `BLOCKS.md`, `ITEMS.md`, `DIMENSIONS.md`, `ENTITIES.md`, `ARCHITECTURE.md`, `TESTING.md`.
+- [ ] Doc métier concernée à jour : `BLOCKS.md`, `ITEMS.md`, `DIMENSIONS.md`, `ENTITIES.md`, `PORTALS.md`, `ARCHITECTURE.md`, `TESTING.md`.
 - [ ] `README.md` si la structure ou les commandes ont changé.
 
 ## 7. Nettoyage

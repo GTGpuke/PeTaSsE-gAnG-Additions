@@ -48,7 +48,7 @@ public final class DebugPortalCommand {
             String line = portal.getWorld().getRegistryKey().getValue() + " " + portal.getBlockPos().toShortString()
                     + " " + portal.facingSource() + " -> " + portal.destinationDim().getValue() + " "
                     + portal.destinationPos() + " " + portal.facingDestination()
-                    + (portal.ownerPos() == null ? " (libre)" : " (porte " + portal.ownerPos().toShortString() + ")");
+                    + (portal.owner() == null ? " (libre)" : " (porte " + portal.owner().pos().toShortString() + ")");
             context.getSource().sendFeedback(() -> Text.literal(line), false);
         }
         int count = portals.size();

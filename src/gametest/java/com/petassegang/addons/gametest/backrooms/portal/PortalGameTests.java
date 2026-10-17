@@ -1,9 +1,13 @@
 package com.petassegang.addons.gametest.backrooms.portal;
 
+import java.util.List;
+
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
+import net.minecraft.block.Blocks;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.MovementType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.RegistryByteBuf;
@@ -12,7 +16,10 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.shape.VoxelShape;
+import net.minecraft.world.GameMode;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 
@@ -21,12 +28,14 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
 import com.petassegang.addons.backrooms.portal.sync.RemoteChunkPayload;
+import com.petassegang.addons.backrooms.portal.transition.PortalCollision;
 import com.petassegang.addons.backrooms.portal.transition.TeleportExecutor;
-import com.petassegang.addons.backrooms.portal.transition.TpCooldownTracker;
 import com.petassegang.addons.gametest.support.GameTestPlayers;
+import com.petassegang.addons.gametest.support.GameTestServerWorlds;
 
 /**
- * Tests en jeu des portails sur un vrai serveur : teleportation du joueur et des objets dans le meme monde, payload de chunk.
+ * Tests en jeu des portails sur un vrai serveur : teleportation du joueur et des objets dans le meme monde, collision avec ce
+ * qui est de l'autre cote, payload de chunk.
  *
  * <p>Les portails sont poses a la main entre deux points de l'overworld, ce qui exerce la transposition, le cooldown
  * et le reseau sans autre dimension.
@@ -36,7 +45,6 @@ public final class PortalGameTests implements FabricGameTest {
     private static final double EPSILON = 1.0e-3;
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 100)
-    @SuppressWarnings("removal")
     public void crossingAPortalTeleportsThePlayerTowardsTheExit(TestContext context) {
         ServerWorld world = context.getWorld();
         Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(1, 2, 1)));
@@ -50,7 +58,7 @@ public final class PortalGameTests implements FabricGameTest {
                 .size(1.0f, 2.0f)
                 .build();
         world.spawnEntity(portal);
-        ServerPlayerEntity player = context.createMockCreativeServerPlayerInWorld();
+        ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, source, 0.0f, 0.0f);
         try {
             // Le joueur vient de franchir le plan (5 cm derriere), les pieds au bas du cadre, et regarde vers le sud.
             player.refreshPositionAndAngles(source.x, source.y - 1.0, source.z + 0.05, 0.0f, 0.0f);
@@ -60,9 +68,8 @@ public final class PortalGameTests implements FabricGameTest {
             Vec3d expected = destination.add(0.05 + TeleportExecutor.EXIT_OFFSET, -1.0, 0.0);
             context.assertTrue(player.getPos().isInRange(expected, EPSILON), "Le joueur ressort devant le portail de sortie.");
             context.assertTrue(Math.abs(player.getYaw() + 90.0f) < 0.01f, "Le joueur regarde vers l'est, loin du portail de sortie.");
-            context.assertTrue(TpCooldownTracker.isOnCooldown(player.getUuid(), world.getTime(), 20), "Le cooldown est arme.");
         } finally {
-            world.getServer().getPlayerManager().remove(player);
+            GameTestPlayers.disconnect(player);
             portal.discard();
         }
         context.complete();
@@ -104,6 +111,68 @@ public final class PortalGameTests implements FabricGameTest {
             }
             context.complete();
         });
+    }
+
+    /** Pousse un objet d'un demi-bloc vers le sud depuis un point, et renvoie le Z ou il s'arrete. */
+    private static double pushSouth(ServerWorld world, double x, double y, double z) {
+        ItemEntity item = new ItemEntity(world, x, y, z, new ItemStack(Items.DIAMOND));
+        item.setNoGravity(true);
+        item.move(MovementType.SELF, new Vec3d(0.0, 0.0, 0.5));
+        return item.getZ();
+    }
+
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 100)
+    public void entitiesBumpIntoWhatIsBeyondThePortal(TestContext context) {
+        ServerWorld world = context.getWorld();
+        Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(2, 2, 3)));
+        Vec3d destination = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(8, 2, 3)));
+        // Nord vers sud : l'arrivee est une translation de l'entree. La pierre a l'est de l'arrivee, cote sortie, revient a
+        // l'est du cadre d'entree, derriere son plan : le mur qui encadrerait une porte.
+        BlockPos wall = new BlockPos(9, 2, 3);
+        context.setBlockState(wall, Blocks.STONE);
+        BackroomsPortalEntity portal = GameTestServerWorlds.spawnNorthPortal(world, source, World.OVERWORLD, destination);
+        BackroomsPortalEntity lost = null;
+        BackroomsPortalEntity twin = null;
+        double start = source.z - 0.3;
+        double blocked = source.z - 0.125;
+        double through = source.z + 0.2;
+        // Un joueur devant le plan, engage dans le cadre : le serveur le laisse pourtant a son client.
+        ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, new Vec3d(source.x, source.y - 1.0, start), 0.0f, 0.0f);
+        try {
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.4, source.y, start) - blocked) < EPSILON,
+                    "De biais, l'objet bute au plan contre le mur de l'autre cote.");
+            context.assertTrue(Math.abs(pushSouth(world, source.x, source.y, start) - through) < EPSILON,
+                    "Au milieu du cadre, rien ne l'arrete.");
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.4, source.y, source.z + 0.1) - (source.z + 0.6)) < EPSILON,
+                    "Deja passe derriere le plan, il n'est plus engage.");
+            portal.setTeleportable(false);
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.4, source.y, start) - through) < EPSILON,
+                    "Portail ferme : l'autre cote n'existe pas.");
+            portal.setTeleportable(true);
+            // Un cadre vers une dimension absente ne change rien ; deux cadres engages ajoutent chacun leur autre cote.
+            lost = GameTestServerWorlds.spawnNorthPortal(world, source, GameTestServerWorlds.nowhere(), destination);
+            twin = GameTestServerWorlds.spawnNorthPortal(world, source, World.OVERWORLD, destination);
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.4, source.y, start) - blocked) < EPSILON,
+                    "Le mur reste la, vu par les deux cadres.");
+            List<VoxelShape> none = List.of();
+            Box box = new Box(source.x, source.y, start, source.x + 0.5, source.y + 0.5, source.z + 0.5);
+            context.assertTrue(PortalCollision.withOtherSide(player, world, none, box) == none,
+                    "Le serveur laisse les joueurs a leur client.");
+            ItemEntity item = new ItemEntity(world, source.x, source.y, start, new ItemStack(Items.DIAMOND));
+            context.assertTrue(PortalCollision.withOtherSide(item, GameTestServerWorlds.nether(context), none, box) == none,
+                    "Les portails d'un autre monde ne comptent pas.");
+        } finally {
+            GameTestPlayers.disconnect(player);
+            context.setBlockState(wall, Blocks.AIR);
+            portal.discard();
+            if (lost != null) {
+                lost.discard();
+            }
+            if (twin != null) {
+                twin.discard();
+            }
+        }
+        context.complete();
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA)

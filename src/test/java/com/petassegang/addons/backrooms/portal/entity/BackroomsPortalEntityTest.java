@@ -19,11 +19,13 @@ import net.minecraft.entity.data.TrackedDataHandlerRegistry;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import com.petassegang.addons.MinecraftTestBootstrap;
 import com.petassegang.addons.backrooms.BackroomsConstants;
+import com.petassegang.addons.init.ModEntities;
 
 @DisplayName("Entity portail")
 class BackroomsPortalEntityTest {
@@ -57,7 +59,7 @@ class BackroomsPortalEntityTest {
         assertFalse(portal.teleportable(), "Teleportation desactivee.");
         assertFalse(portal.visible(), "Invisible.");
         assertFalse(portal.canHit(), "Un portail ne peut pas etre frappe.");
-        assertNull(portal.ownerPos(), "Portail libre, sans porte.");
+        assertNull(portal.owner(), "Portail libre, sans porte.");
         portal.setTeleportable(true);
         assertTrue(portal.teleportable(), "Teleportation reactivee.");
     }
@@ -98,7 +100,7 @@ class BackroomsPortalEntityTest {
         NbtCompound nbt = new NbtCompound();
         original.writeCustomDataToNbt(nbt);
 
-        BackroomsPortalEntity restored = new BackroomsPortalEntity(BackroomsPortalEntityType.INSTANCE, null);
+        BackroomsPortalEntity restored = new BackroomsPortalEntity(ModEntities.BACKROOMS_PORTAL, null);
         restored.readCustomDataFromNbt(nbt);
         assertEquals(original.facingSource(), restored.facingSource(), "Orientation source.");
         assertEquals(original.facingDestination(), restored.facingDestination(), "Orientation destination.");
@@ -108,8 +110,7 @@ class BackroomsPortalEntityTest {
         assertEquals(original.height(), restored.height(), 1e-6f, "Hauteur.");
         assertEquals(original.teleportable(), restored.teleportable(), "Teleportable.");
         assertEquals(original.visible(), restored.visible(), "Visible.");
-        assertEquals(World.OVERWORLD, restored.ownerDimension(), "Dimension de la porte proprietaire.");
-        assertEquals(new BlockPos(4, 65, -9), restored.ownerPos(), "Position de la porte proprietaire.");
+        assertEquals(GlobalPos.create(World.OVERWORLD, new BlockPos(4, 65, -9)), restored.owner(), "Dimension et position de la porte proprietaire.");
 
         NbtCompound free = new NbtCompound();
         validBuilder().build().writeCustomDataToNbt(free);
@@ -124,14 +125,14 @@ class BackroomsPortalEntityTest {
         nbt.putString("DestinationDim", "");
         nbt.putFloat("Width", -4.0f);
         nbt.putString("OwnerDim", "");
-        BackroomsPortalEntity portal = new BackroomsPortalEntity(BackroomsPortalEntityType.INSTANCE, null);
+        BackroomsPortalEntity portal = new BackroomsPortalEntity(ModEntities.BACKROOMS_PORTAL, null);
         portal.readCustomDataFromNbt(nbt);
         assertEquals(PortalFacing.NORTH, portal.facingSource(), "Orientation par defaut.");
         assertEquals(World.OVERWORLD, portal.destinationDim(), "Dimension par defaut.");
         assertEquals(0.1f, portal.width(), 1e-6f, "Largeur minimale.");
         assertTrue(portal.visible(), "Visible par defaut.");
         assertTrue(portal.teleportable(), "Teleportable par defaut.");
-        assertNull(portal.ownerPos(), "Une porte sans position n'est pas retenue.");
+        assertNull(portal.owner(), "Une porte sans position n'est pas retenue.");
     }
 
     @Test
@@ -175,25 +176,42 @@ class BackroomsPortalEntityTest {
     }
 
     @Test
-    @DisplayName("Une orientation hors bornes recue du reseau retombe sur le nord ; une destination mise a jour invalide le cache")
+    @DisplayName("Une orientation hors bornes recue du reseau retombe sur le nord ; une destination mise a jour invalide les caches")
     void trackedDataUpdates() {
         BackroomsPortalEntity portal = validBuilder().facingSource(PortalFacing.EAST).facingDestination(PortalFacing.WEST).build();
         Vec3d destination = portal.destinationPos();
         assertSame(destination, portal.destinationPos(), "Le centre d'arrivee est mis en cache.");
-        // Identifiants du tracker : les huit premiers sont ceux d'Entity, les notres suivent dans l'ordre de declaration.
-        int facingSourceId = 8;
-        int facingDestinationId = 9;
-        int destinationXId = 11;
+        assertSame(portal.destinationDim(), portal.destinationDim(), "La dimension d'arrivee aussi.");
         portal.getDataTracker().writeUpdatedEntries(List.of(
-                new DataTracker.SerializedEntry<>(facingSourceId, TrackedDataHandlerRegistry.INTEGER, 99),
-                new DataTracker.SerializedEntry<>(facingDestinationId, TrackedDataHandlerRegistry.INTEGER, -1),
-                new DataTracker.SerializedEntry<>(destinationXId, TrackedDataHandlerRegistry.LONG, Double.doubleToRawLongBits(42.5))));
+                new DataTracker.SerializedEntry<>(BackroomsPortalEntity.TRACKED_FACING_SOURCE.id(), TrackedDataHandlerRegistry.INTEGER, 99),
+                new DataTracker.SerializedEntry<>(BackroomsPortalEntity.TRACKED_FACING_DESTINATION.id(), TrackedDataHandlerRegistry.INTEGER, -1),
+                new DataTracker.SerializedEntry<>(BackroomsPortalEntity.TRACKED_DESTINATION_X.id(), TrackedDataHandlerRegistry.LONG,
+                        Double.doubleToRawLongBits(42.5)),
+                new DataTracker.SerializedEntry<>(BackroomsPortalEntity.TRACKED_DESTINATION_DIM.id(), TrackedDataHandlerRegistry.STRING,
+                        World.NETHER.getValue().toString()),
+                new DataTracker.SerializedEntry<>(BackroomsPortalEntity.TRACKED_TELEPORTABLE.id(), TrackedDataHandlerRegistry.BOOLEAN, false)));
         assertEquals(PortalFacing.NORTH, portal.facingSource(), "Ordinal trop grand : nord.");
         assertEquals(PortalFacing.NORTH, portal.facingDestination(), "Ordinal negatif : nord.");
         Vec3d updated = portal.destinationPos();
         assertNotEquals(destination, updated, "Le cache a ete invalide par la mise a jour.");
         assertEquals(42.5, updated.x, 1e-9, "Nouvelle abscisse d'arrivee.");
         assertEquals(destination.y, updated.y, 1e-9, "Ordonnee inchangee.");
+        assertEquals(World.NETHER, portal.destinationDim(), "La nouvelle dimension remplace celle du cache.");
+        assertFalse(portal.teleportable(), "La fermeture arrive au client par le tracker.");
+    }
+
+    @Test
+    @DisplayName("Un point passe de l'autre cote puis revient a l'identique : l'aller et le retour sont inverses")
+    void toAndFromDestinationAreInverse() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        Vec3d point = new Vec3d(11.25, 65.5, 17.0);
+        Vec3d there = portal.toDestination(point);
+        assertEquals(PortalFacing.transformPoint(PortalFacing.NORTH, portal.getPos(), PortalFacing.EAST, portal.destinationPos(), point),
+                there, "Meme passage que celui des orientations.");
+        Vec3d back = portal.fromDestination(there);
+        assertEquals(point.x, back.x, 1e-9, "X.");
+        assertEquals(point.y, back.y, 1e-9, "Y.");
+        assertEquals(point.z, back.z, 1e-9, "Z.");
     }
 
     @Test
@@ -210,19 +228,28 @@ class BackroomsPortalEntityTest {
         portal.readCustomDataFromNbt(nbt);
         assertTrue(portal.visible(), "Sans cle, le portail est visible.");
         assertTrue(portal.teleportable(), "Sans cle, le portail est traversable.");
-        assertNull(portal.ownerPos(), "Une dimension de porte sans position ne fait pas un proprietaire.");
-        assertNull(portal.ownerDimension(), "Idem pour la dimension.");
+        assertNull(portal.owner(), "Une dimension de porte sans position ne fait pas un proprietaire.");
     }
 
     @Test
-    @DisplayName("Le cadre contient un point du plan dans sa largeur et sa hauteur, marge comprise, et rien au-dela")
+    @DisplayName("Le point du cadre le plus proche d'une source est sa projection sur le plan, ramenee dans le cadre")
+    void nearestFramePoint() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        // Portail nord de 2 x 3 centre en (10, 64, 20) : largeur le long de X, hauteur le long de Y, plan en Z = 20.
+        assertEquals(new Vec3d(10.5, 64.5, 20.0), portal.nearestFramePoint(10.5, 64.5, 15.0), "Devant le cadre : projection droite.");
+        assertEquals(new Vec3d(9.0, 65.5, 20.0), portal.nearestFramePoint(4.0, 80.0, 12.0), "Loin en biais : le coin le plus proche.");
+        assertEquals(new Vec3d(11.0, 62.5, 20.0), portal.nearestFramePoint(30.0, 50.0, 25.0), "Derriere, en bas a l'est : l'autre coin.");
+    }
+
+    @Test
+    @DisplayName("Le cadre contient un point du plan dans sa largeur et sa hauteur, et rien au-dela")
     void frameContains() {
         BackroomsPortalEntity portal = validBuilder().build();
         // Portail nord de 2 x 3 centre en (10, 64, 20) : largeur le long de X, hauteur le long de Y.
-        assertTrue(portal.frameContains(10.0, 64.0, 20.0, 0.0), "Le centre est dans le cadre.");
-        assertTrue(portal.frameContains(11.4, 65.9, 20.0, 0.5), "Dans la marge, en largeur comme en hauteur.");
-        assertFalse(portal.frameContains(11.6, 64.0, 20.0, 0.5), "Trop a l'est.");
-        assertFalse(portal.frameContains(10.0, 66.1, 20.0, 0.5), "Trop haut.");
-        assertFalse(portal.frameContains(8.4, 61.9, 20.0, 0.5), "Trop a l'ouest et trop bas.");
+        assertTrue(portal.frameContains(10.0, 64.0, 20.0), "Le centre est dans le cadre.");
+        assertTrue(portal.frameContains(10.9, 65.4, 20.0), "Pres du coin, en largeur comme en hauteur.");
+        assertFalse(portal.frameContains(11.1, 64.0, 20.0), "Trop a l'est.");
+        assertFalse(portal.frameContains(10.0, 65.6, 20.0), "Trop haut.");
+        assertFalse(portal.frameContains(8.9, 62.4, 20.0), "Trop a l'ouest et trop bas.");
     }
 }

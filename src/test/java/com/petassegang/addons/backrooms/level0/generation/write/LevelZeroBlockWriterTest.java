@@ -250,6 +250,60 @@ class LevelZeroBlockWriterTest {
     }
 
     @Test
+    @DisplayName("Un echantillon ne recoit rien sous Y = 0 : une tranche plus basse que lui n'y ecrit aucun bloc")
+    void sampleIgnoresBlocksBelowItsBottom() {
+        LevelZeroBlockWriter writer = new LevelZeroBlockWriter(LevelZeroBlockPalette.fromRegistry(), false, false);
+        LevelZeroVerticalSlice below = new LevelZeroVerticalSlice(0, -10, -9, -6, -5, -4, -1);
+        BlockState[] states = column(writer, LevelZeroLayout.generate(0, 0, SEED, 0), below, 1, 1);
+        for (BlockState state : states) {
+            assertTrue(state.isAir(), "Aucun bloc d'une tranche negative n'entre dans l'echantillon.");
+        }
+    }
+
+    @Test
+    @DisplayName("En debug des details muraux, un mur expose sans element et un sous-bloc ferme par un gap restent des murs")
+    void debugWallPropsLeavesPlainWallsAlone() {
+        LevelZeroBlockWriter writer = new LevelZeroBlockWriter(LevelZeroBlockPalette.fromRegistry(), false, true);
+        LevelZeroVerticalSlice slice = LevelZeroVerticalSlice.of(0);
+        boolean plainChecked = false;
+        boolean gapChecked = false;
+        // Sur cette seed, le premier sous-bloc ferme sous un element mural est dans le chunk (-9, -10).
+        for (int chunkX = -10; chunkX <= 10 && !(plainChecked && gapChecked); chunkX++) {
+            for (int chunkZ = -10; chunkZ <= 10 && !(plainChecked && gapChecked); chunkZ++) {
+                LevelZeroLayout layout = LevelZeroLayout.generate(chunkX, chunkZ, SEED, 0);
+                LevelZeroWallSampler sampler = new LevelZeroWallSampler(layout);
+                for (int localX = 0; localX < 16; localX++) {
+                    for (int localZ = 0; localZ < 16; localZ++) {
+                        int worldX = LevelZeroCoords.chunkStart(chunkX) + localX;
+                        int worldZ = LevelZeroCoords.chunkStart(chunkZ) + localZ;
+                        LevelZeroCellEvaluation cell = layout.cellAt(localX, localZ);
+                        if (cell.isLocallyWalkable(LevelZeroCoords.subCell(worldX), LevelZeroCoords.subCell(worldZ))) {
+                            continue;
+                        }
+                        int exposed = sampler.exposedFaceMask(worldX, worldZ);
+                        boolean plain = !plainChecked && !cell.walkable() && exposed != 0
+                                && !LevelZeroWallProps.resolve(worldX, worldZ, exposed, slice).hasFixture();
+                        // Un sous-bloc ferme dont la colonne aurait un element mural : seul le test de la cellule l'en prive.
+                        boolean gap = !gapChecked && cell.walkable() && exposed != 0
+                                && LevelZeroWallProps.resolve(worldX, worldZ, exposed, slice).hasFixture();
+                        if (!plain && !gap) {
+                            continue;
+                        }
+                        BlockState[] states = column(writer, layout, slice, worldX, worldZ);
+                        for (int y = slice.airMinY(); y <= slice.airMaxY(); y++) {
+                            assertTrue(states[y].isOf(ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE), "Le mur reste du papier peint en Y=" + y + ".");
+                        }
+                        plainChecked |= plain;
+                        gapChecked |= gap;
+                    }
+                }
+            }
+        }
+        assertTrue(plainChecked, "Un mur expose sans element mural existe dans l'echantillon.");
+        assertTrue(gapChecked, "Un sous-bloc ferme par un gap, dans une cellule ouverte, existe dans l'echantillon.");
+    }
+
+    @Test
     @DisplayName("En debug des details muraux, une colonne ouverte ou un mur enfoui ne recoivent aucun element")
     void debugWallPropsSkipsOpenColumnsAndBuriedWalls() {
         LevelZeroBlockWriter writer = new LevelZeroBlockWriter(LevelZeroBlockPalette.fromRegistry(), false, true);

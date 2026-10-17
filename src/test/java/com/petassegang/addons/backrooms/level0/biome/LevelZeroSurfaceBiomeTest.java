@@ -24,6 +24,16 @@ class LevelZeroSurfaceBiomeTest {
     }
 
     @Test
+    @DisplayName("Le tirage pondere parcourt les poids des biomes admis, dans l'ordre, et retombe sur la base au-dela")
+    void weightedPick() {
+        assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.pickByWeight(1, 16), "Sous le poids de la base : la base.");
+        assertEquals(LevelZeroSurfaceBiome.RED, LevelZeroSurfaceBiome.pickByWeight(1, 17), "Juste apres : le rouge, admis au layer 1.");
+        assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.pickByWeight(1, 18), "Au-dela de la somme : la base.");
+        assertEquals(LevelZeroSurfaceBiome.BASE, LevelZeroSurfaceBiome.pickByWeight(0, 17),
+                "Au layer 0, le rouge n'est pas admis : au-dela du poids de la base, il est saute.");
+    }
+
+    @Test
     @DisplayName("Le biome rouge n'apparait que sur les layers 1 et 3")
     void redBiomeLayerRestriction() {
         assertTrue(LevelZeroSurfaceBiome.BASE.supportsLayer(0), "Le biome de base est partout.");

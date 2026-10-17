@@ -1,27 +1,37 @@
 package com.petassegang.addons.gametest.backrooms.portal;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
+
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import net.minecraft.block.Blocks;
 import net.minecraft.block.SnowBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.MarkerEntity;
 import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
+import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.command.CommandOutput;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.GameTestException;
 import net.minecraft.test.TestContext;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.GameMode;
@@ -36,10 +46,13 @@ import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegis
 import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
 import com.petassegang.addons.backrooms.portal.sync.PortalCrossPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalViewTracker;
+import com.petassegang.addons.backrooms.portal.sync.RemoteBlockUpdatePayload;
+import com.petassegang.addons.backrooms.portal.sync.RemoteChunkPayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteDimensionPayload;
+import com.petassegang.addons.backrooms.portal.sync.RemoteEntityPacketPayload;
 import com.petassegang.addons.backrooms.portal.transition.TeleportExecutor;
-import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.gametest.support.GameTestPlayers;
+import com.petassegang.addons.gametest.support.GameTestServerWorlds;
 
 /**
  * Tests en jeu de la synchronisation des dimensions distantes et des traversees entre dimensions.
@@ -57,44 +70,29 @@ public final class PortalSyncGameTests implements FabricGameTest {
     private static final double EPSILON = 1.0e-3;
     /** Ticks laisses a la generation du Nether avant de declarer un test en echec (le serveur de test tique sans attendre). */
     private static final int SYNC_PATIENCE_TICKS = 2000;
-    /** Rayon, en chunks, de la zone d'arrivee generee d'avance : la fenetre synchronisee et le ticket elargi tiennent dedans. */
-    private static final int PREGENERATED_RADIUS = 4;
-
-    private static ServerWorld nether(TestContext context) {
-        ServerWorld nether = context.getWorld().getServer().getWorld(World.NETHER);
-        if (nether == null) {
-            throw new GameTestException("Le serveur de test n'a pas de Nether.");
-        }
-        return nether;
-    }
+    /** Arrivee du portail invisible du test de fenetre, a 480 blocs a l'ouest : ses chunks sont loin de tous les autres. */
+    private static final Vec3d HIDDEN_EXIT = NETHER_EXIT.add(-480.0, 0.0, 0.0);
 
     /**
-     * Genere d'avance les chunks du Nether autour de l'arrivee. Le serveur de test tique sans attendre et repart d'un
-     * monde neuf : la generation asynchrone du Nether, elle, prend ses secondes, et depasserait la patience des tests.
+     * Le Nether genere d'avance autour de l'arrivee, et aucun joueur d'un test precedent : les tests qui guettent les
+     * chunks envoyes ({@link PortalViewTracker#watchedChunkCount()}, tous joueurs confondus) ne voient que les leurs.
      */
-    private static void pregenerateArrival(ServerWorld nether, Vec3d arrival) {
-        int centerX = ChunkSectionPos.getSectionCoord(arrival.x);
-        int centerZ = ChunkSectionPos.getSectionCoord(arrival.z);
-        for (int dx = -PREGENERATED_RADIUS; dx <= PREGENERATED_RADIUS; dx++) {
-            for (int dz = -PREGENERATED_RADIUS; dz <= PREGENERATED_RADIUS; dz++) {
-                nether.getChunk(centerX + dx, centerZ + dz);
-            }
-        }
+    private static ServerWorld prepareNether(TestContext context) {
+        GameTestPlayers.disconnectAll();
+        context.assertTrue(PortalViewTracker.watchedChunkCount() == 0, "Aucun joueur d'un autre test n'est encore suivi.");
+        ServerWorld nether = GameTestServerWorlds.nether(context);
+        GameTestServerWorlds.pregenerateArrival(nether, NETHER_EXIT);
+        return nether;
     }
 
     /** Portail vers le Nether, regardant le nord, au point donne du test. */
     private static BackroomsPortalEntity netherPortal(TestContext context, BlockPos relative, Vec3d destination) {
-        ServerWorld world = context.getWorld();
-        BackroomsPortalEntity portal = BackroomsPortalEntity.builder(world)
-                .position(Vec3d.ofCenter(context.getAbsolutePos(relative)))
-                .facingSource(PortalFacing.NORTH)
-                .facingDestination(PortalFacing.SOUTH)
-                .destinationDim(World.NETHER)
-                .destinationPos(destination)
-                .size(1.0f, 2.0f)
-                .build();
-        world.spawnEntity(portal);
-        return portal;
+        return GameTestServerWorlds.spawnNorthPortal(context.getWorld(), Vec3d.ofCenter(context.getAbsolutePos(relative)), World.NETHER, destination);
+    }
+
+    /** {@code true} si ce payload fait apparaitre chez le joueur l'entity de cet identifiant durable. */
+    private static boolean spawnOf(RemoteEntityPacketPayload payload, UUID uuid) {
+        return payload.packet() instanceof EntitySpawnS2CPacket spawn && spawn.getUuid().equals(uuid);
     }
 
     private static BackroomsPortalEntity netherPortal(TestContext context) {
@@ -120,22 +118,26 @@ public final class PortalSyncGameTests implements FabricGameTest {
         return portal;
     }
 
-    private static RegistryKey<World> nowhere() {
-        return RegistryKey.of(RegistryKeys.WORLD, Identifier.of(ModConstants.MOD_ID, "nulle_part"));
-    }
-
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 3000, batchId = "portal_sync_window")
     public void aPlayerLookingAtDimensionPortalsReceivesTheRemoteWindow(TestContext context) {
         ServerWorld world = context.getWorld();
-        ServerWorld nether = nether(context);
-        pregenerateArrival(nether, NETHER_EXIT);
+        ServerWorld nether = prepareNether(context);
         // Le portail lointain est inscrit en premier : le portail proche, examine ensuite, le remplace comme foyer.
         BackroomsPortalEntity farPortal = netherPortal(context, new BlockPos(13, 2, 16), NETHER_EXIT.add(480.0, 0.0, 0.0));
         BackroomsPortalEntity portal = netherPortal(context);
-        // Un troisieme portail dont l'arrivee tient dans la fenetre du premier : leurs chunks voulus se cumulent.
+        // Un troisieme portail dont l'arrivee tient dans la fenetre du premier : leurs chunks voulus se cumulent. Sa fenetre
+        // tient aussi autour de l'arrivee du portail lointain.
         BackroomsPortalEntity sibling = netherPortal(context, PORTAL.east(2), NETHER_EXIT.add(16.0, 0.0, 0.0));
         // Un quatrieme portail vers la meme arrivee que le premier : ils partagent la fenetre chargee et son ticket.
         BackroomsPortalEntity twin = netherPortal(context, PORTAL.west(), NETHER_EXIT);
+        // Un portail du meme monde, ferme, a cote : il ne mene a aucune dimension distante et n'entre pas dans la fenetre.
+        BackroomsPortalEntity local = localPortal(context, Vec3d.ofCenter(context.getAbsolutePos(PORTAL.east(4))),
+                context.getAbsolute(new Vec3d(20.5, 2.0, 20.5)), false);
+        // Un portail invisible (et ferme) vers le Nether, a cote aussi : invisible, sa fenetre n'est jamais envoyee.
+        BackroomsPortalEntity hidden = BackroomsPortalEntity.builder(world).position(Vec3d.ofCenter(context.getAbsolutePos(PORTAL.east(6))))
+                .facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.SOUTH).destinationDim(World.NETHER)
+                .destinationPos(HIDDEN_EXIT).size(1.0f, 2.0f).teleportable(false).visible(false).build();
+        world.spawnEntity(hidden);
         ServerPlayerEntity player = viewer(context, GameMode.CREATIVE);
         BlockPos remoteBlock = BlockPos.ofFloored(NETHER_EXIT).down(3);
         BlockPos farRemoteBlock = BlockPos.ofFloored(NETHER_EXIT).add(600, 0, 0);
@@ -143,8 +145,11 @@ public final class PortalSyncGameTests implements FabricGameTest {
         int[] phase = {0};
         int[] phaseStart = {0};
         ItemEntity[] remoteItem = new ItemEntity[1];
+        MarkerEntity[] marker = new MarkerEntity[1];
         ItemEntity[] thrown = new ItemEntity[1];
+        int[] destroyedId = {-1};
         BlockPos localBlock = context.getAbsolutePos(new BlockPos(20, 0, 20));
+        int hiddenChunkX = ChunkSectionPos.getSectionCoord(HIDDEN_EXIT.x);
 
         for (int tick = 1; tick < 2990; tick++) {
             int now = tick;
@@ -154,12 +159,6 @@ public final class PortalSyncGameTests implements FabricGameTest {
                     case 0 -> {
                         // La fenetre du premier portail arrive, chunk par chunk, des que le Nether est genere.
                         if (PortalViewTracker.watchedChunkCount() > 0) {
-                            remoteItem[0] = new ItemEntity(nether, NETHER_EXIT.x, NETHER_EXIT.y, NETHER_EXIT.z + 1.0, new ItemStack(Items.NETHER_STAR));
-                            remoteItem[0].setNoGravity(true);
-                            nether.spawnEntity(remoteItem[0]);
-                            nether.setBlockState(remoteBlock, Blocks.GLOWSTONE.getDefaultState());
-                            // Un bloc change hors de la fenetre : relaye a personne.
-                            nether.setBlockState(farRemoteBlock, Blocks.GLOWSTONE.getDefaultState());
                             phase[0] = 1;
                             phaseStart[0] = now;
                         } else if (now > SYNC_PATIENCE_TICKS) {
@@ -167,9 +166,36 @@ public final class PortalSyncGameTests implements FabricGameTest {
                         }
                     }
                     case 1 -> {
-                        if (elapsed == 30) {
+                        if (elapsed == 20) {
+                            for (RemoteChunkPayload chunk : GameTestPlayers.sent(player, RemoteChunkPayload.class)) {
+                                context.assertTrue(chunk.dimension().equals(World.NETHER.getValue()) && Math.abs(chunk.chunkX() - hiddenChunkX) > 16,
+                                        "Seules les fenetres des portails visibles vers le Nether sont envoyees : ni celle du portail du "
+                                                + "meme monde, ni celle du portail invisible.");
+                            }
+                            // Le ticket du chargeur d'arrivee tient maintenant l'arrivee : un objet qui y apparait y reste.
+                            remoteItem[0] = new ItemEntity(nether, NETHER_EXIT.x, NETHER_EXIT.y, NETHER_EXIT.z + 1.0, new ItemStack(Items.NETHER_STAR));
+                            remoteItem[0].setNoGravity(true);
+                            nether.spawnEntity(remoteItem[0]);
+                            // Un marqueur n'a pas de suivi vanilla : la vue distante le voit et passe son chemin.
+                            marker[0] = EntityType.MARKER.create(nether);
+                            marker[0].refreshPositionAndAngles(NETHER_EXIT.x + 1.0, NETHER_EXIT.y, NETHER_EXIT.z, 0.0f, 0.0f);
+                            nether.spawnEntity(marker[0]);
+                            nether.setBlockState(remoteBlock, Blocks.GLOWSTONE.getDefaultState());
+                            // Un bloc change hors de la fenetre : relaye a personne.
+                            nether.setBlockState(farRemoteBlock, Blocks.GLOWSTONE.getDefaultState());
+                        } else if (elapsed == 50) {
                             // L'objet distant reste : son suivi sera retire avec la fenetre, puis avec la vue.
-                            context.assertTrue(remoteItem[0].isAlive(), "L'objet distant vit dans le Nether.");
+                            context.assertTrue(nether.getEntity(remoteItem[0].getUuid()) != null, "L'objet distant vit dans le Nether.");
+                            List<RemoteEntityPacketPayload> entities = GameTestPlayers.sent(player, RemoteEntityPacketPayload.class);
+                            context.assertTrue(entities.stream().anyMatch(payload -> spawnOf(payload, remoteItem[0].getUuid())),
+                                    "L'objet de l'arrivee apparait chez le joueur, par le portail.");
+                            context.assertTrue(entities.stream().noneMatch(payload -> spawnOf(payload, marker[0].getUuid())),
+                                    "Un marqueur, sans suivi vanilla, n'est envoye a personne.");
+                            List<RemoteBlockUpdatePayload> blocks = GameTestPlayers.sent(player, RemoteBlockUpdatePayload.class);
+                            context.assertTrue(blocks.stream().anyMatch(update -> update.pos().equals(remoteBlock)),
+                                    "Un bloc change dans la fenetre est relaye au joueur.");
+                            context.assertTrue(blocks.stream().noneMatch(update -> update.pos().equals(farRemoteBlock)),
+                                    "Un bloc change hors de la fenetre ne l'est pas.");
                             nether.setBlockState(remoteBlock, Blocks.AIR.getDefaultState());
                             nether.setBlockState(farRemoteBlock, Blocks.AIR.getDefaultState());
                             // Un bloc change dans la dimension du joueur, qu'aucune vue distante ne tient : relaye a personne.
@@ -181,13 +207,21 @@ public final class PortalSyncGameTests implements FabricGameTest {
                             world.spawnEntity(thrown[0]);
                             // Le jumeau disparait : la fenetre reste chargee pour le premier portail.
                             twin.discard();
-                            // Le joueur se rapproche du portail lointain, sans etre a portee imminente : le foyer change et la
-                            // fenetre du premier portail, qui ne tient pas autour du nouveau foyer, est dechargee.
+                            // Le joueur se rapproche du portail lointain, sans etre a portee imminente : le foyer change. La
+                            // fenetre du premier portail, qui ne tient pas autour du nouveau foyer, est dechargee ; celle du
+                            // troisieme y tient, et garde l'objet distant.
                             moveTo(player, context.getAbsolute(new Vec3d(13.5, 1.0, 7.0)), 0.0f);
-                        } else if (elapsed == 50) {
-                            context.assertTrue(thrown[0].isRemoved() || thrown[0].getWorld() == nether, "La pepite a quitte l'overworld par le portail.");
+                        } else if (elapsed == 70) {
+                            context.assertTrue(nether.getEntity(thrown[0].getUuid()) != null, "La pepite est passee dans le Nether par le portail.");
+                            context.assertTrue(GameTestPlayers.sent(player, RemoteEntityPacketPayload.class).stream()
+                                    .noneMatch(payload -> payload.packet() instanceof EntitiesDestroyS2CPacket destroy
+                                            && destroy.getEntityIds().contains(remoteItem[0].getId())),
+                                    "L'objet distant, vu par le troisieme portail, reste suivi quand le foyer change.");
+                            context.assertTrue(GameTestPlayers.sent(player, RemoteBlockUpdatePayload.class).stream()
+                                    .noneMatch(update -> update.pos().equals(localBlock)),
+                                    "Un bloc change dans la dimension du joueur, qu'aucune vue distante ne tient, n'est relaye a personne.");
                             world.setBlockState(localBlock, Blocks.AIR.getDefaultState());
-                        } else if (elapsed == 110) {
+                        } else if (elapsed == 130) {
                             // Retour devant le premier portail : sa fenetre, toujours chargee, est renvoyee.
                             moveTo(player, context.getAbsolute(VIEWER), 0.0f);
                             phase[0] = 2;
@@ -196,8 +230,6 @@ public final class PortalSyncGameTests implements FabricGameTest {
                     }
                     case 2 -> {
                         if (PortalViewTracker.watchedChunkCount() > 0) {
-                            // Puis le joueur part a cent blocs : plus aucun portail regarde, tout est decharge apres le delai de grace.
-                            moveTo(player, context.getAbsolute(VIEWER).add(100.0, 0.0, 0.0), 0.0f);
                             phase[0] = 3;
                             phaseStart[0] = now;
                         } else if (elapsed > SYNC_PATIENCE_TICKS) {
@@ -205,21 +237,51 @@ public final class PortalSyncGameTests implements FabricGameTest {
                         }
                     }
                     case 3 -> {
+                        if (elapsed == 10) {
+                            // L'objet distant, toujours suivi, disparait : la vue retire son suivi au passage suivant.
+                            Entity live = nether.getEntity(remoteItem[0].getUuid());
+                            destroyedId[0] = live.getId();
+                            live.discard();
+                        } else if (elapsed == 20) {
+                            context.assertTrue(GameTestPlayers.sent(player, RemoteEntityPacketPayload.class).stream()
+                                    .anyMatch(payload -> payload.packet() instanceof EntitiesDestroyS2CPacket destroy
+                                            && destroy.getEntityIds().contains(destroyedId[0])),
+                                    "L'objet disparu est retire chez le joueur.");
+                            // Puis le joueur part a cent blocs : plus aucun portail regarde, tout est decharge apres le delai de grace.
+                            moveTo(player, context.getAbsolute(VIEWER).add(100.0, 0.0, 0.0), 0.0f);
+                            phase[0] = 4;
+                            phaseStart[0] = now;
+                        }
+                    }
+                    case 4 -> {
                         if (elapsed == 120) {
                             context.assertTrue(PortalViewTracker.watchedChunkCount() == 0,
                                     "Les chunks du Nether sont decharges chez un joueur qui ne regarde plus aucun portail.");
-                            // Un joueur mort n'est plus suivi pour la traversee.
+                        } else if (elapsed == 230) {
+                            // Le chargeur a relache l'arrivee a son tour (dix secondes). Un joueur mort, juste devant le plan...
+                            moveTo(player, new Vec3d(plane.x, plane.y - 1.0, plane.z - 0.3), 0.0f);
                             player.kill();
-                        } else if (elapsed == 125) {
+                        } else if (elapsed == 232) {
+                            // ... que son corps franchit ensuite, puis continue d'avancer, n'est pas teleporte : la detection ne
+                            // suit que les vivants, et un franchissement suspendu serait execute apres le delai laisse au client.
+                            moveTo(player, new Vec3d(plane.x, plane.y - 1.0, plane.z + 0.05), 0.0f);
+                        } else if (elapsed > 232 && elapsed < 245) {
+                            moveTo(player, player.getPos().add(0.0, 0.0, 0.01), 0.0f);
+                        } else if (elapsed == 250) {
                             try {
-                                context.assertTrue(!player.isAlive(), "Le joueur est mort.");
+                                context.assertTrue(!player.isAlive() && player.getServerWorld() == world,
+                                        "Un joueur mort qui passe le plan reste dans l'overworld.");
                             } finally {
                                 GameTestPlayers.disconnect(player);
-                                remoteItem[0].discard();
+                                GameTestServerWorlds.discardEverywhere(nether, remoteItem[0]);
+                                GameTestServerWorlds.discardEverywhere(nether, marker[0]);
+                                GameTestServerWorlds.discardEverywhere(nether, thrown[0]);
                                 portal.discard();
                                 farPortal.discard();
                                 sibling.discard();
                                 twin.discard();
+                                local.discard();
+                                hidden.discard();
                             }
                             context.complete();
                         }
@@ -234,12 +296,13 @@ public final class PortalSyncGameTests implements FabricGameTest {
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 2200, batchId = "portal_sync_crossing")
     public void crossingADimensionPortalMovesThePlayerToTheNetherWithoutResendingItsChunks(TestContext context) {
-        ServerWorld nether = nether(context);
-        pregenerateArrival(nether, NETHER_EXIT);
+        ServerWorld nether = prepareNether(context);
         BackroomsPortalEntity portal = netherPortal(context);
         ServerPlayerEntity player = viewer(context, GameMode.CREATIVE);
         Vec3d plane = portal.getPos();
         int[] crossedAt = {-1};
+        LongSet held = new LongOpenHashSet();
+        LongSet resent = new LongOpenHashSet();
 
         // Le joueur regarde le portail et traverse des la premiere poignee de chunks du Nether recue : vanilla lui
         // reproposera ensuite ces chunks-la, tous proches de l'arrivee, et n'en renverra aucun.
@@ -249,20 +312,33 @@ public final class PortalSyncGameTests implements FabricGameTest {
                 if (crossedAt[0] < 0) {
                     if (PortalViewTracker.watchedChunkCount() > 0) {
                         crossedAt[0] = now;
+                        for (RemoteChunkPayload chunk : GameTestPlayers.sent(player, RemoteChunkPayload.class)) {
+                            held.add(ChunkPos.toLong(chunk.chunkX(), chunk.chunkZ()));
+                        }
                         player.refreshPositionAndAngles(plane.x, plane.y - 1.0, plane.z + 0.05, 0.0f, 0.0f);
                         context.assertTrue(TeleportExecutor.execute(player, portal), "La traversee a lieu.");
                         context.assertTrue(player.getServerWorld() == nether, "Le joueur est dans le Nether.");
                         Vec3d expected = NETHER_EXIT.add(0.0, -1.0, 0.05 + TeleportExecutor.EXIT_OFFSET);
                         context.assertTrue(player.getPos().isInRange(expected, EPSILON), "Le joueur ressort devant le portail d'arrivee : " + player.getPos() + ".");
+                        // Un chunk que le joueur n'a jamais recu par le portail n'est pas tenu.
+                        context.assertTrue(!PortalViewTracker.consumeHeldChunk(player, new ChunkPos(10_000, 10_000)), "Un chunk lointain n'est pas tenu.");
                     } else if (now > SYNC_PATIENCE_TICKS) {
                         throw new GameTestException("Aucun chunk du Nether recu avant la traversee.");
                     }
                 } else if (now - crossedAt[0] < 60) {
                     // Le gestionnaire reseau du joueur tique : vanilla lui propose les chunks du Nether, sauf ceux qu'il tient deja.
                     GameTestPlayers.tick(player);
+                    for (ChunkDataS2CPacket chunk : GameTestPlayers.sent(player, ChunkDataS2CPacket.class)) {
+                        resent.add(ChunkPos.toLong(chunk.getChunkX(), chunk.getChunkZ()));
+                    }
                 } else if (now - crossedAt[0] == 60) {
                     try {
                         context.assertTrue(player.getServerWorld() == nether && player.isAlive(), "Le joueur reste dans le Nether.");
+                        context.assertTrue(!held.isEmpty(), "Le joueur tenait des chunks du Nether avant de traverser.");
+                        context.assertTrue(!resent.isEmpty(), "Vanilla envoie au joueur les autres chunks du Nether.");
+                        LongSet both = new LongOpenHashSet(held);
+                        both.retainAll(resent);
+                        context.assertTrue(both.isEmpty(), "Vanilla ne renvoie aucun des " + held.size() + " chunks deja recus par le portail.");
                     } finally {
                         GameTestPlayers.disconnect(player);
                         portal.discard();
@@ -276,13 +352,13 @@ public final class PortalSyncGameTests implements FabricGameTest {
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 100)
     public void theClientAnnouncesItsCrossingAndTheServerChecksIt(TestContext context) {
         ServerWorld world = context.getWorld();
-        ServerWorld nether = nether(context);
+        ServerWorld nether = GameTestServerWorlds.nether(context);
         BackroomsPortalEntity portal = netherPortal(context);
         BackroomsPortalEntity closed = netherPortal(context, PORTAL.east(2), NETHER_EXIT);
         closed.setTeleportable(false);
         BackroomsPortalEntity broken = BackroomsPortalEntity.builder(world)
                 .position(Vec3d.ofCenter(context.getAbsolutePos(PORTAL.east(4)))).facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.SOUTH)
-                .destinationDim(nowhere()).destinationPos(NETHER_EXIT).size(1.0f, 2.0f).build();
+                .destinationDim(GameTestServerWorlds.nowhere()).destinationPos(NETHER_EXIT).size(1.0f, 2.0f).build();
         world.spawnEntity(broken);
         ServerPlayerEntity player = viewer(context, GameMode.CREATIVE);
         Vec3d plane = portal.getPos();
@@ -444,8 +520,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 2200, batchId = "portal_sync_vanilla")
     public void vanillaWorldChangesResetThePlayersSynchronization(TestContext context) {
-        ServerWorld nether = nether(context);
-        pregenerateArrival(nether, NETHER_EXIT);
+        ServerWorld nether = prepareNether(context);
         BackroomsPortalEntity portal = netherPortal(context);
         ServerPlayerEntity player = viewer(context, GameMode.CREATIVE);
         ServerPlayerEntity[] respawned = new ServerPlayerEntity[1];
@@ -491,7 +566,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
                 .position(Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(3, 2, 1))))
                 .facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.SOUTH)
                 .destinationDim(World.OVERWORLD).destinationPos(Vec3d.ofCenter(noDoorHere))
-                .size(1.0f, 2.0f).owner(nowhere(), noDoorHere).build();
+                .size(1.0f, 2.0f).owner(GameTestServerWorlds.nowhere(), noDoorHere).build();
         BackroomsPortalEntity farOwner = BackroomsPortalEntity.builder(world)
                 .position(Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(5, 2, 1))))
                 .facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.SOUTH)
@@ -528,32 +603,59 @@ public final class PortalSyncGameTests implements FabricGameTest {
                 .destinationDim(World.NETHER).destinationPos(NETHER_EXIT)
                 .size(1.0f, 2.0f).owner(World.OVERWORLD, new BlockPos(1_000_000, 64, 1_000_000)).build();
         world.spawnEntity(owned);
-        ServerCommandSource source = server.getCommandSource();
+        List<String> lines = new ArrayList<>();
+        ServerCommandSource source = server.getCommandSource().withOutput(new CommandOutput() {
+            @Override
+            public void sendMessage(Text message) {
+                lines.add(message.getString());
+            }
+
+            @Override
+            public boolean shouldReceiveFeedback() {
+                return true;
+            }
+
+            @Override
+            public boolean shouldTrackOutput() {
+                return true;
+            }
+
+            @Override
+            public boolean shouldBroadcastConsoleToOps() {
+                return false;
+            }
+        });
         context.runAtTick(5, () -> {
             context.assertTrue(BackroomsPortalEntityRegistry.all().contains(portal) && BackroomsPortalEntityRegistry.all().contains(owned),
                     "Les deux portails sont charges.");
             server.getCommandManager().executeWithPrefix(source, "backrooms portal list");
+            context.assertTrue(lines.stream().anyMatch(line -> line.contains("(libre)"))
+                    && lines.stream().anyMatch(line -> line.contains("(porte 1000000, 64, 1000000)"))
+                    && lines.stream().anyMatch(line -> line.contains("portail(s) charge(s)")),
+                    "La liste montre le portail libre, celui d'une porte et le total : " + lines + ".");
+            lines.clear();
             server.getCommandManager().executeWithPrefix(source, "backrooms portal clear");
+            context.assertTrue(lines.stream().anyMatch(line -> line.contains("portail(s) supprime(s)")), "La commande annonce sa suppression.");
         });
         context.runAtTick(10, () -> {
-            context.assertTrue(portal.isRemoved() && BackroomsPortalEntityRegistry.all().isEmpty(), "Tous les portails sont supprimes.");
+            context.assertTrue(portal.isRemoved() && owned.isRemoved(), "Les portails du test sont supprimes.");
             context.complete();
         });
     }
 
     @GameTest(templateName = EMPTY_STRUCTURE)
     public void remoteDimensionPayloadDescribesTheNether(TestContext context) {
-        ServerWorld nether = nether(context);
+        ServerWorld nether = GameTestServerWorlds.nether(context);
         RemoteDimensionPayload payload = RemoteDimensionPayload.of(nether);
         context.assertTrue(payload.dimension().equals(World.NETHER.getValue()), "Dimension du Nether.");
         context.assertTrue(payload.dimensionType().equals(Identifier.ofVanilla("the_nether")), "Type de dimension du Nether.");
         context.complete();
     }
 
-    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60, batchId = "portal_sync_invisible")
     public void aPlayerWhoNeverLookedAtThePortalCrossesWithoutHeldChunks(TestContext context) {
         ServerWorld world = context.getWorld();
-        ServerWorld nether = nether(context);
+        ServerWorld nether = GameTestServerWorlds.nether(context);
         // Portail invisible : il ne se regarde pas, aucune synchronisation n'a lieu pour ce joueur avant sa teleportation.
         BackroomsPortalEntity portal = BackroomsPortalEntity.builder(world)
                 .position(Vec3d.ofCenter(context.getAbsolutePos(PORTAL))).facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.SOUTH)
@@ -561,15 +663,19 @@ public final class PortalSyncGameTests implements FabricGameTest {
         world.spawnEntity(portal);
         Vec3d plane = portal.getPos();
         ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, plane.add(0.0, -1.0, -10.0), 180.0f, 0.0f);
-        try {
-            player.refreshPositionAndAngles(plane.x, plane.y - 1.0, plane.z + 0.05, 0.0f, 0.0f);
-            context.assertTrue(TeleportExecutor.execute(player, portal), "La traversee a lieu.");
-            context.assertTrue(player.getServerWorld() == nether, "Le joueur est dans le Nether, sans chunk tenu a epargner.");
-        } finally {
-            GameTestPlayers.disconnect(player);
-            portal.discard();
-        }
-        context.complete();
+        // Quelques passages de synchronisation plus tard, face au portail invisible : toujours rien recu.
+        context.runAtTick(12, () -> {
+            try {
+                context.assertTrue(GameTestPlayers.sent(player, RemoteChunkPayload.class).isEmpty(), "Un portail invisible ne fait rien envoyer.");
+                player.refreshPositionAndAngles(plane.x, plane.y - 1.0, plane.z + 0.05, 0.0f, 0.0f);
+                context.assertTrue(TeleportExecutor.execute(player, portal), "La traversee a lieu.");
+                context.assertTrue(player.getServerWorld() == nether, "Le joueur est dans le Nether, sans chunk tenu a epargner.");
+            } finally {
+                GameTestPlayers.disconnect(player);
+                portal.discard();
+            }
+            context.complete();
+        });
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
@@ -578,7 +684,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
         Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(1, 2, 1)));
         BackroomsPortalEntity broken = BackroomsPortalEntity.builder(world)
                 .position(source).facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.SOUTH)
-                .destinationDim(nowhere()).destinationPos(new Vec3d(0.5, 65.0, 0.5)).size(1.0f, 2.0f).build();
+                .destinationDim(GameTestServerWorlds.nowhere()).destinationPos(new Vec3d(0.5, 65.0, 0.5)).size(1.0f, 2.0f).build();
         world.spawnEntity(broken);
         BackroomsPortalEntity toNether = netherPortal(context);
         ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, source.add(0.0, -1.0, 0.05), 0.0f, 0.0f);
@@ -593,6 +699,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
             context.assertTrue(!TeleportExecutor.execute(item, toNether), "Un objet retire ne se teleporte pas.");
         } finally {
             GameTestPlayers.disconnect(player);
+            item.discard();
             broken.discard();
             toNether.discard();
         }
@@ -613,7 +720,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
         portals[1] = localPortal(context, sources[1], destination, true);
         portals[2] = BackroomsPortalEntity.builder(world)
                 .position(sources[2]).facingSource(PortalFacing.NORTH).facingDestination(PortalFacing.EAST)
-                .destinationDim(nowhere()).destinationPos(destination).size(1.0f, 2.0f).build();
+                .destinationDim(GameTestServerWorlds.nowhere()).destinationPos(destination).size(1.0f, 2.0f).build();
         world.spawnEntity(portals[2]);
         for (int i = 0; i < 3; i++) {
             walkers[i] = GameTestPlayers.connect(context, GameMode.SURVIVAL, new Vec3d(sources[i].x, sources[i].y - 1.0, sources[i].z - 0.3), 0.0f, 0.0f);
@@ -705,42 +812,50 @@ public final class PortalSyncGameTests implements FabricGameTest {
         });
     }
 
-    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 2200)
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 2200, batchId = "portal_sync_ticket")
     public void approachingAWatchedPortalWidensItsArrivalTicket(TestContext context) {
-        ServerWorld nether = nether(context);
-        pregenerateArrival(nether, NETHER_EXIT);
+        ServerWorld nether = prepareNether(context);
         BackroomsPortalEntity portal = netherPortal(context);
         Vec3d plane = portal.getPos();
-        // Un objet a l'arrivee : suivi pour le joueur, puis oublie sans paquet quand il se deconnecte en regardant encore le portail.
-        ItemEntity watched = new ItemEntity(nether, NETHER_EXIT.x, NETHER_EXIT.y, NETHER_EXIT.z, new ItemStack(Items.QUARTZ));
-        watched.setNoGravity(true);
-        nether.spawnEntity(watched);
         // Douze blocs au nord : le portail est regarde de loin, son arrivee est chargee sur la fenetre synchronisee.
         ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, new Vec3d(plane.x, plane.y - 1.0, plane.z - 12.0), 0.0f, 0.0f);
         int farChunkX = ChunkSectionPos.getSectionCoord(NETHER_EXIT.x) + 4;
         int farChunkZ = ChunkSectionPos.getSectionCoord(NETHER_EXIT.z);
-        context.runAtTick(30, () -> {
-            // A trois blocs, la traversee est imminente : le ticket s'elargit a la distance de vue du serveur.
-            player.refreshPositionAndAngles(plane.x, plane.y - 1.0, plane.z - 3.0, 0.0f, 0.0f);
-            player.networkHandler.syncWithPlayerPosition();
-        });
-        boolean[] done = {false};
-        for (int tick = 40; tick < 2190; tick++) {
-            int now = tick;
-            context.runAtTick(tick, () -> {
-                if (done[0]) {
-                    return;
-                }
-                if (nether.getChunkManager().isChunkLoaded(farChunkX, farChunkZ)) {
-                    done[0] = true;
+        ItemEntity[] watched = new ItemEntity[1];
+        boolean[] seen = {false};
+        context.createTimedTaskRunner()
+                .createAndAdd(() -> {
+                    // Ses entities ne tiquent que sous le ticket du chargeur d'arrivee (celui de la generation d'avance ne
+                    // fait que charger) : un objet pose alors y reste, sans dechargement ni nouvel identifiant.
+                    if (!nether.shouldTickEntity(BlockPos.ofFloored(NETHER_EXIT))) {
+                        throw new GameTestException("L'arrivee n'est pas encore tenue par le chargeur.");
+                    }
+                    // Un objet a l'arrivee : il apparait chez le joueur par le portail, puis est oublie sans paquet a sa deconnexion.
+                    watched[0] = new ItemEntity(nether, NETHER_EXIT.x, NETHER_EXIT.y, NETHER_EXIT.z, new ItemStack(Items.QUARTZ));
+                    watched[0].setNoGravity(true);
+                    nether.spawnEntity(watched[0]);
+                })
+                .createAndAdd(() -> {
+                    seen[0] |= GameTestPlayers.sent(player, RemoteEntityPacketPayload.class).stream()
+                            .anyMatch(payload -> spawnOf(payload, watched[0].getUuid()));
+                    if (!seen[0]) {
+                        throw new GameTestException("L'objet de l'arrivee n'est pas encore apparu chez le joueur.");
+                    }
+                    context.assertTrue(!nether.getChunkManager().isChunkLoaded(farChunkX, farChunkZ),
+                            "Regarde de loin, le portail ne tient pas le chunk a quatre chunks de son arrivee.");
+                    // A trois blocs, la traversee est imminente : le ticket s'elargit a la distance de vue du serveur.
+                    player.refreshPositionAndAngles(plane.x, plane.y - 1.0, plane.z - 3.0, 0.0f, 0.0f);
+                    player.networkHandler.syncWithPlayerPosition();
+                })
+                .createAndAdd(() -> {
+                    if (!nether.getChunkManager().isChunkLoaded(farChunkX, farChunkZ)) {
+                        throw new GameTestException("Le chunk a quatre chunks de l'arrivee n'est pas encore charge par le ticket elargi.");
+                    }
+                    // Deconnecte en regardant encore le portail : l'objet suivi est oublie sans paquet.
                     GameTestPlayers.disconnect(player);
-                    watched.discard();
+                    GameTestServerWorlds.discardEverywhere(nether, watched[0]);
                     portal.discard();
-                    context.complete();
-                } else if (now > SYNC_PATIENCE_TICKS) {
-                    throw new GameTestException("Un chunk a quatre chunks de l'arrivee n'est pas charge par le ticket elargi.");
-                }
-            });
-        }
+                })
+                .completeIfSuccessful();
     }
 }

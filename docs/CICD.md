@@ -4,12 +4,13 @@
 
 | Workflow | Fichier | Déclencheur | Étapes |
 |----------|---------|-------------|--------|
-| CI | `.github/workflows/ci.yml` | push et PR sur `master`, manuel | validation du wrapper, Java 21, Checkstyle sur les trois source sets (zéro warning javac), `test` (JaCoCo), `runGameTest` (sous agent JaCoCo), `jacocoFullReport` + `jacocoCoverageVerification` (100 % des instructions, 96 % des branches), `build` (assemble le JAR et vérifie son contenu : ni dépendance embarquée, ni test), `benchmarkLevelZeroGeneration`, upload des JARs et des rapports (Checkstyle, tests, couverture, logs du serveur de test) |
+| CI | `.github/workflows/ci.yml` | push et PR sur `master`, manuel | validation du wrapper, Java 21, Checkstyle sur les trois source sets (zéro warning javac), `test` (JaCoCo), `runGameTest` (sous agent JaCoCo), `jacocoFullReport` + `jacocoCoverageVerification` (100 % des instructions et des branches), `build` (assemble le JAR et vérifie son contenu : ni dépendance embarquée, ni test), `benchmarkLevelZeroGeneration`, upload des JARs et des rapports (Checkstyle, tests, couverture, logs du serveur de test) |
 | Release | `.github/workflows/release.yml` | tag `v*.*.*`, manuel | `clean build` (toutes les vérifications ci-dessus), vérification tag = `mod_version`, release GitHub avec JAR et sources, notes extraites du CHANGELOG |
 | Dependabot | `.github/dependabot.yml` | mensuel | PR de mise à jour des actions GitHub. Les dépendances Gradle (Fabric, Yarn, Loom) suivent la version de Minecraft et se mettent à jour à la main |
 
-Chaque étape de la CI est une tâche Gradle que `./gradlew build` enchaîne aussi en local : la CI ne fait rien de plus
-que le build, elle le fait sur une machine neuve. Un test, une violation Checkstyle ou un seuil de couverture en échec
+Chaque étape de la CI est une tâche Gradle qui se lance aussi en local : `./gradlew build` enchaîne toutes celles qui
+vérifient (Checkstyle, tests, tests en jeu, verrou de couverture, contenu du JAR) ; le rapport fusionné
+(`jacocoFullReport`) et le benchmark se lancent à part. La CI ne fait rien de plus, elle le fait sur une machine neuve. Un test, une violation Checkstyle ou un seuil de couverture en échec
 fait échouer la tâche, donc le job. Un seul job, pas de matrice : le mod ne vise qu'une version de Minecraft et un JDK.
 
 ---

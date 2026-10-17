@@ -1,5 +1,6 @@
 package com.petassegang.addons.backrooms.portal.client.view;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -15,7 +16,10 @@ import org.junit.jupiter.api.TestMethodOrder;
 
 import net.minecraft.util.math.Vec3d;
 
-/** L'etat est statique et la coupure du rendu distant est definitive pour la JVM : ce test passe en dernier. */
+/**
+ * L'etat est statique et la coupure du rendu distant est definitive pour la JVM : elle se teste en dernier dans cette
+ * classe, et aucun autre test ne lit cet etat.
+ */
 @DisplayName("Etat de rendu des portails")
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PortalRenderStateTest {
@@ -28,21 +32,33 @@ class PortalRenderStateTest {
 
     @Test
     @Order(1)
-    @DisplayName("Une image de rendu pose puis efface la garde de reentrance et les cameras substituees")
+    @DisplayName("Une image de rendu pose puis efface la garde de reentrance, numerote l'image et porte les substitutions")
     void frameLifecycle() {
         assertTrue(PortalRenderState.canRenderPortals(), "Rien ne s'oppose au rendu avant l'image.");
+        assertFalse(PortalRenderState.isRendering(), "Hors rendu de portail.");
+        int frame = PortalRenderState.frameIndex();
         PortalRenderState.beginFrame();
         assertFalse(PortalRenderState.canRenderPortals(), "Pas de rendu de portail dans un rendu de portail.");
-        Vec3d override = new Vec3d(1.0, 2.0, 3.0);
-        PortalRenderState.setCameraOverride(override);
-        PortalRenderState.setViewCameraPos(override);
+        assertTrue(PortalRenderState.isRendering(), "En rendu de portail.");
+        assertEquals(frame + 1, PortalRenderState.frameIndex(), "Chaque image a son numero.");
+        assertFalse(PortalRenderState.hasTerrainCenter(), "Pas de substitution avant setupTerrain.");
+        PortalRenderState.setTerrainCenter(1.0, 2.0, 3.0);
+        assertTrue(PortalRenderState.hasTerrainCenter(), "Position substituee pour setupTerrain.");
+        assertEquals(1.0, PortalRenderState.terrainCenterX(), "X substitue.");
+        assertEquals(2.0, PortalRenderState.terrainCenterY(), "Y substitue.");
+        assertEquals(3.0, PortalRenderState.terrainCenterZ(), "Z substitue.");
+        PortalRenderState.clearTerrainCenter();
+        assertFalse(PortalRenderState.hasTerrainCenter(), "Substitution levee apres setupTerrain.");
+        PortalRenderState.setTerrainCenter(4.0, 5.0, 6.0);
+        Vec3d view = new Vec3d(1.0, 2.0, 3.0);
+        PortalRenderState.setViewCameraPos(view);
         PortalRenderState.setBlockOutlineAllowed(true);
-        assertSame(override, PortalRenderState.cameraOverride(), "Camera substituee pour setupTerrain.");
-        assertSame(override, PortalRenderState.viewCameraPos(), "Camera de la vue pour le ciel.");
+        assertSame(view, PortalRenderState.viewCameraPos(), "Camera de la vue pour le ciel.");
         assertTrue(PortalRenderState.blockOutlineAllowed(), "Contour du bloc vise autorise.");
         PortalRenderState.endFrame();
         assertTrue(PortalRenderState.canRenderPortals(), "La garde est levee en fin d'image.");
-        assertNull(PortalRenderState.cameraOverride(), "Plus de camera substituee.");
+        assertFalse(PortalRenderState.isRendering(), "Plus en rendu de portail.");
+        assertFalse(PortalRenderState.hasTerrainCenter(), "Plus de position substituee.");
         assertNull(PortalRenderState.viewCameraPos(), "Plus de camera de vue.");
         assertTrue(PortalRenderState.blockOutlineAllowed(), "Le contour reste decide par le rendu principal.");
     }
