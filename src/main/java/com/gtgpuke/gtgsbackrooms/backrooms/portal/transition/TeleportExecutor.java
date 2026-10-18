@@ -41,6 +41,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRe
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.propagation.PortalPursuit;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalCrossPayload;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalNetwork;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSight;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalTeleportPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
@@ -236,7 +237,7 @@ public final class TeleportExecutor {
             return;
         }
         // Le client a deja bascule de son cote : ce payload le renvoie la ou le serveur le voit.
-        ServerPlayNetworking.send(player, PortalTeleportPayload.of(world, player.getPos(), player.getYaw(), player.getPitch(), player.getVelocity()));
+        PortalNetwork.send(player, PortalTeleportPayload.of(world, player.getPos(), player.getYaw(), player.getPitch(), player.getVelocity()));
         ModConstants.LOGGER.debug("[Portal] Franchissement refuse pour {} (portail {}).", player.getName().getString(), payload.portal());
     }
 
@@ -443,7 +444,7 @@ public final class TeleportExecutor {
             placePlayer(player, exit, look.x, look.y, predicted);
             player.networkHandler.syncWithPlayerPosition();
             PortalViewTracker.onEntityJumped(destinationWorld, player);
-            ServerPlayNetworking.send(player, PortalTeleportPayload.of(destinationWorld, exit, look.x, look.y, exitVelocity));
+            PortalNetwork.send(player, PortalTeleportPayload.of(destinationWorld, exit, look.x, look.y, exitVelocity));
         } else {
             heldChunks = changeDimension(player, destinationWorld, exit, look.x, look.y, exitVelocity, predicted);
         }
@@ -475,7 +476,7 @@ public final class TeleportExecutor {
         ServerWorld origin = player.getServerWorld();
         PlayerManager playerManager = origin.getServer().getPlayerManager();
         WorldProperties properties = destination.getLevelProperties();
-        ServerPlayNetworking.send(player, PortalTeleportPayload.of(destination, exit, yaw, pitch, velocity));
+        PortalNetwork.send(player, PortalTeleportPayload.of(destination, exit, yaw, pitch, velocity));
         player.networkHandler.sendPacket(new DifficultyS2CPacket(properties.getDifficulty(), properties.isDifficultyLocked()));
         playerManager.sendCommandTree(player);
         // Avant que vanilla ne retire les tickets du joueur : le cote quitte, qu'il voit encore par le portail, reste charge.

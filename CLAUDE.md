@@ -93,6 +93,13 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   est déclaré dans `ClientCommonNetworkHandler`) ; l'erreur ne sort qu'au chargement de la cible, donc au lancement du client
   pour un mixin client. `MixinTargetsTest` charge la cible de chaque mixin déclaré et fait échouer le build à la place. Aucune
   classe de test dans le paquet `mixin` : Mixin refuse de charger les classes de son paquet.
+- Mixins et mods de rendu : une injection dans une méthode déjà réécrite (`@Overwrite`) par un autre mod est une erreur
+  critique quel que soit `require` (le jeu ne démarre pas) ; ne rien injecter dans `WorldRenderer.setupTerrain` ni
+  `renderLayer`, que les mods de rendu réécrivent. Fabric déclenche ses évènements de rendu du monde dans `setupTerrain`
+  avec un contexte préparé par le seul `render` du joueur : appeler `setupTerrain` sur un renderer de vue les tire à
+  vide (NPE chez un mod qui lit la projection). Une vue place sa grille et fait avancer le graphe de culling elle-même
+  (`RemoteViewRenderer.placeTerrain`). Pour essayer un mod tiers en dev : son JAR dans `run/mods` (Loader le remappe),
+  jamais dans le dépôt.
 - Rendu au milieu de `WorldRenderer.render` (les portails passent avant la couche translucide) : les couches de terrain et
   d'entités vanilla supposent l'élimination des faces arrière active, `RenderPhase.ENABLE_CULLING` ne l'active pas ; un
   `disableCull` laissé actif fait dessiner les deux faces de l'eau et du verre (opacité doublée). Ne couper le culling
@@ -141,6 +148,12 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   moins chaque seconde (`PortalSightReporter`) ; un test qui attend une sortie fugace perdue renvoie ses rapports à chaque
   tick, comme un vrai client. Une exception autre qu'un échec de test dans une tâche (un `List.of` avec l'identifiant
   d'un portail déjà disparu, `NullPointerException`) fait planter tout le serveur de test.
+- Rendu des vues de portail : vanilla ne recalcule la lightmap qu'une fois par tick (`tick()` la marque, `update()` la
+  refait) ; la recalculer par image coûte 256 points et un millier de `Vector3f` par appel, et l'envoi de la texture
+  attend les dessins en cours. `BlockBufferBuilderPool` (tampons de construction) n'est pas thread-safe : deux
+  `ChunkBuilder` ne peuvent pas partager le même pool. Chaque `BuiltChunk` crée quatre `VertexBuffer` (douze objets GL)
+  à la construction de la grille : une grille à 12 chunks de distance en crée 30 000 pour un monde de 4 sections de
+  haut, 180 000 pour 24 (`MixinVertexBuffer` les diffère pour les renderers de vue).
 - Banc multijoueur : une partie solo ouverte en LAN reste en mode en ligne (`IntegratedServer.setupServer`) ; un second
   client de dev, sans session Mojang, y est refusé dès la connexion. Le multijoueur se vérifie par les tests en jeu
   (`GameTestPlayers`).

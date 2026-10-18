@@ -56,7 +56,7 @@ public final class RemoteSyncReceiver {
             return;
         }
         RemoteWorldRegistry.syncWithMainWorld(client.world);
-        RemoteWorldRegistry.announce(worldKey(payload.dimension()), payload.dimensionType());
+        RemoteWorldRegistry.announce(worldKey(payload.dimension()), payload.dimensionType(), payload.index());
     }
 
     private static void onChunk(MinecraftClient client, RemoteChunkPayload payload) {
@@ -68,21 +68,26 @@ public final class RemoteSyncReceiver {
     }
 
     private static void onChunkUnload(MinecraftClient client, RemoteChunkUnloadPayload payload) {
-        RemoteWorld remote = remoteWorld(client, payload.dimension());
+        RemoteWorld remote = remoteWorld(client, RemoteWorldRegistry.dimensionAt(payload.dimension()));
         if (remote != null) {
             remote.unloadChunk(payload.chunkPos());
         }
     }
 
     private static void onBlockUpdate(MinecraftClient client, RemoteBlockUpdatePayload payload) {
-        RemoteWorld remote = remoteWorld(client, payload.dimension());
+        RemoteWorld remote = remoteWorld(client, RemoteWorldRegistry.dimensionAt(payload.dimension()));
         if (remote != null) {
             remote.updateBlock(payload.pos(), payload.state());
         }
     }
 
     private static void onEntityPacket(MinecraftClient client, RemoteEntityPacketPayload payload) {
-        if (client.world != null && client.world.getRegistryKey().equals(worldKey(payload.dimension()))) {
+        RegistryKey<World> dimension = RemoteWorldRegistry.dimensionAt(payload.dimension());
+        if (dimension == null) {
+            // Index jamais annonce : rien a quoi l'appliquer.
+            return;
+        }
+        if (client.world != null && client.world.getRegistryKey().equals(dimension)) {
             // La dimension est devenue celle du joueur (traversee) : seules les destructions comptent, elles retirent
             // les copies distantes que vanilla ne connait pas ; le reste du monde est a vanilla, qui renvoie aussitot
             // celles qu'il suit (le portail de retour juste derriere le joueur) : retrait differe, sans trou.
@@ -91,7 +96,7 @@ public final class RemoteSyncReceiver {
             }
             return;
         }
-        RemoteWorld remote = remoteWorld(client, payload.dimension());
+        RemoteWorld remote = remoteWorld(client, dimension);
         if (remote != null) {
             remote.applyEntityPacket(client, payload.packet());
         }
@@ -110,11 +115,16 @@ public final class RemoteSyncReceiver {
     }
 
     private static @Nullable RemoteWorld remoteWorld(MinecraftClient client, Identifier dimension) {
-        if (!ModConfig.ENABLE_PORTAL_FEATURE) {
+        return remoteWorld(client, worldKey(dimension));
+    }
+
+    /** Monde a nourrir pour cette dimension ; {@code null} sans portails, sans dimension (index jamais annonce) ou sans monde. */
+    private static @Nullable RemoteWorld remoteWorld(MinecraftClient client, @Nullable RegistryKey<World> dimension) {
+        if (!ModConfig.ENABLE_PORTAL_FEATURE || dimension == null) {
             return null;
         }
         RemoteWorldRegistry.syncWithMainWorld(client.world);
-        return RemoteWorldRegistry.syncTarget(client, worldKey(dimension));
+        return RemoteWorldRegistry.syncTarget(client, dimension);
     }
 
     private static RegistryKey<World> worldKey(Identifier dimension) {

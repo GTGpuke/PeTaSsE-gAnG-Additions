@@ -20,7 +20,9 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.render.BackgroundRenderer;
+import net.minecraft.client.render.BuiltChunkStorage;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.ChunkRenderingDataPreparer;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -52,6 +54,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.mixin.client.FrustumAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Dessine un {@link RemoteWorld} depuis une camera transposee : ciel, couches de blocs, entities, block
@@ -70,6 +73,8 @@ public final class RemoteViewRenderer {
     private static final double BLOCK_DAMAGE_RANGE_SQUARED = 1024.0;
     /** Cote, en blocs, de la cellule autour de la camera que le frustum doit couvrir : le recul de vanilla. */
     private static final int FRUSTUM_COVER_BOX = 8;
+    /** Cote, en blocs, de la cellule de camera dont le changement fait repartir le graphe de culling vanilla (comme vanilla). */
+    private static final double CAMERA_CELL = 8.0;
     /**
      * La grille de sections d'un renderer ne se recentre que si l'ancrage s'eloigne de plus de ce nombre de chunks de
      * son centre : deux portails voisins vers la meme dimension, ou le retour juste apres une traversee, la partagent
@@ -93,6 +98,10 @@ public final class RemoteViewRenderer {
     private static final VertexConsumerProvider.Immediate ENTITY_BUFFERS = VertexConsumerProvider.immediate(new BufferAllocator(786_432));
     private static final VertexConsumerProvider.Immediate EFFECT_BUFFERS = VertexConsumerProvider.immediate(new BufferAllocator(1536));
     private static final Matrix4f IDENTITY = new Matrix4f();
+    /** Sections du moniteur de performance : une vue entiere, son terrain (grille et parcours des sections), ses entities. */
+    private static final String PERF_VIEW = "client.portal.view";
+    private static final String PERF_TERRAIN = "client.portal.terrain";
+    private static final String PERF_ENTITIES = "client.portal.entities";
 
     private final RemoteWorld owner;
     private final ClientWorld world;
@@ -108,7 +117,6 @@ public final class RemoteViewRenderer {
     private float skyFogTickDelta;
     /** Image ou ce renderer a prepare son terrain pour la derniere fois : une seule fois par image, pour sa premiere vue. */
     private int terrainFrame = -1;
-    private boolean terrainCenterChecked;
     /** Portee de vue (blocs) et brouillard epais poses par {@link #prepareFog} pour le rendu qui suit. */
     private float viewDistance;
     private boolean thickFog;
@@ -151,10 +159,26 @@ public final class RemoteViewRenderer {
      * @param frameCameraPos camera qui regarde le cadre, dans le monde du portail, pour une vue a travers lui ; {@code null}
      *                       quand la camera elle-meme est passee de l'autre cote (troisieme personne) : elle voit alors
      *                       tout, sans plan de decoupe ni volume limite
-     * @param lightmap lightmap deja recalculee pour ce monde
+     * @param lightmap gestionnaire de lightmap du rendu, deja sur celle de ce monde
      * @param tickDelta fraction de tick de l'image
      */
+    @SuppressWarnings("try")
     public void render(
+            MinecraftClient client,
+            Camera camera,
+            Vec3d cameraPos,
+            Matrix4f positionMatrix,
+            Matrix4f projection,
+            BackroomsPortalEntity portal,
+            @Nullable Vec3d frameCameraPos,
+            LightmapTextureManager lightmap,
+            float tickDelta) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_VIEW)) {
+            renderMeasured(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, lightmap, tickDelta);
+        }
+    }
+
+    private void renderMeasured(
             MinecraftClient client,
             Camera camera,
             Vec3d cameraPos,
@@ -184,6 +208,7 @@ public final class RemoteViewRenderer {
         }
     }
 
+    @SuppressWarnings("try")
     private void renderView(
             MinecraftClient client,
             Camera camera,
@@ -200,8 +225,10 @@ public final class RemoteViewRenderer {
         // Comme vanilla, le frustum recule jusqu'a couvrir la cellule de la camera : les sections au bord ne clignotent pas.
         this.frustum.coverBoxAroundSetPosition(FRUSTUM_COVER_BOX);
         WorldRendererAccessor accessor = (WorldRendererAccessor) this.renderer;
-        setupTerrain(accessor, camera, cameraPos, portal.destinationPos());
-        accessor.backrooms$updateChunks(camera);
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_TERRAIN)) {
+            setupTerrain(client, accessor, camera, cameraPos, portal.destinationPos());
+            accessor.backrooms$updateChunks(camera);
+        }
         // Ciel de la vue avec son brouillard de ciel, puis brouillard du terrain, comme le rendu principal. Le dome du ciel se
         // dessine avec le shader courant : celui des positions, comme vanilla, et non le dernier pose par le remplissage du
         // cadre, dont l'attribut couleur absent du tampon vaudrait noir.
@@ -217,7 +244,9 @@ public final class RemoteViewRenderer {
             RenderLayer layer = BLOCK_LAYERS.get(i);
             if (layer == RenderLayer.getTranslucent()) {
                 // Meme ordre que vanilla : entities et block entities avant les couches translucides.
-                renderEntities(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, tickDelta);
+                try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_ENTITIES)) {
+                    renderEntities(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, tickDelta);
+                }
             }
             accessor.backrooms$renderLayer(layer, cameraPos.x, cameraPos.y, cameraPos.z, positionMatrix, projection);
         }
@@ -258,32 +287,77 @@ public final class RemoteViewRenderer {
     }
 
     /**
-     * Prepare le terrain de la vue. La premiere vue de ce renderer dans l'image passe par le {@code setupTerrain}
-     * vanilla, avec la position du joueur remplacee par le centre de grille retenu : la grille se place, le chunk
-     * builder connait sa camera, et le graphe de culling vanilla reste chaud pour servir tel quel si ce renderer
-     * devient le principal a la traversee. Les vues suivantes du meme renderer n'y touchent plus : la grille reste ou
-     * elle est. Dans tous les cas, les sections dessinees viennent du parcours synchrone propre a la vue.
+     * Prepare le terrain de la vue. La premiere vue de ce renderer dans l'image place sa grille et fait avancer son
+     * graphe de culling ({@link #placeTerrain}) ; les vues suivantes du meme renderer n'y touchent plus : la grille
+     * reste ou elle est. Dans tous les cas, les sections dessinees viennent du parcours synchrone propre a la vue.
      */
-    private void setupTerrain(WorldRendererAccessor accessor, Camera camera, Vec3d cameraPos, Vec3d anchor) {
+    private void setupTerrain(MinecraftClient client, WorldRendererAccessor accessor, Camera camera, Vec3d cameraPos, Vec3d anchor) {
+        BuiltChunkStorage chunks = accessor.backrooms$getChunks();
+        if (chunks == null) {
+            // Un mod qui remplace le pipeline de terrain retire la grille vanilla : rien a parcourir. L'appelant coupe le
+            // rendu distant pour la session (cadres sombres) et le jeu continue.
+            throw new IllegalStateException("Le pipeline de terrain n'est pas celui de vanilla (grille de sections absente, un autre mod le remplace).");
+        }
         int frame = PortalRenderState.frameIndex();
         if (this.terrainFrame != frame) {
             this.terrainFrame = frame;
-            int centerX = gridCenter(accessor.backrooms$getCameraChunkX(), ChunkSectionPos.getSectionCoord(anchor.x));
-            int centerZ = gridCenter(accessor.backrooms$getCameraChunkZ(), ChunkSectionPos.getSectionCoord(anchor.z));
-            PortalRenderState.setTerrainCenter(ChunkSectionPos.getOffsetPos(centerX, ViewSectionWalker.HALF_SECTION), anchor.y,
-                    ChunkSectionPos.getOffsetPos(centerZ, ViewSectionWalker.HALF_SECTION));
-            try {
-                // "Spectateur" : pas d'occlusion depuis l'interieur d'un bloc plein si la camera y tombe.
-                accessor.backrooms$setupTerrain(camera, this.frustum, false, true);
-            } finally {
-                PortalRenderState.clearTerrainCenter();
-            }
-            checkTerrainCenter(accessor, centerX, centerZ);
+            placeTerrain(client, accessor, chunks, camera, cameraPos, anchor);
         } else {
             this.renderer.getChunkBuilder().setCameraPosition(cameraPos);
         }
-        this.sectionWalker.discover(accessor.backrooms$getChunks(), this.world.getChunkManager(), camera.getBlockPos(), this.frustum, this.cone,
+        this.sectionWalker.discover(chunks, this.world.getChunkManager(), camera.getBlockPos(), this.frustum, this.cone,
                 accessor.backrooms$getBuiltChunks());
+    }
+
+    /**
+     * Ce que le {@code setupTerrain} vanilla fait pour le monde du joueur, autour de l'ancrage de la vue plutot que du
+     * joueur : la grille de sections se place (centre retenu par {@link #gridCenter}), le chunk builder connait sa
+     * camera, et le graphe de culling vanilla, asynchrone, repart de la camera quand elle change de cellule et tient sa
+     * liste de sections a jour : il reste chaud pour servir tel quel si ce renderer devient le principal a la
+     * traversee. Le {@code setupTerrain} vanilla lui-meme n'est pas appele : il centre sa grille sur le joueur, un mod
+     * qui remplace le pipeline de terrain le reecrit (une injection dans une methode reecrite est refusee et le jeu ne
+     * demarre pas), et les evenements de rendu du monde que Fabric y declenche ne concernent pas une vue (leur contexte,
+     * prepare par le seul rendu du joueur, y serait vide). Les methodes du graphe n'ont pas de nom Yarn.
+     */
+    private void placeTerrain(MinecraftClient client, WorldRendererAccessor accessor, BuiltChunkStorage chunks, Camera camera, Vec3d cameraPos,
+            Vec3d anchor) {
+        if (client.options.getClampedViewDistance() != accessor.backrooms$getViewDistance()) {
+            this.renderer.reload();
+        }
+        int centerX = gridCenter(accessor.backrooms$getCameraChunkX(), ChunkSectionPos.getSectionCoord(anchor.x));
+        int centerY = ChunkSectionPos.getSectionCoord(anchor.y);
+        int centerZ = gridCenter(accessor.backrooms$getCameraChunkZ(), ChunkSectionPos.getSectionCoord(anchor.z));
+        if (accessor.backrooms$getCameraChunkX() != centerX || accessor.backrooms$getCameraChunkY() != centerY
+                || accessor.backrooms$getCameraChunkZ() != centerZ) {
+            accessor.backrooms$setCameraChunkX(centerX);
+            accessor.backrooms$setCameraChunkY(centerY);
+            accessor.backrooms$setCameraChunkZ(centerZ);
+            chunks.updateCameraPosition(ChunkSectionPos.getOffsetPos(centerX, ViewSectionWalker.HALF_SECTION),
+                    ChunkSectionPos.getOffsetPos(centerZ, ViewSectionWalker.HALF_SECTION));
+        }
+        this.renderer.getChunkBuilder().setCameraPosition(cameraPos);
+        ChunkRenderingDataPreparer graph = accessor.backrooms$getChunkRenderingDataPreparer();
+        double cellX = Math.floor(cameraPos.x / CAMERA_CELL);
+        double cellY = Math.floor(cameraPos.y / CAMERA_CELL);
+        double cellZ = Math.floor(cameraPos.z / CAMERA_CELL);
+        if (cellX != accessor.backrooms$getLastCameraX() || cellY != accessor.backrooms$getLastCameraY() || cellZ != accessor.backrooms$getLastCameraZ()) {
+            graph.method_52817();
+        }
+        accessor.backrooms$setLastCameraX(cellX);
+        accessor.backrooms$setLastCameraY(cellY);
+        accessor.backrooms$setLastCameraZ(cellZ);
+        // Comme un spectateur : pas d'occlusion depuis l'interieur d'un bloc plein si la camera y tombe.
+        BlockPos cameraBlock = camera.getBlockPos();
+        boolean culling = client.chunkCullingEnabled && !this.world.getBlockState(cameraBlock).isOpaqueFullCube(this.world, cameraBlock);
+        graph.method_52834(culling, camera, this.frustum, accessor.backrooms$getBuiltChunks());
+        double pitch = Math.floor(camera.getPitch() / 2.0f);
+        double yaw = Math.floor(camera.getYaw() / 2.0f);
+        if (graph.method_52836() || pitch != accessor.backrooms$getLastCameraPitch() || yaw != accessor.backrooms$getLastCameraYaw()) {
+            // Le frustum couvre deja la cellule de la camera : c'est celui que vanilla decalerait avant de l'appliquer.
+            accessor.backrooms$applyFrustum(this.frustum);
+            accessor.backrooms$setLastCameraPitch(pitch);
+            accessor.backrooms$setLastCameraYaw(yaw);
+        }
     }
 
     /**
@@ -292,17 +366,6 @@ public final class RemoteViewRenderer {
      */
     static int gridCenter(int current, int anchor) {
         return current != Integer.MIN_VALUE && Math.abs(anchor - current) <= GRID_MARGIN_CHUNKS ? current : anchor;
-    }
-
-    /** Verifie une fois que la substitution de position du mixin a bien centre la grille la ou on l'a demande. */
-    private void checkTerrainCenter(WorldRendererAccessor accessor, int centerX, int centerZ) {
-        if (this.terrainCenterChecked) {
-            return;
-        }
-        this.terrainCenterChecked = true;
-        if (accessor.backrooms$getCameraChunkX() != centerX || accessor.backrooms$getCameraChunkZ() != centerZ) {
-            PortalRenderState.disableRemoteRendering("la substitution de position de WorldRenderer.setupTerrain est inactive", null);
-        }
     }
 
     private void renderEntities(
@@ -340,7 +403,7 @@ public final class RemoteViewRenderer {
                     entity.lastRenderZ = entity.getZ();
                 }
                 // Vue qui couvre l'ecran : ce qui est coupe par un portail de ce monde s'y dessine en deux moities, plus bas.
-                if (frameCameraPos == null && StraddlingEntityRenderer.drawnInParts(entity, tickDelta)) {
+                if (frameCameraPos == null && StraddlingEntityRenderer.drawnInParts(entity, cameraPos.x, cameraPos.y, cameraPos.z, tickDelta)) {
                     continue;
                 }
                 // Vue imbriquee : ce qui sort de son arrivee n'a nulle part ou dessiner la partie encore derriere, coupee au

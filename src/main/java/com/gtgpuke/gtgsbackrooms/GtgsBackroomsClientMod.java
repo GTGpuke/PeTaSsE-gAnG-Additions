@@ -12,6 +12,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteActio
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteTargeting;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.ClientPortalCrossing;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewLightmaps;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalLight;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.PortalSightReporter;
@@ -52,6 +53,7 @@ public class GtgsBackroomsClientMod implements ClientModInitializer {
             ClientPortalCrossing.onClientTick();
             RemoteActions.onClientTick();
             RemoteWorldRegistry.tickRemoteWorlds(client);
+            ViewLightmaps.onClientTick();
             // Apres le tick de tous les mondes : une arrivee se juge sur la premiere image a venir, partie d'avant ce tick.
             EntityHandover.onClientTick();
             ClientPortalLight.onClientTick(client);
@@ -72,5 +74,6 @@ public class GtgsBackroomsClientMod implements ClientModInitializer {
         PortalSightReporter.clear();
         RemoteWorldRegistry.syncWithMainWorld(null);
         ClientPortalIndex.clear();
+        ViewLightmaps.clear();
     }
 }

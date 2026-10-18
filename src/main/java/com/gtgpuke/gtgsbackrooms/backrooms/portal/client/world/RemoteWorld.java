@@ -72,10 +72,12 @@ import net.minecraft.world.dimension.DimensionType;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound.FrameSoundPlayer;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.LazyVertexBuffers;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteChunkWindow;
 import com.gtgpuke.gtgsbackrooms.mixin.client.CameraAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.ClientPlayNetworkHandlerAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Une dimension vue a travers un portail : un {@link ClientWorld} et un {@link WorldRenderer} dedie, dessines
@@ -130,6 +132,8 @@ public final class RemoteWorld {
     private static final Map<WorldRenderer, BufferBuilderStorage> OWN_BUFFERS = new IdentityHashMap<>();
     /** Tampons d'un renderer libere, repris par le prochain renderer cree. */
     private static final List<BufferBuilderStorage> SPARE_BUFFERS = new ArrayList<>();
+    /** Section du moniteur de performance : chargement d'un chunk recu du serveur. */
+    private static final String PERF_CHUNK_LOAD = "client.portal.chunk_load";
 
     private final ClientWorld world;
     private final WorldRenderer renderer;
@@ -174,7 +178,7 @@ public final class RemoteWorld {
                 renderer,
                 false,
                 0L);
-        renderer.setWorld(world);
+        bindWorld(renderer, world);
         return new RemoteWorld(world, renderer, new RemoteParticles(world));
     }
 
@@ -201,18 +205,38 @@ public final class RemoteWorld {
     /** Vue secondaire d'un monde : un renderer de plus sur ce monde, gardee quand il devient distant. */
     static RemoteWorld mirror(MinecraftClient client, ClientWorld world) {
         WorldRenderer renderer = newRenderer(client);
-        renderer.setWorld(world);
+        bindWorld(renderer, world);
         // La vue secondaire montre les particules du monde principal, celles du gestionnaire : elle n'en a pas a elle.
         return new RemoteWorld(world, renderer, null);
     }
 
+    /**
+     * Renderer d'une vue. Ses tampons de sommets, ceux du ciel comme ceux de sa grille de sections, ne reservent leurs
+     * objets GL qu'au premier usage ({@link LazyVertexBuffers}) : la grille, a la distance de rendu du joueur, compte des
+     * milliers de sections dont une vue n'en construit qu'une petite part.
+     */
     private static WorldRenderer newRenderer(MinecraftClient client) {
         BufferBuilderStorage buffers = SPARE_BUFFERS.isEmpty()
                 ? new BufferBuilderStorage(RENDER_BUFFER_COUNT)
                 : SPARE_BUFFERS.remove(SPARE_BUFFERS.size() - 1);
-        WorldRenderer renderer = new WorldRenderer(client, client.getEntityRenderDispatcher(), client.getBlockEntityRenderDispatcher(), buffers);
-        OWN_BUFFERS.put(renderer, buffers);
-        return renderer;
+        LazyVertexBuffers.setActive(true);
+        try {
+            WorldRenderer renderer = new WorldRenderer(client, client.getEntityRenderDispatcher(), client.getBlockEntityRenderDispatcher(), buffers);
+            OWN_BUFFERS.put(renderer, buffers);
+            return renderer;
+        } finally {
+            LazyVertexBuffers.setActive(false);
+        }
+    }
+
+    /** Lie un renderer de vue a son monde : sa grille de sections se cree, tampons GL differes (voir {@link #newRenderer}). */
+    private static void bindWorld(WorldRenderer renderer, ClientWorld world) {
+        LazyVertexBuffers.setActive(true);
+        try {
+            renderer.setWorld(world);
+        } finally {
+            LazyVertexBuffers.setActive(false);
+        }
     }
 
     /**
@@ -321,7 +345,14 @@ public final class RemoteWorld {
     }
 
     /** Charge (ou remplace) un chunk recu du serveur, avec sa lumiere, et programme son rendu. */
+    @SuppressWarnings("try")
     public void loadChunk(int chunkX, int chunkZ, ChunkData chunkData, LightData lightData) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_CHUNK_LOAD)) {
+            loadChunkMeasured(chunkX, chunkZ, chunkData, lightData);
+        }
+    }
+
+    private void loadChunkMeasured(int chunkX, int chunkZ, ChunkData chunkData, LightData lightData) {
         recenterIfNeeded(chunkX, chunkZ);
         ClientChunkManager chunks = this.world.getChunkManager();
         WorldChunk chunk = chunks.loadChunkFromPacket(

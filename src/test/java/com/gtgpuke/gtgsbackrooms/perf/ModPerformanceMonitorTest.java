@@ -3,12 +3,16 @@ package com.gtgpuke.gtgsbackrooms.perf;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.management.ManagementFactory;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.sun.management.ThreadMXBean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -35,15 +39,66 @@ class ModPerformanceMonitorTest {
         ModPerformanceMonitor.onServerTickStart();
         ModPerformanceMonitor.onServerTickEnd();
         ModPerformanceMonitor.onClientTick(60);
+        ModPerformanceMonitor.onFrameRendered();
+        ModPerformanceMonitor.onPayloadSent("portal_remote_chunk", 4096);
+        assertEquals("aucun", ModPerformanceMonitor.networkSummary(), "Inactif, rien n'est compte sur le reseau.");
         List<String> hud = new ArrayList<>();
         ModPerformanceMonitor.appendDebugHudText(hud);
         assertTrue(hud.isEmpty(), "Rien n'est ajoute au F3 quand le moniteur est inactif.");
     }
 
     @Test
+    @DisplayName("Le resume client donne l'image la plus longue, les images lentes et ses propres sections")
+    void clientSummaryHasFramePeaksAndClientSections() throws InterruptedException {
+        ModPerformanceMonitor.setEnabled(true);
+        ModPerformanceMonitor.resetLogTimers();
+        ModPerformanceMonitor.scope("client.test.render").close();
+        ModPerformanceMonitor.scope("test.server").close();
+        ModPerformanceMonitor.onFrameRendered();
+        Thread.sleep(60L);
+        ModPerformanceMonitor.onFrameRendered();
+        ModPerformanceMonitor.onClientTick(90);
+        String client = ModPerformanceMonitor.lastClientSummary();
+        assertTrue(client.startsWith("client: fps=90 pic="), "Resume client avec l'image la plus longue : " + client);
+        assertTrue(client.contains(" lentes=1 ") || client.contains(" lentes=2 "), "L'image de soixante millisecondes est lente : " + client);
+        assertTrue(client.endsWith("top=client.test.render:1x/" + client.substring(client.indexOf("top=client.test.render:1x/") + 26)),
+                "Les sections client sont dans le resume client : " + client);
+        assertFalse(client.contains("test.server"), "Les sections serveur n'y sont pas : " + client);
+        ModPerformanceMonitor.onServerTickStart();
+        ModPerformanceMonitor.onServerTickEnd();
+        String server = ModPerformanceMonitor.lastServerSummary();
+        assertTrue(server.contains("test.server:1x/") && !server.contains("client.test.render"),
+                "Les sections serveur sont dans le resume serveur, sans celles du client : " + server);
+        // Le resume a remis les images a zero : le suivant repart de rien.
+        ModPerformanceMonitor.resetLogTimers();
+        ModPerformanceMonitor.onClientTick(91);
+        assertTrue(ModPerformanceMonitor.lastClientSummary().startsWith("client: fps=91 pic=0.0ms lentes=0 "),
+                "Images remises a zero : " + ModPerformanceMonitor.lastClientSummary());
+    }
+
+    @Test
+    @DisplayName("Le resume serveur compte les paquets et les octets par type de payload, du plus lourd au plus leger")
+    void serverSummaryCountsNetworkByPayload() {
+        ModPerformanceMonitor.setEnabled(true);
+        ModPerformanceMonitor.onPayloadSent("portal_remote_entity", 10);
+        ModPerformanceMonitor.onPayloadSent("portal_remote_chunk", 2048);
+        ModPerformanceMonitor.onPayloadSent("portal_remote_chunk", 1024);
+        assertEquals("portal_remote_chunk:2x/3.0KiB | portal_remote_entity:1x/0.0KiB", ModPerformanceMonitor.networkSummary(),
+                "Lecture sans remise a zero.");
+        ModPerformanceMonitor.resetLogTimers();
+        ModPerformanceMonitor.onServerTickStart();
+        ModPerformanceMonitor.onServerTickEnd();
+        String server = ModPerformanceMonitor.lastServerSummary();
+        assertTrue(server.endsWith("reseau=portal_remote_chunk:2x/3.0KiB | portal_remote_entity:1x/0.0KiB"),
+                "Le resume serveur donne le reseau : " + server);
+        assertEquals("aucun", ModPerformanceMonitor.networkSummary(), "Le resume a remis les compteurs a zero.");
+    }
+
+    @Test
     @DisplayName("Active, le moniteur mesure les sections et publie des resumes serveur et client")
     void enabledRecordsAndSummarizes() {
         ModPerformanceMonitor.setEnabled(true);
+        ModPerformanceMonitor.resetLogTimers();
         assertTrue(ModPerformanceMonitor.isEnabled(), "Actif a chaud.");
 
         ModPerformanceMonitor.Scope scope = ModPerformanceMonitor.scope("test.generation");
@@ -98,7 +153,7 @@ class ModPerformanceMonitorTest {
         ModPerformanceMonitor.resetLogTimers();
         ModPerformanceMonitor.onServerTickStart();
         ModPerformanceMonitor.onServerTickEnd();
-        assertTrue(ModPerformanceMonitor.lastServerSummary().endsWith("top=aucune section"),
+        assertTrue(ModPerformanceMonitor.lastServerSummary().contains(" top=aucune section reseau="),
                 "Les sections ont ete videes par le resume precedent : " + ModPerformanceMonitor.lastServerSummary());
         ModPerformanceMonitor.scope("test.alpha").close();
         ModPerformanceMonitor.scope("test.beta").close();
@@ -109,6 +164,21 @@ class ModPerformanceMonitorTest {
         String summary = ModPerformanceMonitor.lastServerSummary();
         assertTrue(summary.contains("test.alpha:1x/") && summary.contains("test.beta:2x/"), "Les deux sections et leurs appels : " + summary);
         assertTrue(summary.contains(" | "), "Les sections sont separees : " + summary);
+        assertTrue(summary.contains("ms/alloc ") && summary.contains("KiB"), "Chaque section donne ce qu'elle a alloue : " + summary);
+    }
+
+    @Test
+    @DisplayName("Sans compteur d'allocation par thread, les sections n'allouent rien")
+    void allocationWithoutThreadBean() {
+        java.lang.management.ThreadMXBean plain = (java.lang.management.ThreadMXBean) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[] {java.lang.management.ThreadMXBean.class}, (proxy, method, args) -> null);
+        assertNull(ModPerformanceMonitor.threadAllocationBean(plain), "Un bean sans l'extension ne compte pas.");
+        ThreadMXBean unsupported = (ThreadMXBean) Proxy.newProxyInstance(getClass().getClassLoader(), new Class<?>[] {ThreadMXBean.class},
+                (proxy, method, args) -> method.getName().equals("isThreadAllocatedMemorySupported") ? Boolean.FALSE : null);
+        assertNull(ModPerformanceMonitor.threadAllocationBean(unsupported), "Un bean qui ne compte pas les allocations ne sert pas.");
+        assertEquals(0L, ModPerformanceMonitor.allocatedBytes(null), "Sans compteur, zero.");
+        assertTrue(ModPerformanceMonitor.allocatedBytes(ModPerformanceMonitor.threadAllocationBean(ManagementFactory.getThreadMXBean())) > 0L,
+                "La JVM de test compte ce que son thread alloue.");
     }
 
     @Test

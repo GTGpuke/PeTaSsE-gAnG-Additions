@@ -33,6 +33,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Entities a cheval sur le plan d'un portail, dessinees en deux moities : chacune coupee au plan, dans le monde ou elle
@@ -66,6 +67,11 @@ public final class StraddlingEntityRenderer {
      * nage et vol plane (modele allonge dans une boite reduite a un cube).
      */
     private static final double LIVING_MODEL_MARGIN = 1.0;
+    /**
+     * Au-dela de la distance de rendu des portails, plus cette marge (le plus grand cadre et le modele d'une entity), un
+     * portail n'est pas dessine et rien de ce qu'il coupe ne se voit : il ne compte pas, ni ici ni pour vanilla.
+     */
+    private static final double REACH_MARGIN = 16.0;
     /** Rotation du passage de chaque paire d'orientations (source, arrivee), calculee une fois. */
     private static final Quaternionf[][] ROTATIONS = rotations();
     private static final Quaternionf IDENTITY = new Quaternionf();
@@ -74,6 +80,8 @@ public final class StraddlingEntityRenderer {
     private static final List<Entity> FOUND = new ArrayList<>();
     private static final MatrixStack MATRICES = new MatrixStack();
     private static final VertexConsumerProvider.Immediate BUFFERS = VertexConsumerProvider.immediate(new BufferAllocator(262_144));
+    /** Section du moniteur de performance : les moities dessinees dans le monde du joueur, a chaque image. */
+    private static final String PERF_PARTS = "client.portal.straddling";
     /** Pendant les dessins de ce rendu : vanilla ne doit pas refuser les entities qu'il dessine lui-meme. */
     private static boolean drawingParts;
     /** Position affichee de la derniere entity examinee ({@link #show}), et son ecart a celle du tick. */
@@ -110,13 +118,17 @@ public final class StraddlingEntityRenderer {
      * {@code true} si vanilla ne doit pas dessiner cette entity dans le monde du joueur : ce rendu la dessine coupee.
      * Seulement quand les portails se dessinent, et jamais pendant les dessins de ce rendu.
      */
-    public static boolean skipsVanillaDraw(Entity entity, float tickDelta) {
-        return !drawingParts && ModConfig.ENABLE_PORTAL_FEATURE && PortalRenderState.canRenderPortals() && drawnInParts(entity, tickDelta);
+    public static boolean skipsVanillaDraw(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta) {
+        return !drawingParts && ModConfig.ENABLE_PORTAL_FEATURE && PortalRenderState.canRenderPortals()
+                && drawnInParts(entity, cameraX, cameraY, cameraZ, tickDelta);
     }
 
-    /** {@code true} si ce rendu dessine l'entity en deux moities dans son monde : arrivant, ou coupee par une face. */
-    static boolean drawnInParts(Entity entity, float tickDelta) {
-        return EntityHandover.arrivalPortal(entity) != null || faceCutting(entity, tickDelta) != null;
+    /**
+     * {@code true} si ce rendu dessine l'entity en deux moities dans son monde : arrivant, ou coupee par une face a portee
+     * de la camera qui dessine ce monde.
+     */
+    static boolean drawnInParts(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta) {
+        return EntityHandover.arrivalPortal(entity) != null || faceCutting(entity, cameraX, cameraY, cameraZ, tickDelta) != null;
     }
 
     /**
@@ -128,23 +140,54 @@ public final class StraddlingEntityRenderer {
      * le joueur bascule de monde quand ses pieds affiches passent le plan ; teste au tick, son centre serait deja derriere
      * la face pendant les dernieres images, dessine entier par vanilla, cache derriere la vue, et absent de la vue.
      */
-    static @Nullable BackroomsPortalEntity cuttingFace(Entity entity, float tickDelta) {
-        return EntityHandover.arrivalPortal(entity) != null ? null : faceCutting(entity, tickDelta);
+    static @Nullable BackroomsPortalEntity cuttingFace(Entity entity, Vec3d cameraPos, float tickDelta) {
+        return EntityHandover.arrivalPortal(entity) != null ? null : faceCutting(entity, cameraPos.x, cameraPos.y, cameraPos.z, tickDelta);
     }
 
-    /** Face qui coupe l'entity a sa position affichee, qu'elle vienne d'arriver ou non (voir {@link #cuttingFace}). */
-    private static @Nullable BackroomsPortalEntity faceCutting(Entity entity, float tickDelta) {
+    /**
+     * Face a portee de la camera qui dessine le monde de l'entity, et qui la coupe a sa position affichee, qu'elle vienne
+     * d'arriver ou non (voir {@link #cuttingFace}).
+     */
+    private static @Nullable BackroomsPortalEntity faceCutting(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta) {
         List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(entity.getWorld());
-        show(entity, tickDelta);
-        Box box = entity.getBoundingBox();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            if (portal.teleportable() && portal.visible() && portal.signedDistance(shownX, shownY, shownZ) > 0.0
-                    && portal.withinFrameWidth(shownX, shownY, shownZ) && portal.sourceFrameStraddles(box, modelMargin(entity), shiftX, shiftY, shiftZ)) {
+            if (withinReach(portal, cameraX, cameraY, cameraZ) && cutBy(portal, entity, tickDelta)) {
                 return portal;
             }
         }
         return null;
+    }
+
+    /** {@code true} si cette face, ouverte et visible, coupe l'entity a sa position affichee. */
+    private static boolean cutBy(BackroomsPortalEntity portal, Entity entity, float tickDelta) {
+        if (!portal.teleportable() || !portal.visible()) {
+            return false;
+        }
+        show(entity, tickDelta);
+        return portal.signedDistance(shownX, shownY, shownZ) > 0.0 && portal.withinFrameWidth(shownX, shownY, shownZ)
+                && portal.sourceFrameStraddles(entity.getBoundingBox(), modelMargin(entity), shiftX, shiftY, shiftZ);
+    }
+
+    /** {@code true} si le portail est assez pres de la camera pour etre dessine, ou presque (voir {@link #REACH_MARGIN}). */
+    private static boolean withinReach(BackroomsPortalEntity portal, double cameraX, double cameraY, double cameraZ) {
+        double reach = ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS + REACH_MARGIN;
+        return portal.squaredDistanceTo(cameraX, cameraY, cameraZ) <= reach * reach;
+    }
+
+    /** {@code true} si un portail ouvert et visible de ce monde est a portee de la camera, ou si une entity vient d'arriver. */
+    private static boolean anythingToDraw(World world, Vec3d cameraPos) {
+        if (EntityHandover.arrivalCount() > 0) {
+            return true;
+        }
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity portal = portals.get(i);
+            if (portal.teleportable() && portal.visible() && withinReach(portal, cameraPos.x, cameraPos.y, cameraPos.z)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -195,7 +238,19 @@ public final class StraddlingEntityRenderer {
      * @param projection projection du joueur
      * @param tickDelta fraction de tick de l'image
      */
+    @SuppressWarnings("try")
     public static void renderMainWorldParts(MinecraftClient client, Camera camera, Matrix4f positionMatrix, Matrix4f projection, float tickDelta) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_PARTS)) {
+            renderMainWorldPartsMeasured(client, camera, positionMatrix, projection, tickDelta);
+        }
+    }
+
+    private static void renderMainWorldPartsMeasured(
+            MinecraftClient client, Camera camera, Matrix4f positionMatrix, Matrix4f projection, float tickDelta) {
+        // Sans portail a portee ni arrivee en cours, rien a dessiner : l'etat de rendu n'est pas touche.
+        if (!anythingToDraw(client.world, camera.getPos())) {
+            return;
+        }
         Matrix4f previousProjection = RenderSystem.getProjectionMatrix();
         VertexSorter sorter = RenderSystem.getVertexSorting();
         RenderSystem.setProjectionMatrix(projection, VertexSorter.BY_DISTANCE);
@@ -228,14 +283,14 @@ public final class StraddlingEntityRenderer {
             List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
             for (int i = 0; i < portals.size(); i++) {
                 BackroomsPortalEntity portal = portals.get(i);
-                if (!portal.teleportable() || !portal.visible()) {
+                if (!portal.teleportable() || !portal.visible() || !withinReach(portal, cameraPos.x, cameraPos.y, cameraPos.z)) {
                     continue;
                 }
                 // Coupees par cette face : la partie devant elle.
                 collect(world, portal.crossingBox());
                 for (int j = 0; j < FOUND.size(); j++) {
                     Entity entity = FOUND.get(j);
-                    if (entity != hidden && cuttingFace(entity, tickDelta) == portal) {
+                    if (entity != hidden && cuttingFace(entity, cameraPos, tickDelta) == portal) {
                         drawClipped(accessor, entity, cameraPos, IDENTITY, portal.facingSource().normal, portal.getPos(),
                                 cameraPos, positionMatrix, tickDelta);
                     }
@@ -331,7 +386,8 @@ public final class StraddlingEntityRenderer {
             collect(world, portal.crossingBox());
             for (int i = 0; i < FOUND.size(); i++) {
                 Entity entity = FOUND.get(i);
-                if (entity != hidden && (cuttingFace(entity, tickDelta) == portal || arrivedThroughReturnOf(entity, portal))) {
+                boolean cut = EntityHandover.arrivalPortal(entity) == null && cutBy(portal, entity, tickDelta);
+                if (entity != hidden && (cut || arrivedThroughReturnOf(entity, portal))) {
                     renderTransposed(accessor, entity, frameCameraPos, rotation, tickDelta, consumers);
                 }
             }

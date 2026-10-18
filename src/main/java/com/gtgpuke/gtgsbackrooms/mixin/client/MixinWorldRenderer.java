@@ -32,12 +32,14 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.StraddlingEntityR
 
 /**
  * Points d'accroche du rendu monde pour les portails : dessin des portails avant la couche translucide et fin de l'image
- * sous une vue qui couvre l'ecran, centre de la grille de sections d'une vue substitue a la position du joueur dans
- * {@code setupTerrain}, ciel d'une vue rapporte a sa camera, particules des mondes distants confiees a leur propre
- * contenu, entities a cheval sur un portail laissees a leur dessin en deux moities, et reconstructions de sections
- * repercutees sur la vue secondaire de leur monde.
+ * sous une vue qui couvre l'ecran, ciel d'une vue rapporte a sa camera, particules des mondes distants confiees a leur
+ * propre contenu, entities a cheval sur un portail laissees a leur dessin en deux moities, et reconstructions de
+ * sections repercutees sur la vue secondaire de leur monde. Rien dans {@code setupTerrain} ni {@code renderLayer}, que
+ * les mods de rendu reecrivent : une injection dans une methode reecrite par un mixin de priorite superieure ou egale
+ * est refusee et le jeu ne demarre pas. La priorite 1001 passe apres ces mixins (1000 par defaut) : l'injection dans
+ * {@code scheduleChunkRender}, qu'ils reecrivent aussi, s'applique a leur version de la methode.
  */
-@Mixin(WorldRenderer.class)
+@Mixin(value = WorldRenderer.class, priority = 1001)
 public abstract class MixinWorldRenderer {
 
     @Shadow
@@ -72,21 +74,6 @@ public abstract class MixinWorldRenderer {
     @Inject(method = "render", at = @At("TAIL"))
     private void backrooms$endPortals(CallbackInfo ci) {
         PortalStencilRenderer.endWorldRender();
-    }
-
-    @Redirect(method = "setupTerrain", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getX()D"))
-    private double backrooms$terrainCenterX(ClientPlayerEntity player) {
-        return PortalRenderState.hasTerrainCenter() ? PortalRenderState.terrainCenterX() : player.getX();
-    }
-
-    @Redirect(method = "setupTerrain", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getY()D"))
-    private double backrooms$terrainCenterY(ClientPlayerEntity player) {
-        return PortalRenderState.hasTerrainCenter() ? PortalRenderState.terrainCenterY() : player.getY();
-    }
-
-    @Redirect(method = "setupTerrain", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getZ()D"))
-    private double backrooms$terrainCenterZ(ClientPlayerEntity player) {
-        return PortalRenderState.hasTerrainCenter() ? PortalRenderState.terrainCenterZ() : player.getZ();
     }
 
     /**
@@ -135,7 +122,7 @@ public abstract class MixinWorldRenderer {
     @Inject(method = "renderEntity", at = @At("HEAD"), cancellable = true)
     private void backrooms$skipEntityDrawnInParts(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta,
             MatrixStack matrices, VertexConsumerProvider vertexConsumers, CallbackInfo ci) {
-        if (StraddlingEntityRenderer.skipsVanillaDraw(entity, tickDelta)) {
+        if (StraddlingEntityRenderer.skipsVanillaDraw(entity, cameraX, cameraY, cameraZ, tickDelta)) {
             ci.cancel();
         }
     }

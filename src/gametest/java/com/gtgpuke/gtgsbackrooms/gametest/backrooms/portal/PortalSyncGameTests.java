@@ -59,12 +59,14 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalCrossPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteBlockUpdatePayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteChunkPayload;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteChunkUnloadPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteDimensionPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteEntityPacketPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.TeleportExecutor;
 import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestPlayers;
 import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestServerWorlds;
 import com.gtgpuke.gtgsbackrooms.mixin.WorldAccessor;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Tests en jeu de la synchronisation des dimensions distantes et des traversees entre dimensions.
@@ -86,6 +88,10 @@ public final class PortalSyncGameTests implements FabricGameTest {
     private static final int SYNC_PATIENCE_TICKS = 2000;
     /** Arrivee du portail invisible du test de fenetre, a 480 blocs a l'ouest : ses chunks sont loin de tous les autres. */
     private static final Vec3d HIDDEN_EXIT = NETHER_EXIT.add(-480.0, 0.0, 0.0);
+    /** Arrivee du second portail du test a deux dimensions, dans le vide de l'End : rien a y generer. */
+    private static final Vec3d END_EXIT = new Vec3d(504.5, 100.0, 504.5);
+    /** Second portail du test a deux dimensions, trois blocs a l'est du premier : devant le joueur lui aussi. */
+    private static final BlockPos SECOND_PORTAL = new BlockPos(4, 2, 6);
     /** Depart du test du cote quitte, a 512 blocs au nord de l'arene : hors de ses chunks forces, seul le joueur le tient. */
     private static final double DEPARTURE_OFFSET = 512.0;
     /** Ticks laisses apres un depart : vanilla a retire depuis longtemps les tickets du joueur. */
@@ -147,6 +153,8 @@ public final class PortalSyncGameTests implements FabricGameTest {
     public void aPlayerLookingAtDimensionPortalsReceivesTheRemoteWindow(TestContext context) {
         ServerWorld world = context.getWorld();
         ServerWorld nether = prepareNether(context);
+        // Moniteur actif : chaque payload envoye est mesure, et le resume reseau les compte par type.
+        ModPerformanceMonitor.setEnabled(true);
         // Le portail lointain est inscrit en premier : le portail proche, examine ensuite, le remplace comme foyer.
         BackroomsPortalEntity farPortal = netherPortal(context, new BlockPos(13, 2, 16), NETHER_EXIT.add(480.0, 0.0, 0.0));
         BackroomsPortalEntity portal = netherPortal(context);
@@ -193,6 +201,8 @@ public final class PortalSyncGameTests implements FabricGameTest {
                     }
                     case 1 -> {
                         if (elapsed == 20) {
+                            context.assertTrue(ModPerformanceMonitor.networkSummary().contains("portal_remote_chunk:"),
+                                    "Moniteur actif, les chunks envoyes sont comptes : " + ModPerformanceMonitor.networkSummary() + ".");
                             for (RemoteChunkPayload chunk : GameTestPlayers.sent(player, RemoteChunkPayload.class)) {
                                 context.assertTrue(chunk.dimension().equals(World.NETHER.getValue()) && Math.abs(chunk.chunkX() - hiddenChunkX) > 16,
                                         "Seules les fenetres des portails visibles vers le Nether sont envoyees : ni celle du portail du "
@@ -301,6 +311,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
                                 context.assertTrue(!player.isAlive() && player.getServerWorld() == world,
                                         "Un joueur mort qui passe le plan reste dans l'overworld.");
                             } finally {
+                                ModPerformanceMonitor.setEnabled(false);
                                 GameTestPlayers.disconnect(player);
                                 GameTestServerWorlds.discardEverywhere(nether, remoteItem[0]);
                                 GameTestServerWorlds.discardEverywhere(nether, marker[0]);
@@ -774,9 +785,10 @@ public final class PortalSyncGameTests implements FabricGameTest {
     @GameTest(templateName = EMPTY_STRUCTURE)
     public void remoteDimensionPayloadDescribesTheNether(TestContext context) {
         ServerWorld nether = GameTestServerWorlds.nether(context);
-        RemoteDimensionPayload payload = RemoteDimensionPayload.of(nether);
+        RemoteDimensionPayload payload = RemoteDimensionPayload.of(nether, 1);
         context.assertTrue(payload.dimension().equals(World.NETHER.getValue()), "Dimension du Nether.");
         context.assertTrue(payload.dimensionType().equals(Identifier.ofVanilla("the_nether")), "Type de dimension du Nether.");
+        context.assertTrue(payload.index() == 1, "Index de la dimension chez le joueur.");
         context.complete();
     }
 
@@ -850,10 +862,13 @@ public final class PortalSyncGameTests implements FabricGameTest {
                 .completeIfSuccessful();
     }
 
-    /** Note la pluie et l'orage de cette valeur que le serveur a envoyes au joueur pour le Nether. */
+    /**
+     * Note la pluie et l'orage de cette valeur que le serveur a envoyes au joueur pour le Nether, seule dimension annoncee
+     * dans ce test : son index est zero.
+     */
     private static void weatherSent(ServerPlayerEntity player, boolean[] seen, float rain, float thunder) {
         for (RemoteEntityPacketPayload payload : GameTestPlayers.sent(player, RemoteEntityPacketPayload.class)) {
-            if (payload.dimension().equals(World.NETHER.getValue()) && payload.packet() instanceof GameStateChangeS2CPacket weather) {
+            if (payload.dimension() == 0 && payload.packet() instanceof GameStateChangeS2CPacket weather) {
                 seen[0] |= weather.getReason() == GameStateChangeS2CPacket.RAIN_GRADIENT_CHANGED && weather.getValue() == rain;
                 seen[1] |= weather.getReason() == GameStateChangeS2CPacket.THUNDER_GRADIENT_CHANGED && weather.getValue() == thunder;
             }
@@ -1103,6 +1118,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
     /** Apres le lot de la fenetre, reussi ou non : joueur deconnecte, portails et objets du Nether retires. */
     @AfterBatch(batchId = "portal_sync_window")
     public void afterWindow(ServerWorld world) {
+        ModPerformanceMonitor.setEnabled(false);
         releaseLeftovers();
     }
 
@@ -1357,6 +1373,109 @@ public final class PortalSyncGameTests implements FabricGameTest {
     @AfterBatch(batchId = "portal_sync_quick_view")
     public void afterQuickView(ServerWorld world) {
         releaseLeftovers();
+    }
+
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = SYNC_PATIENCE_TICKS + 200, batchId = "portal_sync_two_dimensions")
+    public void eachDimensionOfAViewHasItsOwnIndex(TestContext context) {
+        ServerWorld nether = prepareNether(context);
+        ServerWorld end = context.getWorld().getServer().getWorld(World.END);
+        context.assertTrue(end != null, "Le serveur de test a un End.");
+        GameTestServerWorlds.pregenerateArrival(end, END_EXIT);
+        BackroomsPortalEntity toNether = netherPortal(context);
+        BackroomsPortalEntity toEnd = GameTestServerWorlds.spawnNorthPortal(context.getWorld(), Vec3d.ofCenter(context.getAbsolutePos(SECOND_PORTAL)), World.END, END_EXIT);
+        LEFTOVERS.add(toNether);
+        LEFTOVERS.add(toEnd);
+        ServerPlayerEntity player = viewer(context, GameMode.CREATIVE);
+        BlockPos netherBlock = BlockPos.ofFloored(NETHER_EXIT).down(2);
+        BlockPos endBlock = BlockPos.ofFloored(END_EXIT).down(2);
+        // Tout ce que le joueur a recu, lu au fil des etapes : une lecture consomme ce qu'elle rend.
+        List<RemoteDimensionPayload> announced = new ArrayList<>();
+        List<RemoteEntityPacketPayload> entities = new ArrayList<>();
+        List<RemoteBlockUpdatePayload> blocks = new ArrayList<>();
+        List<RemoteChunkUnloadPayload> unloads = new ArrayList<>();
+        context.createTimedTaskRunner()
+                .createAndAdd(() -> {
+                    announced.addAll(GameTestPlayers.sent(player, RemoteDimensionPayload.class));
+                    if (announced.stream().map(RemoteDimensionPayload::dimension).distinct().count() < 2) {
+                        throw new GameTestException("Les deux dimensions ne sont pas encore annoncees au joueur.");
+                    }
+                })
+                .createAndAddReported(() -> {
+                    int netherIndex = indexOf(announced, World.NETHER.getValue());
+                    int endIndex = indexOf(announced, World.END.getValue());
+                    context.assertTrue(announced.size() == 2, "Chaque dimension est annoncee une fois : " + announced + ".");
+                    context.assertTrue(Math.min(netherIndex, endIndex) == 0 && Math.max(netherIndex, endIndex) == 1,
+                            "Les index sont 0 et 1, dans l'ordre des annonces : " + announced + ".");
+                    nether.setBlockState(netherBlock, Blocks.GLOWSTONE.getDefaultState());
+                    end.setBlockState(endBlock, Blocks.GLOWSTONE.getDefaultState());
+                })
+                .createAndAdd(() -> {
+                    blocks.addAll(GameTestPlayers.sent(player, RemoteBlockUpdatePayload.class));
+                    entities.addAll(GameTestPlayers.sent(player, RemoteEntityPacketPayload.class));
+                    if (blocks.stream().noneMatch(update -> update.pos().equals(netherBlock)) || blocks.stream().noneMatch(update -> update.pos().equals(endBlock))) {
+                        throw new GameTestException("Les blocs changes des deux arrivees ne sont pas encore relayes.");
+                    }
+                })
+                .createAndAddReported(() -> {
+                    int netherIndex = indexOf(announced, World.NETHER.getValue());
+                    int endIndex = indexOf(announced, World.END.getValue());
+                    for (RemoteBlockUpdatePayload update : blocks) {
+                        context.assertTrue(update.dimension() == (update.pos().equals(netherBlock) ? netherIndex : endIndex),
+                                "Un bloc relaye porte l'index de sa dimension : " + update + ".");
+                    }
+                    context.assertTrue(weatherUnder(entities, netherIndex) && weatherUnder(entities, endIndex),
+                            "La meteo de chaque dimension est envoyee sous son index.");
+                    toNether.discard();
+                    toEnd.discard();
+                })
+                .createAndAdd(() -> {
+                    unloads.addAll(GameTestPlayers.sent(player, RemoteChunkUnloadPayload.class));
+                    if (PortalViewTracker.watchedChunkCount() > 0) {
+                        throw new GameTestException("Les chunks des deux dimensions ne sont pas encore decharges.");
+                    }
+                })
+                .createAndAddReported(() -> {
+                    try {
+                        unloads.addAll(GameTestPlayers.sent(player, RemoteChunkUnloadPayload.class));
+                        ChunkPos netherChunk = new ChunkPos(netherBlock);
+                        ChunkPos endChunk = new ChunkPos(endBlock);
+                        context.assertTrue(unloads.stream().anyMatch(unload -> unload.chunkPos().equals(netherChunk))
+                                && unloads.stream().anyMatch(unload -> unload.chunkPos().equals(endChunk)), "Les chunks des deux arrivees sont decharges.");
+                        int netherIndex = indexOf(announced, World.NETHER.getValue());
+                        int endIndex = indexOf(announced, World.END.getValue());
+                        for (RemoteChunkUnloadPayload unload : unloads) {
+                            boolean nearNether = unload.chunkPos().getChebyshevDistance(netherChunk) < unload.chunkPos().getChebyshevDistance(endChunk);
+                            context.assertTrue(unload.dimension() == (nearNether ? netherIndex : endIndex),
+                                    "Un dechargement porte l'index de sa dimension : " + unload + ".");
+                        }
+                    } finally {
+                        GameTestPlayers.disconnect(player);
+                    }
+                })
+                .completeIfSuccessful();
+    }
+
+    /** Index annonce au joueur pour cette dimension, {@code -1} si elle ne l'a pas ete. */
+    private static int indexOf(List<RemoteDimensionPayload> announced, Identifier dimension) {
+        for (RemoteDimensionPayload payload : announced) {
+            if (payload.dimension().equals(dimension)) {
+                return payload.index();
+            }
+        }
+        return -1;
+    }
+
+    /** {@code true} si une meteo (pluie ou orage) a ete envoyee sous cet index de dimension. */
+    private static boolean weatherUnder(List<RemoteEntityPacketPayload> entities, int index) {
+        return entities.stream().anyMatch(payload -> payload.dimension() == index && payload.packet() instanceof GameStateChangeS2CPacket);
+    }
+
+    /** Apres le lot des deux dimensions, reussi ou non : joueur deconnecte, portails retires, blocs des arrivees rendus. */
+    @AfterBatch(batchId = "portal_sync_two_dimensions")
+    public void afterTwoDimensions(ServerWorld world) {
+        releaseLeftovers();
+        world.getServer().getWorld(World.NETHER).setBlockState(BlockPos.ofFloored(NETHER_EXIT).down(2), Blocks.AIR.getDefaultState());
+        world.getServer().getWorld(World.END).setBlockState(BlockPos.ofFloored(END_EXIT).down(2), Blocks.AIR.getDefaultState());
     }
 
     /** Apres le lot des fissures, reussi ou non : joueur deconnecte, portail retire. */

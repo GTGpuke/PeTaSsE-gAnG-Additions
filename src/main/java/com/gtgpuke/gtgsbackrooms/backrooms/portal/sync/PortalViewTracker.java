@@ -27,7 +27,6 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
@@ -41,7 +40,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRegistry;
@@ -488,15 +486,16 @@ public final class PortalViewTracker {
             RegistryKey<World> dimension,
             LongSet wanted) {
         LongSet sent = view.sentChunks.computeIfAbsent(dimension, key -> new LongOpenHashSet());
-        Identifier dimensionId = dimension.getValue();
-        // Dechargements d'abord : si le foyer a saute, le client recentre sa carte sur le premier chunk suivant.
+        // Dechargements d'abord : si le foyer a saute, le client recentre sa carte sur le premier chunk suivant. Un chunk
+        // envoye a eu son annonce : l'index de la dimension existe.
+        int index = view.announcedDimensions.indexOf(dimension);
         LongIterator iterator = sent.iterator();
         while (iterator.hasNext()) {
             long key = iterator.nextLong();
             if (!wanted.contains(key)) {
                 iterator.remove();
                 watchedChunkCount--;
-                ServerPlayNetworking.send(player, new RemoteChunkUnloadPayload(dimensionId, new ChunkPos(key)));
+                PortalNetwork.send(player, new RemoteChunkUnloadPayload(index, new ChunkPos(key)));
             }
         }
         ServerWorld destination = server.getWorld(dimension);
@@ -516,8 +515,8 @@ public final class PortalViewTracker {
                     // Pas encore charge : le ticket de DestinationLoader s'en occupe, on reessaie au prochain passage.
                     continue;
                 }
-                announceDimension(player, view, destination);
-                ServerPlayNetworking.send(player, RemoteChunkPayload.of(destination, chunk));
+                index = announceDimension(player, view, destination);
+                PortalNetwork.send(player, RemoteChunkPayload.of(destination, chunk));
                 sent.add(key);
                 watchedChunkCount++;
                 budget--;
@@ -527,7 +526,7 @@ public final class PortalViewTracker {
             try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_SYNC_ENTITIES)) {
                 RemoteEntityView entities = view.entities.get(dimension);
                 if (entities == null) {
-                    entities = new RemoteEntityView(player, dimension);
+                    entities = new RemoteEntityView(player, dimension, index);
                     view.entities.put(dimension, entities);
                 }
                 entities.update(destination, sent);
@@ -536,13 +535,22 @@ public final class PortalViewTracker {
         }
     }
 
-    private static void announceDimension(ServerPlayerEntity player, PlayerView view, ServerWorld destination) {
+    /**
+     * Annonce la dimension au joueur si ce n'est pas deja fait, et rend son index chez lui : l'ordre des annonces de la vue.
+     * Les payloads frequents (entities, blocs, dechargements) portent cet index, un octet, a la place de l'identifiant ;
+     * le client le resout par la derniere annonce recue pour cet index, et l'ordre des paquets d'une connexion garantit
+     * qu'une annonce precede tout ce qui s'en reclame.
+     */
+    private static int announceDimension(ServerPlayerEntity player, PlayerView view, ServerWorld destination) {
         RegistryKey<World> dimension = destination.getRegistryKey();
-        if (view.announcedDimensions.contains(dimension)) {
-            return;
+        int index = view.announcedDimensions.indexOf(dimension);
+        if (index >= 0) {
+            return index;
         }
-        ServerPlayNetworking.send(player, RemoteDimensionPayload.of(destination));
+        index = view.announcedDimensions.size();
+        PortalNetwork.send(player, RemoteDimensionPayload.of(destination, index));
         view.announcedDimensions.add(dimension);
+        return index;
     }
 
     private static void unloadAll(MinecraftServer server, ServerPlayerEntity player, PlayerView view, RegistryKey<World> dimension, LongSet sent) {
@@ -550,10 +558,10 @@ public final class PortalViewTracker {
         if (entities != null) {
             entities.clear(server.getWorld(dimension), true);
         }
-        Identifier dimensionId = dimension.getValue();
+        int index = view.announcedDimensions.indexOf(dimension);
         LongIterator iterator = sent.iterator();
         while (iterator.hasNext()) {
-            ServerPlayNetworking.send(player, new RemoteChunkUnloadPayload(dimensionId, new ChunkPos(iterator.nextLong())));
+            PortalNetwork.send(player, new RemoteChunkUnloadPayload(index, new ChunkPos(iterator.nextLong())));
         }
         watchedChunkCount -= sent.size();
         sent.clear();
@@ -568,19 +576,19 @@ public final class PortalViewTracker {
             view.hasPendingBlockUpdates = false;
             for (Map.Entry<RegistryKey<World>, LongSet> entry : view.pendingBlockUpdates.entrySet()) {
                 LongSet pending = entry.getValue();
-                // La dimension existe tant que le serveur tourne.
+                // La dimension existe tant que le serveur tourne, et un chunk envoye a eu son annonce.
                 ServerWorld world = server.getWorld(entry.getKey());
-                Identifier dimensionId = entry.getKey().getValue();
+                int index = view.announcedDimensions.indexOf(entry.getKey());
                 LongIterator iterator = pending.iterator();
                 while (iterator.hasNext()) {
                     BlockPos pos = BlockPos.fromLong(iterator.nextLong());
-                    ServerPlayNetworking.send(view.player, new RemoteBlockUpdatePayload(dimensionId, pos, world.getBlockState(pos)));
+                    PortalNetwork.send(view.player, new RemoteBlockUpdatePayload(index, pos, world.getBlockState(pos)));
                     // Comme vanilla apres un changement : les donnees de la block entity suivent l'etat (texte d'un
                     // panneau, motifs d'une banniere, tete d'un joueur), sinon la vue la montrerait vide.
                     BlockEntity blockEntity = world.getBlockEntity(pos);
                     Packet<ClientPlayPacketListener> update = blockEntity == null ? null : blockEntity.toUpdatePacket();
                     if (update != null) {
-                        ServerPlayNetworking.send(view.player, new RemoteEntityPacketPayload(dimensionId, update));
+                        PortalNetwork.send(view.player, new RemoteEntityPacketPayload(index, update));
                     }
                 }
                 pending.clear();

@@ -41,15 +41,6 @@ class PortalRenderStateTest {
         assertFalse(PortalRenderState.canRenderPortals(), "Pas de rendu de portail dans un rendu de portail.");
         assertTrue(PortalRenderState.isRendering(), "En rendu de portail.");
         assertEquals(frame + 1, PortalRenderState.frameIndex(), "Chaque image a son numero.");
-        assertFalse(PortalRenderState.hasTerrainCenter(), "Pas de substitution avant setupTerrain.");
-        PortalRenderState.setTerrainCenter(1.0, 2.0, 3.0);
-        assertTrue(PortalRenderState.hasTerrainCenter(), "Position substituee pour setupTerrain.");
-        assertEquals(1.0, PortalRenderState.terrainCenterX(), "X substitue.");
-        assertEquals(2.0, PortalRenderState.terrainCenterY(), "Y substitue.");
-        assertEquals(3.0, PortalRenderState.terrainCenterZ(), "Z substitue.");
-        PortalRenderState.clearTerrainCenter();
-        assertFalse(PortalRenderState.hasTerrainCenter(), "Substitution levee apres setupTerrain.");
-        PortalRenderState.setTerrainCenter(4.0, 5.0, 6.0);
         Vec3d view = new Vec3d(1.0, 2.0, 3.0);
         PortalRenderState.setViewCameraPos(view);
         PortalRenderState.setBlockOutlineAllowed(true);
@@ -58,7 +49,6 @@ class PortalRenderStateTest {
         PortalRenderState.endFrame();
         assertTrue(PortalRenderState.canRenderPortals(), "La garde est levee en fin d'image.");
         assertFalse(PortalRenderState.isRendering(), "Plus en rendu de portail.");
-        assertFalse(PortalRenderState.hasTerrainCenter(), "Plus de position substituee.");
         assertNull(PortalRenderState.viewCameraPos(), "Plus de camera de vue.");
         assertTrue(PortalRenderState.blockOutlineAllowed(), "Le contour reste decide par le rendu principal.");
     }

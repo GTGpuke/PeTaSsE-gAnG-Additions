@@ -21,13 +21,10 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.PlayerAssociatedNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
 import net.minecraft.util.TypeFilter;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
-
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import com.gtgpuke.gtgsbackrooms.mixin.EntityTrackerAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.ServerChunkLoadingManagerAccessor;
@@ -47,7 +44,8 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
 
     private final ServerPlayerEntity viewer;
     private final RegistryKey<World> dimension;
-    private final Identifier dimensionId;
+    /** Index de la dimension chez ce joueur, celui de son annonce : un octet dans chaque paquet, au lieu de l'identifiant. */
+    private final int dimensionIndex;
     private final IntOpenHashSet tracked = new IntOpenHashSet();
     private final IntOpenHashSet seen = new IntOpenHashSet();
     private final List<Entity> scratch = new ArrayList<>();
@@ -65,10 +63,10 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
     private float sentRain = Float.NaN;
     private float sentThunder = Float.NaN;
 
-    RemoteEntityView(ServerPlayerEntity viewer, RegistryKey<World> dimension) {
+    RemoteEntityView(ServerPlayerEntity viewer, RegistryKey<World> dimension, int dimensionIndex) {
         this.viewer = viewer;
         this.dimension = dimension;
-        this.dimensionId = dimension.getValue();
+        this.dimensionIndex = dimensionIndex;
     }
 
     RegistryKey<World> dimension() {
@@ -83,7 +81,7 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
     @Override
     @SuppressWarnings("unchecked")
     public void sendPacket(Packet<?> packet) {
-        ServerPlayNetworking.send(this.viewer, new RemoteEntityPacketPayload(this.dimensionId, (Packet<? super ClientPlayPacketListener>) packet));
+        PortalNetwork.send(this.viewer, new RemoteEntityPacketPayload(this.dimensionIndex, (Packet<? super ClientPlayPacketListener>) packet));
     }
 
     /**

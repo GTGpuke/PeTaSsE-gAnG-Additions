@@ -23,6 +23,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSight;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSightPayload;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Ce que le joueur regarde des sorties fugaces : celles que le rendu a dessinees a la derniere image, dont un point du
@@ -53,6 +54,8 @@ public final class PortalSightReporter {
     private static final double SIGHT_MARGIN = 0.1;
     /** Blocs parcourus au plus par un regard, bien au-dela de la distance de rendu des portails ; au-dela, rien ne le coupe. */
     private static final int MAX_SIGHT_STEPS = 512;
+    /** Section du moniteur de performance : le jugement du regard, a chaque tick. */
+    private static final String PERF_SIGHT = "client.portal.sight";
     private static final List<BackroomsPortalEntity> DRAWN = new ArrayList<>();
     /** Sorties fugaces vues a ce tick, liste reprise d'un tick a l'autre ; un rapport qui part en emporte une copie. */
     private static final List<UUID> SEEN = new ArrayList<>();
@@ -122,11 +125,18 @@ public final class PortalSightReporter {
     }
 
     /** Tick client : ce que le joueur regarde, les sorties fugaces qui existent pour lui, et le rapport s'il le faut. */
+    @SuppressWarnings("try")
     public static void onClientTick(MinecraftClient client) {
         ClientWorld world = client.world;
         if (!ModConfig.ENABLE_PORTAL_FEATURE || world == null || client.player == null) {
             return;
         }
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_SIGHT)) {
+            judge(client, world);
+        }
+    }
+
+    private static void judge(MinecraftClient client, ClientWorld world) {
         ticks++;
         boolean judged = frameWorld == world && PortalRenderState.remoteRenderingAvailable();
         if (judged) {

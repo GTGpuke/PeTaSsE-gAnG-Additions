@@ -130,6 +130,7 @@ def coverageExcludes = [
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalStencilRenderer*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalClipping*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/FrameAreaRenderer*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/ViewLightmaps*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/world/**',
         'com/gtgpuke/gtgsbackrooms/feature/gang/client/**',
         'com/gtgpuke/gtgsbackrooms/perf/client/**',

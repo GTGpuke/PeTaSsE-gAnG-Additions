@@ -30,7 +30,7 @@ class RemoteEntityViewTest {
     @DisplayName("La boite de la fenetre couvre ses chunks sur toute la hauteur et n'est refaite que si une borne bouge")
     void windowBoxIsRebuiltOnlyWhenABoundMoves() {
         // Aucun joueur : seule la boite de la fenetre est exercee.
-        RemoteEntityView view = new RemoteEntityView(null, World.NETHER);
+        RemoteEntityView view = new RemoteEntityView(null, World.NETHER, 0);
         LongOpenHashSet window = new LongOpenHashSet();
         window.add(ChunkPos.toLong(0, 0));
         Box previous = view.windowBox(BOTTOM_Y, TOP_Y, window);

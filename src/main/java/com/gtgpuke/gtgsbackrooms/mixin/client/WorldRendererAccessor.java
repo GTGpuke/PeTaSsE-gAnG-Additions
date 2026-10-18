@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.render.BuiltChunkStorage;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.ChunkRenderingDataPreparer;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderLayer;
@@ -28,10 +29,6 @@ import net.minecraft.entity.player.BlockBreakingInfo;
  */
 @Mixin(WorldRenderer.class)
 public interface WorldRendererAccessor {
-
-    /** Prepare la grille et le culling du renderer pour une camera. */
-    @Invoker("setupTerrain")
-    void backrooms$setupTerrain(Camera camera, Frustum frustum, boolean hasForcedFrustum, boolean spectator);
 
     /** Programme la construction des sections retenues. */
     @Invoker("updateChunks")
@@ -62,9 +59,53 @@ public interface WorldRendererAccessor {
     @Accessor("cameraChunkX")
     int backrooms$getCameraChunkX();
 
-    /** Chunk Z du centre de la grille de sections, fixe par le dernier {@code setupTerrain}. */
+    /** Chunk Y du centre de la grille de sections. */
+    @Accessor("cameraChunkY")
+    int backrooms$getCameraChunkY();
+
+    /** Chunk Z du centre de la grille de sections. */
     @Accessor("cameraChunkZ")
     int backrooms$getCameraChunkZ();
+
+    @Accessor("cameraChunkX")
+    void backrooms$setCameraChunkX(int chunkX);
+
+    @Accessor("cameraChunkY")
+    void backrooms$setCameraChunkY(int chunkY);
+
+    @Accessor("cameraChunkZ")
+    void backrooms$setCameraChunkZ(int chunkZ);
+
+    /** Graphe de culling vanilla du renderer, asynchrone, que la vue fait avancer elle-meme ({@code RemoteViewRenderer}). */
+    @Accessor("chunkRenderingDataPreparer")
+    ChunkRenderingDataPreparer backrooms$getChunkRenderingDataPreparer();
+
+    /** Cellule de huit blocs de la camera du dernier placement : le graphe repart d'elle quand elle change. */
+    @Accessor("lastCameraX")
+    double backrooms$getLastCameraX();
+
+    @Accessor("lastCameraX")
+    void backrooms$setLastCameraX(double cell);
+
+    @Accessor("lastCameraY")
+    double backrooms$getLastCameraY();
+
+    @Accessor("lastCameraY")
+    void backrooms$setLastCameraY(double cell);
+
+    @Accessor("lastCameraZ")
+    double backrooms$getLastCameraZ();
+
+    @Accessor("lastCameraZ")
+    void backrooms$setLastCameraZ(double cell);
+
+    /** Distance de rendu de la grille : si celle des options change, le renderer se recharge (comme vanilla). */
+    @Accessor("viewDistance")
+    int backrooms$getViewDistance();
+
+    /** Refait la liste des sections a dessiner depuis le graphe de culling, sous ce frustum. */
+    @Invoker("applyFrustum")
+    void backrooms$applyFrustum(Frustum frustum);
 
     /**
      * Sections a dessiner, dans l'ordre de rendu : celles du dernier {@code setupTerrain} pour le monde du joueur, celles du
@@ -74,11 +115,21 @@ public interface WorldRendererAccessor {
     ObjectArrayList<ChunkBuilder.BuiltChunk> backrooms$getBuiltChunks();
 
     /**
-     * Tangage de camera, par pas de deux degres, du dernier {@code setupTerrain} qui a applique le frustum : une valeur
-     * qu'aucune camera ne donne force vanilla a refaire sa liste de sections au suivant.
+     * Tangage de camera, par pas de deux degres, du dernier placement qui a applique le frustum : une valeur qu'aucune
+     * camera ne donne force vanilla a refaire sa liste de sections au suivant.
      */
     @Accessor("lastCameraPitch")
     void backrooms$setLastCameraPitch(double pitch);
+
+    @Accessor("lastCameraPitch")
+    double backrooms$getLastCameraPitch();
+
+    /** Lacet de camera, par pas de deux degres, du dernier placement qui a applique le frustum. */
+    @Accessor("lastCameraYaw")
+    double backrooms$getLastCameraYaw();
+
+    @Accessor("lastCameraYaw")
+    void backrooms$setLastCameraYaw(double yaw);
 
     /** Block entities rendues sans culling de section (grands modeles) ; a parcourir sous {@code synchronized}. */
     @Accessor("noCullingBlockEntities")

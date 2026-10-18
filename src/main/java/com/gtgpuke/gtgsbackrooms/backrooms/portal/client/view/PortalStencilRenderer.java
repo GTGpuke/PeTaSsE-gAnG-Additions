@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 
 import net.minecraft.client.MinecraftClient;
@@ -41,8 +42,8 @@ import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import com.gtgpuke.gtgsbackrooms.mixin.client.BackgroundRendererAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.CameraAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.FrustumAccessor;
-import com.gtgpuke.gtgsbackrooms.mixin.client.LightmapTextureManagerAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.MinecraftClientAccessor;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Rend l'autre cote de chaque portail visible, puis un niveau de portails imbriques, au milieu du rendu du monde : apres
@@ -83,10 +84,24 @@ public final class PortalStencilRenderer {
     private static final double CAMERA_CLEARANCE = 0.1;
     private static final int CAMERA_CORNERS = 8;
     private static final long DEBUG_LOG_INTERVAL_MILLIS = 1000L;
+    /** Section du moniteur de performance : tout le rendu des portails d'une image. */
+    private static final String PERF_RENDER = "client.portal.render";
 
     private static final List<BackroomsPortalEntity> VISIBLE = new ArrayList<>();
     private static final Matrix4f REMOTE_POSITION = new Matrix4f();
     private static final Matrix4f NESTED_POSITION = new Matrix4f();
+    /** Projection et vue d'un cadre, et un sommet transforme, pour son rectangle d'ecran. */
+    private static final Matrix4f VIEW_PROJECTION = new Matrix4f();
+    private static final Vector4f SCRATCH_CLIP = new Vector4f();
+    /** Marge, en pixels, autour du rectangle d'ecran d'un cadre : les pixels de son bord en font partie. */
+    private static final int SCISSOR_MARGIN = 2;
+    /**
+     * Rectangles du ciseau poses, en pixels du framebuffer (x et y du coin bas gauche, puis x et y du coin haut droit) : la
+     * vue, puis la vue imbriquee, chacun coupe avec le precedent.
+     */
+    private static final int[][] SCISSORS = {new int[4], new int[4]};
+    /** Profondeur du ciseau pose : zero hors d'une vue, un dans une vue, deux dans une vue imbriquee. */
+    private static int scissorDepth;
     /** Brouillard du monde du joueur (couleur, portee, forme), rendu apres les vues, qui posent chacune le leur. */
     private static final float[] MAIN_FOG = new float[4];
     private static float mainFogStart;
@@ -109,10 +124,22 @@ public final class PortalStencilRenderer {
      * @param camera camera du joueur
      * @param positionMatrix matrice de vue du rendu monde
      * @param projectionMatrix matrice de projection du rendu monde
-     * @param lightmap lightmap du rendu, recalculee pour chaque monde distant
+     * @param lightmap gestionnaire de lightmap du rendu : il porte celle de chaque monde vu le temps de sa vue
      * @param tickDelta fraction de tick
      */
+    @SuppressWarnings("try")
     public static void renderAllVisiblePortals(
+            Camera camera,
+            Matrix4f positionMatrix,
+            Matrix4f projectionMatrix,
+            LightmapTextureManager lightmap,
+            float tickDelta) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_RENDER)) {
+            renderPortals(camera, positionMatrix, projectionMatrix, lightmap, tickDelta);
+        }
+    }
+
+    private static void renderPortals(
             Camera camera,
             Matrix4f positionMatrix,
             Matrix4f projectionMatrix,
@@ -480,12 +507,103 @@ public final class PortalStencilRenderer {
         aimCamera(remoteCamera, remoteCameraPos, remoteLook, REMOTE_POSITION);
 
         FrameAreaRenderer.writeDepth(portal, cameraPos, positionMatrix, true);
-        if (renderView(client, view, camera, remoteCamera, remoteCameraPos, REMOTE_POSITION, projectionMatrix, lightmap, tickDelta,
-                portal, cameraPos, positionMatrix)) {
-            renderNestedPortals(client, portal, view, camera, remoteCameraPos, remoteLook, projectionMatrix, lightmap, tickDelta);
-        } else {
-            FrameAreaRenderer.fill(portal, cameraPos, positionMatrix, 0.0f, 0.0f, 0.0f);
+        // Rien de la vue ne sort du rectangle d'ecran du cadre : le ciseau epargne au GPU les fragments du reste de l'ecran,
+        // quelle que soit la couche (ciel, nuages, terrain, entities, pluie), avant meme le stencil.
+        boolean scissored = pushScissor(client, portal, cameraPos, positionMatrix, projectionMatrix);
+        try {
+            if (renderView(client, view, camera, remoteCamera, remoteCameraPos, REMOTE_POSITION, projectionMatrix, lightmap, tickDelta,
+                    portal, cameraPos, positionMatrix)) {
+                renderNestedPortals(client, portal, view, camera, remoteCameraPos, remoteLook, projectionMatrix, lightmap, tickDelta);
+            } else {
+                FrameAreaRenderer.fill(portal, cameraPos, positionMatrix, 0.0f, 0.0f, 0.0f);
+            }
+        } finally {
+            popScissor(scissored);
         }
+    }
+
+    /**
+     * Pose le ciseau d'ecran sur le rectangle du cadre, coupe avec le rectangle deja pose s'il y en a un, et dit s'il a ete
+     * pose. Un cadre qui touche le plan proche (un sommet derriere la camera) couvre potentiellement tout l'ecran : pas de
+     * ciseau pour lui, ni pour ce qu'il montre ; un ciseau deja pose reste tel quel.
+     */
+    private static boolean pushScissor(MinecraftClient client, BackroomsPortalEntity frame, Vec3d cameraPos, Matrix4f positionMatrix, Matrix4f projection) {
+        if (scissorDepth == SCISSORS.length) {
+            return false;
+        }
+        int[] rect = SCISSORS[scissorDepth];
+        if (!screenRect(frame, cameraPos, positionMatrix, projection, client.getFramebuffer().textureWidth, client.getFramebuffer().textureHeight, rect)) {
+            return false;
+        }
+        if (scissorDepth > 0) {
+            int[] outer = SCISSORS[scissorDepth - 1];
+            rect[0] = Math.max(rect[0], outer[0]);
+            rect[1] = Math.max(rect[1], outer[1]);
+            rect[2] = Math.min(rect[2], outer[2]);
+            rect[3] = Math.min(rect[3], outer[3]);
+        }
+        scissorDepth++;
+        applyScissor(rect);
+        return true;
+    }
+
+    /** Retire le ciseau pose par {@link #pushScissor} : le rectangle exterieur reprend, ou le ciseau est leve. */
+    private static void popScissor(boolean scissored) {
+        if (!scissored) {
+            return;
+        }
+        scissorDepth--;
+        if (scissorDepth == 0) {
+            RenderSystem.disableScissor();
+        } else {
+            applyScissor(SCISSORS[scissorDepth - 1]);
+        }
+    }
+
+    private static void applyScissor(int[] rect) {
+        RenderSystem.enableScissor(rect[0], rect[1], Math.max(0, rect[2] - rect[0]), Math.max(0, rect[3] - rect[1]));
+    }
+
+    /**
+     * Rectangle d'ecran des quatre sommets du cadre, en pixels du framebuffer, elargi d'une marge et borne a l'ecran.
+     *
+     * @return {@code false} si un sommet est derriere la camera : le rectangle n'est pas defini
+     */
+    private static boolean screenRect(
+            BackroomsPortalEntity frame, Vec3d cameraPos, Matrix4f positionMatrix, Matrix4f projection, int width, int height, int[] out) {
+        VIEW_PROJECTION.set(projection).mul(positionMatrix);
+        Vec3d center = frame.getPos();
+        PortalFacing facing = frame.facingSource();
+        double halfWidth = frame.width() / 2.0;
+        double halfHeight = frame.height() / 2.0;
+        float minX = Float.MAX_VALUE;
+        float minY = Float.MAX_VALUE;
+        float maxX = -Float.MAX_VALUE;
+        float maxY = -Float.MAX_VALUE;
+        for (int corner = 0; corner < 4; corner++) {
+            double sw = (corner & 1) != 0 ? halfWidth : -halfWidth;
+            double sh = (corner & 2) != 0 ? halfHeight : -halfHeight;
+            SCRATCH_CLIP.set(
+                    (float) (center.x - cameraPos.x + facing.axisW.x * sw + facing.axisH.x * sh),
+                    (float) (center.y - cameraPos.y + facing.axisW.y * sw + facing.axisH.y * sh),
+                    (float) (center.z - cameraPos.z + facing.axisW.z * sw + facing.axisH.z * sh),
+                    1.0f);
+            VIEW_PROJECTION.transform(SCRATCH_CLIP);
+            if (SCRATCH_CLIP.w <= 1.0e-4f) {
+                return false;
+            }
+            float x = (SCRATCH_CLIP.x / SCRATCH_CLIP.w * 0.5f + 0.5f) * width;
+            float y = (SCRATCH_CLIP.y / SCRATCH_CLIP.w * 0.5f + 0.5f) * height;
+            minX = Math.min(minX, x);
+            minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x);
+            maxY = Math.max(maxY, y);
+        }
+        out[0] = MathHelper.clamp(MathHelper.floor(minX) - SCISSOR_MARGIN, 0, width);
+        out[1] = MathHelper.clamp(MathHelper.floor(minY) - SCISSOR_MARGIN, 0, height);
+        out[2] = MathHelper.clamp(MathHelper.ceil(maxX) + SCISSOR_MARGIN, 0, width);
+        out[3] = MathHelper.clamp(MathHelper.ceil(maxY) + SCISSOR_MARGIN, 0, height);
+        return true;
     }
 
     /**
@@ -565,9 +683,14 @@ public final class PortalStencilRenderer {
         aimCamera(nestedCamera, innerCameraPos, innerLook, NESTED_POSITION);
 
         FrameAreaRenderer.writeDepth(inner, remoteCameraPos, REMOTE_POSITION, true);
-        if (!renderView(client, innerView, camera, nestedCamera, innerCameraPos, NESTED_POSITION, projectionMatrix, lightmap, tickDelta,
-                inner, remoteCameraPos, REMOTE_POSITION)) {
-            FrameAreaRenderer.fill(inner, remoteCameraPos, REMOTE_POSITION, 0.0f, 0.0f, 0.0f);
+        boolean scissored = pushScissor(client, inner, remoteCameraPos, REMOTE_POSITION, projectionMatrix);
+        try {
+            if (!renderView(client, innerView, camera, nestedCamera, innerCameraPos, NESTED_POSITION, projectionMatrix, lightmap, tickDelta,
+                    inner, remoteCameraPos, REMOTE_POSITION)) {
+                FrameAreaRenderer.fill(inner, remoteCameraPos, REMOTE_POSITION, 0.0f, 0.0f, 0.0f);
+            }
+        } finally {
+            popScissor(scissored);
         }
     }
 
@@ -596,7 +719,7 @@ public final class PortalStencilRenderer {
      * @param viewCameraPos position de la camera de la vue
      * @param positionMatrix matrice de vue de la camera de la vue
      * @param projection projection du joueur, la seule : le plan du portail d'arrivee est coupe par les shaders
-     * @param lightmap lightmap du rendu, recalculee pour le monde de la vue
+     * @param lightmap gestionnaire de lightmap du rendu : il porte celle du monde de la vue le temps de la dessiner
      * @param tickDelta fraction de tick de l'image
      * @param frame portail dont c'est la vue
      * @param frameCameraPos camera qui dessine la zone du cadre ; {@code null} quand la vue couvre l'ecran
@@ -617,14 +740,16 @@ public final class PortalStencilRenderer {
             @Nullable Vec3d frameCameraPos,
             @Nullable Matrix4f framePosition) {
         MinecraftClientAccessor clientAccessor = (MinecraftClientAccessor) client;
-        LightmapTextureManagerAccessor lightmapAccessor = (LightmapTextureManagerAccessor) lightmap;
         ClientWorld mainWorld = client.world;
         WorldRenderer mainRenderer = client.worldRenderer;
+        // Une vue secondaire montre le monde du joueur : sa lightmap est deja celle des shaders.
+        boolean ownLightmap = view.world() != mainWorld;
         try {
             client.world = view.world();
             clientAccessor.backrooms$setWorldRenderer(view.renderer());
-            lightmapAccessor.backrooms$setDirty(true);
-            lightmap.update(tickDelta);
+            if (ownLightmap) {
+                ViewLightmaps.bind(client, lightmap, view.world(), tickDelta);
+            }
             view.viewRenderer().prepareFog(client, viewCamera, tickDelta);
             boolean throughFrame = frameCameraPos != null && framePosition != null;
             if (throughFrame) {
@@ -644,8 +769,9 @@ public final class PortalStencilRenderer {
             clientAccessor.backrooms$setWorldRenderer(mainRenderer);
             client.getEntityRenderDispatcher().configure(mainWorld, camera, client.targetedEntity);
             client.getBlockEntityRenderDispatcher().configure(mainWorld, camera, client.crosshairTarget);
-            lightmapAccessor.backrooms$setDirty(true);
-            lightmap.update(tickDelta);
+            if (ownLightmap) {
+                ViewLightmaps.unbind(lightmap);
+            }
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
         }
     }

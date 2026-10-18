@@ -84,6 +84,33 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   Level 0 ou le Nether, qui n'en ont pas.
 
 ### Changed
+- **Performance des portails** (passe complète, mesures dans `docs/PORTALS.md`) :
+  - la lightmap d'un monde vu par un portail n'est plus recalculée deux fois par vue et par image (celle du monde vu,
+    puis celle du joueur), mais une fois par tick client dans une texture propre à ce monde, comme vanilla la sienne
+    (`ViewLightmaps`) ; une vue du monde du joueur garde sa lightmap. Par vue et par image, c'était deux calculs de
+    256 points, un millier d'objets temporaires et deux envois de texture au pilote ;
+  - les tampons de sommets d'un renderer de vue ne réservent leurs objets GL qu'au premier usage : sa grille de sections,
+    à la distance de rendu du joueur, en compte des milliers dont une vue n'en construit qu'une petite part, et douze
+    objets GL par section dans la même image faisaient l'à-coup de l'apparition d'une dimension vue par un portail
+    (`LazyVertexBuffers`, `MixinVertexBuffer`) ;
+  - les payloads fréquents de la synchronisation (`portal_remote_entity`, `portal_remote_block_update`,
+    `portal_remote_chunk_unload`) désignent la dimension par l'index de son annonce, un octet, au lieu de son
+    identifiant (de 20 à 33 octets) : pour un paquet de déplacement d'entité, c'était plus de la moitié du paquet ;
+  - chaque vue se dessine sous un ciseau d'écran, le rectangle de son cadre à l'écran (coupé avec celui de la vue qui
+    la contient pour une vue imbriquée) : le GPU ne traite aucun fragment hors du cadre, pour le ciel, les nuages, le
+    terrain, les entités et la pluie de la vue, avant même le stencil ;
+  - les moitiés d'entités à cheval sur un portail ne sont cherchées que pour les portails à portée de la caméra qui
+    dessine leur monde, pour ce rendu comme pour le dessin vanilla qu'il remplace, et rien n'est touché quand aucun
+    portail n'est à portée : un monde plein de portails lointains coûtait cela à chaque image ;
+  - mesuré sur le banc (tableau dans `docs/PORTALS.md`) : à-coup de création d'un monde distant 47 → 25 ms et d'une
+    vue secondaire 72 → moins de 11 ms, pire image 114 → 85 ms, lightmap des vues retirée du profil (22 à 36 ms/s),
+    coût au repos divisé par deux, paquets d'entité 34 → 15 octets et de bloc 30 → 6 octets ; le coût CPU d'une vue
+    stable est inchangé (rendu vanilla de la vue).
+- **Moniteur de performance** : le résumé client donne l'image la plus longue et le nombre d'images de plus de 50 ms de
+  l'intervalle, et ses propres sections (`client.*`, dont le rendu des portails par vue, la création des mondes distants
+  et des vues secondaires, le chargement des chunks distants) ; chaque section donne aussi ce qu'elle a alloué ; le
+  résumé serveur donne les paquets et octets envoyés par type de payload des portails (`PortalNetwork`, qui encode une
+  fois de plus chaque payload quand le moniteur est actif). La section `portal.light.client` devient `client.portal.light`.
 - **Nom** : le projet devient *GTG's Backrooms*, de GTGpuke. Identifiant du mod `gtgs_backrooms`, paquet
   `com.gtgpuke.gtgsbackrooms`, classes `GtgsBackroomsMod` et `GtgsBackroomsClientMod`, propriétés système
   `gtgsbackrooms.*`, onglets créatifs *GTG's Backrooms* (identifiant `gtgs_backrooms:main`) et *GTG's Backrooms -
@@ -134,6 +161,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- **Mods de rendu** : un mod qui réécrit `WorldRenderer.setupTerrain` (pipeline de terrain remplacé) faisait refuser
+  notre mixin et planter le jeu au lancement (une injection dans une méthode réécrite est refusée, quel que soit
+  `require`). Une vue de portail prépare maintenant son terrain elle-même (grille, chunk builder, graphe de culling
+  vanilla, ce que faisait `setupTerrain` avec la position du joueur substituée par mixin) : plus rien dans
+  `setupTerrain`, plus de substitution, et les évènements de rendu du monde de Fabric ne sont plus déclenchés pour une
+  vue avec un contexte vide (un mod qui y lisait la projection coupait le rendu distant dès la première vue). Le mixin
+  de `WorldRenderer` passe en priorité 1001 : son injection dans `scheduleChunkRender`, que ces mods réécrivent aussi,
+  s'applique à leur version. Ce que ces mods donnent avec les portails est dans `docs/PORTALS.md` (Limites connues).
 - **Multijoueur et réseau** :
   - un bloc changé dans un chunk que le client tenait déjà au moment d'une traversée (un autre joueur, l'eau, la
     redstone) restait faux chez lui jusqu'au déchargement du chunk : vanilla ne relaie rien à un chunk qu'il compte

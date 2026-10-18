@@ -21,9 +21,9 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.interaction.RemoteInteractionHandler.RemoteReach;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalNetwork;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteBlockBreakingPayload;
 
 /**
@@ -145,7 +145,7 @@ final class RemoteMiningTracker {
 
     private static void sendProgress(ServerPlayerEntity player, ServerWorld world, Mining mining, int stage) {
         world.setBlockBreakingInfo(player.getId(), mining.pos, stage);
-        ServerPlayNetworking.send(player, new RemoteBlockBreakingPayload(mining.dimension.getValue(), mining.pos, stage));
+        PortalNetwork.send(player, new RemoteBlockBreakingPayload(mining.dimension.getValue(), mining.pos, stage));
     }
 
     /** Casse un bloc comme {@code ServerPlayerInteractionManager.tryBreakBlock}, evenements Fabric compris. */

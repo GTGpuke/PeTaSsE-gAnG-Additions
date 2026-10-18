@@ -24,10 +24,10 @@ import com.gtgpuke.gtgsbackrooms.core.ModConstants;
  * equipement, passagers, disparition) part ici, enveloppe avec sa dimension, et le client l'applique
  * a son monde distant exactement comme il l'appliquerait a son propre monde.
  *
- * @param dimension identifiant de la dimension distante
+ * @param dimension index de la dimension distante chez le joueur, celui de son annonce
  * @param packet paquet de jeu vanilla, serveur vers client
  */
-public record RemoteEntityPacketPayload(Identifier dimension, Packet<? super ClientPlayPacketListener> packet) implements CustomPayload {
+public record RemoteEntityPacketPayload(int dimension, Packet<? super ClientPlayPacketListener> packet) implements CustomPayload {
 
     public static final CustomPayload.Id<RemoteEntityPacketPayload> ID =
             new CustomPayload.Id<>(Identifier.of(ModConstants.MOD_ID, "portal_remote_entity"));
@@ -48,12 +48,12 @@ public record RemoteEntityPacketPayload(Identifier dimension, Packet<? super Cli
     }
 
     private void write(RegistryByteBuf buf) {
-        buf.writeIdentifier(this.dimension);
+        buf.writeVarInt(this.dimension);
         packetCodec(buf).encode(buf, this.packet);
     }
 
     private static RemoteEntityPacketPayload read(RegistryByteBuf buf) {
-        Identifier dimension = buf.readIdentifier();
+        int dimension = buf.readVarInt();
         return new RemoteEntityPacketPayload(dimension, packetCodec(buf).decode(buf));
     }
 

@@ -291,7 +291,8 @@ public final class ClientPortalCrossing {
             }
             return;
         }
-        RemoteWorld remote = RemoteWorldRegistry.announce(dimension, payload.dimensionType());
+        // Bascule menee par le serveur avant toute annonce : la dimension n'a pas encore d'index chez le joueur.
+        RemoteWorld remote = RemoteWorldRegistry.announce(dimension, payload.dimensionType(), -1);
         if (remote == null) {
             ModConstants.LOGGER.error("[Portal] Impossible de basculer vers {} : monde distant indisponible.", payload.dimension());
             return;

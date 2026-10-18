@@ -57,7 +57,7 @@ class PortalPayloadsTest {
     @DisplayName("L'annonce de dimension survit a un aller-retour reseau")
     void dimensionPayload() {
         RemoteDimensionPayload payload = new RemoteDimensionPayload(
-                BackroomsConstants.LEVEL_ZERO_WORLD.getValue(), Identifier.of(ModConstants.MOD_ID, "backrooms_level_0_type"));
+                BackroomsConstants.LEVEL_ZERO_WORLD.getValue(), Identifier.of(ModConstants.MOD_ID, "backrooms_level_0_type"), 2);
         assertEquals(payload, roundTrip(RemoteDimensionPayload.CODEC, payload), "Aller-retour identique.");
         assertEquals(RemoteDimensionPayload.ID, payload.getId(), "Identifiant du payload.");
     }
@@ -65,8 +65,7 @@ class PortalPayloadsTest {
     @Test
     @DisplayName("Le dechargement de chunk survit a un aller-retour reseau, coordonnees negatives comprises")
     void unloadPayload() {
-        RemoteChunkUnloadPayload payload = new RemoteChunkUnloadPayload(
-                BackroomsConstants.LEVEL_ZERO_WORLD.getValue(), new ChunkPos(-12, 7));
+        RemoteChunkUnloadPayload payload = new RemoteChunkUnloadPayload(1, new ChunkPos(-12, 7));
         assertEquals(payload, roundTrip(RemoteChunkUnloadPayload.CODEC, payload), "Aller-retour identique.");
         assertEquals(RemoteChunkUnloadPayload.ID, payload.getId(), "Identifiant du payload.");
     }
@@ -75,14 +74,14 @@ class PortalPayloadsTest {
     @DisplayName("La mise a jour de bloc transporte l'etat complet, proprietes comprises")
     void blockUpdatePayload() {
         RemoteBlockUpdatePayload payload = new RemoteBlockUpdatePayload(
-                BackroomsConstants.LEVEL_ZERO_WORLD.getValue(),
+                1,
                 new BlockPos(-3, 11, 44),
                 ModBlocks.LEVEL_ZERO_WALLPAPER_ADAPTIVE.getDefaultState().with(LevelZeroWallpaperBlock.FACE_MASK, 9));
         RemoteBlockUpdatePayload decoded = roundTrip(RemoteBlockUpdatePayload.CODEC, payload);
         assertEquals(payload, decoded, "Aller-retour identique.");
         assertEquals(9, decoded.state().get(LevelZeroWallpaperBlock.FACE_MASK), "La propriete face_mask est conservee.");
         assertTrue(roundTrip(RemoteBlockUpdatePayload.CODEC,
-                new RemoteBlockUpdatePayload(Identifier.ofVanilla("overworld"), BlockPos.ORIGIN, Blocks.AIR.getDefaultState()))
+                new RemoteBlockUpdatePayload(0, BlockPos.ORIGIN, Blocks.AIR.getDefaultState()))
                 .state().isAir(), "L'air est transporte.");
         assertEquals(RemoteBlockUpdatePayload.ID, payload.getId(), "Identifiant du payload.");
     }
@@ -137,8 +136,7 @@ class PortalPayloadsTest {
     @DisplayName("Un paquet d'entity vanilla enveloppe survit a un aller-retour reseau avec sa dimension")
     void entityPacketPayload() {
         RegistryByteBuf buffer = new RegistryByteBuf(Unpooled.buffer(), DynamicRegistryManager.of(Registries.REGISTRIES));
-        RemoteEntityPacketPayload payload = new RemoteEntityPacketPayload(
-                BackroomsConstants.LEVEL_ZERO_WORLD.getValue(), new EntityVelocityUpdateS2CPacket(42, new Vec3d(0.25, -0.5, 1.0)));
+        RemoteEntityPacketPayload payload = new RemoteEntityPacketPayload(3, new EntityVelocityUpdateS2CPacket(42, new Vec3d(0.25, -0.5, 1.0)));
         RemoteEntityPacketPayload.CODEC.encode(buffer, payload);
         RemoteEntityPacketPayload decoded = RemoteEntityPacketPayload.CODEC.decode(buffer);
         assertEquals(0, buffer.readableBytes(), "Tout le tampon doit etre consomme.");

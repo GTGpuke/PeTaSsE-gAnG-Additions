@@ -8,9 +8,8 @@ import net.minecraft.util.math.Vec3d;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 
 /**
- * Etat partage du rendu des portails : garde de reentrance et numero d'image, position substituee au joueur
- * dans {@code WorldRenderer.setupTerrain} (centre de la grille de sections d'une vue), camera de la vue en cours
- * pour le ciel, et disponibilite du rendu distant.
+ * Etat partage du rendu des portails : garde de reentrance et numero d'image, camera de la vue en cours pour le ciel,
+ * et disponibilite du rendu distant.
  *
  * <p>Si le stencil ne peut pas etre attache ou si un rendu distant leve une exception, le rendu
  * distant est coupe pour la session et les portails s'affichent comme des cadres sombres.
@@ -21,10 +20,6 @@ public final class PortalRenderState {
     private static final Camera NESTED_CAMERA = new Camera();
     private static boolean rendering;
     private static int frameIndex;
-    private static boolean terrainCenterSet;
-    private static double terrainCenterX;
-    private static double terrainCenterY;
-    private static double terrainCenterZ;
     private static @Nullable Vec3d viewCameraPos;
     private static boolean stencilAvailable = true;
     private static boolean remoteRenderingDisabled;
@@ -70,10 +65,9 @@ public final class PortalRenderState {
         blockOutlineAllowed = allowed;
     }
 
-    /** Fin du rendu des portails de l'image : garde levee, substitutions oubliees. */
+    /** Fin du rendu des portails de l'image : garde levee, camera de vue oubliee. */
     public static void endFrame() {
         rendering = false;
-        terrainCenterSet = false;
         viewCameraPos = null;
     }
 
@@ -85,39 +79,6 @@ public final class PortalRenderState {
     /** Camera des vues imbriquees (un portail vu a travers un autre), reecrite a chaque portail imbrique. */
     public static Camera nestedCamera() {
         return NESTED_CAMERA;
-    }
-
-    /** {@code true} pendant le {@code setupTerrain} d'une vue : la position du joueur y est remplacee par le centre de sa grille. */
-    public static boolean hasTerrainCenter() {
-        return terrainCenterSet;
-    }
-
-    /** Centre de la grille de la vue, X. */
-    public static double terrainCenterX() {
-        return terrainCenterX;
-    }
-
-    /** Centre de la grille de la vue, Y. */
-    public static double terrainCenterY() {
-        return terrainCenterY;
-    }
-
-    /** Centre de la grille de la vue, Z. */
-    public static double terrainCenterZ() {
-        return terrainCenterZ;
-    }
-
-    /** Position qui remplace celle du joueur pendant {@code setupTerrain} ; en primitifs, ce chemin tourne a chaque image. */
-    public static void setTerrainCenter(double x, double y, double z) {
-        terrainCenterX = x;
-        terrainCenterY = y;
-        terrainCenterZ = z;
-        terrainCenterSet = true;
-    }
-
-    /** Fin du {@code setupTerrain} de la vue : la position du joueur redevient celle de vanilla. */
-    public static void clearTerrainCenter() {
-        terrainCenterSet = false;
     }
 
     /** Camera de la vue en cours de rendu, ou {@code null} : le ciel vanilla s'y rapporte au lieu du joueur. */

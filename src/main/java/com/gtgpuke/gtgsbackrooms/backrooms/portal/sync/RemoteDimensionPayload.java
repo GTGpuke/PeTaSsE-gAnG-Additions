@@ -3,6 +3,7 @@ package com.gtgpuke.gtgsbackrooms.backrooms.portal.sync;
 import io.netty.buffer.ByteBuf;
 
 import net.minecraft.network.codec.PacketCodec;
+import net.minecraft.network.codec.PacketCodecs;
 import net.minecraft.network.packet.CustomPayload;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.world.ServerWorld;
@@ -19,8 +20,12 @@ import com.gtgpuke.gtgsbackrooms.core.ModConstants;
  *
  * @param dimension identifiant de la dimension distante
  * @param dimensionType identifiant du type de dimension
+ * @param index index de cette dimension chez le joueur, que les payloads frequents portent a la place de l'identifiant
  */
-public record RemoteDimensionPayload(Identifier dimension, Identifier dimensionType) implements CustomPayload {
+public record RemoteDimensionPayload(Identifier dimension, Identifier dimensionType, int index) implements CustomPayload {
+
+    /** Nombre maximal de dimensions annoncees a un joueur dans une meme vue : bien plus que de dimensions dans un serveur ordinaire. */
+    public static final int MAX_ANNOUNCED = 32;
 
     public static final CustomPayload.Id<RemoteDimensionPayload> ID =
             new CustomPayload.Id<>(Identifier.of(ModConstants.MOD_ID, "portal_remote_dimension"));
@@ -28,11 +33,17 @@ public record RemoteDimensionPayload(Identifier dimension, Identifier dimensionT
     public static final PacketCodec<ByteBuf, RemoteDimensionPayload> CODEC = PacketCodec.tuple(
             Identifier.PACKET_CODEC, RemoteDimensionPayload::dimension,
             Identifier.PACKET_CODEC, RemoteDimensionPayload::dimensionType,
+            PacketCodecs.VAR_INT, RemoteDimensionPayload::index,
             RemoteDimensionPayload::new);
 
-    /** Annonce d'un monde serveur. */
-    public static RemoteDimensionPayload of(ServerWorld world) {
-        return new RemoteDimensionPayload(world.getRegistryKey().getValue(), dimensionTypeId(world));
+    /**
+     * Annonce d'un monde serveur.
+     *
+     * @param world monde annonce
+     * @param index index de cette dimension chez le joueur, que les payloads frequents portent a la place de l'identifiant
+     */
+    public static RemoteDimensionPayload of(ServerWorld world, int index) {
+        return new RemoteDimensionPayload(world.getRegistryKey().getValue(), dimensionTypeId(world), index);
     }
 
     /** Identifiant du type de dimension d'un monde ; l'overworld si le type n'est pas enregistre sous une cle. */

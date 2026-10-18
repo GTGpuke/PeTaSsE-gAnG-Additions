@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalBlockActionPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalCrossPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalEntityActionPayload;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalNetwork;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSightPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalTeleportPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteBlockBreakingPayload;
@@ -28,13 +29,14 @@ public final class ModNetworking {
     /** Enregistre les types de payloads ; a appeler une fois depuis le point d'entree commun. */
     public static void register() {
         PayloadTypeRegistry.playS2C().register(GangBadgeActivatePayload.ID, GangBadgeActivatePayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RemoteDimensionPayload.ID, RemoteDimensionPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RemoteChunkPayload.ID, RemoteChunkPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RemoteChunkUnloadPayload.ID, RemoteChunkUnloadPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RemoteBlockUpdatePayload.ID, RemoteBlockUpdatePayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RemoteEntityPacketPayload.ID, RemoteEntityPacketPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(RemoteBlockBreakingPayload.ID, RemoteBlockBreakingPayload.CODEC);
-        PayloadTypeRegistry.playS2C().register(PortalTeleportPayload.ID, PortalTeleportPayload.CODEC);
+        // Les payloads des portails passent par PortalNetwork, qui garde leur codec pour mesurer ce qui part.
+        PortalNetwork.registerS2C(RemoteDimensionPayload.ID, RemoteDimensionPayload.CODEC);
+        PortalNetwork.registerS2C(RemoteChunkPayload.ID, RemoteChunkPayload.CODEC);
+        PortalNetwork.registerS2C(RemoteChunkUnloadPayload.ID, RemoteChunkUnloadPayload.CODEC);
+        PortalNetwork.registerS2C(RemoteBlockUpdatePayload.ID, RemoteBlockUpdatePayload.CODEC);
+        PortalNetwork.registerS2C(RemoteEntityPacketPayload.ID, RemoteEntityPacketPayload.CODEC);
+        PortalNetwork.registerS2C(RemoteBlockBreakingPayload.ID, RemoteBlockBreakingPayload.CODEC);
+        PortalNetwork.registerS2C(PortalTeleportPayload.ID, PortalTeleportPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PortalCrossPayload.ID, PortalCrossPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PortalEntityActionPayload.ID, PortalEntityActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PortalBlockActionPayload.ID, PortalBlockActionPayload.CODEC);

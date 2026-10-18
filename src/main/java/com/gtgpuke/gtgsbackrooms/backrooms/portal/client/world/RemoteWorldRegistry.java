@@ -1,6 +1,7 @@
 package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,9 +21,12 @@ import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionType;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewLightmaps;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteDimensionPayload;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import com.gtgpuke.gtgsbackrooms.mixin.client.ClientWorldAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.MinecraftClientAccessor;
+import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
 /**
  * Mondes distants du client, un par dimension annoncee par le serveur, plus les vues secondaires des mondes qui ont ete
@@ -48,6 +52,16 @@ public final class RemoteWorldRegistry {
      * l'image, surtout a la troisieme personne, ou la camera restee derriere voit aussitot le portail franchi.
      */
     private static final List<RemoteWorld> MIRRORS = new ArrayList<>();
+    /**
+     * Dimension annoncee sous chaque index : les payloads frequents du serveur portent l'index, un octet, a la place de
+     * l'identifiant. Une annonce ecrase l'index qu'elle porte ; le serveur recommence a zero a chaque nouvelle vue du
+     * joueur, et une annonce precede toujours, dans la connexion, ce qui s'en reclame.
+     */
+    private static final RegistryKey<?>[] ANNOUNCED = new RegistryKey<?>[RemoteDimensionPayload.MAX_ANNOUNCED];
+    /** Sections du moniteur de performance : creation d'un monde distant, d'une vue secondaire, tick des mondes distants. */
+    private static final String PERF_WORLD_CREATE = "client.portal.world_create";
+    private static final String PERF_MIRROR_CREATE = "client.portal.mirror_create";
+    private static final String PERF_TICK = "client.portal.tick";
 
     private RemoteWorldRegistry() {
         throw new UnsupportedOperationException("Classe de registre.");
@@ -56,6 +70,12 @@ public final class RemoteWorldRegistry {
     /** Monde distant d'une dimension, ou {@code null} si le serveur ne l'a pas annoncee. */
     public static @Nullable RemoteWorld get(RegistryKey<World> dimension) {
         return WORLDS.get(dimension);
+    }
+
+    /** Dimension annoncee sous cet index par le serveur, ou {@code null} : index jamais annonce ou hors bornes. */
+    @SuppressWarnings("unchecked")
+    public static @Nullable RegistryKey<World> dimensionAt(int index) {
+        return index >= 0 && index < ANNOUNCED.length ? (RegistryKey<World>) ANNOUNCED[index] : null;
     }
 
     /**
@@ -94,6 +114,7 @@ public final class RemoteWorldRegistry {
     }
 
     /** Vue secondaire d'un monde, creee a sa premiere demande. */
+    @SuppressWarnings("try")
     private static RemoteWorld mirrorOf(MinecraftClient client, ClientWorld world) {
         for (int i = 0; i < MIRRORS.size(); i++) {
             RemoteWorld mirror = MIRRORS.get(i);
@@ -101,7 +122,10 @@ public final class RemoteWorldRegistry {
                 return mirror;
             }
         }
-        RemoteWorld mirror = RemoteWorld.mirror(client, world);
+        RemoteWorld mirror;
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_MIRROR_CREATE)) {
+            mirror = RemoteWorld.mirror(client, world);
+        }
         MIRRORS.add(mirror);
         ModConstants.LOGGER.debug("[Portal] Vue secondaire creee pour le monde {}.", world.getRegistryKey().getValue());
         return mirror;
@@ -112,9 +136,14 @@ public final class RemoteWorldRegistry {
      *
      * @param dimension dimension distante
      * @param dimensionTypeId type de dimension, resolu dans les registres de la connexion
+     * @param index index de la dimension chez ce joueur, porte par les payloads frequents
      * @return monde distant, ou {@code null} hors connexion ou si le type est inconnu
      */
-    public static @Nullable RemoteWorld announce(RegistryKey<World> dimension, Identifier dimensionTypeId) {
+    @SuppressWarnings("try")
+    public static @Nullable RemoteWorld announce(RegistryKey<World> dimension, Identifier dimensionTypeId, int index) {
+        if (index >= 0 && index < ANNOUNCED.length) {
+            ANNOUNCED[index] = dimension;
+        }
         RemoteWorld existing = WORLDS.get(dimension);
         if (existing != null) {
             return existing;
@@ -130,7 +159,10 @@ public final class RemoteWorldRegistry {
             ModConstants.LOGGER.warn("[Portal] Type de dimension inconnu pour le monde distant {} : {}.", dimension.getValue(), dimensionTypeId);
             return null;
         }
-        RemoteWorld remote = RemoteWorld.create(client, networkHandler, dimension, dimensionType.get());
+        RemoteWorld remote;
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_WORLD_CREATE)) {
+            remote = RemoteWorld.create(client, networkHandler, dimension, dimensionType.get());
+        }
         remote.syncEnvironment(client.world);
         WORLDS.put(dimension, remote);
         WORLD_LIST.add(remote);
@@ -233,19 +265,22 @@ public final class RemoteWorldRegistry {
      * Tick client : l'heure suit le monde principal, les entities s'interpolent et s'animent comme les siennes, et
      * l'horloge de chaque vue, secondaires comprises, avance comme celle du renderer du joueur.
      */
+    @SuppressWarnings("try")
     public static void tickRemoteWorlds(MinecraftClient client) {
         if (client.world == null || client.isPaused()) {
             return;
         }
-        // D'abord : apres un changement de monde vanilla, les vues de l'ancien monde partent avant de tiquer.
-        syncWithMainWorld(client.world);
-        for (int i = 0; i < MIRRORS.size(); i++) {
-            MIRRORS.get(i).tickClock();
-        }
-        for (int i = 0; i < WORLD_LIST.size(); i++) {
-            RemoteWorld remote = WORLD_LIST.get(i);
-            remote.syncEnvironment(client.world);
-            remote.tick(client);
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_TICK)) {
+            // D'abord : apres un changement de monde vanilla, les vues de l'ancien monde partent avant de tiquer.
+            syncWithMainWorld(client.world);
+            for (int i = 0; i < MIRRORS.size(); i++) {
+                MIRRORS.get(i).tickClock();
+            }
+            for (int i = 0; i < WORLD_LIST.size(); i++) {
+                RemoteWorld remote = WORLD_LIST.get(i);
+                remote.syncEnvironment(client.world);
+                remote.tick(client);
+            }
         }
     }
 
@@ -287,8 +322,10 @@ public final class RemoteWorldRegistry {
         }
         WORLDS.clear();
         WORLD_LIST.clear();
+        Arrays.fill(ANNOUNCED, null);
         promotedWorld = null;
         disposeMirrors();
+        ViewLightmaps.clear();
         if (vanillaRenderer != null) {
             WorldRenderer current = client.worldRenderer;
             WorldRenderer expected = client.world == null ? vanillaRenderer : ((ClientWorldAccessor) client.world).backrooms$getWorldRenderer();

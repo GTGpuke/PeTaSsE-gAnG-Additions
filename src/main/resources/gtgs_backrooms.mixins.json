@@ -12,6 +12,7 @@
     "client.MixinShaderStage",
     "client.MixinShaderProgram",
     "client.MixinClientWorld",
+    "client.MixinVertexBuffer",
     "client.WorldRendererAccessor",
     "client.CameraAccessor",
     "client.MinecraftClientAccessor",
