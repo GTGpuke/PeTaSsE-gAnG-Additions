@@ -37,8 +37,11 @@ public final class GameTestServerWorlds {
 
     /** Rayon, en chunks, des voisins generes d'avance autour d'un chunk force. */
     private static final int FORCED_NEIGHBOURS = 2;
-    /** Rayon, en chunks, d'une arrivee generee d'avance : la fenetre synchronisee et le ticket elargi tiennent dedans. */
-    private static final int ARRIVAL_RADIUS = 4;
+    /**
+     * Rayon, en chunks, d'une arrivee generee d'avance : la fenetre synchronisee d'un joueur pres du portail (rayon de
+     * prechargement plus deux) tient dedans.
+     */
+    private static final int ARRIVAL_RADIUS = 5;
 
     private GameTestServerWorlds() {
         throw new UnsupportedOperationException("Classe utilitaire.");

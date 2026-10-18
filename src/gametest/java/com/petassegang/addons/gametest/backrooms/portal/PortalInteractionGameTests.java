@@ -5,10 +5,12 @@ import java.util.UUID;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
+import net.minecraft.block.DoorBlock;
 import net.minecraft.block.LeverBlock;
 import net.minecraft.block.NoteBlock;
 import net.minecraft.block.WallMountedBlock;
 import net.minecraft.block.enums.BlockFace;
+import net.minecraft.block.enums.DoubleBlockHalf;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
 import net.minecraft.entity.TntEntity;
@@ -135,15 +137,16 @@ public final class PortalInteractionGameTests implements FabricGameTest {
                 entityAction(player, portal, farStand.getId(), PortalEntityActionPayload.Action.ATTACK);
                 entityAction(player, portal, drop.getId(), PortalEntityActionPayload.Action.ATTACK);
                 context.assertTrue(farStand.isAlive() && stand.isAlive() && portal.isAlive() && drop.isAlive(), "Les cibles refusees sont intactes.");
-                // Utilisation : des cisailles sur le mouton ; rien sur un cochon (il se monte) ni sur un support d'armure.
+                // Utilisation : des cisailles sur le mouton. Un cochon selle emmenerait le joueur de l'autre cote : refuse.
                 player.setStackInHand(Hand.MAIN_HAND, new ItemStack(Items.SHEARS));
                 entityAction(player, portal, sheep.getId(), PortalEntityActionPayload.Action.INTERACT);
                 context.assertTrue(sheep.isSheared(), "Le mouton est tondu a travers le portail.");
+                pig.saddle(new ItemStack(Items.SADDLE), null);
                 entityAction(player, portal, pig.getId(), PortalEntityActionPayload.Action.INTERACT);
+                context.assertTrue(!player.hasVehicle(), "Un cochon selle ne s'enfourche pas a travers le portail.");
+                // Le support d'armure n'a pas d'utilisation par ce chemin, l'objet au sol n'est pas une creature : rien ne se passe.
                 entityAction(player, portal, stand.getId(), PortalEntityActionPayload.Action.INTERACT);
                 entityAction(player, portal, drop.getId(), PortalEntityActionPayload.Action.INTERACT);
-                context.assertTrue(stand.isAlive() && pig.isAlive() && drop.isAlive(),
-                        "Cochon, support d'armure et objet au sol ne s'utilisent pas a travers le portail.");
                 // Coup charge sur le mouton, puis coup faible immediat sur le support d'armure, qui casse.
                 float sheepHealth = sheep.getHealth();
                 entityAction(player, portal, sheep.getId(), PortalEntityActionPayload.Action.ATTACK);
@@ -151,6 +154,11 @@ public final class PortalInteractionGameTests implements FabricGameTest {
                 entityAction(player, portal, stand.getId(), PortalEntityActionPayload.Action.ATTACK);
                 context.assertTrue(!stand.isAlive(), "Le support d'armure est frappe a travers le portail.");
                 context.assertTrue(player.getPos().isInRange(context.getAbsolute(PLAYER), 1.0e-6), "Le joueur est revenu a sa place.");
+                // Un spectateur qui frappe suivrait la creature (camera vanilla), teleporte dans son monde : il est refuse.
+                player.changeGameMode(GameMode.SPECTATOR);
+                entityAction(player, portal, sheep.getId(), PortalEntityActionPayload.Action.ATTACK);
+                context.assertTrue(player.getCameraEntity() == player && player.getPos().isInRange(context.getAbsolute(PLAYER), 1.0e-6),
+                        "Un spectateur ne suit pas la creature a travers le portail : " + player.getPos() + ".");
             } finally {
                 GameTestPlayers.disconnect(player);
                 sheep.discard();
@@ -200,10 +208,13 @@ public final class PortalInteractionGameTests implements FabricGameTest {
                 GameTestPlayers.receive(player, new PortalBlockActionPayload(portal.getUuid(), World.END.getValue(), hit, PortalBlockActionPayload.Action.START_MINING));
                 GameTestPlayers.receive(player,
                         new PortalBlockActionPayload(broken.getUuid(), GameTestServerWorlds.nowhere().getValue(), hit, PortalBlockActionPayload.Action.START_MINING));
-                // Hors portee de bloc : la cible est a l'autre bout du monde vu.
+                // Hors portee de bloc : la cible est a l'autre bout du monde vu ; en creatif, elle casserait d'un coup.
+                BlockPos farTarget = context.getAbsolutePos(new BlockPos(20, 1, 6));
+                world.setBlockState(farTarget, Blocks.DIRT.getDefaultState());
                 blockAction(player, portal, hitOn(context, new BlockPos(20, 1, 6)), PortalBlockActionPayload.Action.START_MINING);
-                context.assertTrue(world.getBlockState(target).isOf(Blocks.DIRT),
+                context.assertTrue(world.getBlockState(target).isOf(Blocks.DIRT) && world.getBlockState(farTarget).isOf(Blocks.DIRT),
                         "Portail inconnu, invisible, ferme, mauvaise dimension ou hors portee : rien ne se casse.");
+                world.setBlockState(farTarget, Blocks.AIR.getDefaultState());
                 // Hors de la bordure du monde, le bloc n'est pas modifiable : la bordure est resserree sur le joueur le temps du clic.
                 WorldBorder border = world.getWorldBorder();
                 double borderSize = border.getSize();
@@ -340,6 +351,33 @@ public final class PortalInteractionGameTests implements FabricGameTest {
         });
     }
 
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
+    public void aDoorSeenThroughThePortalOpensAndCloses(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BackroomsPortalEntity portal = portal(context, true);
+        ServerPlayerEntity creative = player(context, GameMode.CREATIVE);
+        BlockPos lower = context.getAbsolutePos(TARGET_BLOCK);
+        BlockState door = Blocks.OAK_DOOR.getDefaultState().with(DoorBlock.FACING, Direction.WEST);
+        // Les deux moities sur un bloc plein : sans lui, la porte tomberait a la premiere mise a jour de voisinage.
+        world.setBlockState(lower.down(), Blocks.STONE.getDefaultState());
+        world.setBlockState(lower, door.with(DoorBlock.HALF, DoubleBlockHalf.LOWER));
+        world.setBlockState(lower.up(), door.with(DoorBlock.HALF, DoubleBlockHalf.UPPER));
+        try {
+            blockAction(creative, portal, hitOn(context, TARGET_BLOCK), PortalBlockActionPayload.Action.USE);
+            context.assertTrue(world.getBlockState(lower).get(DoorBlock.OPEN) && world.getBlockState(lower.up()).get(DoorBlock.OPEN),
+                    "La porte s'ouvre a travers le portail, ses deux moities ensemble.");
+            blockAction(creative, portal, hitOn(context, TARGET_BLOCK), PortalBlockActionPayload.Action.USE);
+            context.assertTrue(!world.getBlockState(lower).get(DoorBlock.OPEN), "Et se referme.");
+        } finally {
+            GameTestPlayers.disconnect(creative);
+            portal.discard();
+            world.setBlockState(lower.up(), Blocks.AIR.getDefaultState());
+            world.setBlockState(lower, Blocks.AIR.getDefaultState());
+            world.setBlockState(lower.down(), Blocks.AIR.getDefaultState());
+        }
+        context.complete();
+    }
+
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 180)
     public void blocksSeenThroughThePortalCanBeMined(TestContext context) {
         ServerWorld world = context.getWorld();
@@ -353,8 +391,9 @@ public final class PortalInteractionGameTests implements FabricGameTest {
         world.setBlockState(stone, Blocks.STONE.getDefaultState());
         world.setBlockState(gold, Blocks.GOLD_BLOCK.getDefaultState());
         world.setBlockState(command, Blocks.COMMAND_BLOCK.getDefaultState());
-        // Un evenement de casse refuse ce seul bloc d'or : l'ecouteur, global et permanent, ne gene aucun autre test.
-        PlayerBlockBreakEvents.BEFORE.register((eventWorld, eventPlayer, pos, state, blockEntity) -> !pos.equals(gold));
+        // Un evenement de casse refuse ce seul bloc d'or, le temps du test : l'ecouteur, global et permanent, s'eteint ensuite.
+        boolean[] refusing = {true};
+        PlayerBlockBreakEvents.BEFORE.register((eventWorld, eventPlayer, pos, state, blockEntity) -> !(refusing[0] && pos.equals(gold)));
         ServerPlayerEntity creative = player(context, GameMode.CREATIVE);
 
         context.runAtTick(2, () -> {
@@ -409,7 +448,7 @@ public final class PortalInteractionGameTests implements FabricGameTest {
             survival[0].refreshPositionAndAngles(far.x, far.y, far.z, 180.0f, 0.0f);
         });
         context.runAtTick(50, () -> {
-            context.assertTrue(world.getBlockState(stone).isOf(Blocks.STONE), "Hors portee du portail, le minage s'arrete.");
+            context.assertTrue(cleared(survival[0], stone), "Hors portee du portail, le minage s'arrete : ses fissures s'effacent.");
             Vec3d home = context.getAbsolute(PLAYER);
             survival[0].refreshPositionAndAngles(home.x, home.y, home.z, 180.0f, 0.0f);
             // Un bloc qui disparait en cours de minage (autre joueur, explosion) libere le mineur.
@@ -417,6 +456,7 @@ public final class PortalInteractionGameTests implements FabricGameTest {
         });
         context.runAtTick(53, () -> world.setBlockState(gold, Blocks.AIR.getDefaultState()));
         context.runAtTick(56, () -> {
+            context.assertTrue(cleared(survival[0], gold), "Un bloc disparu en cours de minage libere le mineur : ses fissures s'effacent.");
             // La netherrack se casse a la main mais ne se recolte pas : le bloc disparait sans rien lacher.
             world.setBlockState(netherrack, Blocks.NETHERRACK.getDefaultState());
             blockAction(survival[0], portal, hitOn(context, TARGET_BLOCK.north(2)), PortalBlockActionPayload.Action.START_MINING);
@@ -433,7 +473,7 @@ public final class PortalInteractionGameTests implements FabricGameTest {
             survival[0].refreshPositionAndAngles(back.x, back.y, back.z, 180.0f, 0.0f);
         });
         context.runAtTick(120, () -> {
-            context.assertTrue(world.getBlockState(stone).isOf(Blocks.STONE), "Hors portee du bloc, le minage s'arrete.");
+            context.assertTrue(cleared(survival[0], stone), "Hors portee du bloc, le minage s'arrete : ses fissures s'effacent.");
             Vec3d home = context.getAbsolute(PLAYER);
             survival[0].refreshPositionAndAngles(home.x, home.y, home.z, 180.0f, 0.0f);
             survival[0].changeGameMode(GameMode.ADVENTURE);
@@ -444,6 +484,7 @@ public final class PortalInteractionGameTests implements FabricGameTest {
             try {
                 context.assertTrue(world.getBlockState(dirt).isOf(Blocks.DIRT), "En aventure, la terre fissuree ne se casse pas.");
             } finally {
+                refusing[0] = false;
                 GameTestPlayers.disconnect(survival[0]);
                 portal.discard();
                 for (BlockPos pos : new BlockPos[] {dirt, stone, gold, command, netherrack}) {
@@ -452,5 +493,10 @@ public final class PortalInteractionGameTests implements FabricGameTest {
             }
             context.complete();
         });
+    }
+
+    /** {@code true} si le mineur a recu l'effacement des fissures de ce bloc depuis la derniere lecture : le minage a cesse. */
+    private static boolean cleared(ServerPlayerEntity miner, BlockPos pos) {
+        return GameTestPlayers.sent(miner, RemoteBlockBreakingPayload.class).stream().anyMatch(crack -> crack.pos().equals(pos) && crack.stage() < 0);
     }
 }

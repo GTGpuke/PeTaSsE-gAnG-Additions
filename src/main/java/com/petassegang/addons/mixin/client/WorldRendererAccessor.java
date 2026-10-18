@@ -14,6 +14,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.render.BuiltChunkStorage;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.Frustum;
+import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
@@ -35,6 +36,10 @@ public interface WorldRendererAccessor {
     /** Programme la construction des sections retenues. */
     @Invoker("updateChunks")
     void backrooms$updateChunks(Camera camera);
+
+    /** Pluie et neige autour d'une camera, dans le monde du client, animees par l'horloge du renderer. */
+    @Invoker("renderWeather")
+    void backrooms$renderWeather(LightmapTextureManager manager, float tickDelta, double cameraX, double cameraY, double cameraZ);
 
     /** Dessine une couche de blocs des sections retenues. */
     @Invoker("renderLayer")

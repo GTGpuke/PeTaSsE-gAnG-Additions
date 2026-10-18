@@ -34,6 +34,7 @@ import net.minecraft.world.chunk.WorldChunk;
 
 import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -75,8 +76,14 @@ public final class PortalViewTracker {
     private static final Map<RegistryKey<World>, BackroomsPortalEntity> ANCHOR_SCRATCH = new HashMap<>();
     private static final Map<RegistryKey<World>, LongSet> WANTED_SCRATCH = new HashMap<>();
     private static final List<RegistryKey<World>> DIMENSION_SCRATCH = new ArrayList<>();
+    /**
+     * Duree, en ticks serveur, pendant laquelle les chunks qu'un client tient apres une traversee valent : vanilla propose
+     * les chunks proches en quelques ticks ; un chunk qu'il ne propose qu'apres (hors de la distance de vue, propose bien
+     * plus tard) a pu etre oublie par le client entre-temps, et doit partir comme les autres.
+     */
+    public static final int HELD_CHUNKS_TTL_TICKS = 100;
     /** Chunks de sa nouvelle dimension que le client d'un joueur tient deja, le temps que vanilla les lui propose. */
-    private static final Map<UUID, LongSet> HELD_AFTER_CROSSING = new HashMap<>();
+    private static final Map<UUID, HeldChunks> HELD_AFTER_CROSSING = new HashMap<>();
     /** Nombre total de chunks distants presents chez les clients ; zero = rien a faire sur les changements de blocs. */
     private static int watchedChunkCount;
     private static boolean initialized;
@@ -100,6 +107,10 @@ public final class PortalViewTracker {
         }
     }
 
+    /** Chunks tenus par le client d'un joueur apres une traversee, et tick serveur jusqu'auquel ils valent. */
+    private record HeldChunks(LongSet chunks, long expiresAt) {
+    }
+
     private PortalViewTracker() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
@@ -111,13 +122,18 @@ public final class PortalViewTracker {
         }
         ServerTickEvents.END_SERVER_TICK.register(PortalViewTracker::tick);
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> forget(server, handler.player.getUuid(), false));
-        // Le client repart d'un monde vide apres un changement de dimension vanilla ou un respawn : on renvoie tout.
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> onPlayerChangedWorld(player));
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> onPlayerChangedWorld(newPlayer));
+        // Le client repart d'un monde vide apres un changement de dimension vanilla ou un respawn : on renvoie tout, et il
+        // ne tient plus rien d'une traversee recente. Une traversee par portail passe par onPlayerChangedWorld seul.
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> onVanillaWorldChange(player));
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> onVanillaWorldChange(newPlayer));
+        ServerEntityEvents.ENTITY_UNLOAD.register((entity, world) -> onEntityUnloaded(world, entity));
+        // Les listes de travail tiennent des portails, donc leurs mondes : en solo, elles retiendraient la partie precedente.
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             VIEWS.clear();
             VIEW_LIST.clear();
             HELD_AFTER_CROSSING.clear();
+            RELEVANT_SCRATCH.clear();
+            ANCHOR_SCRATCH.clear();
             watchedChunkCount = 0;
         });
         initialized = true;
@@ -155,6 +171,12 @@ public final class PortalViewTracker {
         forget(player.getServer(), player.getUuid(), true);
     }
 
+    /** Changement de monde vanilla ou respawn : le client recree son monde, et ne tient plus aucun chunk. */
+    private static void onVanillaWorldChange(ServerPlayerEntity player) {
+        HELD_AFTER_CROSSING.remove(player.getUuid());
+        onPlayerChangedWorld(player);
+    }
+
     /**
      * Le joueur passe dans {@code destination} : les chunks de cette dimension que son client tient deja (a jour, deja
      * construits) ne lui seront pas renvoyes par vanilla, voir {@code MixinChunkDataSender}. A appeler avant
@@ -170,17 +192,27 @@ public final class PortalViewTracker {
             HELD_AFTER_CROSSING.remove(player.getUuid());
             return 0;
         }
-        HELD_AFTER_CROSSING.put(player.getUuid(), new LongOpenHashSet(sent));
+        HELD_AFTER_CROSSING.put(player.getUuid(), new HeldChunks(new LongOpenHashSet(sent), player.getServer().getTicks() + HELD_CHUNKS_TTL_TICKS));
         return held;
     }
 
-    /** {@code true} si vanilla peut se dispenser d'envoyer ce chunk au joueur : son client le tient deja. Consomme l'entree. */
+    /**
+     * {@code true} si vanilla peut se dispenser d'envoyer ce chunk au joueur : son client le tient deja, depuis une
+     * traversee recente. Consomme l'entree ; passe {@link #HELD_CHUNKS_TTL_TICKS}, plus rien n'est tenu.
+     */
     public static boolean consumeHeldChunk(ServerPlayerEntity player, ChunkPos pos) {
-        LongSet held = HELD_AFTER_CROSSING.get(player.getUuid());
-        if (held == null || !held.remove(pos.toLong())) {
+        HeldChunks held = HELD_AFTER_CROSSING.get(player.getUuid());
+        if (held == null) {
             return false;
         }
-        if (held.isEmpty()) {
+        if (player.getServer().getTicks() > held.expiresAt()) {
+            HELD_AFTER_CROSSING.remove(player.getUuid());
+            return false;
+        }
+        if (!held.chunks().remove(pos.toLong())) {
+            return false;
+        }
+        if (held.chunks().isEmpty()) {
             HELD_AFTER_CROSSING.remove(player.getUuid());
         }
         return true;
@@ -234,6 +266,29 @@ public final class PortalViewTracker {
             RemoteEntityView entities = viewerOf(VIEW_LIST.get(i), dimension, chunk);
             if (entities != null) {
                 entities.track(destination, entity);
+            }
+        }
+    }
+
+    /**
+     * Une entity quitte son monde (morte, retiree, chunk decharge, autre dimension). Vanilla envoie sa destruction aux
+     * auditeurs de son suivi par leur connexion, sans enveloppe : le client l'appliquerait a son monde principal. Ceux qui
+     * la voyaient par un portail recoivent la destruction de leur copie distante tout de suite, et non au prochain
+     * alignement de leur fenetre. Fabric le signale juste avant que vanilla ne retire le suivi de l'entity : une vue ne
+     * garde ainsi jamais d'identifiant sans suivi vanilla.
+     *
+     * @param world monde que l'entity quitte
+     * @param entity entity retiree
+     */
+    static void onEntityUnloaded(ServerWorld world, Entity entity) {
+        if (VIEW_LIST.isEmpty()) {
+            return;
+        }
+        RegistryKey<World> dimension = world.getRegistryKey();
+        for (int i = 0; i < VIEW_LIST.size(); i++) {
+            RemoteEntityView entities = VIEW_LIST.get(i).entities.get(dimension);
+            if (entities != null) {
+                entities.forget(entity.getId());
             }
         }
     }
@@ -315,15 +370,13 @@ public final class PortalViewTracker {
     /** Portails du monde du joueur qu'il regarde et qui menent dans une autre dimension. */
     private static void collectRelevantPortals(ServerPlayerEntity player, ServerWorld world) {
         RELEVANT_SCRATCH.clear();
-        Vec3d eye = player.getEyePos();
-        Vec3d look = player.getRotationVec(1.0f);
         List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
             if (portal.getWorld() != world || !portal.visible() || portal.destinationDim().equals(world.getRegistryKey())) {
                 continue;
             }
-            if (PortalRelevance.isRelevant(eye, look, portal.getPos(), PortalRelevance.MAX_DISTANCE)) {
+            if (PortalRelevance.isRelevant(player, portal.getPos(), PortalRelevance.MAX_DISTANCE)) {
                 RELEVANT_SCRATCH.add(portal);
             }
         }
@@ -416,6 +469,7 @@ public final class PortalViewTracker {
                     view.entities.put(dimension, entities);
                 }
                 entities.update(destination, sent);
+                entities.syncWeather(destination);
             }
         }
     }

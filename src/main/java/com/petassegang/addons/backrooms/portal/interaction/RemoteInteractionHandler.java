@@ -116,6 +116,11 @@ public final class RemoteInteractionHandler {
     }
 
     private static void onEntityAction(ServerPlayerEntity player, PortalEntityActionPayload payload) {
+        // Un spectateur n'agit sur rien a travers un portail : frapper lui ferait suivre la creature (setCameraEntity),
+        // qui le teleporterait dans son monde pendant qu'il est transpose.
+        if (player.isSpectator()) {
+            return;
+        }
         RemoteReach reach = resolve(player, payload.portal(), payload.dimension());
         if (reach == null) {
             return;
@@ -160,6 +165,10 @@ public final class RemoteInteractionHandler {
     }
 
     private static void onBlockAction(ServerPlayerEntity player, PortalBlockActionPayload payload) {
+        // Un spectateur ne mine ni n'utilise rien, de ce cote comme de l'autre.
+        if (player.isSpectator()) {
+            return;
+        }
         if (payload.action() == PortalBlockActionPayload.Action.ABORT_MINING) {
             RemoteMiningTracker.abort(player);
             return;
@@ -183,10 +192,6 @@ public final class RemoteInteractionHandler {
     private static void useBlock(ServerPlayerEntity player, ServerWorld world, BlockHitResult hit) {
         BlockPos pos = hit.getBlockPos();
         BlockState state = world.getBlockState(pos);
-        // Un bloc d'une fonctionnalite desactivee ne peut pas exister dans le monde : seul le spectateur est ecarte.
-        if (player.isSpectator()) {
-            return;
-        }
         boolean holding = !player.getMainHandStack().isEmpty() || !player.getOffHandStack().isEmpty();
         boolean itemOnly = player.shouldCancelInteraction() && holding;
         for (Hand hand : HANDS) {

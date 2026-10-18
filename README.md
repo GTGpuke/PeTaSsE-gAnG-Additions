@@ -55,7 +55,7 @@ src/main/java/com/petassegang/addons/
 ├── PeTaSsEgAnGAdditionsClientMod.java    ← point d'entrée client
 ├── core/ModConstants.java                ← MOD_ID, LOGGER
 ├── config/ModConfig.java                 ← options lues en -D (toggles debug, portails)
-├── init/                                 ← ModBlocks, ModItems, ModBlockEntities, ModEntities, ModChunkGenerators, ModCreativeTab, ModNetworking
+├── init/                                 ← ModBlocks, ModItems, ModBlockEntities, ModEntities, ModDataComponents, ModChunkGenerators, ModCreativeTab, ModNetworking
 ├── feature/gang/, feature/cursed/        ← contenu gameplay
 ├── backrooms/
 │   ├── BackroomsConstants.java

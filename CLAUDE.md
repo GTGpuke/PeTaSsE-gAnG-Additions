@@ -1,7 +1,7 @@
 # CLAUDE.md — PeTaSsE_gAnG_Additions
 
 > Lu automatiquement à chaque session. Règles obligatoires du projet.
-> Onboarding complet : `docs/prompt/NOKNOWLEDGE.md` — Audit pré-push : `docs/prompt/BEFOREPUSH.md`
+> Onboarding complet : `docs/prompt/NOKNOWLEDGE.md` — Audit pré-push : `docs/prompt/BEFOREPUSH.md` — Vérification finale avant commit : `docs/prompt/FINALCHECK.md`
 > Dernier audit complet : `docs/AUDIT.md`
 
 ## Stack
@@ -31,9 +31,9 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 - `feature/gang`, `feature/cursed` : contenu gameplay, une classe par item.
 - `backrooms/level0/generation/` : `coord` → `noise` → `sector` → `layout` → `write`, orchestrés par `LevelZeroChunkGenerator`.
 - `backrooms/level0/client/model/` : rendu adaptatif du mur (client uniquement).
-- `backrooms/portal/` : portails (bloc portail double face et ses réglages, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
+- `backrooms/portal/` : portails (bloc portail double face et ses réglages, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
 - `perf/` : moniteur de performance opt-in.
-- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre).
+- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre).
 - `src/gametest/` : tests en jeu, mod séparé `petasse_gang_additions_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
 
 ## Règles de code
@@ -72,7 +72,7 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   par `GameTestPlayers` (vrai `onPlayerConnect` sur canal en mémoire, `setOnGround(true)` sinon le minage est cinq fois plus lent),
   les payloads client s'injectent par `onCustomPayload`, et les tests qui posent quoi que ce soit utilisent l'arène
   `petasse_gang_additions_gametest:test_arena` (24 blocs) : la structure vide de Fabric fait un bloc et les voisins se marchent dessus.
-  Le dossier de run `build/run/gameTest` est recréé à chaque lancement et le serveur de test tique sans attendre : générer
+  Le dossier de run `build/run/gameTest` n'est vidé que par `clean` (un build complet repart d'un monde neuf) et le serveur de test tique sans attendre : générer
   l'arrivée d'avance (`GameTestServerWorlds.pregenerate`) et guetter les chunks du Nether (`PortalViewTracker.watchedChunkCount() > 0`) plutôt que compter les ticks. Un bateau embarque de lui-même les créatures qui le touchent.
   Un joueur simulé ne suit une entité vanilla qu'une fois ses chunks reçus (`GameTestPlayers.tick`) et sa position
   redonnée (`getChunkManager().updatePosition`, ce que fait un vrai client en bougeant) ; l'apparition arrive groupée
@@ -114,6 +114,20 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   avec un chunk revient telle quelle (re-signaler ce qui manque ou ce qui a pu s'éteindre). Le moteur serveur
   tourne sur son propre thread (lectures thread-safe obligatoires), et `checkBlock` sur les cellules changées suffit à
   propager ou éteindre une source virtuelle, serveur comme client.
+- Météo : `World.getThunderGradient` rend l'orage déjà multiplié par la pluie, alors que le paquet vanilla
+  (`THUNDER_GRADIENT_CHANGED`) porte la valeur brute (`WorldAccessor`). Vanilla ne tique que le renderer du joueur :
+  celui d'une vue doit tiquer lui-même (`WorldRenderer.tick`), sinon sa pluie reste figée, et `client.worldRenderer`
+  est déjà celui de la vue pendant qu'elle se dessine.
+- Renderers : `WorldRenderer.close()` ne libère que ses post-effets ; les tampons de son `BufferBuilderStorage` (une
+  trentaine de Mio hors du tas Java) ne sont jamais rendus. Un renderer de vue jeté passe par `RemoteWorld.release`, qui
+  garde ses tampons pour le suivant.
+- Spectateur : `ServerPlayerEntity.attack` d'un spectateur appelle `setCameraEntity`, qui le téléporte vers la cible,
+  dans son monde ; toute action d'un spectateur à travers un portail est refusée. La traversée d'un portail ne passe pas
+  par `teleportTo` : l'événement Fabric `AFTER_PLAYER_CHANGE_WORLD` ne signale que les changements de monde vanilla
+  (`AFTER_RESPAWN` une réapparition), et `ENTITY_UNLOAD` part juste avant que vanilla ne retire le suivi d'une entité.
+- Tests en jeu : `PlayerManager.respawnPlayer` appelé directement ne met pas à jour `networkHandler.player` (vanilla le
+  fait à la demande de respawn) ; sans cela, la déconnexion retire l'ancien joueur et le nouveau reste dans le monde,
+  compté parmi les joueurs des tests suivants.
 - L'extension Java de VSCode compile avec JDT dans `build/classes/java/main` (même dossier que Gradle) ; avec un modèle de projet périmé, elle y écrit des classes `Unresolved compilation problems` qui font planter le client au chargement. L'autobuild est coupé dans `.vscode/settings.json` ; ne jamais le réactiver sans un import Gradle sain (JDK 21).
 
 ## Avant de push

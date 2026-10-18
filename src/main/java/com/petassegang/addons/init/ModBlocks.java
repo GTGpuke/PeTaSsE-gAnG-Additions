@@ -62,8 +62,8 @@ public final class ModBlocks {
             new Block(AbstractBlock.Settings.copy(Blocks.SEA_LANTERN).luminance(state -> 15)));
 
     /**
-     * Bloc portail : invisible et traversable, il pose un portail plein cadre, a une ou deux faces, aller-retour ou aller
-     * simple selon ses reglages ; pose hors du Level 0 il y mene,
+     * Bloc portail : invisible et traversable, il pose un portail plein cadre, a une ou deux faces, aller-retour, aller
+     * simple ou a sortie fugace selon ses reglages ; pose hors du Level 0 il y mene,
      * pose dedans il ramene a la surface. Les pistons ne le deplacent pas : ses portails ne le suivraient pas.
      */
     public static final BackroomsPortalBlock BACKROOMS_PORTAL = register(

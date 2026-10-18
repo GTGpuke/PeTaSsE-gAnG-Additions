@@ -28,6 +28,8 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.WorldProperties;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
@@ -76,6 +78,10 @@ public final class TeleportExecutor {
     private static final String PERF_TELEPORT_PLAYER = "portal.teleport.player";
     private static final String PERF_TELEPORT_VANILLA = "portal.teleport.vanilla";
 
+    /** Vitesse annoncee la plus forte admise, en blocs par tick : bien au-dela d'un vol propulse a l'elytre. */
+    private static final double MAX_ANNOUNCED_SPEED = 10.0;
+    private static final float MAX_PITCH = 90.0f;
+
     private static final Map<UUID, Vec3d> LAST_PLAYER_POS = new HashMap<>();
     /** Tick de la derniere traversee de chaque joueur, pour son cooldown. */
     private static final Object2LongMap<UUID> LAST_CROSSING_TICK = new Object2LongOpenHashMap<>();
@@ -112,6 +118,10 @@ public final class TeleportExecutor {
             PENDING_CROSSINGS.remove(handler.player.getUuid());
             LAST_CROSSING_TICK.removeLong(handler.player.getUuid());
         });
+        // Apres un changement de monde vanilla ou un respawn, l'ancienne position n'est pas un trajet : elle couperait les
+        // plans des portails du nouveau monde.
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> LAST_PLAYER_POS.remove(player.getUuid()));
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> LAST_PLAYER_POS.remove(newPlayer.getUuid()));
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             LAST_PLAYER_POS.clear();
             PENDING_CROSSINGS.clear();
@@ -216,13 +226,25 @@ public final class TeleportExecutor {
                 && !player.hasVehicle()
                 && !isOnCooldown(player.getUuid(), world.getTime())
                 && payload.position().squaredDistanceTo(player.getPos()) <= MAX_PREDICTION_DRIFT * MAX_PREDICTION_DRIFT
-                && portal.detectionBox().expand(ANNOUNCED_POSITION_TOLERANCE).contains(payload.position());
+                && portal.detectionBox().expand(ANNOUNCED_POSITION_TOLERANCE).contains(payload.position())
+                && isSane(payload.velocity(), payload.yaw(), payload.pitch());
         if (plausible && execute(player, portal, payload.position(), payload.velocity(), payload.yaw(), payload.pitch(), true)) {
             return;
         }
         // Le client a deja bascule de son cote : ce payload le renvoie la ou le serveur le voit.
         ServerPlayNetworking.send(player, PortalTeleportPayload.of(world, player.getPos(), player.getYaw(), player.getPitch(), player.getVelocity()));
         ModConstants.LOGGER.debug("[Portal] Franchissement refuse pour {} (portail {}).", player.getName().getString(), payload.portal());
+    }
+
+    /**
+     * {@code true} si la vitesse et le regard annonces sont des valeurs qu'un client honnete enverrait : finis, une vitesse
+     * bornee (vanilla retranche la vitesse du joueur de son controle des deplacements trop rapides) et un regard vertical
+     * dans [-90, 90].
+     */
+    static boolean isSane(Vec3d velocity, float yaw, float pitch) {
+        return Double.isFinite(velocity.x) && Double.isFinite(velocity.y) && Double.isFinite(velocity.z)
+                && velocity.lengthSquared() <= MAX_ANNOUNCED_SPEED * MAX_ANNOUNCED_SPEED
+                && Float.isFinite(yaw) && Math.abs(pitch) <= MAX_PITCH;
     }
 
     /**

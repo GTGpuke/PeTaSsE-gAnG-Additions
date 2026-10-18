@@ -11,6 +11,7 @@ import com.petassegang.addons.backrooms.portal.debug.DebugPortalCommand;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.petassegang.addons.backrooms.portal.interaction.RemoteInteractionHandler;
 import com.petassegang.addons.backrooms.portal.light.PortalLightTransmission;
+import com.petassegang.addons.backrooms.portal.sync.PortalSight;
 import com.petassegang.addons.backrooms.portal.sync.PortalViewTracker;
 import com.petassegang.addons.backrooms.portal.transition.DestinationLoader;
 import com.petassegang.addons.backrooms.portal.transition.TeleportExecutor;
@@ -85,6 +86,7 @@ public class PeTaSsEgAnGAdditionsMod implements ModInitializer {
         DestinationLoader.init();
         PortalViewTracker.init();
         TeleportExecutor.init();
+        PortalSight.init();
         RemoteInteractionHandler.init();
         PortalLightTransmission.init();
         if (developmentEnvironment) {

@@ -1,5 +1,7 @@
 package com.petassegang.addons.backrooms.portal.transition;
 
+import net.minecraft.entity.Entity;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 
 import com.petassegang.addons.config.ModConfig;
@@ -32,10 +34,52 @@ public final class PortalRelevance {
      * @return {@code true} si le portail doit etre pris en compte
      */
     public static boolean isRelevant(Vec3d eyePosition, Vec3d lookVector, Vec3d portalPosition, double maxDistance) {
+        return isRelevant(eyePosition.x, eyePosition.y, eyePosition.z, lookVector.x, lookVector.y, lookVector.z, portalPosition, maxDistance);
+    }
+
+    /**
+     * Meme critere pour une entity, ses yeux et son regard du tick, sans les vecteurs que vanilla creerait
+     * ({@code getEyePos}, {@code getRotationVec}) : le serveur le pose pour chaque joueur et chaque portail.
+     *
+     * @param observer entity qui regarde
+     * @param portalPosition centre du portail
+     * @param maxDistance distance maximale en blocs
+     * @return {@code true} si le portail doit etre pris en compte
+     */
+    public static boolean isRelevant(Entity observer, Vec3d portalPosition, double maxDistance) {
+        return isRelevantFrom(observer.getX(), observer.getEyeY(), observer.getZ(), observer.getPitch(), observer.getYaw(), portalPosition, maxDistance);
+    }
+
+    /**
+     * Meme critere pour un regard donne en angles (degres, convention Minecraft), sans vecteur de regard : le rendu le pose
+     * a chaque image pour chaque portail.
+     *
+     * @param eyePosition position des yeux de l'observateur
+     * @param pitch tangage du regard, en degres
+     * @param yaw lacet du regard, en degres
+     * @param portalPosition centre du portail
+     * @param maxDistance distance maximale en blocs
+     * @return {@code true} si le portail doit etre pris en compte
+     */
+    public static boolean isRelevant(Vec3d eyePosition, float pitch, float yaw, Vec3d portalPosition, double maxDistance) {
+        return isRelevantFrom(eyePosition.x, eyePosition.y, eyePosition.z, pitch, yaw, portalPosition, maxDistance);
+    }
+
+    private static boolean isRelevantFrom(double eyeX, double eyeY, double eyeZ, float pitch, float yaw, Vec3d portalPosition, double maxDistance) {
+        // Le regard comme Entity.getRotationVector, avec les memes tables de sinus.
+        float pitchRad = pitch * MathHelper.RADIANS_PER_DEGREE;
+        float yawRad = -yaw * MathHelper.RADIANS_PER_DEGREE;
+        float cosPitch = MathHelper.cos(pitchRad);
+        return isRelevant(eyeX, eyeY, eyeZ, MathHelper.sin(yawRad) * cosPitch, -MathHelper.sin(pitchRad), MathHelper.cos(yawRad) * cosPitch,
+                portalPosition, maxDistance);
+    }
+
+    private static boolean isRelevant(
+            double eyeX, double eyeY, double eyeZ, double lookX, double lookY, double lookZ, Vec3d portalPosition, double maxDistance) {
         // Appele a chaque image et pour chaque joueur : composantes a la main, sans vecteur intermediaire.
-        double dx = portalPosition.x - eyePosition.x;
-        double dy = portalPosition.y - eyePosition.y;
-        double dz = portalPosition.z - eyePosition.z;
+        double dx = portalPosition.x - eyeX;
+        double dy = portalPosition.y - eyeY;
+        double dz = portalPosition.z - eyeZ;
         double distanceSquared = dx * dx + dy * dy + dz * dz;
         if (distanceSquared > maxDistance * maxDistance) {
             return false;
@@ -43,6 +87,6 @@ public final class PortalRelevance {
         if (distanceSquared < ALWAYS_RELEVANT_DISTANCE * ALWAYS_RELEVANT_DISTANCE) {
             return true;
         }
-        return lookVector.x * dx + lookVector.y * dy + lookVector.z * dz > 0.0;
+        return lookX * dx + lookY * dy + lookZ * dz > 0.0;
     }
 }

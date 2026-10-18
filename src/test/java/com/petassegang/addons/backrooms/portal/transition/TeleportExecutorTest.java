@@ -93,4 +93,17 @@ class TeleportExecutorTest {
         assertTrue(TeleportExecutor.isOnCooldown(player, 100L + cooldown - 1, cooldown), "Juste avant la fin : cooldown.");
         assertFalse(TeleportExecutor.isOnCooldown(player, 100L + cooldown, cooldown), "A la fin du cooldown : libre.");
     }
+
+    @Test
+    @DisplayName("Une annonce de traversee n'admet qu'une vitesse et un regard finis et bornes")
+    void announcedMotionMustBeSane() {
+        assertTrue(TeleportExecutor.isSane(new Vec3d(0.3, -0.08, 2.0), 725.0f, -90.0f), "Course, lacet de deux tours, regard au zenith.");
+        assertFalse(TeleportExecutor.isSane(new Vec3d(Double.NaN, 0.0, 0.0), 0.0f, 0.0f), "Vitesse NaN en x.");
+        assertFalse(TeleportExecutor.isSane(new Vec3d(0.0, Double.POSITIVE_INFINITY, 0.0), 0.0f, 0.0f), "Vitesse infinie en y.");
+        assertFalse(TeleportExecutor.isSane(new Vec3d(0.0, 0.0, Double.NaN), 0.0f, 0.0f), "Vitesse NaN en z.");
+        assertFalse(TeleportExecutor.isSane(new Vec3d(0.0, 0.0, 12.0), 0.0f, 0.0f), "Vitesse demesuree.");
+        assertFalse(TeleportExecutor.isSane(Vec3d.ZERO, Float.POSITIVE_INFINITY, 0.0f), "Lacet infini.");
+        assertFalse(TeleportExecutor.isSane(Vec3d.ZERO, 0.0f, 90.5f), "Regard au-dela de la verticale.");
+        assertFalse(TeleportExecutor.isSane(Vec3d.ZERO, 0.0f, Float.NaN), "Regard NaN.");
+    }
 }

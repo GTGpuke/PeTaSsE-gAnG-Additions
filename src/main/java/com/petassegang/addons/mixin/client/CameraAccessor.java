@@ -8,8 +8,8 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Positionne et oriente la camera distante du rendu de portail ; hauteur des yeux lissee de la camera du joueur, d'ou
- * part sa camera a la troisieme personne.
+ * Positionne et oriente une camera du mod (camera distante du rendu de portail, camera des eclaboussures de pluie d'une
+ * vue) ; hauteur des yeux lissee de la camera du joueur, d'ou part sa camera a la troisieme personne.
  */
 @Mixin(Camera.class)
 public interface CameraAccessor {

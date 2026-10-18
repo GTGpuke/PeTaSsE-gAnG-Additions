@@ -55,7 +55,8 @@ import com.petassegang.addons.mixin.client.WorldRendererAccessor;
 
 /**
  * Dessine un {@link RemoteWorld} depuis une camera transposee : ciel, couches de blocs, entities, block
- * entities, fissures de minage, contour du bloc vise et nuages, avec le brouillard de sa dimension.
+ * entities, fissures de minage, contour du bloc vise, particules, nuages, pluie et neige, avec le brouillard et la
+ * meteo de sa dimension.
  *
  * <p>L'etat GL (stencil, profondeur) est pose par l'appelant, qui remet ensuite les dispatchers de rendu sur le
  * monde principal. Tout se dessine avec la projection du joueur ; le plan du portail d'arrivee coupe ce qui est
@@ -224,6 +225,31 @@ public final class RemoteViewRenderer {
         renderParticles(client, camera, positionMatrix, lightmap, tickDelta);
         if (client.options.getCloudRenderModeValue() != CloudRenderMode.OFF) {
             this.renderer.renderClouds(MATRICES, positionMatrix, projection, tickDelta, cameraPos.x, cameraPos.y, cameraPos.z);
+        }
+        // Meme ordre que vanilla : la meteo apres les nuages.
+        renderWeather(accessor, cameraPos, positionMatrix, lightmap, tickDelta);
+    }
+
+    /**
+     * Pluie et neige du monde de la vue autour de sa camera, sous la decoupe de la vue. La chute s'anime sur l'horloge du
+     * renderer de la vue, qui tique avec son monde ({@link RemoteWorld#tickClock}).
+     */
+    private static void renderWeather(
+            WorldRendererAccessor accessor,
+            Vec3d cameraPos,
+            Matrix4f positionMatrix,
+            LightmapTextureManager lightmap,
+            float tickDelta) {
+        Matrix4fStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.mul(positionMatrix);
+        RenderSystem.applyModelViewMatrix();
+        try {
+            accessor.backrooms$renderWeather(lightmap, tickDelta, cameraPos.x, cameraPos.y, cameraPos.z);
+        } finally {
+            modelView.popMatrix();
+            RenderSystem.applyModelViewMatrix();
+            RenderSystem.depthMask(true);
         }
     }
 

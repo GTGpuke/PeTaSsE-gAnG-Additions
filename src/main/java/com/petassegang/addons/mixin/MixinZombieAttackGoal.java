@@ -11,6 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.entity.ai.goal.ZombieAttackGoal;
 import net.minecraft.entity.mob.ZombieEntity;
 
+import com.petassegang.addons.config.ModConfig;
+
 /**
  * Un zombie qui a deja la posture d'attaque quand son attaque commence la garde : vanilla lui baisse les bras les cinq
  * premiers ticks d'une attaque. Celui qui poursuivait un joueur a travers un portail et le reprend de l'autre cote (une
@@ -41,7 +43,7 @@ public abstract class MixinZombieAttackGoal {
 
     @Inject(method = "start", at = @At("TAIL"))
     private void backrooms$keepPosture(CallbackInfo ci) {
-        if (this.backrooms$alreadyAttacking) {
+        if (ModConfig.ENABLE_PORTAL_FEATURE && this.backrooms$alreadyAttacking) {
             this.ticks = ARMS_RAISED_TICKS;
         }
     }

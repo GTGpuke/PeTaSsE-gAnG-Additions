@@ -1,7 +1,11 @@
 package com.petassegang.addons.backrooms.portal.client.world;
 
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.IdentityHashMap;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import org.jetbrains.annotations.Nullable;
@@ -37,6 +41,7 @@ import net.minecraft.network.packet.s2c.play.EntityStatusS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityTrackerUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityVelocityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ExperienceOrbSpawnS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
 import net.minecraft.network.packet.s2c.play.ItemPickupAnimationS2CPacket;
 import net.minecraft.network.packet.s2c.play.LightData;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
@@ -65,6 +70,7 @@ import net.minecraft.world.dimension.DimensionType;
 import com.petassegang.addons.backrooms.portal.client.sound.FrameSoundPlayer;
 import com.petassegang.addons.backrooms.portal.client.transition.EntityHandover;
 import com.petassegang.addons.backrooms.portal.sync.RemoteChunkWindow;
+import com.petassegang.addons.mixin.client.CameraAccessor;
 import com.petassegang.addons.mixin.client.ClientPlayNetworkHandlerAccessor;
 import com.petassegang.addons.mixin.client.WorldRendererAccessor;
 
@@ -117,12 +123,17 @@ public final class RemoteWorld {
     private static final int DISPLAY_NEAR_RADIUS = 16;
     private static final int DISPLAY_FAR_RADIUS = 32;
 
+    /** Tampons de dessin des renderers crees par le mod, par renderer : vanilla ne libere jamais ceux d'un renderer. */
+    private static final Map<WorldRenderer, BufferBuilderStorage> OWN_BUFFERS = new IdentityHashMap<>();
+    /** Tampons d'un renderer libere, repris par le prochain renderer cree. */
+    private static final List<BufferBuilderStorage> SPARE_BUFFERS = new ArrayList<>();
+
     private final ClientWorld world;
     private final WorldRenderer renderer;
     private final RemoteViewRenderer viewRenderer;
     /**
      * Particules de ce monde ; celles de l'ancien monde principal le suivent a la traversee. Aucune pour la vue
-     * secondaire : elle montre celles du gestionnaire, et n'est jamais tiquee ni nourrie de paquets, seulement dessinee.
+     * secondaire : elle montre celles du gestionnaire, et n'est jamais nourrie de paquets ; seule son horloge tique.
      */
     private final @Nullable RemoteParticles particles;
     private int centerChunkX = Integer.MIN_VALUE;
@@ -132,6 +143,8 @@ public final class RemoteWorld {
     private long lastViewTime = Long.MIN_VALUE;
     private final Random displayRandom = Random.create();
     private final BlockPos.Mutable displayPos = new BlockPos.Mutable();
+    /** Camera posee a la camera de la derniere vue : vanilla tire autour d'une camera les eclaboussures de la pluie. */
+    private final Camera rainCamera = new Camera();
 
     private RemoteWorld(ClientWorld world, WorldRenderer renderer, @Nullable RemoteParticles particles) {
         this.world = world;
@@ -191,11 +204,27 @@ public final class RemoteWorld {
     }
 
     private static WorldRenderer newRenderer(MinecraftClient client) {
-        return new WorldRenderer(
-                client,
-                client.getEntityRenderDispatcher(),
-                client.getBlockEntityRenderDispatcher(),
-                new BufferBuilderStorage(RENDER_BUFFER_COUNT));
+        BufferBuilderStorage buffers = SPARE_BUFFERS.isEmpty()
+                ? new BufferBuilderStorage(RENDER_BUFFER_COUNT)
+                : SPARE_BUFFERS.remove(SPARE_BUFFERS.size() - 1);
+        WorldRenderer renderer = new WorldRenderer(client, client.getEntityRenderDispatcher(), client.getBlockEntityRenderDispatcher(), buffers);
+        OWN_BUFFERS.put(renderer, buffers);
+        return renderer;
+    }
+
+    /**
+     * Libere un renderer : son chunk builder s'arrete et, s'il a ete cree ici, ses tampons de dessin serviront au prochain.
+     * Vanilla garde les siens toute la partie et ne les rend jamais : alloues hors du tas Java (une trentaine de Mio),
+     * ceux d'un renderer jete fuiraient a chaque changement de monde. Les taches de construction encore en cours rendent
+     * leurs tampons sur le fil de rendu, le seul qui touche a la reserve : la reprendre aussitot est sur.
+     */
+    static void release(WorldRenderer renderer) {
+        renderer.setWorld(null);
+        renderer.close();
+        BufferBuilderStorage buffers = OWN_BUFFERS.remove(renderer);
+        if (buffers != null) {
+            SPARE_BUFFERS.add(buffers);
+        }
     }
 
     /** Monde client de cette dimension : le monde distant, ou le monde que la vue secondaire partage. */
@@ -213,8 +242,11 @@ public final class RemoteWorld {
         return this.viewRenderer;
     }
 
-    /** Particules de ce monde. */
-    RemoteParticles particles() {
+    /**
+     * Particules de ce monde ; {@code null} pour une vue secondaire, qui n'entre jamais dans la liste des mondes distants
+     * (ni tiquee ni nourrie de paquets) : les methodes qui les touchent ne servent qu'aux mondes distants.
+     */
+    @Nullable RemoteParticles particles() {
         return this.particles;
     }
 
@@ -361,6 +393,15 @@ public final class RemoteWorld {
             }
             return;
         }
+        if (packet instanceof GameStateChangeS2CPacket weather) {
+            // Meteo de la dimension distante : le serveur n'envoie par cette voie que la pluie et l'orage.
+            if (weather.getReason() == GameStateChangeS2CPacket.RAIN_GRADIENT_CHANGED) {
+                this.world.setRainGradient(weather.getValue());
+            } else if (weather.getReason() == GameStateChangeS2CPacket.THUNDER_GRADIENT_CHANGED) {
+                this.world.setThunderGradient(weather.getValue());
+            }
+            return;
+        }
         RemoteParticles previous = this.particles.enter(client.particleManager);
         try {
             if (packet instanceof WorldEventS2CPacket event) {
@@ -387,12 +428,13 @@ public final class RemoteWorld {
         }
     }
 
-    /** Heure et meteo sont celles du serveur, communes a toutes ses dimensions : le monde distant suit le monde principal. */
+    /**
+     * L'heure est celle du serveur, commune a toutes ses dimensions : le monde distant suit le monde principal. La meteo,
+     * propre a chaque dimension, arrive du serveur avec les paquets de ce monde ({@link #applyEntityPacket}).
+     */
     public void syncEnvironment(ClientWorld main) {
         this.world.setTime(main.getTime());
         this.world.setTimeOfDay(main.getTimeOfDay());
-        this.world.setRainGradient(main.getRainGradient(1.0f));
-        this.world.setThunderGradient(main.getThunderGradient(1.0f));
     }
 
     /**
@@ -401,12 +443,14 @@ public final class RemoteWorld {
      * de cette vue (flammes, fumee, gouttes, sons du feu). Tout se passe dans le contenu de particules de ce monde.
      */
     public void tick(MinecraftClient client) {
+        tickClock();
         RemoteParticles previous = this.particles.enter(client.particleManager);
         try {
             this.world.tickEntities();
             if (recentlyViewed()) {
                 client.particleManager.tick();
                 displayTicks();
+                tickRain(client);
             }
         } finally {
             this.particles.exit(client.particleManager, previous);
@@ -414,6 +458,29 @@ public final class RemoteWorld {
         if (!recentlyViewed()) {
             // Personne ne regarde plus : les particules restantes ne seraient jamais dessinees.
             this.particles.clear();
+        }
+    }
+
+    /**
+     * Horloge du renderer de la vue, qui anime la pluie et la neige et oublie les vieilles fissures, comme celle du renderer
+     * du joueur : vanilla ne tique que celui-la. Seule a tiquer pour la vue secondaire.
+     */
+    void tickClock() {
+        this.renderer.tick();
+    }
+
+    /**
+     * Eclaboussures et bruit de la pluie autour de la camera de la derniere vue, tires par vanilla comme autour du joueur :
+     * les particules naissent dans ce monde, le son ressort par le portail.
+     */
+    private void tickRain(MinecraftClient client) {
+        ((CameraAccessor) this.rainCamera).backrooms$setPos(this.lastViewCamera);
+        ClientWorld main = client.world;
+        client.world = this.world;
+        try {
+            this.renderer.tickRainSplashing(this.rainCamera);
+        } finally {
+            client.world = main;
         }
     }
 
@@ -433,10 +500,9 @@ public final class RemoteWorld {
         ((WorldRendererAccessor) this.renderer).backrooms$scheduleChunkRender(x, y, z, important);
     }
 
-    /** Libere le renderer et son chunk builder. */
+    /** Libere le renderer, son chunk builder et ses tampons de dessin (voir {@link #release}). */
     void dispose() {
-        this.renderer.setWorld(null);
-        this.renderer.close();
+        release(this.renderer);
     }
 
     /** Resume pour les logs de debug. */

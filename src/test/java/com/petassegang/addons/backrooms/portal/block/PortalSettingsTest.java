@@ -35,10 +35,11 @@ class PortalSettingsTest {
     void codecReadsWritesAndRejects() {
         assertEquals(PortalSettings.DEFAULT, decode("{}"), "Rien de regle : les reglages par defaut.");
         assertEquals(new PortalSettings(3, 4, false), decode("{\"width\":3,\"height\":4,\"transmits_light\":false}"), "Taille et lumiere.");
-        assertEquals(new PortalSettings(1, 2, true, false, true), decode("{\"double_sided\":false,\"one_way\":true}"),
+        assertEquals(new PortalSettings(1, 2, true, false, true, false), decode("{\"double_sided\":false,\"one_way\":true}"),
                 "Une face, aller simple.");
+        assertEquals(new PortalSettings(1, 2, true, true, false, true), decode("{\"fleeting_exit\":true}"), "Sortie fugace.");
         assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"width\":9}")).isError(), "Neuf blocs : refuse.");
-        PortalSettings settings = new PortalSettings(2, 5, true, false, true);
+        PortalSettings settings = new PortalSettings(2, 5, true, false, true, true);
         JsonObject json = PortalSettings.CODEC.encodeStart(JsonOps.INSTANCE, settings).getOrThrow().getAsJsonObject();
         assertEquals(settings, PortalSettings.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(), "Aller-retour du format.");
     }
@@ -47,7 +48,7 @@ class PortalSettingsTest {
     @DisplayName("Le format reseau fait l'aller-retour, et une taille hors bornes est ramenee dans les bornes")
     void packetCodecAndClamping() {
         ByteBuf buffer = Unpooled.buffer();
-        PortalSettings settings = new PortalSettings(8, 1, false, false, true);
+        PortalSettings settings = new PortalSettings(8, 1, false, false, true, true);
         PortalSettings.PACKET_CODEC.encode(buffer, settings);
         assertEquals(settings, PortalSettings.PACKET_CODEC.decode(buffer), "Aller-retour reseau.");
         assertEquals(new PortalSettings(PortalSettings.MAX_SIZE, PortalSettings.MIN_SIZE, true), new PortalSettings(40, -3, true),
@@ -64,8 +65,9 @@ class PortalSettingsTest {
         ItemStack stack = wide.toStack(plain);
         assertEquals(wide, PortalSettings.of(stack), "La pile reglee porte ses reglages.");
         assertEquals(PortalSettings.DEFAULT, PortalSettings.of(plain), "La pile d'origine n'est pas modifiee.");
-        assertEquals(6, PortalSettings.PRESETS.size(), "Six reglages proposes dans l'onglet creatif.");
-        assertTrue(PortalSettings.DEFAULT.doubleSided() && !PortalSettings.DEFAULT.oneWay(), "Par defaut : deux faces, aller-retour.");
+        assertEquals(7, PortalSettings.PRESETS.size(), "Sept reglages proposes dans l'onglet creatif.");
+        assertTrue(PortalSettings.DEFAULT.doubleSided() && !PortalSettings.DEFAULT.oneWay() && !PortalSettings.DEFAULT.fleetingExit(),
+                "Par defaut : deux faces, aller-retour, sortie durable.");
     }
 
     @Test

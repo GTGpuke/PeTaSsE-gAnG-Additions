@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import com.petassegang.addons.backrooms.portal.sync.PortalBlockActionPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalCrossPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalEntityActionPayload;
+import com.petassegang.addons.backrooms.portal.sync.PortalSightPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalTeleportPayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteBlockBreakingPayload;
 import com.petassegang.addons.backrooms.portal.sync.RemoteBlockUpdatePayload;
@@ -37,6 +38,7 @@ public final class ModNetworking {
         PayloadTypeRegistry.playC2S().register(PortalCrossPayload.ID, PortalCrossPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PortalEntityActionPayload.ID, PortalEntityActionPayload.CODEC);
         PayloadTypeRegistry.playC2S().register(PortalBlockActionPayload.ID, PortalBlockActionPayload.CODEC);
+        PayloadTypeRegistry.playC2S().register(PortalSightPayload.ID, PortalSightPayload.CODEC);
         ModConstants.LOGGER.debug("Payloads reseau enregistres.");
     }
 }

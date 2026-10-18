@@ -23,18 +23,6 @@
   "block.petasse_gang_additions.backrooms_portal": "Backrooms Portal",
   "entity.petasse_gang_additions.backrooms_portal": "Backrooms Portal",
 
-  "item.petasse_gang_additions.cursed_log": "Cursed Log",
-  "item.petasse_gang_additions.cursed_leaves": "Cursed Leaves",
-  "item.petasse_gang_additions.cursed_sapling": "Cursed Sapling",
-  "item.petasse_gang_additions.cursed_planks": "Cursed Planks",
-  "item.petasse_gang_additions.level_zero_wallpaper": "Level 0 Wallpaper",
-  "item.petasse_gang_additions.level_zero_wallpaper_aged": "White Level 0 Wallpaper",
-  "item.petasse_gang_additions.level_zero_wallpaper_adaptive": "Adaptive Level 0 Wallpaper",
-  "item.petasse_gang_additions.level_zero_damp_carpet": "Level 0 Damp Carpet",
-  "item.petasse_gang_additions.level_zero_damp_carpet_aged": "Red Level 0 Carpet",
-  "item.petasse_gang_additions.level_zero_ceiling_tile": "Level 0 Ceiling Tile",
-  "item.petasse_gang_additions.level_zero_fluorescent_light": "Level 0 Fluorescent Light",
-  "item.petasse_gang_additions.backrooms_portal": "Backrooms Portal",
   "tooltip.petasse_gang_additions.backrooms_portal.size": "Size: %s x %s",
   "tooltip.petasse_gang_additions.backrooms_portal.light": "Block light passes through",
   "tooltip.petasse_gang_additions.backrooms_portal.no_light": "Block light does not pass through",
@@ -42,7 +30,9 @@
   "tooltip.petasse_gang_additions.backrooms_portal.single_sided": "Single face: nothing from behind, walk right through",
   "tooltip.petasse_gang_additions.backrooms_portal.round_trip": "Round trip",
   "tooltip.petasse_gang_additions.backrooms_portal.one_way": "One way: nothing at the arrival to come back",
+  "tooltip.petasse_gang_additions.backrooms_portal.fleeting_exit": "Fleeting exit: the way back vanishes once out of sight",
   "tooltip.petasse_gang_additions.backrooms_portal.break": "Sneak to target it and break it",
 
+  "biome.petasse_gang_additions.backrooms_level_0": "Backrooms - Level 0",
   "dimension.petasse_gang_additions.backrooms_level_0": "Backrooms - Level 0"
 }

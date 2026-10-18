@@ -111,7 +111,8 @@ class BackroomsPortalBlockTest {
         assertFalse(portal.isConfigured(), "Un bloc neuf ne connait pas sa destination.");
         NbtCompound fresh = new NbtCompound();
         portal.writeNbt(fresh, registries);
-        assertEquals(Set.of("Width", "Height", "TransmitsLight", "DoubleSided", "OneWay"), fresh.getKeys(), "Un bloc neuf ne sauve que ses reglages.");
+        assertEquals(Set.of("Width", "Height", "TransmitsLight", "DoubleSided", "OneWay", "FleetingExit"), fresh.getKeys(),
+                "Un bloc neuf ne sauve que ses reglages.");
         portal.configureTarget(BackroomsConstants.LEVEL_ZERO_WORLD, new Vec3d(1.5, 2.0, 1.5), PortalFacing.SOUTH);
         assertTrue(portal.isConfigured(), "Le bloc connait sa destination.");
         assertNull(portal.entryPortal(BackroomsPortalBlockEntity.FRONT), "Sans monde serveur, aucun portail n'est pose.");
@@ -122,6 +123,8 @@ class BackroomsPortalBlockTest {
         nbt.putUuid("EntryBack", uuids[1]);
         nbt.putUuid("ReturnFront", uuids[2]);
         nbt.putUuid("ReturnBack", uuids[3]);
+        // Une sortie fugace perdue de vue : sauvee seulement quand elle l'est.
+        nbt.putBoolean("ExitLost", true);
 
         BackroomsPortalBlockEntity restored = new BackroomsPortalBlockEntity(new BlockPos(3, 1, -7), ModBlocks.BACKROOMS_PORTAL.getDefaultState());
         restored.readNbt(nbt, registries);
@@ -165,8 +168,11 @@ class BackroomsPortalBlockTest {
         nbt.putBoolean("DoubleSided", false);
         nbt.putBoolean("OneWay", true);
         portal.readNbt(nbt, registries);
-        assertEquals(new PortalSettings(PortalSettings.MAX_SIZE, PortalSettings.MIN_SIZE, false, false, true), portal.settings(),
+        assertEquals(new PortalSettings(PortalSettings.MAX_SIZE, PortalSettings.MIN_SIZE, false, false, true, false), portal.settings(),
                 "Une face, aller simple : relus.");
+        nbt.putBoolean("FleetingExit", true);
+        portal.readNbt(nbt, registries);
+        assertTrue(portal.settings().fleetingExit(), "Sortie fugace : relue.");
         nbt.remove("DestDim");
         nbt.remove("DestX");
         nbt.remove("DestFacing");
@@ -180,8 +186,11 @@ class BackroomsPortalBlockTest {
         assertEquals(List.of("size", "light", "double_sided", "round_trip", "break"), tooltipKeys(new ItemStack(ModItems.BACKROOMS_PORTAL)),
                 "Reglages par defaut.");
         assertEquals(List.of("size", "no_light", "single_sided", "one_way", "break"),
-                tooltipKeys(new PortalSettings(3, 4, false, false, true).toStack(new ItemStack(ModItems.BACKROOMS_PORTAL))),
-                "Lumiere bloquee, une face, aller simple.");
+                tooltipKeys(new PortalSettings(3, 4, false, false, true, true).toStack(new ItemStack(ModItems.BACKROOMS_PORTAL))),
+                "Lumiere bloquee, une face, aller simple : sans sortie, rien de fugace.");
+        assertEquals(List.of("size", "light", "double_sided", "fleeting_exit", "break"),
+                tooltipKeys(new PortalSettings(1, 2, true, true, false, true).toStack(new ItemStack(ModItems.BACKROOMS_PORTAL))),
+                "Sortie fugace.");
     }
 
     private static List<String> tooltipKeys(ItemStack stack) {

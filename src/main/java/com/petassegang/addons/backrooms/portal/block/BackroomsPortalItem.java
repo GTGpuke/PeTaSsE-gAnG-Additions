@@ -24,6 +24,7 @@ public final class BackroomsPortalItem extends BlockItem {
     private static final String TOOLTIP_DOUBLE_SIDED = TOOLTIP + "double_sided";
     private static final String TOOLTIP_SINGLE_SIDED = TOOLTIP + "single_sided";
     private static final String TOOLTIP_ONE_WAY = TOOLTIP + "one_way";
+    private static final String TOOLTIP_FLEETING_EXIT = TOOLTIP + "fleeting_exit";
     private static final String TOOLTIP_ROUND_TRIP = TOOLTIP + "round_trip";
     private static final String TOOLTIP_BREAK = TOOLTIP + "break";
 
@@ -39,7 +40,15 @@ public final class BackroomsPortalItem extends BlockItem {
         tooltip.add(Text.translatable(TOOLTIP_SIZE, settings.width(), settings.height()).formatted(Formatting.GRAY));
         tooltip.add(Text.translatable(settings.transmitsLight() ? TOOLTIP_LIGHT : TOOLTIP_NO_LIGHT).formatted(Formatting.GRAY));
         tooltip.add(Text.translatable(settings.doubleSided() ? TOOLTIP_DOUBLE_SIDED : TOOLTIP_SINGLE_SIDED).formatted(Formatting.GRAY));
-        tooltip.add(Text.translatable(settings.oneWay() ? TOOLTIP_ONE_WAY : TOOLTIP_ROUND_TRIP).formatted(Formatting.GRAY));
+        tooltip.add(Text.translatable(returnTooltip(settings)).formatted(Formatting.GRAY));
         tooltip.add(Text.translatable(TOOLTIP_BREAK).formatted(Formatting.DARK_GRAY));
+    }
+
+    /** Ligne du retour : aucun (aller simple), tant qu'on le voit (sortie fugace), ou toujours. */
+    private static String returnTooltip(PortalSettings settings) {
+        if (settings.oneWay()) {
+            return TOOLTIP_ONE_WAY;
+        }
+        return settings.fleetingExit() ? TOOLTIP_FLEETING_EXIT : TOOLTIP_ROUND_TRIP;
     }
 }

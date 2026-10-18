@@ -210,7 +210,7 @@ public final class DestinationLoader {
         List<ServerPlayerEntity> players = world.getPlayers();
         for (int i = 0; i < players.size(); i++) {
             ServerPlayerEntity player = players.get(i);
-            if (PortalRelevance.isRelevant(player.getEyePos(), player.getRotationVec(1.0f), portal.getPos(), PortalRelevance.MAX_DISTANCE)) {
+            if (PortalRelevance.isRelevant(player, portal.getPos(), PortalRelevance.MAX_DISTANCE)) {
                 return true;
             }
         }

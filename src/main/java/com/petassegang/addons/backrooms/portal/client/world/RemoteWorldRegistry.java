@@ -203,16 +203,22 @@ public final class RemoteWorldRegistry {
             return;
         }
         ((MinecraftClientAccessor) client).backrooms$setWorldRenderer(vanillaRenderer);
-        current.setWorld(null);
-        current.close();
+        RemoteWorld.release(current);
     }
 
-    /** Tick client : heure et meteo suivent le monde principal, les entities s'interpolent et s'animent comme les siennes. */
+    /**
+     * Tick client : l'heure suit le monde principal, les entities s'interpolent et s'animent comme les siennes, et
+     * l'horloge de chaque vue, secondaires comprises, avance comme celle du renderer du joueur.
+     */
     public static void tickRemoteWorlds(MinecraftClient client) {
-        if (client.world == null || client.isPaused() || WORLD_LIST.isEmpty()) {
+        if (client.world == null || client.isPaused()) {
             return;
         }
+        // D'abord : apres un changement de monde vanilla, les vues de l'ancien monde partent avant de tiquer.
         syncWithMainWorld(client.world);
+        for (int i = 0; i < MIRRORS.size(); i++) {
+            MIRRORS.get(i).tickClock();
+        }
         for (int i = 0; i < WORLD_LIST.size(); i++) {
             RemoteWorld remote = WORLD_LIST.get(i);
             remote.syncEnvironment(client.world);
@@ -268,8 +274,7 @@ public final class RemoteWorldRegistry {
                     vanillaRenderer.setWorld(client.world);
                 }
                 if (current != vanillaRenderer) {
-                    current.setWorld(null);
-                    current.close();
+                    RemoteWorld.release(current);
                 }
             }
             if (expected != vanillaRenderer) {

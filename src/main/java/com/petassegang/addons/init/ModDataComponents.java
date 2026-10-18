@@ -13,7 +13,7 @@ import com.petassegang.addons.core.ModConstants;
  */
 public final class ModDataComponents {
 
-    /** Reglages du portail que pose l'item du bloc portail : taille du cadre, passage de la lumiere, faces, retour. */
+    /** Reglages du portail que pose l'item du bloc portail : taille du cadre, passage de la lumiere, faces, retour, sortie. */
     public static final ComponentType<PortalSettings> PORTAL_SETTINGS = Registry.register(
             Registries.DATA_COMPONENT_TYPE,
             Identifier.of(ModConstants.MOD_ID, "portal_settings"),

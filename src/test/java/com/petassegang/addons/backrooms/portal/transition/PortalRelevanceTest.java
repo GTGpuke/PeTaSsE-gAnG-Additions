@@ -15,6 +15,19 @@ class PortalRelevanceTest {
     private static final Vec3d LOOK_NORTH = new Vec3d(0.0, 0.0, -1.0);
 
     @Test
+    @DisplayName("Un regard donne en angles juge comme le vecteur de regard qu'il designe")
+    void lookGivenAsAngles() {
+        double activation = PortalRelevance.ALWAYS_RELEVANT_DISTANCE;
+        // Lacet 180 : vers le nord, comme LOOK_NORTH ; lacet 0 : vers le sud.
+        assertTrue(PortalRelevance.isRelevant(EYE, 0.0f, 180.0f, new Vec3d(0.0, 65.0, -20.0), 64.0), "Au nord, regarde vers le nord.");
+        assertFalse(PortalRelevance.isRelevant(EYE, 0.0f, 0.0f, new Vec3d(0.0, 65.0, -(activation + 4.0)), 64.0),
+                "Au nord, regarde vers le sud, au-dela de l'activation.");
+        assertTrue(PortalRelevance.isRelevant(EYE, 0.0f, 0.0f, new Vec3d(0.0, 65.0, -(activation - 1.0)), 64.0),
+                "Au nord, dans le dos mais a portee d'activation.");
+        assertFalse(PortalRelevance.isRelevant(EYE, 0.0f, 180.0f, new Vec3d(0.0, 65.0, -100.0), 64.0), "Trop loin.");
+    }
+
+    @Test
     @DisplayName("Un portail devant l'observateur et a portee compte")
     void inFrontAndInRange() {
         assertTrue(PortalRelevance.isRelevant(EYE, LOOK_NORTH, new Vec3d(0.0, 65.0, -20.0), 64.0), "Devant, a 20 blocs.");

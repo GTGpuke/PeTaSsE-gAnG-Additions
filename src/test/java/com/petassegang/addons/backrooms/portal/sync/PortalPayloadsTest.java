@@ -2,8 +2,11 @@ package com.petassegang.addons.backrooms.portal.sync;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
@@ -113,6 +116,22 @@ class PortalPayloadsTest {
     }
 
     @Test
+    @DisplayName("Le regard du client transporte les portails vus, et pas plus que le plafond")
+    void sightPayload() {
+        PortalSightPayload payload = new PortalSightPayload(List.of(UUID.randomUUID(), UUID.randomUUID()));
+        assertEquals(payload, roundTripPacket(PortalSightPayload.CODEC, payload), "Aller-retour identique.");
+        assertEquals(new PortalSightPayload(List.of()), roundTripPacket(PortalSightPayload.CODEC, new PortalSightPayload(List.of())), "Rien de vu.");
+        assertEquals(PortalSightPayload.ID, payload.getId(), "Identifiant du payload.");
+        List<UUID> tooMany = new ArrayList<>();
+        for (int i = 0; i <= PortalSightPayload.MAX_PORTALS; i++) {
+            tooMany.add(UUID.randomUUID());
+        }
+        PacketByteBuf buffer = new PacketByteBuf(Unpooled.buffer());
+        PortalSightPayload.CODEC.encode(buffer, new PortalSightPayload(tooMany));
+        assertThrows(RuntimeException.class, () -> PortalSightPayload.CODEC.decode(buffer), "Au-dela du plafond, le paquet est refuse.");
+    }
+
+    @Test
     @DisplayName("Un paquet d'entity vanilla enveloppe survit a un aller-retour reseau avec sa dimension")
     void entityPacketPayload() {
         RegistryByteBuf buffer = new RegistryByteBuf(Unpooled.buffer(), DynamicRegistryManager.of(Registries.REGISTRIES));
@@ -154,8 +173,8 @@ class PortalPayloadsTest {
     void distinctIds() {
         Set<CustomPayload.Id<?>> ids = Set.of(RemoteDimensionPayload.ID, RemoteChunkPayload.ID, RemoteChunkUnloadPayload.ID,
                 RemoteBlockUpdatePayload.ID, RemoteEntityPacketPayload.ID, RemoteBlockBreakingPayload.ID, PortalTeleportPayload.ID,
-                PortalCrossPayload.ID, PortalEntityActionPayload.ID, PortalBlockActionPayload.ID);
-        assertEquals(10, ids.size(), "Dix identifiants distincts.");
+                PortalCrossPayload.ID, PortalEntityActionPayload.ID, PortalBlockActionPayload.ID, PortalSightPayload.ID);
+        assertEquals(11, ids.size(), "Onze identifiants distincts.");
         for (CustomPayload.Id<?> id : ids) {
             assertEquals(ModConstants.MOD_ID, id.id().getNamespace(), "Espace de noms du mod pour " + id.id() + ".");
         }

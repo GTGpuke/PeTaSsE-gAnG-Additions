@@ -2,6 +2,7 @@ package com.petassegang.addons.backrooms.portal.block;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
@@ -18,6 +19,7 @@ import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ChunkTicketType;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
@@ -29,6 +31,7 @@ import net.minecraft.world.World;
 
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
+import com.petassegang.addons.backrooms.portal.sync.PortalSight;
 import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModDataComponents;
@@ -39,8 +42,9 @@ import com.petassegang.addons.init.ModDataComponents;
  * <p>Un bloc pose hors du Level 0 mene au Level 0 ; pose dans le Level 0, il ramene a la surface. A deux faces (reglage
  * par defaut), le portail se voit et se traverse des deux cotes, comme un trou dans l'espace : chaque cote tient deux
  * portails dos a dos dans le meme plan, la face avant et la face arriere, et chaque face mene a la face correspondante
- * de l'autre cote. A une face, seule la face avant existe ; aller simple, rien n'est pose a l'arrivee. Tous ses portails
- * connaissent le bloc qui les possede : le registre des portails retire ceux dont le bloc n'existe plus.
+ * de l'autre cote. A une face, seule la face avant existe ; aller simple, rien n'est pose a l'arrivee. A sortie fugace,
+ * la sortie (le retour) ne tient que sous le regard des joueurs : perdue de vue, elle disparait pour de bon. Tous ses
+ * portails connaissent le bloc qui les possede : le registre des portails retire ceux dont le bloc n'existe plus.
  */
 public final class BackroomsPortalBlockEntity extends BlockEntity {
 
@@ -71,6 +75,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private static final String NBT_TRANSMITS_LIGHT = "TransmitsLight";
     private static final String NBT_DOUBLE_SIDED = "DoubleSided";
     private static final String NBT_ONE_WAY = "OneWay";
+    private static final String NBT_FLEETING_EXIT = "FleetingExit";
+    private static final String NBT_EXIT_LOST = "ExitLost";
     private static final String[] NBT_ENTRY_PORTALS = {"EntryFront", "EntryBack"};
     private static final String[] NBT_RETURN_PORTALS = {"ReturnFront", "ReturnBack"};
     private static final String NBT_DESTINATION_DIM = "DestDim";
@@ -78,6 +84,15 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private static final String NBT_DESTINATION_Y = "DestY";
     private static final String NBT_DESTINATION_Z = "DestZ";
     private static final String NBT_DESTINATION_FACING = "DestFacing";
+    /** Intervalle, en ticks, entre deux regards sur une sortie fugace. */
+    private static final int EXIT_SIGHT_INTERVAL_TICKS = 4;
+    /** Distance a laquelle un joueur qui ne voit pas une sortie fugace la fait disparaitre. */
+    private static final double EXIT_NEAR_DISTANCE = 16.0;
+    /**
+     * Delai laisse aux clients pour voir et rapporter un retour qui vient d'apparaitre (pose, repose, copie) : apparition,
+     * image, rapport et trajet ; avant, un rapport recent ne peut pas encore le nommer.
+     */
+    private static final int EXIT_GRACE_TICKS = 40;
 
     private PortalSettings settings = PortalSettings.DEFAULT;
     /** Cadre d'entree en cache, lu a chaque tick : recalcule quand l'etat du bloc (tourne) ou les reglages changent. */
@@ -96,6 +111,10 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private @Nullable RegistryKey<World> destinationDim;
     private @Nullable Vec3d destinationPos;
     private @Nullable PortalFacing destinationFacing;
+    /** Sortie fugace perdue de vue : plus de retour, pour de bon, jusqu'a une nouvelle destination. */
+    private boolean exitLost;
+    /** Heure du monde d'arrivee a partir de laquelle la sortie fugace se juge : son dernier retour pose est connu des clients. */
+    private long exitJudgedFrom;
     private int ticksSinceLoad;
 
     /** Block entity du bloc portail, creee par le bloc a la pose ou au chargement. */
@@ -108,7 +127,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         portalsEnabled = enabled;
     }
 
-    /** Reglages du portail : taille du cadre, passage de la lumiere, faces et retour. */
+    /** Reglages du portail : taille du cadre, passage de la lumiere, faces, retour et sortie fugace. */
     public PortalSettings settings() {
         return this.settings;
     }
@@ -123,6 +142,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
      */
     public void configureTarget(RegistryKey<World> destinationDim, Vec3d destinationPos, PortalFacing destinationFacing) {
         discardPortals();
+        this.exitLost = false;
         this.destinationDim = destinationDim;
         this.destinationPos = destinationPos;
         this.destinationFacing = destinationFacing;
@@ -141,8 +161,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
 
     /**
      * Tick serveur, portails actives : resout la destination si besoin, garde les portails d'entree conformes au bloc et a
-     * ses reglages, et veille sur les retours. Une face que les reglages n'ont pas, ou un retour d'un portail aller simple,
-     * est retire.
+     * ses reglages, et veille sur les retours. Une face que les reglages n'ont pas, un retour d'un portail aller simple ou
+     * celui d'une sortie fugace perdue de vue, est retire.
      */
     public void serverTick() {
         if (!portalsEnabled || !(this.world instanceof ServerWorld serverWorld)) {
@@ -163,7 +183,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 continue;
             }
             syncEntryPortal(serverWorld, face);
-            if (this.settings.oneWay()) {
+            if (noReturn()) {
                 discardReturnPortal(serverWorld, face);
             } else if (this.returnAwaitingChunk[face]) {
                 spawnReturnPortal(serverWorld, face);
@@ -174,6 +194,48 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 }
             }
         }
+        if (this.settings.fleetingExit() && !noReturn() && this.ticksSinceLoad % EXIT_SIGHT_INTERVAL_TICKS == 0) {
+            ServerWorld destination = serverWorld.getServer().getWorld(this.destinationDim);
+            if (destination != null && exitForsaken(destination)) {
+                loseExit(serverWorld);
+            }
+        }
+    }
+
+    /** {@code true} si le portail n'a rien a l'arrivee : aller simple, ou sortie fugace perdue de vue. */
+    private boolean noReturn() {
+        return this.settings.oneWay() || (this.settings.fleetingExit() && this.exitLost);
+    }
+
+    /**
+     * {@code true} si la sortie fugace est perdue de vue : un joueur s'en tient pres, et aucun joueur de son monde ne voit
+     * ses retours, d'apres ce que rapporte son client ({@link PortalSight}, troisieme personne comprise). Tant que personne
+     * n'en approche, elle reste ; un retour qui vient d'apparaitre aussi, le temps que les clients le voient.
+     */
+    private boolean exitForsaken(ServerWorld destination) {
+        if (destination.getTime() < this.exitJudgedFrom) {
+            return false;
+        }
+        boolean someoneNear = false;
+        List<ServerPlayerEntity> players = destination.getPlayers();
+        for (int i = 0; i < players.size(); i++) {
+            ServerPlayerEntity player = players.get(i);
+            if (PortalSight.seesAny(player, this.returnPortals)) {
+                return false;
+            }
+            someoneNear |= player.squaredDistanceTo(this.destinationPos) <= EXIT_NEAR_DISTANCE * EXIT_NEAR_DISTANCE;
+        }
+        return someoneNear;
+    }
+
+    /** La sortie fugace n'a plus personne pour la voir : ses retours disparaissent, et ne reviennent plus. */
+    private void loseExit(ServerWorld world) {
+        this.exitLost = true;
+        for (int face = 0; face < FACES; face++) {
+            discardReturnPortal(world, face);
+        }
+        this.markDirty();
+        ModConstants.LOGGER.debug("[Portal] Sortie fugace du bloc portail {} perdue de vue : elle disparait.", this.pos);
     }
 
     /** {@code true} si les reglages donnent cette face au portail : toujours la face avant, l'arriere s'il a deux faces. */
@@ -348,6 +410,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         destination.spawnEntity(portal);
         this.returnPortals[face] = portal.getUuid();
         this.returnMissingChecks[face] = 0;
+        this.exitJudgedFrom = destination.getTime() + EXIT_GRACE_TICKS;
         this.markDirty();
     }
 
@@ -437,6 +500,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         nbt.remove(NBT_TRANSMITS_LIGHT);
         nbt.remove(NBT_DOUBLE_SIDED);
         nbt.remove(NBT_ONE_WAY);
+        nbt.remove(NBT_FLEETING_EXIT);
+        nbt.remove(NBT_EXIT_LOST);
         for (int face = 0; face < FACES; face++) {
             nbt.remove(NBT_ENTRY_PORTALS[face]);
             nbt.remove(NBT_RETURN_PORTALS[face]);
@@ -468,6 +533,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         nbt.putBoolean(NBT_TRANSMITS_LIGHT, this.settings.transmitsLight());
         nbt.putBoolean(NBT_DOUBLE_SIDED, this.settings.doubleSided());
         nbt.putBoolean(NBT_ONE_WAY, this.settings.oneWay());
+        nbt.putBoolean(NBT_FLEETING_EXIT, this.settings.fleetingExit());
     }
 
     @Override
@@ -484,7 +550,10 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 nbt.contains(NBT_HEIGHT) ? nbt.getInt(NBT_HEIGHT) : PortalSettings.DEFAULT.height(),
                 !nbt.contains(NBT_TRANSMITS_LIGHT) || nbt.getBoolean(NBT_TRANSMITS_LIGHT),
                 !nbt.contains(NBT_DOUBLE_SIDED) || nbt.getBoolean(NBT_DOUBLE_SIDED),
-                nbt.getBoolean(NBT_ONE_WAY));
+                nbt.getBoolean(NBT_ONE_WAY),
+                nbt.getBoolean(NBT_FLEETING_EXIT));
+        // Une copie a sa propre sortie, toute neuve.
+        this.exitLost = !copy && nbt.getBoolean(NBT_EXIT_LOST);
         for (int face = 0; face < FACES; face++) {
             this.entryPortals[face] = !copy && nbt.containsUuid(NBT_ENTRY_PORTALS[face]) ? nbt.getUuid(NBT_ENTRY_PORTALS[face]) : null;
             this.returnPortals[face] = !copy && nbt.containsUuid(NBT_RETURN_PORTALS[face]) ? nbt.getUuid(NBT_RETURN_PORTALS[face]) : null;
@@ -541,6 +610,9 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         }
         if (this.destinationFacing != null) {
             nbt.putString(NBT_DESTINATION_FACING, this.destinationFacing.name());
+        }
+        if (this.exitLost) {
+            nbt.putBoolean(NBT_EXIT_LOST, true);
         }
     }
 }

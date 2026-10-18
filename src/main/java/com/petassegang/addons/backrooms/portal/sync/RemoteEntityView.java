@@ -16,6 +16,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.PlayerAssociatedNetworkHandler;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -30,6 +31,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import com.petassegang.addons.mixin.EntityTrackerAccessor;
 import com.petassegang.addons.mixin.ServerChunkLoadingManagerAccessor;
+import com.petassegang.addons.mixin.WorldAccessor;
 
 /**
  * Entities d'une dimension distante suivies pour un joueur.
@@ -58,6 +60,9 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
     private int windowMinChunkZ;
     private int windowMaxChunkX;
     private int windowMaxChunkZ;
+    /** Pluie et orage deja envoyes pour cette dimension ; {@code NaN} avant le premier envoi. */
+    private float sentRain = Float.NaN;
+    private float sentThunder = Float.NaN;
 
     RemoteEntityView(ServerPlayerEntity viewer, RegistryKey<World> dimension) {
         this.viewer = viewer;
@@ -106,6 +111,26 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
             }
         }
         this.scratch.clear();
+    }
+
+    /**
+     * Envoie la meteo de la dimension distante quand elle change : chaque dimension a la sienne cote serveur (seules celles
+     * qui ont un ciel la font evoluer), et la vue doit montrer la pluie de l'autre cote, pas celle du monde du joueur.
+     *
+     * @param destination monde distant
+     */
+    void syncWeather(ServerWorld destination) {
+        WorldAccessor weather = (WorldAccessor) destination;
+        float rain = weather.backrooms$getRainGradient();
+        if (rain != this.sentRain) {
+            this.sentRain = rain;
+            sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.RAIN_GRADIENT_CHANGED, rain));
+        }
+        float thunder = weather.backrooms$getThunderGradient();
+        if (thunder != this.sentThunder) {
+            this.sentThunder = thunder;
+            sendPacket(new GameStateChangeS2CPacket(GameStateChangeS2CPacket.THUNDER_GRADIENT_CHANGED, thunder));
+        }
     }
 
     /**
@@ -177,10 +202,17 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
         this.tracked.clear();
     }
 
-    private void untrack(Int2ObjectMap<?> trackers, int id, boolean notifyClient) {
-        if (trackers.get(id) instanceof EntityTrackerAccessor tracker) {
-            tracker.backrooms$getListeners().remove(this);
+    /** L'entity a quitte son monde : son suivi vanilla disparait avec elle, le client efface sa copie. */
+    void forget(int id) {
+        if (this.tracked.remove(id)) {
+            sendPacket(new EntitiesDestroyS2CPacket(id));
         }
+    }
+
+    private void untrack(Int2ObjectMap<?> trackers, int id, boolean notifyClient) {
+        // Un identifiant suivi a toujours son suivi vanilla : une entity qui le perd quitte son monde, et la vue l'a deja
+        // oubliee (PortalViewTracker.onEntityUnloaded).
+        ((EntityTrackerAccessor) trackers.get(id)).backrooms$getListeners().remove(this);
         if (notifyClient) {
             sendPacket(new EntitiesDestroyS2CPacket(id));
         }

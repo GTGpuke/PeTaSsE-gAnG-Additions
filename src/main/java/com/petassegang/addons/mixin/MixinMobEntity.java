@@ -50,7 +50,7 @@ public abstract class MixinMobEntity implements PortalPursuer {
     @ModifyVariable(method = "setTarget", at = @At("HEAD"), argsOnly = true)
     private @Nullable LivingEntity backrooms$targetThroughPortal(@Nullable LivingEntity target) {
         MobEntity self = (MobEntity) (Object) this;
-        if (target == null || target.getWorld() == self.getWorld() || self.getWorld().isClient) {
+        if (!ModConfig.ENABLE_PORTAL_FEATURE || target == null || target.getWorld() == self.getWorld() || self.getWorld().isClient) {
             return target;
         }
         PortalPursuit.redirect(self, target);

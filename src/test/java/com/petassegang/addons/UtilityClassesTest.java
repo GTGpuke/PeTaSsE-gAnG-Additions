@@ -65,6 +65,7 @@ class UtilityClassesTest {
                 "com.petassegang.addons.backrooms.portal.interaction.RemoteInteractionHandler",
                 "com.petassegang.addons.backrooms.portal.interaction.RemoteMiningTracker",
                 "com.petassegang.addons.backrooms.portal.propagation.PortalPursuit",
+                "com.petassegang.addons.backrooms.portal.sync.PortalSight",
                 "com.petassegang.addons.backrooms.portal.sync.PortalViewTracker",
                 "com.petassegang.addons.backrooms.portal.sync.RemoteChunkWindow",
                 "com.petassegang.addons.backrooms.portal.transition.DestinationLoader",

@@ -29,6 +29,7 @@ import net.minecraft.world.RaycastContext;
 
 import com.petassegang.addons.backrooms.portal.client.transition.EntityHandover;
 import com.petassegang.addons.backrooms.portal.client.world.ClientPortalIndex;
+import com.petassegang.addons.backrooms.portal.client.world.PortalSightReporter;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorld;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorldRegistry;
 import com.petassegang.addons.backrooms.portal.client.world.StraddlingEntityRenderer;
@@ -52,7 +53,7 @@ import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
  * la vue d'un portail, 2 dans celle d'un portail vu a travers lui. Les portails se dessinent un par un, du plus proche
  * au plus lointain. Pour chacun : sa zone de vue (voir {@link FrameAreaRenderer}) passe le stencil du niveau courant au
  * suivant la ou elle n'est cachee par rien, sa profondeur est poussee au plan lointain, le fond prend la couleur de
- * brouillard de la vue, puis la vue (ciel, blocs, entities, block entities, particules, nuages) est dessinee depuis
+ * brouillard de la vue, puis la vue (ciel, blocs, entities, block entities, particules, nuages, pluie et neige) est dessinee depuis
  * la camera transposee avec la projection du joueur, limitee a la zone par le stencil et au plan du portail d'arrivee
  * par la decoupe des shaders ({@link PortalClipping}). Enfin la zone reprend sa vraie profondeur et son stencil revient
  * au niveau courant : le portail suivant, s'il est derriere, est cache par celui-ci, et deux portails l'un derriere
@@ -117,6 +118,7 @@ public final class PortalStencilRenderer {
             Matrix4f projectionMatrix,
             LightmapTextureManager lightmap,
             float tickDelta) {
+        PortalSightReporter.beginFrame();
         if (!ModConfig.ENABLE_PORTAL_FEATURE || !PortalRenderState.canRenderPortals()) {
             return;
         }
@@ -134,8 +136,11 @@ public final class PortalStencilRenderer {
             return;
         }
         BackroomsPortalEntity behind = camera.isThirdPerson() ? portalBehindCamera(client.world, camera, tickDelta) : null;
-        if (behind == null) {
+        if (behind != null) {
+            PortalSightReporter.noteLookedThrough(behind);
+        } else {
             collectVisiblePortals(client.world, camera, positionMatrix, projectionMatrix);
+            PortalSightReporter.noteDrawn(VISIBLE);
             if (VISIBLE.isEmpty()) {
                 // Aucun cadre a l'ecran, mais une entity peut etre coupee par un portail vu de cote : vanilla ne la dessine pas.
                 StraddlingEntityRenderer.renderMainWorldParts(client, camera, positionMatrix, projectionMatrix, tickDelta);
@@ -313,14 +318,13 @@ public final class PortalStencilRenderer {
 
     private static void collectVisiblePortals(ClientWorld world, Camera camera, Matrix4f positionMatrix, Matrix4f projectionMatrix) {
         Vec3d cameraPos = camera.getPos();
-        Vec3d look = Vec3d.fromPolar(camera.getPitch(), camera.getYaw());
         double renderDistance = Math.max(1, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
         boolean frustumReady = false;
         List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
             if (!portal.visible() || portal.signedDistance(cameraPos) <= 0.0
-                    || !PortalRelevance.isRelevant(cameraPos, look, portal.getPos(), renderDistance)) {
+                    || !PortalRelevance.isRelevant(cameraPos, camera.getPitch(), camera.getYaw(), portal.getPos(), renderDistance)) {
                 continue;
             }
             if (!frustumReady) {
@@ -507,7 +511,6 @@ public final class PortalStencilRenderer {
         } else {
             NESTED_CONE.unbounded();
         }
-        Vec3d look = Vec3d.fromPolar(remoteLook.y, remoteLook.x);
         double renderDistance = Math.max(1, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
         List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(view.world());
         int level = WORLD_LEVEL + 1;
@@ -520,7 +523,7 @@ public final class PortalStencilRenderer {
                     continue;
                 }
                 if (!inner.visible() || inner.signedDistance(remoteCameraPos) <= 0.0
-                        || !PortalRelevance.isRelevant(remoteCameraPos, look, inner.getPos(), renderDistance)
+                        || !PortalRelevance.isRelevant(remoteCameraPos, remoteLook.y, remoteLook.x, inner.getPos(), renderDistance)
                         || !NESTED_FRUSTUM.isVisible(inner.detectionBox())
                         || !NESTED_CONE.intersects(inner.detectionBox())) {
                     continue;

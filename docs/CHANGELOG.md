@@ -19,8 +19,8 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   autour, et traverser ne fait plus tourner (on ressort dans la direction où l'on marchait).
 - **Réglages par portail**, portés par l'item (composant `petasse_gang_additions:portal_settings`, info-bulle) et
   gardés par le bloc : largeur et hauteur du cadre (1 à 8 blocs), passage de la lumière, faces et retour (voir
-  ci-dessous). L'onglet *PetasseGang - Portails* propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face et
-  1 x 2 aller simple. La pose est refusée si le cadre traverserait un bloc ;
+  ci-dessous). L'onglet *PetasseGang - Portails* propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face,
+  1 x 2 aller simple et 1 x 2 à sortie fugace. La pose est refusée si le cadre traverserait un bloc ;
   dans le Level 0, le cadre d'arrivée se pose là où il tient sur toute sa largeur, ses deux faces sur un passage libre.
 - **Portail à une face** (réglage `double_sided`) : seule la face avant existe, de chaque côté ; de dos, rien ne se
   voit et on passe au travers. **Portail aller simple** (réglage `one_way`) : rien n'est posé à l'arrivée pour revenir.
@@ -65,8 +65,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   image et images de plus de 50 ms sur les 120 suivantes, chunks reçus pendant ce temps), repris au F3 en solo. Côté
   serveur, les sections `portal.teleport.player` (dont `portal.teleport.vanilla`), `portal.sync.tick` (dont
   `portal.sync.chunks` et `portal.sync.entities`), `portal.destination.tick` et `portal.light` (lumière transmise ; `portal.light.client` pour la passe du client, en solo) entrent dans le résumé `[perf] serveur:`, et le journal de traversée indique combien de chunks de l'arrivée le client tenait déjà.
+- **Sortie fugace** (réglage `fleeting_exit` du bloc portail, proposé dans l'onglet) : la sortie, le portail de retour à
+  l'arrivée, ne tient que sous le regard. Tant qu'un joueur côté arrivée la voit, on peut revenir ; dès qu'un joueur se
+  tient à 16 blocs de l'arrivée sans qu'aucun ne la voie (hors du champ de vision, ou cachée par un mur), elle
+  disparaît pour de bon (`ExitLost`, sauvé avec le bloc, oublié par une copie ou une nouvelle destination). Qui passe en
+  marchant droit devant lui tourne le dos à l'arrivée : elle a disparu quand il se retourne ; qui passe à reculons, ou
+  la garde en vue, peut revenir. Ce que chaque joueur voit, son client le rapporte au serveur (`portal_sight`) : les
+  portails dessinés à son écran sans cube opaque devant (le verre, les feuilles, une porte laissent voir), troisième
+  personne et champ de vision réglé compris ; un joueur dont le client ne rapporte rien (mod absent, rendu distant coupé,
+  rapport trop vieux ou d'un autre monde) est tenu pour la voir. Une sortie qui vient d'être posée tient deux secondes, le
+  temps que les clients la voient. Sans effet sur un aller simple, qui n'a pas de sortie.
+- **Météo dans les vues** : la pluie et la neige de l'autre côté se dessinent dans le cadre et tombent comme celles du
+  monde du joueur, avec leurs éclaboussures au sol et le bruit de la pluie, qui ressort par le portail. Chaque vue suit
+  la météo de sa propre dimension, envoyée par le serveur avec sa fenêtre : la pluie de l'Overworld se voit depuis le
+  Level 0 ou le Nether, qui n'en ont pas.
 
 ### Changed
+- Moins d'objets créés à chaque image et à chaque passage : transformations d'un portail à l'autre composante par
+  composante (résultats identiques au bit près), pertinence d'un portail calculée sans vecteur de regard, rapport de vue
+  sans liste neuve. Clés de langue `item.*` des items de bloc retirées (le jeu lit celle du bloc) ; clé du biome du
+  Level 0 ajoutée.
 - Une traversée ne compte que si, au moment où ses pieds passent le plan, le centre de l'entité est en face de
   l'ouverture et sa boîte touche le cadre, au lieu d'une marge fixe d'un demi-bloc autour du centre : passer à côté du
   cadre ressortait dans le mur qui encadre l'arrivée, et le contourner en frôlant son bord faisait traverser ou buter
@@ -103,6 +121,26 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- Les renderers des vues de portail gardaient, une fois jetés, leurs tampons de dessin alloués hors du tas Java (une
+  trentaine de Mio chacun) : chaque changement de monde après avoir vu des portails en perdait autant. Ils servent
+  désormais au renderer suivant.
+- Les chunks qu'un joueur tient après une traversée valaient jusqu'à ce que vanilla les propose, même après une
+  réapparition ou un changement de dimension vanilla : des chunks pouvaient ne jamais arriver (trous près du portail).
+  Ils ne valent plus que 100 ticks, et s'oublient aux changements de monde vanilla.
+- Un spectateur qui frappait à travers un portail suivait la créature (caméra vanilla) et se retrouvait téléporté dans
+  son monde pendant l'action ; un spectateur n'agit plus sur rien à travers un portail.
+- L'annonce de traversée du client acceptait une vitesse ou un regard non finis ou démesurés, qui pouvaient couper le
+  contrôle vanilla des déplacements trop rapides : elle est refusée.
+- Une entité retirée de l'autre côté (morte, dans une autre dimension) restait affichée dans la vue jusqu'à cinq ticks :
+  sa destruction part désormais au même tick.
+- Un changement de monde vanilla ou une réapparition à moins de huit blocs pouvaient être pris pour un passage de
+  portail ; les listes de travail de la synchronisation retenaient, en solo, les mondes de la partie précédente.
+- Tests en jeu : un joueur réapparu par `respawnPlayer` restait dans le monde après sa déconnexion (la connexion
+  suivait l'ancien joueur) et faussait les tests suivants qui comptent les joueurs ; le test de traversée entre
+  dimensions ne dépend plus du nombre de chunks que vanilla repropose en 60 ticks. Des vérifications qui ne pouvaient
+  pas échouer (arrêt du minage, cochon, refus hors de portée, cooldown, portail invisible) testent maintenant ce
+  qu'elles annoncent ; les lots qui peuvent expirer retirent ce qu'ils posent, et l'arrivée générée d'avance couvre la
+  fenêtre d'un joueur près du portail (11 x 11 chunks).
 - Coups et minage à travers un portail passaient outre les gardes de vanilla : on minait en mangeant ou bouclier levé,
   et l'on frappait pendant le délai d'attaque ou à cheval. Ils les respectent désormais, comme dans le monde du joueur.
 - Côté client, un portail dont la taille ou l'orientation arrivait après son apparition gardait des boîtes de

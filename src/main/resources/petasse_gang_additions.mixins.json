@@ -39,6 +39,7 @@
     "MixinZombieAttackGoal",
     "MixinEntity",
     "MixinWorld",
+    "WorldAccessor",
     "ChunkLightProviderAccessor",
     "MixinChunkBlockLightProvider"
   ],

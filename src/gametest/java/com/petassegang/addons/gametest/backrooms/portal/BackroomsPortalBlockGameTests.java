@@ -1,5 +1,6 @@
 package com.petassegang.addons.gametest.backrooms.portal;
 
+import java.util.List;
 import java.util.UUID;
 
 import net.minecraft.block.BlockState;
@@ -29,6 +30,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.Heightmap;
+import net.minecraft.world.TeleportTarget;
 import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
@@ -41,6 +43,7 @@ import com.petassegang.addons.backrooms.portal.block.PortalSettings;
 import com.petassegang.addons.backrooms.portal.block.PortalTargets;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
+import com.petassegang.addons.backrooms.portal.sync.PortalSightPayload;
 import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.gametest.support.GameTestPlayers;
 import com.petassegang.addons.gametest.support.GameTestServerWorlds;
@@ -352,7 +355,7 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
     public void aSingleSidedOneWayPortalPlacesItsFrontFaceOnly(TestContext context) {
         ServerWorld world = context.getWorld();
         Vec3d arrival = frameCenter(context, ARRIVAL);
-        BackroomsPortalBlockEntity block = placePortal(context, PORTAL, Direction.NORTH, new PortalSettings(1, 2, true, false, true));
+        BackroomsPortalBlockEntity block = placePortal(context, PORTAL, Direction.NORTH, new PortalSettings(1, 2, true, false, true, false));
         block.configureTarget(World.OVERWORLD, arrival, PortalFacing.SOUTH);
         context.runAtTick(5, () -> {
             context.assertTrue(portal(world, block.entryPortal(FRONT)) != null && block.entryPortal(BACK) == null, "Une seule face, a l'avant.");
@@ -362,6 +365,125 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
             context.setBlockState(PORTAL, Blocks.AIR);
             context.complete();
         });
+    }
+
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 800, batchId = "portal_fleeting_exit")
+    public void aFleetingExitHoldsOnlyWhileSomeoneSeesIt(TestContext context) {
+        ServerWorld world = context.getWorld();
+        // Le test compte les joueurs qui regardent : aucun joueur d'un autre test ne doit etre la.
+        GameTestPlayers.disconnectAll();
+        PortalSettings fleeting = new PortalSettings(1, 2, true, false, false, true);
+        BackroomsPortalBlockEntity watched = placePortal(context, new BlockPos(1, 1, 1), Direction.NORTH, fleeting);
+        watched.configureTarget(World.OVERWORLD, frameCenter(context, new BlockPos(1, 1, 12)), PortalFacing.NORTH);
+        // Un second bloc, son arrivee a vingt blocs de la premiere : hors de portee du joueur qui regarde celle-ci.
+        BackroomsPortalBlockEntity other = placePortal(context, new BlockPos(20, 1, 1), Direction.NORTH, fleeting);
+        other.configureTarget(World.OVERWORLD, frameCenter(context, new BlockPos(20, 1, 12)), PortalFacing.NORTH);
+        // Pres de la sortie du premier ; son client rapporte aussitot ne rien voir, avant meme que la sortie n'existe chez lui.
+        ServerPlayerEntity watcher = GameTestPlayers.connect(context, GameMode.CREATIVE, context.getAbsolute(new Vec3d(1.5, 1.0, 7.5)), 0.0f, 0.0f);
+        sees(watcher);
+        Vec3d nearOther = context.getAbsolute(new Vec3d(20.5, 1.0, 7.5));
+        Vec3d farFromOther = context.getAbsolute(new Vec3d(20.5, 1.0, 40.5));
+        BlockPos copyPos = new BlockPos(10, 1, 1);
+        BackroomsPortalBlockEntity[] copy = new BackroomsPortalBlockEntity[1];
+        ServerPlayerEntity[] silent = new ServerPlayerEntity[1];
+        long[] since = new long[1];
+        long[] lost = new long[1];
+        context.createTimedTaskRunner()
+                .createAndAdd(() -> context.assertTrue(portal(world, watched.returnPortal(FRONT)) != null, "La sortie n'est pas encore posee."))
+                .createAndAddReported(() -> since[0] = context.getTick())
+                .createAndAdd(() -> waitTicks(context, since[0], 12))
+                .createAndAddReported(() -> {
+                    context.assertTrue(watched.returnPortal(FRONT) != null,
+                            "Juste posee, la sortie laisse au client le temps de la voir : un rapport vide ne la perd pas encore.");
+                    sees(watcher, watched.returnPortal(FRONT));
+                    since[0] = context.getTick();
+                })
+                // Au-dela du delai de grace : seul le regard la tient.
+                .createAndAdd(() -> waitTicks(context, since[0], 40))
+                .createAndAddReported(() -> {
+                    context.assertTrue(watched.returnPortal(FRONT) != null, "Son client la voit : elle reste.");
+                    // Il se retourne : son client ne la voit plus.
+                    sees(watcher);
+                })
+                .createAndAdd(() -> context.assertTrue(watched.returnPortal(FRONT) == null, "La sortie perdue de vue n'a pas encore disparu."))
+                .createAndAddReported(() -> {
+                    lost[0] = context.getTick();
+                    NbtCompound saved = watched.createNbt(world.getRegistryManager());
+                    context.assertTrue(saved.getBoolean("ExitLost"), "Perdue pour de bon : c'est sauve.");
+                    // Une copie du bloc (clone, structure) a sa propre sortie, toute neuve.
+                    context.setBlockState(copyPos, ModBlocks.BACKROOMS_PORTAL.getDefaultState().with(BackroomsPortalBlock.FACING, Direction.NORTH));
+                    copy[0] = context.getBlockEntity(copyPos);
+                    copy[0].read(saved, world.getRegistryManager());
+                    // Le joueur part dans le Nether et y rapporte ne rien voir ; pres de la seconde sortie, un joueur muet.
+                    watcher.teleportTo(new TeleportTarget(GameTestServerWorlds.nether(context), new Vec3d(0.5, 120.0, 0.5), Vec3d.ZERO, 0.0f, 0.0f,
+                            TeleportTarget.NO_OP));
+                    sees(watcher);
+                    silent[0] = GameTestPlayers.connect(context, GameMode.CREATIVE, nearOther, 0.0f, 0.0f);
+                    since[0] = context.getTick();
+                })
+                .createAndAdd(() -> waitTicks(context, since[0], 12))
+                .createAndAddReported(() -> {
+                    context.assertTrue(other.returnPortal(FRONT) != null, "Un joueur dont le client ne rapporte rien est tenu pour la voir : elle reste.");
+                    GameTestPlayers.disconnect(silent[0]);
+                    // Revenu pres d'elle, son dernier rapport vient du Nether.
+                    watcher.teleportTo(new TeleportTarget(world, nearOther, Vec3d.ZERO, 0.0f, 0.0f, TeleportTarget.NO_OP));
+                    since[0] = context.getTick();
+                })
+                .createAndAdd(() -> waitTicks(context, since[0], 12))
+                .createAndAddReported(() -> {
+                    context.assertTrue(watched.returnPortal(FRONT) == null, "La premiere sortie ne revient pas.");
+                    context.assertTrue(portal(world, copy[0].returnPortal(FRONT)) != null, "La copie a sa propre sortie.");
+                    context.assertTrue(other.returnPortal(FRONT) != null, "Un rapport d'un autre monde ne compte pas : la sortie reste.");
+                    // Loin de la sortie, il ne voit rien : personne pres d'elle, elle reste.
+                    watcher.refreshPositionAndAngles(farFromOther.x, farFromOther.y, farFromOther.z, 0.0f, 0.0f);
+                    sees(watcher);
+                    since[0] = context.getTick();
+                })
+                .createAndAdd(() -> waitTicks(context, since[0], 50))
+                .createAndAddReported(() -> {
+                    context.assertTrue(other.returnPortal(FRONT) != null, "Personne pres de la sortie : elle reste.");
+                    // Revenu pres d'elle, son rapport a trop vieilli pour compter : il est tenu pour la voir.
+                    watcher.refreshPositionAndAngles(nearOther.x, nearOther.y, nearOther.z, 0.0f, 0.0f);
+                    since[0] = context.getTick();
+                })
+                .createAndAdd(() -> waitTicks(context, since[0], 12))
+                .createAndAddReported(() -> {
+                    context.assertTrue(other.returnPortal(FRONT) != null, "Un rapport trop vieux ne compte plus : la sortie reste.");
+                    sees(watcher);
+                })
+                .createAndAdd(() -> context.assertTrue(other.returnPortal(FRONT) == null, "La seconde sortie n'a pas encore disparu."))
+                // Assez de verifications des retours pour qu'un retour manquant soit repose, si le bloc oubliait la perte.
+                .createAndAdd(() -> waitTicks(context, lost[0],
+                        BackroomsPortalBlockEntity.RETURN_CHECK_INTERVAL_TICKS * BackroomsPortalBlockEntity.RETURN_MISSING_CHECKS + 10))
+                .createAndAddReported(() -> {
+                    try {
+                        context.assertTrue(watched.returnPortal(FRONT) == null, "Perdue pour de bon : les verifications des retours ne la reposent pas.");
+                    } finally {
+                        GameTestPlayers.disconnect(watcher);
+                        context.setBlockState(new BlockPos(1, 1, 1), Blocks.AIR);
+                        context.setBlockState(new BlockPos(20, 1, 1), Blocks.AIR);
+                        context.setBlockState(copyPos, Blocks.AIR);
+                    }
+                })
+                .completeIfSuccessful();
+    }
+
+    /** Le client du joueur rapporte ce qu'il voit : ces portails, ou rien. */
+    private static void sees(ServerPlayerEntity player, UUID... portals) {
+        GameTestPlayers.receive(player, new PortalSightPayload(List.of(portals)));
+    }
+
+    /** Leve tant que ce nombre de ticks n'est pas passe depuis le tick donne. */
+    private static void waitTicks(TestContext context, long since, int ticks) {
+        if (context.getTick() < since + ticks) {
+            throw new GameTestException("Pas encore " + ticks + " ticks.");
+        }
+    }
+
+    /** Apres le lot de la sortie fugace, reussi ou non : plus de joueur. */
+    @AfterBatch(batchId = "portal_fleeting_exit")
+    public void afterFleetingExit(ServerWorld world) {
+        GameTestPlayers.disconnectAll();
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 300)
@@ -468,7 +590,8 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 3000)
     public void aPortalToAMissingDimensionOnlyKeepsItsEntryFaces(TestContext context) {
         ServerWorld world = context.getWorld();
-        BackroomsPortalBlockEntity block = placePortal(context, PORTAL, Direction.NORTH, PortalSettings.DEFAULT);
+        // Sortie fugace vers une dimension absente : personne a y regarder, rien ne casse.
+        BackroomsPortalBlockEntity block = placePortal(context, PORTAL, Direction.NORTH, new PortalSettings(1, 2, true, true, false, true));
         block.configureTarget(GameTestServerWorlds.nowhere(), new Vec3d(0.5, 65.0, 0.5), PortalFacing.SOUTH);
         // Un second bloc dont l'arrivee est a cent mille blocs, jamais generee : son chunk se charge sans bloquer le serveur,
         // et ses retours sont poses quand il est la. Le chunk ne tique pas ensuite, la verification ne tranche pas. Les

@@ -23,18 +23,6 @@
   "block.petasse_gang_additions.backrooms_portal": "Portail des Backrooms",
   "entity.petasse_gang_additions.backrooms_portal": "Portail des Backrooms",
 
-  "item.petasse_gang_additions.cursed_log": "Tronc Maudit",
-  "item.petasse_gang_additions.cursed_leaves": "Feuilles Maudites",
-  "item.petasse_gang_additions.cursed_sapling": "Pousse Maudite",
-  "item.petasse_gang_additions.cursed_planks": "Planches Maudites",
-  "item.petasse_gang_additions.level_zero_wallpaper": "Papier Peint du Niveau 0",
-  "item.petasse_gang_additions.level_zero_wallpaper_aged": "Papier Peint Blanc du Niveau 0",
-  "item.petasse_gang_additions.level_zero_wallpaper_adaptive": "Papier Peint Adaptatif du Niveau 0",
-  "item.petasse_gang_additions.level_zero_damp_carpet": "Moquette Humide du Niveau 0",
-  "item.petasse_gang_additions.level_zero_damp_carpet_aged": "Moquette Rouge du Niveau 0",
-  "item.petasse_gang_additions.level_zero_ceiling_tile": "Dalle de Plafond du Niveau 0",
-  "item.petasse_gang_additions.level_zero_fluorescent_light": "Neon du Niveau 0",
-  "item.petasse_gang_additions.backrooms_portal": "Portail des Backrooms",
   "tooltip.petasse_gang_additions.backrooms_portal.size": "Taille : %s x %s",
   "tooltip.petasse_gang_additions.backrooms_portal.light": "La lumière des blocs passe",
   "tooltip.petasse_gang_additions.backrooms_portal.no_light": "La lumière des blocs ne passe pas",
@@ -42,7 +30,9 @@
   "tooltip.petasse_gang_additions.backrooms_portal.single_sided": "Une face : de dos, rien, on passe au travers",
   "tooltip.petasse_gang_additions.backrooms_portal.round_trip": "Aller-retour",
   "tooltip.petasse_gang_additions.backrooms_portal.one_way": "Aller simple : rien à l'arrivée pour revenir",
+  "tooltip.petasse_gang_additions.backrooms_portal.fleeting_exit": "Sortie fugace : le retour disparaît dès qu'on le perd de vue",
   "tooltip.petasse_gang_additions.backrooms_portal.break": "Accroupi pour le viser et le casser",
 
+  "biome.petasse_gang_additions.backrooms_level_0": "Backrooms - Niveau 0",
   "dimension.petasse_gang_additions.backrooms_level_0": "Backrooms - Niveau 0"
 }

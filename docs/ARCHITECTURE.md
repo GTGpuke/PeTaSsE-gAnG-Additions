@@ -35,7 +35,7 @@ com.petassegang.addons/
 |   |-- ModEntities.java                <- type de l'entity portail, toujours enregistré
 |   |-- ModDataComponents.java          <- composant des réglages du bloc portail
 |   |-- ModChunkGenerators.java
-|   |-- ModCreativeTab.java             <- ENTRIES = liste ordonnée de l'onglet
+|   |-- ModCreativeTab.java             <- ENTRIES et PORTAL_ENTRIES : contenu ordonné des deux onglets
 |   `-- ModNetworking.java              <- types de payloads
 |
 |-- feature/
@@ -61,7 +61,7 @@ com.petassegang.addons/
 |   `-- portal/                          <- portails : entity, block, transition, sync, interaction, propagation, light, client, debug (voir §Portails)
 |
 |-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
-`-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière) + client/ (rendu des portails)
+`-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière, météo) + client/ (rendu des portails)
 ```
 
 Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/petassegang/addons/gametest/`, rangé par
@@ -160,7 +160,7 @@ Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout (bloc inerte, mi
 | Méthode / variable | camelCase | `wallpaperFaceMask` |
 | Constante | UPPER_SNAKE_CASE | `REGION_MARGIN_CELLS` |
 | Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
-| Clé de langue | `block.<mod_id>.<id>`, `item.<mod_id>.<id>` | `block.petasse_gang_additions.cursed_log` |
+| Clé de langue | `block.<mod_id>.<id>` (reprise par l'item du bloc), `item.<mod_id>.<id>` pour un item sans bloc | `block.petasse_gang_additions.cursed_log` |
 | Commentaires et logs | français, majuscule, point final, ASCII | `// Le cache evince les plus anciens.` |
 | Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang` | — |
 
