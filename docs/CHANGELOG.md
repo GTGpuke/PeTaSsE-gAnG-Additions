@@ -66,15 +66,18 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   serveur, les sections `portal.teleport.player` (dont `portal.teleport.vanilla`), `portal.sync.tick` (dont
   `portal.sync.chunks` et `portal.sync.entities`), `portal.destination.tick` et `portal.light` (lumière transmise ; `portal.light.client` pour la passe du client, en solo) entrent dans le résumé `[perf] serveur:`, et le journal de traversée indique combien de chunks de l'arrivée le client tenait déjà.
 - **Sortie fugace** (réglage `fleeting_exit` du bloc portail, proposé dans l'onglet) : la sortie, le portail de retour à
-  l'arrivée, ne tient que sous le regard. Tant qu'un joueur côté arrivée la voit, on peut revenir ; dès qu'un joueur se
-  tient à 16 blocs de l'arrivée sans qu'aucun ne la voie (hors du champ de vision, ou cachée par un mur), elle
-  disparaît pour de bon (`ExitLost`, sauvé avec le bloc, oublié par une copie ou une nouvelle destination). Qui passe en
-  marchant droit devant lui tourne le dos à l'arrivée : elle a disparu quand il se retourne ; qui passe à reculons, ou
-  la garde en vue, peut revenir. Ce que chaque joueur voit, son client le rapporte au serveur (`portal_sight`) : les
-  portails dessinés à son écran sans cube opaque devant (le verre, les feuilles, une porte laissent voir), troisième
-  personne et champ de vision réglé compris ; un joueur dont le client ne rapporte rien (mod absent, rendu distant coupé,
-  rapport trop vieux ou d'un autre monde) est tenu pour la voir. Une sortie qui vient d'être posée tient deux secondes, le
-  temps que les clients la voient. Sans effet sur un aller simple, qui n'a pas de sortie.
+  l'arrivée, n'existe que sous le regard. Pour chaque joueur, elle disparaît quand il ne la regarde plus depuis une
+  demi-seconde (ni dessinée, ni heurtée, ni visée : il la traverse comme de l'air) et revient dès qu'il la revoit, tant
+  qu'elle existe ; elle disparaît pour tous (`ExitLost`, sauvé avec le bloc, oublié par une copie ou une nouvelle
+  destination) quand, après avoir été vue, plus aucun joueur ne la regarde pendant une demi-seconde, et revient au
+  prochain joueur qui passe l'entrée (pas pour un objet, un mob ou un spectateur). Seul le regard compte, pas la
+  distance ; une sortie que personne n'a encore vue attend, et qui vient de sortir par elle a une seconde pour se
+  retourner. Qui passe en marchant droit devant lui tourne le dos à l'arrivée : elle a disparu quand il se
+  retourne ; qui passe à reculons, ou la garde en vue, peut revenir. Ce que chaque joueur voit, son client le juge et le
+  rapporte au serveur (`portal_sight`) : les sorties dessinées à son écran sans cube opaque devant (le verre, les
+  feuilles, une porte laissent voir), troisième personne et champ de vision réglé compris ; un joueur dont le client ne
+  rapporte rien (mod absent, rendu distant coupé, rapport trop vieux ou d'un autre monde) ne voit rien. Sans effet sur un
+  aller simple, qui n'a pas de sortie.
 - **Météo dans les vues** : la pluie et la neige de l'autre côté se dessinent dans le cadre et tombent comme celles du
   monde du joueur, avec leurs éclaboussures au sol et le bruit de la pluie, qui ressort par le portail. Chaque vue suit
   la météo de sa propre dimension, envoyée par le serveur avec sa fenêtre : la pluie de l'Overworld se voit depuis le
@@ -154,12 +157,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   entière dans son monde (un bras ou un objet tenu dépassait derrière le cadre, au lieu de passer dans la vue) : la
   coupe au plan part du modèle (la boîte élargie d'un bloc pour une entité vivante, d'un demi-bloc sinon), à l'entrée
   comme à l'arrivée.
-- **Sortie fugace** : un seul rapport « rien de vu » la perdait. Une image sans elle autour d'une traversée la faisait
-  parfois disparaître sous les yeux du joueur (surtout aux passages suivant le premier, qui profitait de la grâce d'une
-  sortie toute neuve), et un passage de côté, qui la fait sortir de l'écran, la perdait avant qu'on ait pu se
-  retourner. Elle disparaît désormais après une demi-seconde sans que personne la voie, et qui vient d'arriver a une
-  seconde pour se retourner vers elle. En multijoueur, un joueur dont le client ne rapporte rien ne la garde plus de
-  l'autre bout du monde : seulement s'il est près d'elle.
+- **Sortie fugace** : un seul rapport « rien de vu » la perdait, une image sans elle autour d'une traversée la faisait
+  parfois disparaître sous les yeux du joueur, et un passage de côté, qui la fait sortir de l'écran, la perdait avant
+  qu'on ait pu se retourner. Elle dépendait aussi de la distance : à plus de 16 blocs d'elle, en vol notamment, un
+  joueur ne la faisait jamais disparaître. Elle ne dépend plus que du regard, joueur par joueur : elle disparaît après
+  une demi-seconde sans que personne la voie, et qui vient d'en sortir a une seconde pour se retourner vers elle.
 - Les renderers des vues de portail gardaient, une fois jetés, leurs tampons de dessin alloués hors du tas Java (une
   trentaine de Mio chacun) : chaque changement de monde après avoir vu des portails en perdait autant. Ils servent
   désormais au renderer suivant.

@@ -33,8 +33,8 @@ import com.gtgpuke.gtgsbackrooms.init.ModEntities;
 /**
  * Entity persistante qui porte un portail : ou il est, ou il mene, et a quel bloc portail il appartient.
  *
- * <p>Les donnees utiles au client (orientations, destination, taille, visibilite, ouverture, passage de la lumiere)
- * passent par le {@link DataTracker} : le client predit les traversees et les collisions, et eclaire l'autre cote, avec le
+ * <p>Les donnees utiles au client (orientations, destination, taille, visibilite, ouverture, passage de la lumiere,
+ * sortie fugace) passent par le {@link DataTracker} : le client predit les traversees et les collisions, et eclaire l'autre cote, avec le
  * meme etat que le serveur. Seul le bloc proprietaire reste cote serveur. Un portail ne bouge jamais, ne subit aucune
  * physique et ne peut pas etre frappe.
  */
@@ -51,6 +51,7 @@ public class BackroomsPortalEntity extends Entity {
     private static final String NBT_TELEPORTABLE = "Teleportable";
     private static final String NBT_VISIBLE = "Visible";
     private static final String NBT_TRANSMITS_LIGHT = "TransmitsLight";
+    private static final String NBT_FLEETING = "Fleeting";
     private static final String NBT_OWNER_DIM = "OwnerDim";
     private static final String NBT_OWNER_POS = "OwnerPos";
 
@@ -88,6 +89,8 @@ public class BackroomsPortalEntity extends Entity {
             DataTracker.registerData(BackroomsPortalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     private static final TrackedData<Boolean> TRACKED_TRANSMITS_LIGHT =
             DataTracker.registerData(BackroomsPortalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Boolean> TRACKED_FLEETING =
+            DataTracker.registerData(BackroomsPortalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
     /** Bloc proprietaire (dimension et position), ou {@code null} pour un portail libre. */
     private @Nullable GlobalPos owner;
@@ -105,6 +108,10 @@ public class BackroomsPortalEntity extends Entity {
     private @Nullable Box arrivalBox;
     private @Nullable Box arrivalCrossingBox;
     private @Nullable Vec3d arrivalBoxPos;
+    /** Cote client, pour une sortie fugace : dernier tick du client ou son joueur la regardait. */
+    private long seenAt = Long.MIN_VALUE / 2;
+    /** Cote client : sortie fugace que le joueur ne regarde plus ; pour lui, elle n'existe plus. */
+    private boolean hiddenFromPlayer;
 
     /**
      * Portail vide, tel que le cree le registre d'entities au chargement ou a la reception ; le reste arrive par le NBT
@@ -129,6 +136,7 @@ public class BackroomsPortalEntity extends Entity {
         builder.add(TRACKED_VISIBLE, true);
         builder.add(TRACKED_TELEPORTABLE, true);
         builder.add(TRACKED_TRANSMITS_LIGHT, false);
+        builder.add(TRACKED_FLEETING, false);
     }
 
     /**
@@ -228,6 +236,34 @@ public class BackroomsPortalEntity extends Entity {
     /** {@code true} si la lumiere des blocs passe d'un cote a l'autre du portail. */
     public boolean transmitsLight() {
         return this.dataTracker.get(TRACKED_TRANSMITS_LIGHT);
+    }
+
+    /**
+     * {@code true} si le portail est la sortie fugace d'un bloc portail : il n'existe, pour chaque joueur, que tant que
+     * celui-ci le regarde.
+     */
+    public boolean fleeting() {
+        return this.dataTracker.get(TRACKED_FLEETING);
+    }
+
+    /** Cote client : le joueur regarde cette sortie fugace a ce tick du client. */
+    public void noteSeen(long tick) {
+        this.seenAt = tick;
+    }
+
+    /** Cote client : dernier tick du client ou le joueur regardait cette sortie fugace. */
+    public long seenAt() {
+        return this.seenAt;
+    }
+
+    /** Cote client : {@code true} si, pour le joueur, cette sortie fugace n'existe plus le temps qu'il ne la regarde pas. */
+    public boolean hiddenFromPlayer() {
+        return this.hiddenFromPlayer;
+    }
+
+    /** Cote client : cache ou montre cette sortie fugace au joueur. */
+    public void setHiddenFromPlayer(boolean hidden) {
+        this.hiddenFromPlayer = hidden;
     }
 
     /** Image d'un point de ce cote dans le monde d'arrivee. */
@@ -470,6 +506,7 @@ public class BackroomsPortalEntity extends Entity {
         this.dataTracker.set(TRACKED_VISIBLE, !nbt.contains(NBT_VISIBLE) || nbt.getBoolean(NBT_VISIBLE));
         this.dataTracker.set(TRACKED_TELEPORTABLE, !nbt.contains(NBT_TELEPORTABLE) || nbt.getBoolean(NBT_TELEPORTABLE));
         this.dataTracker.set(TRACKED_TRANSMITS_LIGHT, nbt.getBoolean(NBT_TRANSMITS_LIGHT));
+        this.dataTracker.set(TRACKED_FLEETING, nbt.getBoolean(NBT_FLEETING));
 
         // Identifier.tryParse("") renvoie "minecraft:" et non null : on teste la presence des cles.
         Identifier ownerDimId = nbt.contains(NBT_OWNER_DIM, NbtElement.STRING_TYPE)
@@ -494,6 +531,7 @@ public class BackroomsPortalEntity extends Entity {
         nbt.putBoolean(NBT_TELEPORTABLE, teleportable());
         nbt.putBoolean(NBT_VISIBLE, visible());
         nbt.putBoolean(NBT_TRANSMITS_LIGHT, transmitsLight());
+        nbt.putBoolean(NBT_FLEETING, fleeting());
         if (this.owner != null) {
             nbt.putString(NBT_OWNER_DIM, this.owner.dimension().getValue().toString());
             nbt.putLong(NBT_OWNER_POS, this.owner.pos().asLong());
@@ -546,6 +584,7 @@ public class BackroomsPortalEntity extends Entity {
         private boolean teleportable = true;
         private boolean visible = true;
         private boolean transmitsLight;
+        private boolean fleeting;
         private @Nullable GlobalPos owner;
 
         private Builder(World world) {
@@ -607,6 +646,12 @@ public class BackroomsPortalEntity extends Entity {
             return this;
         }
 
+        /** Sortie fugace d'un bloc portail, qui n'existe que sous le regard ; non par defaut. */
+        public Builder fleeting(boolean fleeting) {
+            this.fleeting = fleeting;
+            return this;
+        }
+
         /** Bloc proprietaire : le portail disparait avec lui. */
         public Builder owner(RegistryKey<World> ownerDimension, BlockPos ownerPos) {
             this.owner = GlobalPos.create(ownerDimension, ownerPos);
@@ -649,6 +694,7 @@ public class BackroomsPortalEntity extends Entity {
             portal.dataTracker.set(TRACKED_VISIBLE, this.visible);
             portal.dataTracker.set(TRACKED_TELEPORTABLE, this.teleportable);
             portal.dataTracker.set(TRACKED_TRANSMITS_LIGHT, this.transmitsLight);
+            portal.dataTracker.set(TRACKED_FLEETING, this.fleeting);
             portal.owner = this.owner;
             return portal;
         }

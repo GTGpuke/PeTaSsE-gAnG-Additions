@@ -124,6 +124,7 @@ class BackroomsPortalBlockTest {
         nbt.putUuid("ReturnFront", uuids[2]);
         nbt.putUuid("ReturnBack", uuids[3]);
         // Une sortie fugace perdue de vue : sauvee seulement quand elle l'est.
+        nbt.putBoolean("FleetingExit", true);
         nbt.putBoolean("ExitLost", true);
 
         BackroomsPortalBlockEntity restored = new BackroomsPortalBlockEntity(new BlockPos(3, 1, -7), ModBlocks.BACKROOMS_PORTAL.getDefaultState());
@@ -143,6 +144,23 @@ class BackroomsPortalBlockTest {
 
         restored.removeFromCopiedStackNbt(again);
         assertTrue(again.isEmpty(), "Une copie ne garde ni portails, ni destination, ni reglages hors composant : " + again + ".");
+    }
+
+    @Test
+    @DisplayName("Seule une sortie fugace se perd de vue : sans elle, une perte sauvee est oubliee a la relecture")
+    void onlyAFleetingExitIsLost() {
+        NbtCompound nbt = new NbtCompound();
+        nbt.putBoolean("ExitLost", true);
+        BackroomsPortalBlockEntity portal = new BackroomsPortalBlockEntity(new BlockPos(0, 1, 0), ModBlocks.BACKROOMS_PORTAL.getDefaultState());
+        portal.readNbt(nbt, registries);
+        NbtCompound saved = new NbtCompound();
+        portal.writeNbt(saved, registries);
+        assertFalse(saved.contains("ExitLost"), "Sans sortie fugace, la perte n'est pas retenue.");
+        nbt.putBoolean("FleetingExit", true);
+        portal.readNbt(nbt, registries);
+        NbtCompound fleeting = new NbtCompound();
+        portal.writeNbt(fleeting, registries);
+        assertTrue(fleeting.getBoolean("ExitLost"), "Une sortie fugace perdue de vue le reste a la relecture.");
     }
 
     @Test

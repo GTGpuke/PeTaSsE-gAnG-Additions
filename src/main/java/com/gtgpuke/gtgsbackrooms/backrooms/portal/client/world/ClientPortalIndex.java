@@ -23,11 +23,18 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.PortalCollision;
  * au lieu de toutes les entities du monde. Les mondes sont compares par identite : un monde distant et le
  * monde principal de la meme dimension ont chacun leur liste, et un monde abandonne est oublie par le registre.
  * La collision a travers les portails y trouve aussi les portails du client et le monde ou chacun mene.
+ *
+ * <p>Dans le monde du joueur, {@link #portals} ne rend que les portails qui existent pour lui : une sortie fugace qu'il ne
+ * regarde pas n'y figure pas, ni dessinee, ni traversee, ni heurtee, ni visee. {@link #allPortals} les rend tous, pour
+ * juger ce que le joueur regarde et pour la lumiere transmise, qui ne depend pas de lui.
  */
 public final class ClientPortalIndex {
 
     private static final Map<World, List<BackroomsPortalEntity>> PORTALS = new IdentityHashMap<>();
     private static final List<BackroomsPortalEntity> NONE = List.of();
+    /** Portails du monde du joueur qui existent pour lui, tenus a jour a chaque tick et a chaque chargement. */
+    private static final List<BackroomsPortalEntity> SHOWN = new ObjectArrayList<>();
+    private static @Nullable World shownWorld;
 
     private ClientPortalIndex() {
         throw new UnsupportedOperationException("Classe utilitaire.");
@@ -53,20 +60,47 @@ public final class ClientPortalIndex {
         });
     }
 
-    /** Portails charges dans ce monde ; liste vivante, a lire par index et a ne pas modifier. */
+    /**
+     * Portails de ce monde qui existent pour le joueur : tous, sauf, dans son monde, les sorties fugaces qu'il ne regarde
+     * pas ; liste vivante, a lire par index et a ne pas modifier.
+     */
     public static List<BackroomsPortalEntity> portals(World world) {
+        return world == shownWorld ? SHOWN : allPortals(world);
+    }
+
+    /** Tous les portails charges dans ce monde, sorties fugaces cachees comprises ; liste vivante, a ne pas modifier. */
+    public static List<BackroomsPortalEntity> allPortals(World world) {
         List<BackroomsPortalEntity> portals = PORTALS.get(world);
         return portals == null ? NONE : portals;
+    }
+
+    /** Refait la liste des portails qui existent pour le joueur dans son monde, d'apres leur etat cache ou montre. */
+    public static void refreshShown(World world) {
+        shownWorld = world;
+        SHOWN.clear();
+        List<BackroomsPortalEntity> portals = allPortals(world);
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity portal = portals.get(i);
+            if (!portal.hiddenFromPlayer()) {
+                SHOWN.add(portal);
+            }
+        }
     }
 
     /** Un monde est abandonne (monde distant libere, monde principal remplace par vanilla) : ses portails avec lui. */
     public static void forget(World world) {
         PORTALS.remove(world);
+        if (world == shownWorld) {
+            shownWorld = null;
+            SHOWN.clear();
+        }
     }
 
     /** Deconnexion : plus aucun monde. */
     public static void clear() {
         PORTALS.clear();
+        shownWorld = null;
+        SHOWN.clear();
     }
 
     private static void onEntityLoad(Entity entity, ClientWorld world) {
@@ -74,6 +108,9 @@ public final class ClientPortalIndex {
             List<BackroomsPortalEntity> portals = PORTALS.computeIfAbsent(world, key -> new ObjectArrayList<>());
             if (!portals.contains(portal)) {
                 portals.add(portal);
+                if (world == shownWorld && !portal.hiddenFromPlayer()) {
+                    SHOWN.add(portal);
+                }
             }
         }
     }
@@ -83,6 +120,9 @@ public final class ClientPortalIndex {
             List<BackroomsPortalEntity> portals = PORTALS.get(world);
             if (portals != null) {
                 portals.remove(portal);
+            }
+            if (world == shownWorld) {
+                SHOWN.remove(portal);
             }
         }
     }

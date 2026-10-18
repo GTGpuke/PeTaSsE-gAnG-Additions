@@ -118,6 +118,29 @@ class BackroomsPortalEntityTest {
     }
 
     @Test
+    @DisplayName("Une sortie fugace le reste a la sauvegarde ; cote client, elle retient le dernier regard du joueur")
+    void fleetingExit() {
+        assertFalse(validBuilder().build().fleeting(), "Un portail n'est pas une sortie fugace par defaut.");
+        BackroomsPortalEntity portal = validBuilder().fleeting(true).build();
+        assertTrue(portal.fleeting(), "Sortie fugace.");
+        NbtCompound nbt = new NbtCompound();
+        portal.writeCustomDataToNbt(nbt);
+        BackroomsPortalEntity restored = new BackroomsPortalEntity(ModEntities.BACKROOMS_PORTAL, null);
+        restored.readCustomDataFromNbt(nbt);
+        assertTrue(restored.fleeting(), "Relue, elle reste fugace.");
+        nbt.remove("Fleeting");
+        restored.readCustomDataFromNbt(nbt);
+        assertFalse(restored.fleeting(), "Un NBT ancien, sans cle, n'est pas une sortie fugace.");
+
+        assertTrue(-portal.seenAt() > Integer.MAX_VALUE, "Jamais vue : bien avant le premier tick du client, sans debordement.");
+        assertFalse(portal.hiddenFromPlayer(), "Montree tant que le client n'a rien juge.");
+        portal.noteSeen(42L);
+        portal.setHiddenFromPlayer(true);
+        assertEquals(42L, portal.seenAt(), "Dernier regard du joueur.");
+        assertTrue(portal.hiddenFromPlayer(), "Cachee au joueur qui ne la regarde plus.");
+    }
+
+    @Test
     @DisplayName("Un NBT corrompu retombe sur des valeurs sures")
     void nbtFallbacks() {
         NbtCompound nbt = new NbtCompound();

@@ -51,7 +51,7 @@ Chaque bloc de [BLOCKS.md](BLOCKS.md) possède un `BlockItem` du même identifia
 | Propriété | Valeur |
 |-----------|--------|
 | Classe | `BackroomsPortalItem` (un `BlockItem` de `BackroomsPortalBlock`) |
-| Composant | `gtgs_backrooms:portal_settings` (`PortalSettings`) : `width` et `height` de 1 à 8 (1 x 2 par défaut), `transmits_light` (oui par défaut), `double_sided` (deux faces par défaut ; à une face, rien de dos, on passe au travers), `one_way` (aller-retour par défaut ; aller simple, rien à l'arrivée pour revenir), `fleeting_exit` (sortie durable par défaut ; fugace, elle disparaît dès qu'aucun joueur ne la voit) ; affiché dans l'info-bulle |
+| Composant | `gtgs_backrooms:portal_settings` (`PortalSettings`) : `width` et `height` de 1 à 8 (1 x 2 par défaut), `transmits_light` (oui par défaut), `double_sided` (deux faces par défaut ; à une face, rien de dos, on passe au travers), `one_way` (aller-retour par défaut ; aller simple, rien à l'arrivée pour revenir), `fleeting_exit` (sortie durable par défaut ; fugace, elle disparaît quand plus aucun joueur ne la regarde, jusqu'au prochain joueur qui passe l'entrée) ; affiché dans l'info-bulle |
 | Onglet | *GTG's Backrooms - Portails* (`ModCreativeTab.PORTAL_TAB`, icône de l'onglet) : 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face, 1 x 2 aller simple et 1 x 2 à sortie fugace |
 | Pose | comme un bloc, face avant vers le joueur ; refusée si le cadre traverserait un bloc |
 | Usage | le portail se pose dès que la block entity a trouvé sa destination ; accroupi, le bloc se vise et se casse, et rend l'item avec ses réglages |

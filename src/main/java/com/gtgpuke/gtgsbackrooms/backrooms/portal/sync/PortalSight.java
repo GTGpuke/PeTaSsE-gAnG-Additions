@@ -7,41 +7,47 @@ import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.network.ServerPlayerEntity;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.world.World;
+import net.minecraft.util.math.GlobalPos;
 
+import net.fabricmc.fabric.api.entity.event.v1.ServerEntityWorldChangeEvents;
+import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
+
 /**
- * Ce que chaque joueur voit des portails, tel que son client le rapporte : les portails dessines a son ecran (troisieme
+ * Ce que chaque joueur voit des sorties fugaces, tel que son client le rapporte : celles qu'il a sous les yeux (troisieme
  * personne comprise, camera passee de l'autre cote d'un cadre aussi), sans bloc entre sa camera et leur cadre. Seul le
  * client connait sa camera, sa perspective et son champ de vision ; le serveur s'en sert pour la sortie fugace d'un bloc
- * portail, qui ne tient que sous le regard.
+ * portail, qui n'existe que sous le regard.
  *
- * <p>Un joueur dont le client n'a rien rapporte de recent dans le monde ou il est (il vient d'y arriver, ou son client n'a
- * pas le mod) peut tout voir : rien ne disparait faute de nouvelles. Un joueur qui vient d'arriver dans un monde le peut
- * aussi le temps de se retourner ({@link #ARRIVAL_GRACE_TICKS}) : passe de cote, il a la sortie juste a cote de lui,
- * hors de l'ecran.
+ * <p>Seul le regard compte : un joueur dont le client n'a rien rapporte de recent ne voit rien. Celui qui vient de
+ * ressortir par une sortie fugace la voit encore le temps de se retourner vers elle ({@link #ARRIVAL_GRACE_TICKS}) :
+ * passe de cote, il l'a juste a cote de lui, hors de l'ecran.
  */
 public final class PortalSight {
 
-    /** Age, en ticks, au-dela duquel un rapport ne compte plus ; le client en renvoie un au moins chaque seconde. */
-    static final int STALE_TICKS = 40;
-    /** Ticks, depuis son premier rapport dans un monde, pendant lesquels un joueur qui y arrive peut tout voir. */
+    /** Age, en ticks serveur, au-dela duquel un rapport ne compte plus ; le client en renvoie un au moins chaque seconde. */
+    public static final int STALE_TICKS = 40;
+    /** Ticks serveur pendant lesquels un joueur ressorti par une sortie fugace la voit encore, le temps de se retourner. */
     public static final int ARRIVAL_GRACE_TICKS = 20;
 
     /**
-     * Rapport d'un client : son monde, les portails vus, le tick de ce monde ou il est arrive, et celui du premier rapport
-     * du joueur dans ce monde.
+     * Rapport d'un client : les sorties fugaces vues, et le tick serveur ou il est arrive. Il ne nomme que des portails du
+     * monde ou il a ete fait : leurs identifiants sont uniques, il ne dit rien des autres mondes.
      */
-    private record Report(RegistryKey<World> world, Set<UUID> seen, long tick, long arrivedAt) {
+    private record Report(Set<UUID> seen, long tick) {
+    }
+
+    /** Derniere arrivee d'un joueur par un portail : le bloc proprietaire de ce portail, et le tick serveur. */
+    private record Arrival(@Nullable GlobalPos owner, long tick) {
     }
 
     private static final Map<UUID, Report> REPORTS = new HashMap<>();
+    private static final Map<UUID, Arrival> ARRIVALS = new HashMap<>();
     private static boolean initialized;
 
     private PortalSight() {
@@ -49,7 +55,8 @@ public final class PortalSight {
     }
 
     /**
-     * Branche la reception des rapports, l'oubli a la deconnexion et a l'arret du serveur (en solo, un rapport d'une partie
+     * Branche la reception des rapports, l'oubli a la deconnexion, au changement de monde vanilla et au respawn (ni le
+     * dernier rapport ni la derniere arrivee ne valent plus), et a l'arret du serveur (en solo, un rapport d'une partie
      * precedente passerait pour recent dans la suivante) ; idempotent.
      */
     public static void init() {
@@ -57,9 +64,19 @@ public final class PortalSight {
             return;
         }
         ServerPlayNetworking.registerGlobalReceiver(PortalSightPayload.ID, (payload, context) -> report(context.player(), payload));
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> REPORTS.remove(handler.player.getUuid()));
-        ServerLifecycleEvents.SERVER_STOPPED.register(server -> REPORTS.clear());
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> forget(handler.player.getUuid()));
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> forget(player.getUuid()));
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> forget(newPlayer.getUuid()));
+        ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
+            REPORTS.clear();
+            ARRIVALS.clear();
+        });
         initialized = true;
+    }
+
+    private static void forget(UUID player) {
+        REPORTS.remove(player);
+        ARRIVALS.remove(player);
     }
 
     /**
@@ -68,53 +85,69 @@ public final class PortalSight {
      * il est ignore.
      */
     static void report(ServerPlayerEntity player, PortalSightPayload payload) {
-        ServerWorld world = player.getServerWorld();
-        if (!payload.dimension().equals(world.getRegistryKey().getValue())) {
+        if (!payload.dimension().equals(player.getServerWorld().getRegistryKey().getValue())) {
             return;
         }
-        Report previous = REPORTS.get(player.getUuid());
-        long now = world.getTime();
-        long arrivedAt = previous != null && previous.world() == world.getRegistryKey() ? previous.arrivedAt() : now;
-        REPORTS.put(player.getUuid(), new Report(world.getRegistryKey(), Set.copyOf(payload.seen()), now, arrivedAt));
+        REPORTS.put(player.getUuid(), new Report(Set.copyOf(payload.seen()), player.getServer().getTicks()));
     }
 
     /**
-     * {@code true} si le joueur peut voir l'un de ces portails : un rapport recent de son client le nomme, son client n'a
-     * rien rapporte de recent dans le monde ou il est, ou il vient d'y arriver.
+     * Le joueur vient de passer un portail. Passe par l'entree d'un bloc, il ressort par sa sortie et la voit encore le temps
+     * de se retourner ; repasse par une sortie fugace, il ressort par l'entree : aucune sortie derriere lui.
      *
      * @param player joueur
-     * @param portals identifiants uniques des portails ; les cases vides sont ignorees
+     * @param portal portail traverse ; son bloc proprietaire designe la sortie par laquelle le joueur ressort
      */
-    public static boolean seesAny(ServerPlayerEntity player, @Nullable UUID[] portals) {
-        Report report = recentReport(player);
-        return report == null || player.getServerWorld().getTime() - report.arrivedAt() < ARRIVAL_GRACE_TICKS || names(report, portals);
+    public static void onArrival(ServerPlayerEntity player, BackroomsPortalEntity portal) {
+        ARRIVALS.put(player.getUuid(), new Arrival(portal.fleeting() ? null : portal.owner(), player.getServer().getTicks()));
     }
 
     /**
-     * {@code true} seulement si un rapport recent du client du joueur, dans le monde ou il est, nomme l'un de ces portails :
-     * sans nouvelles, rien n'est suppose.
+     * {@code true} si le joueur voit cette sortie fugace : un rapport recent de son client nomme l'un de ses retours, ou il
+     * vient de ressortir par elle.
      *
      * @param player joueur
-     * @param portals identifiants uniques des portails ; les cases vides sont ignorees
+     * @param portals identifiants uniques des retours de la sortie ; les cases vides sont ignorees
+     * @param owner bloc portail auquel la sortie appartient
      */
-    public static boolean reportsAny(ServerPlayerEntity player, @Nullable UUID[] portals) {
+    public static boolean seesAny(ServerPlayerEntity player, @Nullable UUID[] portals, GlobalPos owner) {
+        if (cameOutOf(player, owner)) {
+            return true;
+        }
         Report report = recentReport(player);
-        return report != null && names(report, portals);
-    }
-
-    /** Dernier rapport du joueur s'il vaut encore : fait dans le monde ou il est, il y a moins de {@value #STALE_TICKS} ticks. */
-    private static @Nullable Report recentReport(ServerPlayerEntity player) {
-        Report report = REPORTS.get(player.getUuid());
-        ServerWorld world = player.getServerWorld();
-        return report == null || report.world() != world.getRegistryKey() || world.getTime() - report.tick() > STALE_TICKS ? null : report;
-    }
-
-    private static boolean names(Report report, @Nullable UUID[] portals) {
+        if (report == null) {
+            return false;
+        }
         for (UUID portal : portals) {
             if (portal != null && report.seen().contains(portal)) {
                 return true;
             }
         }
         return false;
+    }
+
+    /**
+     * {@code true} si le joueur voit cette sortie fugace (voir {@link #seesAny}) ; un portail libre, sans bloc, n'a pas de
+     * sortie fugace.
+     */
+    public static boolean sees(ServerPlayerEntity player, BackroomsPortalEntity portal) {
+        GlobalPos owner = portal.owner();
+        if (owner == null) {
+            return false;
+        }
+        Report report = recentReport(player);
+        return cameOutOf(player, owner) || report != null && report.seen().contains(portal.getUuid());
+    }
+
+    /** {@code true} si le joueur vient de ressortir par la sortie de ce bloc, il y a moins de {@value #ARRIVAL_GRACE_TICKS} ticks. */
+    private static boolean cameOutOf(ServerPlayerEntity player, GlobalPos owner) {
+        Arrival arrival = ARRIVALS.get(player.getUuid());
+        return arrival != null && owner.equals(arrival.owner()) && player.getServer().getTicks() - arrival.tick() < ARRIVAL_GRACE_TICKS;
+    }
+
+    /** Dernier rapport du joueur s'il vaut encore : fait il y a au plus {@value #STALE_TICKS} ticks. */
+    private static @Nullable Report recentReport(ServerPlayerEntity player) {
+        Report report = REPORTS.get(player.getUuid());
+        return report == null || player.getServer().getTicks() - report.tick() > STALE_TICKS ? null : report;
     }
 }

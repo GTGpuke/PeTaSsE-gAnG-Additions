@@ -127,7 +127,7 @@ public final class PortalStencilRenderer {
             return;
         }
         RemoteWorldRegistry.syncWithMainWorld(client.world);
-        if (ClientPortalIndex.portals(client.world).isEmpty()) {
+        if (ClientPortalIndex.allPortals(client.world).isEmpty()) {
             // Aucun portail dans ce monde, mais une entity arrivee par un portail aller simple s'y dessine encore en
             // parties : vanilla ne la dessine pas.
             if (EntityHandover.arrivalCount() > 0) {
@@ -320,7 +320,8 @@ public final class PortalStencilRenderer {
         Vec3d cameraPos = camera.getPos();
         double renderDistance = Math.max(1, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
         boolean frustumReady = false;
-        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
+        // Sorties fugaces cachees au joueur comprises : dans le champ, il peut les voir de nouveau.
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.allPortals(world);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
             if (!portal.visible() || portal.signedDistance(cameraPos) <= 0.0
@@ -332,7 +333,8 @@ public final class PortalStencilRenderer {
                 CULLING_FRUSTUM.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
                 frustumReady = true;
             }
-            if (CULLING_FRUSTUM.isVisible(portal.detectionBox())) {
+            if (CULLING_FRUSTUM.isVisible(portal.detectionBox())
+                    && (!portal.hiddenFromPlayer() || PortalSightReporter.revealed(world, cameraPos, portal))) {
                 VISIBLE.add(portal);
             }
         }

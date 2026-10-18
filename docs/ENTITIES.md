@@ -9,7 +9,7 @@
 | Renderer | `backrooms/portal/client/entity/BackroomsPortalEntityRenderer.java` : rien quand le rendu distant est actif (le contenu passe par le stencil), cadre sombre sinon |
 | Données synchronisées | orientation source et destination (`PortalFacing`), dimension et position d'arrivée, taille, visible, ouvert (`teleportable`), lumière transmise |
 | Données serveur | bloc portail propriétaire (dimension + position) |
-| Création | par une `BackroomsPortalBlockEntity` (selon ses réglages, une ou deux faces dos à dos dans le cadre, autant au point d'arrivée sauf aller simple ; ceux d'une sortie fugace disparaissent dès qu'un joueur près de l'arrivée ne la voit plus) ; `BackroomsPortalEntity.builder(world)…build()` pour un portail libre |
+| Création | par une `BackroomsPortalBlockEntity` (selon ses réglages, une ou deux faces dos à dos dans le cadre, autant au point d'arrivée sauf aller simple ; ceux d'une sortie fugace disparaissent quand, après avoir été vus, plus aucun joueur ne les regarde, et reviennent au prochain joueur qui passe l'entrée) ; `BackroomsPortalEntity.builder(world)…build()` pour un portail libre |
 | Cycle de vie | ne bouge jamais, ne peut pas être frappé ; toutes les 100 ticks, le registre serveur retire les portails dont le bloc a disparu, ne les tient plus pour siens ou est dans une dimension absente (chunk du bloc chargé) |
 
 Le détail du système (géométrie, téléportation, synchronisation, rendu) est dans [PORTALS.md](PORTALS.md).

@@ -26,6 +26,7 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.util.math.GlobalPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
@@ -86,17 +87,11 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private static final String NBT_DESTINATION_FACING = "DestFacing";
     /** Intervalle, en ticks, entre deux regards sur une sortie fugace. */
     private static final int EXIT_SIGHT_INTERVAL_TICKS = 4;
-    /** Distance a laquelle un joueur qui ne voit pas une sortie fugace la fait disparaitre. */
-    private static final double EXIT_NEAR_DISTANCE = 16.0;
-    /**
-     * Delai laisse aux clients pour voir et rapporter un retour qui vient d'apparaitre (pose, repose, copie) : apparition,
-     * image, rapport et trajet ; avant, un rapport recent ne peut pas encore le nommer.
-     */
-    private static final int EXIT_GRACE_TICKS = 40;
     /**
      * Ticks pendant lesquels plus personne ne doit voir une sortie fugace pour qu'elle disparaisse : une image isolee sans
-     * elle, pendant une traversee, ne la perd pas (le client rapporte toutes les quatre ticks), un regard detourne une
-     * demi-seconde si. Juste apres une arrivee, le joueur a en plus le temps de se retourner (voir {@link PortalSight}).
+     * elle, pendant une traversee, ne la perd pas (le client rapporte ce qui change au plus tous les quatre ticks), un
+     * regard detourne une demi-seconde si. Juste apres une arrivee par elle, le joueur a en plus le temps de se retourner
+     * (voir {@link PortalSight}). Le client cache la sortie a son joueur apres le meme delai.
      */
     public static final int EXIT_UNSEEN_TICKS = 10;
 
@@ -117,12 +112,17 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private @Nullable RegistryKey<World> destinationDim;
     private @Nullable Vec3d destinationPos;
     private @Nullable PortalFacing destinationFacing;
-    /** Sortie fugace perdue de vue : plus de retour, pour de bon, jusqu'a une nouvelle destination. */
+    /** Sortie fugace perdue de vue : plus de retour jusqu'a ce qu'un joueur repasse l'entree, ou jusqu'a une nouvelle destination. */
     private boolean exitLost;
-    /** Heure du monde d'arrivee a partir de laquelle la sortie fugace se juge : son dernier retour pose est connu des clients. */
-    private long exitJudgedFrom;
+    /**
+     * Sortie fugace deja vue (ou par laquelle un joueur est ressorti) depuis la pose de ses retours : avant, personne ne peut la
+     * perdre de vue, elle attend. Oublie a la sauvegarde : relue, elle attend de nouveau un regard.
+     */
+    private boolean exitSeen;
     /** Heure du monde d'arrivee depuis laquelle personne ne voit la sortie fugace ; negative tant qu'on la voit. */
     private long exitUnseenSince = -1L;
+    /** Ce bloc, dimension comprise : la sortie par laquelle un joueur arrive se reconnait a son bloc proprietaire. */
+    private @Nullable GlobalPos exitOwner;
     private int ticksSinceLoad;
 
     /** Block entity du bloc portail, creee par le bloc a la pose ou au chargement. */
@@ -216,14 +216,21 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     }
 
     /**
-     * Veille sur la sortie fugace : perdue de vue {@value #EXIT_UNSEEN_TICKS} ticks d'affilee, elle disparait. Un retour qui
-     * vient d'apparaitre tient quoi qu'on en rapporte, le temps que les clients le voient.
+     * Veille sur la sortie fugace, sur le seul regard des joueurs, ou qu'ils soient : tant que personne ne l'a vue (ni n'est
+     * ressorti par elle), elle attend ; ensuite, plus personne ne la regardant {@value #EXIT_UNSEEN_TICKS} ticks d'affilee, elle
+     * disparait.
      */
     private void watchExit(ServerWorld world, ServerWorld destination) {
-        long now = destination.getTime();
-        if (now < this.exitJudgedFrom || !exitForsaken(destination)) {
+        if (someoneSeesExit(destination)) {
+            this.exitSeen = true;
             this.exitUnseenSince = -1L;
-        } else if (this.exitUnseenSince < 0L) {
+            return;
+        }
+        if (!this.exitSeen) {
+            return;
+        }
+        long now = destination.getTime();
+        if (this.exitUnseenSince < 0L) {
             this.exitUnseenSince = now;
         } else if (now - this.exitUnseenSince >= EXIT_UNSEEN_TICKS) {
             loseExit(world);
@@ -231,30 +238,25 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     }
 
     /**
-     * {@code true} si la sortie fugace n'est pas vue : un joueur s'en tient pres, et aucun joueur de son monde ne voit ses
-     * retours, d'apres ce que rapporte son client ({@link PortalSight}, troisieme personne comprise). Tant que personne
-     * n'en approche, elle reste. Pres d'elle, un joueur sans nouvelles recentes de son client, ou qui vient d'arriver, est
-     * tenu pour la voir ; loin d'elle, seul un rapport qui la nomme compte (un client muet ne garde pas, de l'autre bout du
-     * monde, une sortie qu'il ne voit pas). Un spectateur n'agit pas sur le monde : il ne la garde ni ne la perd.
+     * {@code true} si un joueur du monde d'arrivee voit la sortie fugace, d'apres ce que rapporte son client
+     * ({@link PortalSight}, troisieme personne comprise), ou vient de ressortir par elle. La distance ne compte pas : un client qui
+     * ne rapporte rien ne la voit pas. Un spectateur n'agit pas sur le monde : il ne la garde pas.
      */
-    private boolean exitForsaken(ServerWorld destination) {
-        boolean someoneNear = false;
+    private boolean someoneSeesExit(ServerWorld destination) {
+        if (this.exitOwner == null) {
+            this.exitOwner = GlobalPos.create(this.world.getRegistryKey(), this.pos);
+        }
         List<ServerPlayerEntity> players = destination.getPlayers();
         for (int i = 0; i < players.size(); i++) {
             ServerPlayerEntity player = players.get(i);
-            if (player.isSpectator()) {
-                continue;
+            if (!player.isSpectator() && PortalSight.seesAny(player, this.returnPortals, this.exitOwner)) {
+                return true;
             }
-            boolean near = player.squaredDistanceTo(this.destinationPos) <= EXIT_NEAR_DISTANCE * EXIT_NEAR_DISTANCE;
-            if (near ? PortalSight.seesAny(player, this.returnPortals) : PortalSight.reportsAny(player, this.returnPortals)) {
-                return false;
-            }
-            someoneNear |= near;
         }
-        return someoneNear;
+        return false;
     }
 
-    /** La sortie fugace n'a plus personne pour la voir : ses retours disparaissent, et ne reviennent plus. */
+    /** La sortie fugace n'a plus personne pour la voir : ses retours disparaissent, jusqu'au prochain joueur passe par l'entree. */
     private void loseExit(ServerWorld world) {
         this.exitLost = true;
         for (int face = 0; face < FACES; face++) {
@@ -262,6 +264,52 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         }
         this.markDirty();
         ModConstants.LOGGER.debug("[Portal] Sortie fugace du bloc portail {} perdue de vue : elle disparait.", this.pos);
+    }
+
+    /**
+     * Un joueur vient de passer ce portail. Passe par l'entree d'un bloc dont la sortie fugace a ete perdue de vue, il la
+     * rouvre : ses retours reviennent aussitot derriere lui, neufs, et ne tiennent de nouveau que sous le regard. Un objet,
+     * un mob ou un spectateur ne la rouvre pas.
+     *
+     * @param crossed portail passe ; une entree est dans le monde de son bloc, un retour ailleurs ou sous un autre identifiant
+     */
+    public static void onPlayerCrossed(BackroomsPortalEntity crossed) {
+        GlobalPos owner = crossed.owner();
+        if (owner == null) {
+            return;
+        }
+        // Le passage se decide cote serveur : le portail est dans un monde serveur. Un passage est rare : l'Optional et la
+        // lambda qui suivent sont admis.
+        ServerWorld world = (ServerWorld) crossed.getWorld();
+        world.getBlockEntity(owner.pos(), ModBlockEntities.BACKROOMS_PORTAL).ifPresent(block -> block.reopenExit(world, crossed.getUuid()));
+    }
+
+    /**
+     * Rouvre la sortie fugace perdue de vue si le portail passe est l'une de ses entrees. Les retours sont poses aussitot :
+     * le joueur parti, rien ne dit que ce bloc tiquera encore.
+     */
+    private void reopenExit(ServerWorld world, UUID crossed) {
+        if (!isEntry(crossed) || !this.exitLost) {
+            return;
+        }
+        this.exitLost = false;
+        this.markDirty();
+        for (int face = 0; face < FACES; face++) {
+            if (hasFace(face)) {
+                spawnReturnPortal(world, face);
+            }
+        }
+        ModConstants.LOGGER.debug("[Portal] Sortie fugace du bloc portail {} rouverte par un joueur passe par l'entree.", this.pos);
+    }
+
+    /** {@code true} si ce portail est l'une des entrees de ce bloc. */
+    private boolean isEntry(UUID portal) {
+        for (int face = 0; face < FACES; face++) {
+            if (portal.equals(this.entryPortals[face])) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** {@code true} si les reglages donnent cette face au portail : toujours la face avant, l'arriere s'il a deux faces. */
@@ -361,7 +409,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         Entity entity = uuid == null ? null : world.getEntity(uuid);
         if (entity instanceof BackroomsPortalEntity portal) {
             if (matches(portal, entryCenter(), faceFacing(entryFacing(), face), faceFacing(this.destinationFacing, face),
-                    this.destinationDim, this.destinationPos)) {
+                    this.destinationDim, this.destinationPos, false)) {
                 return;
             }
             portal.discard();
@@ -384,7 +432,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         UUID uuid = this.returnPortals[face];
         Entity entity = destination == null || uuid == null ? null : destination.getEntity(uuid);
         if (entity instanceof BackroomsPortalEntity portal && !matches(portal, this.destinationPos,
-                faceFacing(this.destinationFacing, face), faceFacing(entryFacing(), face), world.getRegistryKey(), entryCenter())) {
+                faceFacing(this.destinationFacing, face), faceFacing(entryFacing(), face), world.getRegistryKey(), entryCenter(),
+                this.settings.fleetingExit())) {
             portal.discard();
             spawnReturnPortal(world, face);
         }
@@ -392,7 +441,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
 
     /**
      * {@code true} si le portail est a sa place, dans ses orientations, vers sa destination, a la largeur et avec la lumiere
-     * reglees. La hauteur se lit dans les centres : changee, elle deplace le cadre d'entree et la destination des retours.
+     * reglees, sortie fugace ou non. La hauteur se lit dans les centres : changee, elle deplace le cadre d'entree et la
+     * destination des retours.
      */
     private boolean matches(
             BackroomsPortalEntity portal,
@@ -400,14 +450,16 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
             PortalFacing facing,
             PortalFacing exitFacing,
             RegistryKey<World> exitDimension,
-            Vec3d exitCenter) {
+            Vec3d exitCenter,
+            boolean fleeting) {
         return portal.getPos().equals(center)
                 && portal.facingSource() == facing
                 && portal.facingDestination() == exitFacing
                 && portal.destinationDim().equals(exitDimension)
                 && portal.destinationPos().equals(exitCenter)
                 && portal.width() == this.settings.width()
-                && portal.transmitsLight() == this.settings.transmitsLight();
+                && portal.transmitsLight() == this.settings.transmitsLight()
+                && portal.fleeting() == fleeting;
     }
 
     /**
@@ -432,11 +484,14 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         BackroomsPortalEntity portal = portal(destination, this.destinationPos, faceFacing(this.destinationFacing, face), faceFacing(entryFacing(), face))
                 .destinationDim(world.getRegistryKey())
                 .destinationPos(entryCenter())
+                .fleeting(this.settings.fleetingExit())
                 .build();
         destination.spawnEntity(portal);
         this.returnPortals[face] = portal.getUuid();
         this.returnMissingChecks[face] = 0;
-        this.exitJudgedFrom = destination.getTime() + EXIT_GRACE_TICKS;
+        // Un retour neuf n'a encore ete vu par personne : il attend un regard.
+        this.exitSeen = false;
+        this.exitUnseenSince = -1L;
         this.markDirty();
     }
 
@@ -578,8 +633,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 !nbt.contains(NBT_DOUBLE_SIDED) || nbt.getBoolean(NBT_DOUBLE_SIDED),
                 nbt.getBoolean(NBT_ONE_WAY),
                 nbt.getBoolean(NBT_FLEETING_EXIT));
-        // Une copie a sa propre sortie, toute neuve.
-        this.exitLost = !copy && nbt.getBoolean(NBT_EXIT_LOST);
+        // Une copie a sa propre sortie, toute neuve ; seule une sortie fugace se perd de vue.
+        this.exitLost = !copy && this.settings.fleetingExit() && nbt.getBoolean(NBT_EXIT_LOST);
         for (int face = 0; face < FACES; face++) {
             this.entryPortals[face] = !copy && nbt.containsUuid(NBT_ENTRY_PORTALS[face]) ? nbt.getUuid(NBT_ENTRY_PORTALS[face]) : null;
             this.returnPortals[face] = !copy && nbt.containsUuid(NBT_RETURN_PORTALS[face]) ? nbt.getUuid(NBT_RETURN_PORTALS[face]) : null;

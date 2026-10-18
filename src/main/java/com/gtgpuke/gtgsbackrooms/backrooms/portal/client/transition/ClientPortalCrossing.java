@@ -22,6 +22,7 @@ import net.minecraft.world.World;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.PortalSightReporter;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorld;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
@@ -218,6 +219,7 @@ public final class ClientPortalCrossing {
         predictedExit = exit;
         awaitingServerTicks = SERVER_ANSWER_TIMEOUT_TICKS;
         lastCrossingAge = player.age;
+        PortalSightReporter.onArrival();
         turn(player, yawShift, pitchShift);
         if (sameDimension) {
             place(player, thisTick, exitVelocity);
@@ -268,6 +270,7 @@ public final class ClientPortalCrossing {
 
     private static void onServerTeleport(MinecraftClient client, PortalTeleportPayload payload) {
         awaitingServerTicks = 0;
+        PortalSightReporter.onArrival();
         ClientPlayerEntity player = client.player;
         ClientWorld world = client.world;
         ClientPlayNetworkHandler handler = client.getNetworkHandler();

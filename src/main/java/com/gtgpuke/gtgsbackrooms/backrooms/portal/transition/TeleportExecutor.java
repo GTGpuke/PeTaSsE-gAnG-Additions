@@ -35,11 +35,13 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlockEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.propagation.PortalPursuit;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalCrossPayload;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSight;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalTeleportPayload;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
@@ -175,8 +177,10 @@ public final class TeleportExecutor {
         List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
+            // Une sortie fugace que le joueur ne regarde pas n'existe pas pour lui : il la traverse comme de l'air.
             if (portal.getWorld() == world && portal.teleportable()
-                    && crossedPortalPlane(portal, player, lastPos.x, lastPos.y, lastPos.z, currentPos.x, currentPos.y, currentPos.z)) {
+                    && crossedPortalPlane(portal, player, lastPos.x, lastPos.y, lastPos.z, currentPos.x, currentPos.y, currentPos.z)
+                    && (!portal.fleeting() || PortalSight.sees(player, portal))) {
                 PENDING_CROSSINGS.put(player.getUuid(), new PendingCrossing(portal.getUuid(), world.getTime() + CLIENT_PREDICTION_GRACE_TICKS));
                 return false;
             }
@@ -448,6 +452,11 @@ public final class TeleportExecutor {
         player.setVelocity(exitVelocity);
 
         markCrossed(player.getUuid(), destinationWorld.getTime());
+        PortalSight.onArrival(player, portal);
+        // Un spectateur n'agit pas sur le monde : il ne rouvre pas une sortie fugace perdue de vue.
+        if (!player.isSpectator()) {
+            BackroomsPortalBlockEntity.onPlayerCrossed(portal);
+        }
         LAST_PLAYER_POS.put(player.getUuid(), player.getPos());
         ModConstants.LOGGER.info("[Portal] {} traverse un portail vers {} {} ({} chunk(s) d'arrivee deja chez le client).",
                 player.getName().getString(), portal.destinationDim().getValue(), exit, heldChunks);

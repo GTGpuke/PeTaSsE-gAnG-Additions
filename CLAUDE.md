@@ -137,9 +137,13 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   après une traversée, `MixinChunkDataSender`) et qui change doit partir quand même.
 - `ClientPlayNetworkHandler.onBlockEntityUpdate` applique les données à `client.world`, pas au monde du gestionnaire :
   rebrancher le gestionnaire sur un monde distant ne suffit pas, le monde distant les applique lui-même.
-- Tests en jeu : un client rapporte ce qu'il voit toutes les quatre ticks (`PortalSightReporter`) ; un test qui attend une
-  sortie fugace perdue renvoie ses rapports a chaque tick, comme un vrai client, sinon un defaut qui ne se montre qu'avec
-  des rapports continus (une arrivee relancee par chacun d'eux) passe inapercu.
+- Tests en jeu : un client rapporte les sorties fugaces qu'il voit quand cela change (au plus tous les quatre ticks) et au
+  moins chaque seconde (`PortalSightReporter`) ; un test qui attend une sortie fugace perdue renvoie ses rapports à chaque
+  tick, comme un vrai client. Une exception autre qu'un échec de test dans une tâche (un `List.of` avec l'identifiant
+  d'un portail déjà disparu, `NullPointerException`) fait planter tout le serveur de test.
+- Banc multijoueur : une partie solo ouverte en LAN reste en mode en ligne (`IntegratedServer.setupServer`) ; un second
+  client de dev, sans session Mojang, y est refusé dès la connexion. Le multijoueur se vérifie par les tests en jeu
+  (`GameTestPlayers`).
 - Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
   type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
   fautif passe inaperçu).

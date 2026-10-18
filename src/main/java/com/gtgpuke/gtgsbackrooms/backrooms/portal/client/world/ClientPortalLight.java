@@ -31,10 +31,11 @@ public final class ClientPortalLight {
             return;
         }
         ClientWorld main = client.world;
-        TRANSMISSION.update(main, ClientPortalIndex.portals(main));
+        // La lumiere passe par une sortie fugace que le joueur ne regarde pas : elle existe pour le serveur.
+        TRANSMISSION.update(main, ClientPortalIndex.allPortals(main));
         for (int i = 0; i < RemoteWorldRegistry.remoteWorldCount(); i++) {
             ClientWorld remote = RemoteWorldRegistry.remoteWorld(i);
-            TRANSMISSION.update(remote, ClientPortalIndex.portals(remote));
+            TRANSMISSION.update(remote, ClientPortalIndex.allPortals(remote));
         }
     }
 }
