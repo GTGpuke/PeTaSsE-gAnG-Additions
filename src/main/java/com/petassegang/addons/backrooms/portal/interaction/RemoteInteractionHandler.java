@@ -99,8 +99,8 @@ public final class RemoteInteractionHandler {
     static @Nullable RemoteReach resolve(ServerPlayerEntity player, UUID portalUuid, Identifier dimension) {
         ServerWorld world = player.getServerWorld();
         BackroomsPortalEntity portal = BackroomsPortalEntityRegistry.find(world, portalUuid);
-        // Un portail ferme (porte fermee, des deux cotes), cache ou invisible ne laisse rien passer.
-        if (portal == null || !portal.isShown() || !portal.teleportable() || !portal.destinationDim().getValue().equals(dimension)) {
+        // Un portail ferme ou invisible ne laisse rien passer.
+        if (portal == null || !portal.visible() || !portal.teleportable() || !portal.destinationDim().getValue().equals(dimension)) {
             return null;
         }
         ServerWorld destination = world.getServer().getWorld(portal.destinationDim());

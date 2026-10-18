@@ -42,18 +42,19 @@ Fichiers : `GangBadgeItem`, `GangBadgeActivatePayload` (S2C, sans données, enre
 Chaque bloc de [BLOCKS.md](BLOCKS.md) possède un `BlockItem` du même identifiant :
 `level_zero_wallpaper`, `level_zero_wallpaper_aged`, `level_zero_wallpaper_adaptive`, `level_zero_damp_carpet`,
 `level_zero_damp_carpet_aged`, `level_zero_ceiling_tile`, `level_zero_fluorescent_light`, `cursed_log`,
-`cursed_leaves`, `cursed_sapling`, `cursed_planks` (onglet *PetasseGang*) et `backrooms_door` (onglet *PetasseGang - Portails*).
+`cursed_leaves`, `cursed_sapling`, `cursed_planks` (onglet *PetasseGang*) et `backrooms_portal` (onglet *PetasseGang - Portails*).
 
 ---
 
-## Porte des Backrooms (`backrooms_door`)
+## Portail des Backrooms (`backrooms_portal`)
 
 | Propriété | Valeur |
 |-----------|--------|
-| Classe | `TallBlockItem` de `backrooms/portal/block/BackroomsDoorBlock.java` (une `DoorBlock` en chêne noir, deux blocs de haut) |
-| Onglet | *PetasseGang - Portails* (`ModCreativeTab.PORTAL_TAB`, icône de l'onglet) |
-| Pose | comme une porte vanilla : orientée comme le regard, sur un bloc plein ; on entre par le côté du joueur |
-| Usage | le portail remplit l'encadrement dès que la block entity a trouvé sa destination ; fermée, la porte le cache et le ferme, l'ouvrir rend le passage ; le portail de retour attend à l'arrivée |
+| Classe | `BackroomsPortalItem` (un `BlockItem` de `BackroomsPortalBlock`) |
+| Composant | `petasse_gang_additions:portal_settings` (`PortalSettings`) : `width` et `height` de 1 à 8 (1 x 2 par défaut), `transmits_light` (oui par défaut), `double_sided` (deux faces par défaut ; à une face, rien de dos, on passe au travers), `one_way` (aller-retour par défaut ; aller simple, rien à l'arrivée pour revenir) ; affiché dans l'info-bulle |
+| Onglet | *PetasseGang - Portails* (`ModCreativeTab.PORTAL_TAB`, icône de l'onglet) : 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face et 1 x 2 aller simple |
+| Pose | comme un bloc, face avant vers le joueur ; refusée si le cadre traverserait un bloc |
+| Usage | le portail se pose dès que la block entity a trouvé sa destination ; accroupi, le bloc se vise et se casse, et rend l'item avec ses réglages |
 | Détail | [PORTALS.md](PORTALS.md) |
 
 ---
@@ -61,6 +62,6 @@ Chaque bloc de [BLOCKS.md](BLOCKS.md) possède un `BlockItem` du même identifia
 ## Ajouter un item
 
 1. Champ `static final` dans `ModItems` + entrée dans `ModCreativeTab.ENTRIES` (ou `PORTAL_ENTRIES` pour un item lié aux portails).
-2. `models/item/<id>.json` (parent `item/generated` ou `item/handheld`) + texture 16x16 (32x32 pour les items des Backrooms, comme la porte).
+2. `models/item/<id>.json` (parent `item/generated` ou `item/handheld`) + texture 16x16.
 3. Clé `item.petasse_gang_additions.<id>` en EN et FR.
 4. Un test dans `src/test/java/com/petassegang/addons/feature/...` qui vérifie le comportement (pas la réflexion).

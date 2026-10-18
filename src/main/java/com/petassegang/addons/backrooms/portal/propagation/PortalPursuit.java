@@ -42,12 +42,18 @@ public final class PortalPursuit {
     /** Duree d'une poursuite sans nouvelle vue de la cible, en ticks. */
     private static final int PURSUIT_TICKS = 100;
     /**
-     * Point vise derriere le plan du portail, en blocs. Un chemin vanilla s'arrete a un bloc de sa cible : vise a deux
-     * blocs, il finit dans le bloc qui suit le cadre, et le mob traverse le plan au lieu de s'arreter devant.
+     * Point vise derriere le plan du portail, en blocs : une fois aligne, le mob marche droit vers lui et franchit le plan
+     * au lieu de s'arreter devant ; a cette profondeur, la ligne droite depuis le point d'approche passe par l'ouverture.
      */
     static final double THROUGH_DEPTH = 2.0;
+    /** Distance devant le plan du point d'approche, en face de l'ouverture : de la, le mob marche droit a travers. */
+    static final double APPROACH_DEPTH = 1.0;
+    /** Marge au-dela du point d'approche ou le mob est deja aligne : le chemin s'arrete a moins d'un bloc du point. */
+    private static final double APPROACH_MARGIN = 1.0;
     /** Priorite de l'objectif de poursuite : celle des attaques au corps a corps, devant les promenades. */
     public static final int GOAL_PRIORITY = 2;
+    /** Vitesse de la poursuite, en multiple de la vitesse du mob : celle des attaques au corps a corps vanilla. */
+    public static final double CHASE_SPEED = 1.0;
     /** Distance minimale de ciblage de vanilla, quelle que soit la discretion de la cible. */
     private static final double MIN_TARGET_DISTANCE = 2.0;
 
@@ -92,20 +98,25 @@ public final class PortalPursuit {
     public static void perceive(MobEntity mob, TargetPredicate predicate) {
         ServerWorld world = (ServerWorld) mob.getWorld();
         double range = mob.getAttributeValue(EntityAttributes.GENERIC_FOLLOW_RANGE);
-        Vec3d eye = mob.getEyePos();
+        double eyeX = mob.getX();
+        double eyeY = mob.getEyeY();
+        double eyeZ = mob.getZ();
         BackroomsPortalEntity bestPortal = null;
         LivingEntity bestTarget = null;
         double bestDistance = Double.MAX_VALUE;
         List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            if (!opensTowardsAnotherWorld(portal, world) || portal.signedDistance(eye) <= 0.0 || portal.squaredDistanceTo(eye) > range * range) {
+            if (!opensTowardsAnotherWorld(portal, world) || portal.signedDistance(eyeX, eyeY, eyeZ) <= 0.0
+                    || portal.squaredDistanceTo(eyeX, eyeY, eyeZ) > range * range) {
                 continue;
             }
             ServerWorld destination = world.getServer().getWorld(portal.destinationDim());
             if (destination == null) {
                 continue;
             }
+            // Un portail a portee, devant le mob : l'oeil prend un vecteur pour les mesures par le cadre, pas avant.
+            Vec3d eye = mob.getEyePos();
             List<ServerPlayerEntity> players = destination.getPlayers();
             for (int j = 0; j < players.size(); j++) {
                 ServerPlayerEntity player = players.get(j);
@@ -179,6 +190,21 @@ public final class PortalPursuit {
         return pursuit;
     }
 
+    /**
+     * Un mob qui poursuivait vient de traverser : sa proie, de ce cote, devient sa cible. Il garde la posture d'attaque et
+     * repart aussitot vers elle, sans attendre que ses objectifs se relancent sur la copie neuve que le changement de
+     * monde a creee ; la posture n'est gardee que si un chemin y mene, l'attaque vanilla qui le suivra la rendra.
+     *
+     * @param mob mob arrive de ce cote
+     * @param target sa proie, dans ce monde
+     */
+    public static void resumeAfterCrossing(MobEntity mob, LivingEntity target) {
+        mob.setTarget(target);
+        if (mob.getNavigation().startMovingTo(target, CHASE_SPEED)) {
+            mob.setAttacking(true);
+        }
+    }
+
     /** Arrete la poursuite du mob. */
     public static void end(MobEntity mob) {
         ((PortalPursuer) mob).backrooms$setPursuit(null);
@@ -197,7 +223,31 @@ public final class PortalPursuit {
         return pursuit == null || !pursuit.target().getWorld().getRegistryKey().equals(portal.destinationDim()) ? null : pursuit.target();
     }
 
-    /** Point vise par le mob : derriere le plan, au pied du cadre, pour que son chemin le traverse. */
+    /** Point ou le mob vient d'abord : devant le plan, en face du milieu de l'ouverture, au pied du cadre. */
+    static Vec3d approachPoint(BackroomsPortalEntity portal) {
+        PortalFacing facing = portal.facingSource();
+        return portal.getPos()
+                .add(facing.normal.multiply(APPROACH_DEPTH))
+                .subtract(facing.axisH.multiply(portal.height() / 2.0));
+    }
+
+    /**
+     * {@code true} si un mob a cette position est aligne sur l'ouverture : juste devant le plan, et la ligne droite vers le
+     * point vise derriere le cadre ({@link #throughPoint}) passe par l'ouverture. De plus loin ou de biais, un chemin
+     * couperait le plan a cote du cadre, et le mob longerait le portail sans le traverser.
+     */
+    static boolean linedUp(BackroomsPortalEntity portal, double x, double y, double z) {
+        double ahead = portal.signedDistance(x, y, z);
+        if (ahead <= 0.0 || ahead > APPROACH_DEPTH + APPROACH_MARGIN) {
+            return false;
+        }
+        PortalFacing facing = portal.facingSource();
+        double lateral = (x - portal.getX()) * facing.axisW.x + (y - portal.getY()) * facing.axisW.y + (z - portal.getZ()) * facing.axisW.z;
+        // La ligne droite vers le point vise, dans l'axe du cadre, coupe le plan a cet ecart du milieu.
+        return Math.abs(lateral * THROUGH_DEPTH / (ahead + THROUGH_DEPTH)) <= portal.width() / 2.0;
+    }
+
+    /** Point vise par le mob une fois aligne : derriere le plan, au pied du cadre, pour que son chemin le traverse. */
     static Vec3d throughPoint(BackroomsPortalEntity portal) {
         PortalFacing facing = portal.facingSource();
         return portal.getPos()

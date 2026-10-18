@@ -51,6 +51,9 @@ public final class DestinationLoader {
 
     private static final ChunkTicketType<ChunkPos> TICKET_TYPE =
             ChunkTicketType.create("petassegang_portal", Comparator.comparingLong(ChunkPos::toLong));
+    /** Cote quitte par un joueur qui change de dimension, tenu autant qu'une fenetre qu'on cesse de regarder. */
+    private static final ChunkTicketType<ChunkPos> DEPARTURE_TICKET_TYPE =
+            ChunkTicketType.create("petassegang_portal_departure", Comparator.comparingLong(ChunkPos::toLong), RELEASE_GRACE_TICKS);
     /** Fenetre tenue par chaque portail precharge. */
     private static final Map<UUID, DestinationWindow> ACTIVE = new HashMap<>();
     /** Nombre de portails par fenetre : le ticket est pose au premier et retire au dernier. */
@@ -79,6 +82,22 @@ public final class DestinationLoader {
         ServerTickEvents.END_SERVER_TICK.register(DestinationLoader::tick);
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> releaseAll());
         initialized = true;
+    }
+
+    /**
+     * Garde charge le cote qu'un joueur quitte par un portail, comme une arrivee imminente : sur la distance de vue du
+     * serveur, et au moins sur la fenetre synchronisee elargie. Vanilla retire ses tickets
+     * des qu'il change de dimension : sans relais, les chunks qu'il voyait se dechargeaient en quelques ticks, avant que la
+     * fenetre du portail de retour ne les reprenne, puis se rechargeaient ; leurs entities revenaient sous de nouveaux
+     * identifiants, en double chez le client qui tenait encore les anciennes copies. Un nouveau depart du meme chunk
+     * repousse l'echeance.
+     *
+     * @param origin monde quitte
+     * @param position position du joueur au depart
+     */
+    public static void holdDeparture(ServerWorld origin, Vec3d position) {
+        ChunkPos chunk = new ChunkPos(ChunkSectionPos.getSectionCoord(position.x), ChunkSectionPos.getSectionCoord(position.z));
+        origin.getChunkManager().addTicket(DEPARTURE_TICKET_TYPE, chunk, ticketRadius(origin.getServer(), true), chunk);
     }
 
     /** Rayon, en chunks, de la fenetre chargee autour de chaque arrivee. */

@@ -1,8 +1,10 @@
 package com.petassegang.addons.backrooms.portal.propagation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
@@ -59,5 +61,20 @@ class PortalPursuitTest {
         assertEquals(10.5, through.x, EPSILON, "Dans l'axe du cadre.");
         assertEquals(64.0, through.y, EPSILON, "Au pied du cadre.");
         assertEquals(-PortalPursuit.THROUGH_DEPTH, portal.signedDistance(through), EPSILON, "Derriere le plan.");
+    }
+
+    @Test
+    @DisplayName("Le mob vient d'abord en face de l'ouverture : de biais, son chemin longerait le portail")
+    void approachPointLinesTheMobUpWithTheOpening() {
+        BackroomsPortalEntity portal = portal();
+        Vec3d approach = PortalPursuit.approachPoint(portal);
+        assertEquals(10.5, approach.x, EPSILON, "Dans l'axe du cadre.");
+        assertEquals(64.0, approach.y, EPSILON, "Au pied du cadre.");
+        assertEquals(PortalPursuit.APPROACH_DEPTH, portal.signedDistance(approach), EPSILON, "Devant le plan.");
+        assertTrue(PortalPursuit.linedUp(portal, approach.x, approach.y, approach.z), "Au point d'approche, il est aligne.");
+        assertTrue(PortalPursuit.linedUp(portal, 11.1, 64.0, 9.5), "Un peu de cote : la ligne droite passe encore par l'ouverture.");
+        assertFalse(PortalPursuit.linedUp(portal, 12.5, 64.0, 9.5), "De biais, a cote de l'ouverture.");
+        assertFalse(PortalPursuit.linedUp(portal, 10.5, 64.0, 6.5), "En face, mais encore loin du plan.");
+        assertFalse(PortalPursuit.linedUp(portal, 10.5, 64.0, 11.5), "Derriere le plan.");
     }
 }

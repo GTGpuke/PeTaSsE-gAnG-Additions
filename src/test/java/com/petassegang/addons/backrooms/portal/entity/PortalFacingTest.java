@@ -96,7 +96,7 @@ class PortalFacingTest {
 
     @Test
     @DisplayName("Un joueur qui entre par le nord dans un portail nord ressort face a la sortie, sa droite toujours a droite")
-    void lookAndHandednessThroughADoor() {
+    void lookAndHandednessThroughAPortal() {
         // Regarder vers le sud (yaw 0) dans un portail oriente nord, sortie orientee est.
         Vec2f look = PortalFacing.transformLook(PortalFacing.NORTH, PortalFacing.EAST, 0.0f, 10.0f);
         assertEquals(-90.0f, look.x, 1.0e-4f, "Le regard ressort vers l'est.");
@@ -131,5 +131,31 @@ class PortalFacingTest {
         double pitchRad = Math.toRadians(pitch);
         double cosPitch = Math.cos(pitchRad);
         return new Vec3d(-Math.sin(yawRad) * cosPitch, -Math.sin(pitchRad), Math.cos(yawRad) * cosPitch);
+    }
+
+    @Test
+    @DisplayName("La face arriere d'une orientation a la normale opposee, et l'opposee de l'opposee est l'orientation")
+    void oppositeFlipsTheNormal() {
+        for (PortalFacing facing : PortalFacing.values()) {
+            PortalFacing back = facing.opposite();
+            assertEquals(0.0, back.normal.add(facing.normal).length(), EPS, facing + " : normales opposees.");
+            assertEquals(facing, back.opposite(), facing + " : aller-retour.");
+        }
+    }
+
+    @Test
+    @DisplayName("Horizontalement, deux portails dos a dos vers les faces correspondantes font la meme transformation : un trou")
+    void backPairMatchesTheFrontPair() {
+        PortalFacing[] horizontal = {PortalFacing.NORTH, PortalFacing.EAST, PortalFacing.SOUTH, PortalFacing.WEST};
+        Vec3d[] vectors = {new Vec3d(0.3, -1.2, 2.5), new Vec3d(-4.0, 0.5, 0.25), new Vec3d(1.0, 1.0, -1.0)};
+        for (PortalFacing source : horizontal) {
+            for (PortalFacing destination : horizontal) {
+                for (Vec3d vector : vectors) {
+                    Vec3d front = PortalFacing.transformVector(source, destination, vector);
+                    Vec3d back = PortalFacing.transformVector(source.opposite(), destination.opposite(), vector);
+                    assertEquals(0.0, front.subtract(back).length(), EPS, source + " -> " + destination + " : meme image par les deux faces.");
+                }
+            }
+        }
     }
 }

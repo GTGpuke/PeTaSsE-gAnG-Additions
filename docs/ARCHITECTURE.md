@@ -33,6 +33,7 @@ com.petassegang.addons/
 |   |-- ModItems.java
 |   |-- ModBlockEntities.java
 |   |-- ModEntities.java                <- type de l'entity portail, toujours enregistré
+|   |-- ModDataComponents.java          <- composant des réglages du bloc portail
 |   |-- ModChunkGenerators.java
 |   |-- ModCreativeTab.java             <- ENTRIES = liste ordonnée de l'onglet
 |   `-- ModNetworking.java              <- types de payloads
@@ -57,10 +58,10 @@ com.petassegang.addons/
 |   |       |            LevelZeroCellEvaluation, LevelZeroCellContext, enums et masques
 |   |       `-- write/   LevelZeroBlockPalette, LevelZeroBlockWriter, LevelZeroWallSampler,
 |   |                    LevelZeroWallProps, LevelZeroDebugPalette
-|   `-- portal/                          <- portails : entity, block, transition, sync, interaction, propagation, client, debug (voir §Portails)
+|   `-- portal/                          <- portails : entity, block, transition, sync, interaction, propagation, light, client, debug (voir §Portails)
 |
 |-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
-`-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs) + client/ (rendu des portails)
+`-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière) + client/ (rendu des portails)
 ```
 
 Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/petassegang/addons/gametest/`, rangé par
@@ -115,16 +116,17 @@ supplémentaire dans le monde.
 
 ## Portails
 
-`backrooms/portal/` relie le monde normal et le Level 0 par une porte : entity portail persistante,
-block entity qui trouve seule sa destination et pose un portail de chaque côté, téléportation par traversée du
+`backrooms/portal/` relie le monde normal et le Level 0 par un bloc portail : entity portail persistante,
+block entity qui garde ses réglages (taille, lumière), trouve seule sa destination et pose deux faces dos à dos de
+chaque côté (un portail double face), téléportation par traversée du
 plan (joueurs prédits par le client, objets et mobs transposés par le serveur), collision à travers le cadre
 (`transition/PortalCollision`), synchronisation serveur → client des chunks et des entités de l'autre dimension
 (payloads `portal_remote_*`, suivi vanilla des entités), rendu client du monde distant à travers le cadre (stencil,
 caméra transposée, plan de découpe dans les shaders, un niveau de portails imbriqués), interaction à travers le
 cadre (`interaction/`), et ce qui traverse un portail ouvert sans être une entité : sons et particules relayés
 (`MixinPlayerManager`, `MixinServerWorld`, rejoués côté client par `client/sound` et `RemoteParticles`), regard et
-poursuite des mobs (`propagation/`). Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout
-(porte décorative, mixins inertes). Conception, protocole et limites : [PORTALS.md](PORTALS.md).
+poursuite des mobs (`propagation/`), lumière des blocs (`light/`, sources virtuelles lues par le moteur de lumière).
+Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout (bloc inerte, mixins inertes). Conception, protocole et limites : [PORTALS.md](PORTALS.md).
 
 ---
 
@@ -132,7 +134,7 @@ poursuite des mobs (`propagation/`). Actif par défaut, `ModConfig.ENABLE_PORTAL
 
 ```text
 1. Fabric charge le mod ; les mixins communs et client s'appliquent (sans effet si portails désactivés).
-2. onInitialize() : registerContent() (générateurs de chunks -> blocs -> block entities -> entity -> items -> onglet -> payloads),
+2. onInitialize() : registerContent() (générateurs de chunks -> composants -> blocs -> block entities -> entity -> items -> onglets -> payloads),
    hooks de tick serveur (perf), vidage du cache de secteurs à l'arrêt, runtime portail si activé.
 3. onInitializeClient() : récepteurs des payloads (badge, chunks distants), hook FPS, modèle adaptatif, renderer portail.
 4. Chargement du monde : le datapack déclare la dimension, qui référence le codec du générateur.
@@ -144,7 +146,7 @@ poursuite des mobs (`propagation/`). Actif par défaut, `ModConfig.ENABLE_PORTAL
 
 | Règle | Détail |
 |-------|--------|
-| Code commun | `init/`, `feature/*` (hors `client/`), `backrooms/level0/{biome,block,generation}`, `backrooms/portal/{entity,block,transition,sync,interaction,propagation,debug}`, `mixin/*` (hors `client/`), `perf/ModPerformanceMonitor` |
+| Code commun | `init/`, `feature/*` (hors `client/`), `backrooms/level0/{biome,block,generation}`, `backrooms/portal/{entity,block,transition,sync,interaction,propagation,light,debug}`, `mixin/*` (hors `client/`), `perf/ModPerformanceMonitor` |
 | Code client | sous-packages `client/` et `mixin/client/` uniquement ; jamais de `MinecraftClient` ailleurs |
 | Point d'entrée | `ClientModInitializer` séparé, déclaré dans `fabric.mod.json` |
 

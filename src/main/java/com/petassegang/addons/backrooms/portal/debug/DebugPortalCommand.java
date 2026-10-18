@@ -18,7 +18,8 @@ import com.petassegang.addons.backrooms.portal.sync.PortalViewTracker;
 /**
  * Commande de developpement : {@code /backrooms portal list} et {@code /backrooms portal clear}.
  *
- * <p>Les portails se posent avec la porte Backrooms ; cette commande ne sert qu'a inspecter et nettoyer.
+ * <p>Les portails se posent avec le bloc portail ; cette commande ne sert qu'a inspecter et nettoyer. Ceux d'un bloc
+ * portail sont reposes par leur bloc : {@code clear} ne retire durablement que les portails libres.
  */
 public final class DebugPortalCommand {
 
@@ -48,7 +49,7 @@ public final class DebugPortalCommand {
             String line = portal.getWorld().getRegistryKey().getValue() + " " + portal.getBlockPos().toShortString()
                     + " " + portal.facingSource() + " -> " + portal.destinationDim().getValue() + " "
                     + portal.destinationPos() + " " + portal.facingDestination()
-                    + (portal.owner() == null ? " (libre)" : " (porte " + portal.owner().pos().toShortString() + ")");
+                    + (portal.owner() == null ? " (libre)" : " (bloc " + portal.owner().pos().toShortString() + ")");
             context.getSource().sendFeedback(() -> Text.literal(line), false);
         }
         int count = portals.size();

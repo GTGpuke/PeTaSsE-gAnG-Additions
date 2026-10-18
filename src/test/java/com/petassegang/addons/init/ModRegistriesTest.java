@@ -56,8 +56,10 @@ class ModRegistriesTest {
         assertEquals(Identifier.of(ModConstants.MOD_ID, "gang_badge"), Registries.ITEM.getId(ModItems.GANG_BADGE), "Badge.");
         assertEquals(12, modIds(Registries.BLOCK.getIds()).size(), "Douze blocs enregistres.");
         assertEquals(14, modIds(Registries.ITEM.getIds()).size(), "Quatorze items enregistres.");
-        assertEquals(Identifier.of(ModConstants.MOD_ID, "backrooms_door"),
-                Registries.BLOCK_ENTITY_TYPE.getId(ModBlockEntities.BACKROOMS_DOOR), "Block entity de la porte.");
+        assertEquals(Identifier.of(ModConstants.MOD_ID, "backrooms_portal"),
+                Registries.BLOCK_ENTITY_TYPE.getId(ModBlockEntities.BACKROOMS_PORTAL), "Block entity du bloc portail.");
+        assertEquals(Identifier.of(ModConstants.MOD_ID, "portal_settings"),
+                Registries.DATA_COMPONENT_TYPE.getId(ModDataComponents.PORTAL_SETTINGS), "Composant des reglages de portail.");
         assertEquals(Identifier.of(ModConstants.MOD_ID, "backrooms_portal"), Registries.ENTITY_TYPE.getId(ModEntities.BACKROOMS_PORTAL), "Entity portail.");
         assertSame(LevelZeroChunkGenerator.CODEC,
                 Registries.CHUNK_GENERATOR.get(Identifier.of(ModConstants.MOD_ID, BackroomsConstants.LEVEL_ZERO_CHUNK_GENERATOR)),

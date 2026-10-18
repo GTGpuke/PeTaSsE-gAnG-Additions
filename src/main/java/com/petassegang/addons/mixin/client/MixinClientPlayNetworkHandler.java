@@ -9,17 +9,22 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import net.minecraft.network.packet.s2c.play.UnloadChunkS2CPacket;
 
 import com.petassegang.addons.backrooms.portal.client.transition.ClientPortalCrossing;
+import com.petassegang.addons.backrooms.portal.client.transition.EntityHandover;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorldRegistry;
+import com.petassegang.addons.config.ModConfig;
 import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
  * Pendant une bascule de monde par portail, vanilla nettoie l'ancien monde du joueur : les chunks
  * decharges sont gardes (ils restent visibles a travers le portail de retour) et les entities detruites
- * le sont dans l'ancien monde, pas dans le nouveau. Avant que vanilla ne cree un monde (connexion, respawn dans une
+ * le sont dans l'ancien monde, pas dans le nouveau. Hors bascule, une entity detruite en franchissant un portail reste
+ * affichee jusqu'a l'arrivee de sa copie, et une entity qu'un portail de son monde vient de deplacer le passe telle
+ * qu'elle est affichee (voir {@link EntityHandover}). Avant que vanilla ne cree un monde (connexion, respawn dans une
  * autre dimension), le renderer vanilla reprend sa place. Les chunks recus sont comptes pour la mesure des traversees. Les injections dans les
  * traitements de paquets se placent apres le renvoi sur le thread principal pour lire un etat coherent. Les sons qui
  * suivraient une entity d'un monde distant ne sont pas joues.
@@ -41,6 +46,19 @@ public abstract class MixinClientPlayNetworkHandler {
     private void backrooms$destroyEntitiesInPreviousWorld(EntitiesDestroyS2CPacket packet, CallbackInfo ci) {
         if (ClientPortalCrossing.redirectDestroyedEntities(packet.getEntityIds())) {
             ci.cancel();
+        } else if (ModConfig.ENABLE_PORTAL_FEATURE) {
+            // Comme vanilla, sauf pour une entity qui franchit un portail : gardee jusqu'a l'arrivee de sa copie.
+            EntityHandover.applyDestroys(((ClientPlayNetworkHandler) (Object) this).getWorld(), packet.getEntityIds());
+            ci.cancel();
+        }
+    }
+
+    /** Une entity teleportee par un portail de son monde passe le portail telle qu'elle est affichee, sans glisser. */
+    @Inject(method = "onEntityPosition", at = @At(value = "INVOKE", target = FORCE_MAIN_THREAD, shift = At.Shift.AFTER))
+    private void backrooms$teleportThroughPortal(EntityPositionS2CPacket packet, CallbackInfo ci) {
+        if (ModConfig.ENABLE_PORTAL_FEATURE) {
+            EntityHandover.onPositionPacket(((ClientPlayNetworkHandler) (Object) this).getWorld(), packet.getEntityId(),
+                    packet.getX(), packet.getY(), packet.getZ());
         }
     }
 

@@ -21,20 +21,26 @@
     "client.BuiltChunkStorageAccessor",
     "client.ClientWorldAccessor",
     "client.ParticleManagerAccessor",
-    "client.LimbAnimatorAccessor"
+    "client.LimbAnimatorAccessor",
+    "client.BackgroundRendererAccessor"
   ],
   "mixins": [
     "MixinServerChunkManager",
     "MixinChunkDataSender",
     "EntityAccessor",
     "EntityTrackerAccessor",
+    "EntityTrackerEntryAccessor",
     "ServerChunkLoadingManagerAccessor",
     "MixinPlayerManager",
     "MixinServerWorld",
     "ActiveTargetGoalAccessor",
     "MixinActiveTargetGoal",
     "MixinMobEntity",
-    "MixinEntity"
+    "MixinZombieAttackGoal",
+    "MixinEntity",
+    "MixinWorld",
+    "ChunkLightProviderAccessor",
+    "MixinChunkBlockLightProvider"
   ],
   "injectors": {
     "defaultRequire": 1

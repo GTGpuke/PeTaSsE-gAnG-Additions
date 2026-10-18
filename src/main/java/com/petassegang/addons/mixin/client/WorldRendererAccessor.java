@@ -68,6 +68,13 @@ public interface WorldRendererAccessor {
     @Accessor("builtChunks")
     ObjectArrayList<ChunkBuilder.BuiltChunk> backrooms$getBuiltChunks();
 
+    /**
+     * Tangage de camera, par pas de deux degres, du dernier {@code setupTerrain} qui a applique le frustum : une valeur
+     * qu'aucune camera ne donne force vanilla a refaire sa liste de sections au suivant.
+     */
+    @Accessor("lastCameraPitch")
+    void backrooms$setLastCameraPitch(double pitch);
+
     /** Block entities rendues sans culling de section (grands modeles) ; a parcourir sous {@code synchronized}. */
     @Accessor("noCullingBlockEntities")
     Set<BlockEntity> backrooms$getNoCullingBlockEntities();

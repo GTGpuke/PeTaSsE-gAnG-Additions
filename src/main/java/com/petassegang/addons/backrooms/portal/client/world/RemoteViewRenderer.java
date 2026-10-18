@@ -1,5 +1,6 @@
 package com.petassegang.addons.backrooms.portal.client.world;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.SortedSet;
@@ -8,6 +9,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.systems.VertexSorter;
 import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
+import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
 import org.lwjgl.opengl.GL11;
@@ -69,11 +71,18 @@ public final class RemoteViewRenderer {
     private static final int FRUSTUM_COVER_BOX = 8;
     /**
      * La grille de sections d'un renderer ne se recentre que si l'ancrage s'eloigne de plus de ce nombre de chunks de
-     * son centre : deux portes voisines vers la meme dimension, ou le retour juste apres une traversee, la partagent
+     * son centre : deux portails voisins vers la meme dimension, ou le retour juste apres une traversee, la partagent
      * sans la redecouper (chaque recentrage remet des colonnes entieres de sections a reconstruire).
      */
     static final int GRID_MARGIN_CHUNKS = 2;
     private static final List<RenderLayer> BLOCK_LAYERS = RenderLayer.getBlockLayers();
+    /**
+     * Entities engagees dans le cadre d'arrivee d'une vue imbriquee dans une autre vue a travers un cadre, dessinees apres
+     * les autres sans la decoupe : leur partie encore derriere l'arrivee ne se dessine nulle part ailleurs a ce niveau.
+     */
+    private static final List<Entity> STRADDLING = new ArrayList<>();
+    /** Plans empiles dans une vue imbriquee dans une autre vue a travers un cadre. */
+    private static final int NESTED_DEPTH = 2;
     /** Pile de matrices reutilisee pour les entities et block entities ; vide entre deux rendus. */
     private static final MatrixStack MATRICES = new MatrixStack();
     /**
@@ -138,8 +147,9 @@ public final class RemoteViewRenderer {
      * @param positionMatrix matrice de vue de cette camera
      * @param projection projection du joueur
      * @param portal portail dont c'est la vue : son arrivee donne le plan de decoupe, le volume visible et l'ancrage de la grille
-     * @param throughFrame {@code true} pour une vue a travers le cadre ; {@code false} quand la camera elle-meme est passee de
-     *                     l'autre cote (troisieme personne) : elle voit alors tout, sans plan de decoupe ni volume limite
+     * @param frameCameraPos camera qui regarde le cadre, dans le monde du portail, pour une vue a travers lui ; {@code null}
+     *                       quand la camera elle-meme est passee de l'autre cote (troisieme personne) : elle voit alors
+     *                       tout, sans plan de decoupe ni volume limite
      * @param lightmap lightmap deja recalculee pour ce monde
      * @param tickDelta fraction de tick de l'image
      */
@@ -150,9 +160,10 @@ public final class RemoteViewRenderer {
             Matrix4f positionMatrix,
             Matrix4f projection,
             BackroomsPortalEntity portal,
-            boolean throughFrame,
+            @Nullable Vec3d frameCameraPos,
             LightmapTextureManager lightmap,
             float tickDelta) {
+        boolean throughFrame = frameCameraPos != null;
         PortalRenderState.setViewCameraPos(cameraPos);
         this.owner.markViewed(cameraPos);
         PortalFacing arrival = portal.facingDestination();
@@ -163,7 +174,7 @@ public final class RemoteViewRenderer {
             this.cone.unbounded();
         }
         try {
-            renderView(client, camera, cameraPos, positionMatrix, projection, portal, lightmap, tickDelta);
+            renderView(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, lightmap, tickDelta);
         } finally {
             if (throughFrame) {
                 PortalClipping.pop();
@@ -179,6 +190,7 @@ public final class RemoteViewRenderer {
             Matrix4f positionMatrix,
             Matrix4f projection,
             BackroomsPortalEntity portal,
+            @Nullable Vec3d frameCameraPos,
             LightmapTextureManager lightmap,
             float tickDelta) {
         this.world.getChunkManager().getLightingProvider().doLightUpdates();
@@ -204,7 +216,7 @@ public final class RemoteViewRenderer {
             RenderLayer layer = BLOCK_LAYERS.get(i);
             if (layer == RenderLayer.getTranslucent()) {
                 // Meme ordre que vanilla : entities et block entities avant les couches translucides.
-                renderEntities(client, camera, cameraPos, positionMatrix, projection, tickDelta);
+                renderEntities(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, tickDelta);
             }
             accessor.backrooms$renderLayer(layer, cameraPos.x, cameraPos.y, cameraPos.z, positionMatrix, projection);
         }
@@ -273,6 +285,8 @@ public final class RemoteViewRenderer {
             Vec3d cameraPos,
             Matrix4f positionMatrix,
             Matrix4f projection,
+            BackroomsPortalEntity portal,
+            @Nullable Vec3d frameCameraPos,
             float tickDelta) {
         EntityRenderDispatcher entityDispatcher = client.getEntityRenderDispatcher();
         BlockEntityRenderDispatcher blockEntityDispatcher = client.getBlockEntityRenderDispatcher();
@@ -299,15 +313,33 @@ public final class RemoteViewRenderer {
                     entity.lastRenderY = entity.getY();
                     entity.lastRenderZ = entity.getZ();
                 }
+                // Vue qui couvre l'ecran : ce qui est coupe par un portail de ce monde s'y dessine en deux moities, plus bas.
+                if (frameCameraPos == null && StraddlingEntityRenderer.drawnInParts(entity, tickDelta)) {
+                    continue;
+                }
+                // Vue imbriquee : ce qui sort de son arrivee n'a nulle part ou dessiner la partie encore derriere, coupee au
+                // plan, son modele s'ouvrirait ; il se dessine entier, dans le cadre.
+                if (PortalClipping.depth() >= NESTED_DEPTH && StraddlingEntityRenderer.straddlesArrival(portal, entity, tickDelta)) {
+                    STRADDLING.add(entity);
+                    continue;
+                }
                 accessor.backrooms$renderEntity(entity, cameraPos.x, cameraPos.y, cameraPos.z, tickDelta, MATRICES, immediate);
+            }
+            if (frameCameraPos != null) {
+                // Ce qui entre dans le cadre de ce cote : la partie deja passee, ici, au-dela du plan d'arrivee.
+                StraddlingEntityRenderer.renderEnteringParts(client, accessor, portal, frameCameraPos, tickDelta, immediate);
+            } else {
+                StraddlingEntityRenderer.renderWorldParts(client, this.world, cameraPos, positionMatrix, tickDelta);
             }
             immediate.drawCurrentLayer();
             renderBlockEntities(accessor, blockEntityDispatcher, cameraPos, tickDelta, immediate);
             renderBlockDamage(client, accessor, cameraPos);
             renderTargetOutline(client, cameraPos, immediate);
             immediate.draw();
+            renderStraddling(accessor, cameraPos, tickDelta, immediate);
             EFFECT_BUFFERS.draw();
         } finally {
+            STRADDLING.clear();
             modelView.popMatrix();
             RenderSystem.applyModelViewMatrix();
             RenderSystem.setProjectionMatrix(previousProjection, sorter);
@@ -317,6 +349,25 @@ public final class RemoteViewRenderer {
             while (!MATRICES.isEmpty()) {
                 MATRICES.pop();
             }
+        }
+    }
+
+    /**
+     * Les entities engagees dans le cadre d'arrivee d'une vue imbriquee, entieres : la partie encore devant le plan reste
+     * dans le cadre (le stencil l'y limite), la ou on la voit sortir du portail.
+     */
+    private static void renderStraddling(WorldRendererAccessor accessor, Vec3d cameraPos, float tickDelta, VertexConsumerProvider.Immediate immediate) {
+        if (STRADDLING.isEmpty()) {
+            return;
+        }
+        PortalClipping.suspend();
+        try {
+            for (int i = 0; i < STRADDLING.size(); i++) {
+                accessor.backrooms$renderEntity(STRADDLING.get(i), cameraPos.x, cameraPos.y, cameraPos.z, tickDelta, MATRICES, immediate);
+            }
+            immediate.draw();
+        } finally {
+            PortalClipping.resume();
         }
     }
 

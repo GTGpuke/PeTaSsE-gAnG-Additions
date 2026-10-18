@@ -20,11 +20,12 @@ import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
 /**
  * Dessine la zone de vue d'un portail pour le stencil, la profondeur et le fond.
  *
- * <p>La zone n'est pas un simple quad mais une boite mince : le cadre, prolonge de {@link #DEPTH} derriere son
- * plan. Vue de face, sa silhouette est exactement le cadre. Quand la camera touche le plan, le plan proche de la
- * projection couperait un quad et laisserait un vide au bord de l'ecran ; la boite est donc decoupee en logiciel
- * contre ce plan proche, et la section ouverte est refermee par un polygone. La zone couvre ainsi toujours ce que
- * la camera voit a travers le cadre : ni plus (la dimension courante reste visible a cote du cadre), ni moins.
+ * <p>La zone est le cadre lui-meme, plat. Quand la camera touche le plan dans l'encadrement, le plan proche de la
+ * projection couperait ce quad et laisserait un vide a l'ecran : la zone devient alors une boite mince, le cadre
+ * prolonge de {@link #DEPTH} derriere son plan, decoupee en logiciel contre ce plan proche, la section ouverte refermee
+ * par un polygone. Vue de plus loin ou de cote, une boite donnerait au portail une epaisseur : ses flancs montreraient
+ * la vue la ou le regard passe a cote du cadre, et elle basculerait d'un coup de l'autre cote du plan en passant d'une
+ * face a l'autre. La zone couvre ainsi toujours ce que la camera voit a travers le cadre : ni plus, ni moins.
  *
  * <p>La boite se dessine sans elimination des faces arriere, le temps de son seul dessin : vanilla suppose cette
  * elimination toujours active (ses couches de terrain ne la retablissent pas), et une vue dessinee sans elle montrerait
@@ -149,10 +150,11 @@ public final class FrameAreaRenderer {
         PortalFacing facing = portal.facingSource();
         double halfWidth = portal.width() / 2.0;
         double halfHeight = portal.height() / 2.0;
+        double depth = cameraInFrame(portal, cameraPos) ? DEPTH : 0.0;
         for (int corner = 0; corner < CORNER_COUNT; corner++) {
             double sw = (corner & 1) != 0 ? halfWidth : -halfWidth;
             double sh = (corner & 2) != 0 ? halfHeight : -halfHeight;
-            double sn = (corner & 4) != 0 ? -DEPTH : 0.0;
+            double sn = (corner & 4) != 0 ? -depth : 0.0;
             float x = (float) (center.x - cameraPos.x + facing.axisW.x * sw + facing.axisH.x * sh + facing.normal.x * sn);
             float y = (float) (center.y - cameraPos.y + facing.axisW.y * sw + facing.axisH.y * sh + facing.normal.y * sn);
             float z = (float) (center.z - cameraPos.z + facing.axisW.z * sw + facing.axisH.z * sh + facing.normal.z * sn);
@@ -161,6 +163,14 @@ public final class FrameAreaRenderer {
             CORNERS[corner * 3 + 1] = SCRATCH_VERTEX.y;
             CORNERS[corner * 3 + 2] = SCRATCH_VERTEX.z;
         }
+    }
+
+    /**
+     * {@code true} si la camera est dans l'encadrement, a moins de {@link #DEPTH} devant le plan : la seule place ou le
+     * plan proche coupe le cadre la ou il couvre l'ecran. Ailleurs le cadre plat suffit, et n'a pas d'epaisseur.
+     */
+    private static boolean cameraInFrame(BackroomsPortalEntity portal, Vec3d cameraPos) {
+        return portal.signedDistance(cameraPos) < DEPTH && portal.frameContains(cameraPos.x, cameraPos.y, cameraPos.z);
     }
 
     /**

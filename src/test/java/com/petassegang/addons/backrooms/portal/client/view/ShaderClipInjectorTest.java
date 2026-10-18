@@ -125,7 +125,7 @@ class ShaderClipInjectorTest {
         assertNotNull(url, "Les shaders vanilla sont sur le classpath de test.");
         Map<String, String> shaders = new TreeMap<>();
         if ("jar".equals(url.getProtocol())) {
-            // jar:file:/C:/.../minecraft-merged.jar!/assets/... : le jar est la partie avant le separateur.
+            // Adresse de la forme jar:file:/C:/.../minecraft-merged.jar!/assets/... : le jar est la partie avant le separateur.
             String path = url.getPath();
             Path jarPath = Path.of(URI.create(path.substring(0, path.indexOf("!/"))));
             try (JarFile jar = new JarFile(jarPath.toFile())) {

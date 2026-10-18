@@ -107,7 +107,7 @@ public final class LevelZeroGameTests implements FabricGameTest {
             }
             json = JsonParser.parseReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
         } catch (IOException exception) {
-            throw new GameTestException("Lecture impossible de " + DIMENSION_JSON + " : " + exception.getMessage());
+            throw new GameTestException("Lecture impossible de " + DIMENSION_JSON + " : " + exception.getMessage() + ".");
         }
         RegistryOps<JsonElement> ops = RegistryOps.of(JsonOps.INSTANCE, server.getRegistryManager());
         return DimensionOptions.CODEC.parse(ops, json)

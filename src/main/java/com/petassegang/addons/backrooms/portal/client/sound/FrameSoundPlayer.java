@@ -17,11 +17,12 @@ import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.config.ModConfig;
 
 /**
- * Son qui traverse un portail : un son d'un monde distant (ou du monde du joueur, loin de
- * lui) est rejoue au point du cadre d'arrivee qui correspond au point du cadre le plus proche de sa source, avec le
- * volume qui lui reste apres le trajet jusqu'au cadre ({@link PortalSound}). Le joueur l'entend donc venir de la
- * porte, d'autant plus faible que la source en est loin. Un son d'un monde distant qu'aucun portail ouvert ne
- * rapproche du joueur n'est pas joue : a ses coordonnees brutes, il sonnerait n'importe ou.
+ * Son qui traverse un portail : un son d'un monde distant (ou du monde du joueur, loin de lui) est rejoue au point du
+ * cadre le plus proche de sa source, vue par un portail du monde du joueur, avec le volume qui lui reste apres le
+ * trajet jusqu'au cadre ({@link PortalSound}). Le joueur l'entend donc venir du cadre par lequel il voit l'autre
+ * cote, d'autant plus faible que la source en est loin, que ce portail ait un retour ou non (aller simple). Un son d'un
+ * monde distant qu'aucun portail ouvert ne rapproche du joueur n'est pas joue : a ses coordonnees brutes, il sonnerait
+ * n'importe ou.
  */
 public final class FrameSoundPlayer {
 
@@ -36,7 +37,7 @@ public final class FrameSoundPlayer {
     }
 
     /**
-     * Joue un son par le portail qui le rapproche le plus du joueur.
+     * Joue un son par le portail le plus proche de sa source, parmi ceux par lesquels le joueur voit le monde du son.
      *
      * @param soundWorld monde ou le son est emis
      * @param x position de la source, X
@@ -74,31 +75,29 @@ public final class FrameSoundPlayer {
             return false;
         }
         double radius = PortalSound.radius(volume);
-        BackroomsPortalEntity best = null;
+        Vec3d source = new Vec3d(x, y, z);
         Vec3d bestExit = null;
         double bestDistance = Double.MAX_VALUE;
-        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(soundWorld);
+        // Les portails du monde du joueur vers celui du son : ceux par ou il voit l'autre cote, qu'ils aient un retour ou non.
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(listenerWorld);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            // Un portail ferme (porte fermee, des deux cotes), cache ou invisible ne laisse passer aucun son.
-            if (!portal.isShown() || !portal.teleportable() || !portal.destinationDim().equals(listenerWorld.getRegistryKey())
-                    || portal.signedDistance(x, y, z) < -PortalSound.BEHIND_TOLERANCE) {
+            // Un portail ferme ou invisible ne laisse passer aucun son.
+            if (!portal.visible() || !portal.teleportable() || !portal.destinationDim().equals(soundWorld.getRegistryKey())) {
                 continue;
             }
-            Vec3d entry = portal.nearestFramePoint(x, y, z);
-            double distance = Math.sqrt(entry.squaredDistanceTo(x, y, z));
-            if (distance >= bestDistance || distance > radius) {
+            Vec3d image = portal.fromDestination(source);
+            Vec3d exit = PortalSound.exitPoint(portal, image, listener, radius);
+            if (exit == null) {
                 continue;
             }
-            Vec3d exit = portal.toDestination(entry);
-            if (exit.squaredDistanceTo(listener) > radius * radius) {
-                continue;
+            double distance = Math.sqrt(exit.squaredDistanceTo(image));
+            if (distance < bestDistance) {
+                bestExit = exit;
+                bestDistance = distance;
             }
-            best = portal;
-            bestExit = exit;
-            bestDistance = distance;
         }
-        if (best == null) {
+        if (bestExit == null) {
             return remote;
         }
         float through = PortalSound.volumeThroughPortal(volume, bestDistance);

@@ -7,7 +7,7 @@
 | Type de dimension | `backrooms_level_0_type` : `min_y` 0, `height` 64, sans ciel, plafond, lumière ambiante 0, heure fixe |
 | Biome | `petasse_gang_additions:backrooms_level_0` (vide, aucun spawn) |
 | Générateur | `petasse_gang_additions:backrooms_level_zero` → `LevelZeroChunkGenerator` |
-| Accès | **Porte des Backrooms** (onglet créatif *PetasseGang - Portails*) : posée dans le monde normal, elle ouvre un portail vers le layer 0 ; posée dans le Level 0, elle ramène à la surface. Voir [PORTALS.md](PORTALS.md). |
+| Accès | **Portail des Backrooms** (onglet créatif *PetasseGang - Portails*) : posé dans le monde normal, il ouvre un portail double face vers le layer 0 ; posé dans le Level 0, il ramène à la surface. Voir [PORTALS.md](PORTALS.md). |
 
 ### Géographie verticale
 

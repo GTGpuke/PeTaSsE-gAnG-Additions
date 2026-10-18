@@ -6,10 +6,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 
 import com.petassegang.addons.backrooms.level0.generation.layout.LevelZeroLayout;
-import com.petassegang.addons.backrooms.portal.block.BackroomsDoorBlockEntity;
+import com.petassegang.addons.backrooms.portal.block.BackroomsPortalBlockEntity;
 import com.petassegang.addons.backrooms.portal.debug.DebugPortalCommand;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.petassegang.addons.backrooms.portal.interaction.RemoteInteractionHandler;
+import com.petassegang.addons.backrooms.portal.light.PortalLightTransmission;
 import com.petassegang.addons.backrooms.portal.sync.PortalViewTracker;
 import com.petassegang.addons.backrooms.portal.transition.DestinationLoader;
 import com.petassegang.addons.backrooms.portal.transition.TeleportExecutor;
@@ -19,6 +20,7 @@ import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModChunkGenerators;
 import com.petassegang.addons.init.ModCreativeTab;
+import com.petassegang.addons.init.ModDataComponents;
 import com.petassegang.addons.init.ModEntities;
 import com.petassegang.addons.init.ModItems;
 import com.petassegang.addons.init.ModNetworking;
@@ -43,9 +45,10 @@ public class PeTaSsEgAnGAdditionsMod implements ModInitializer {
         ModConstants.LOGGER.info("Initialisation de {} terminee.", ModConstants.MOD_NAME);
     }
 
-    /** Enregistre tout le contenu : blocs avant items, block entities apres blocs. */
-    public static void registerContent() {
+    /** Enregistre tout le contenu : blocs avant items, block entities apres blocs, composants avant items. */
+    private static void registerContent() {
         ModChunkGenerators.register();
+        ModDataComponents.register();
         ModBlocks.register();
         ModBlockEntities.register();
         ModEntities.register();
@@ -61,28 +64,29 @@ public class PeTaSsEgAnGAdditionsMod implements ModInitializer {
     }
 
     /**
-     * Portails actives ou non par configuration ; sans portails, la porte reste une porte ordinaire. Le registre des
-     * portails tourne dans les deux cas : il retire les portails dont la porte a disparu.
+     * Portails actives ou non par configuration ; sans portails, le bloc portail reste inerte. Le registre des portails
+     * tourne dans les deux cas : il retire les portails dont le bloc a disparu.
      *
      * @param enabled {@code true} si les portails sont actives
      * @param developmentEnvironment {@code true} hors production : la commande de debug des portails est enregistree
      */
     static void initPortals(boolean enabled, boolean developmentEnvironment) {
-        BackroomsDoorBlockEntity.setPortalsEnabled(enabled);
+        BackroomsPortalBlockEntity.setPortalsEnabled(enabled);
         BackroomsPortalEntityRegistry.init();
         if (enabled) {
             initPortalRuntime(developmentEnvironment);
         } else {
-            ModConstants.LOGGER.info("[Portal] Portails desactives par configuration : la porte reste une porte ordinaire.");
+            ModConstants.LOGGER.info("[Portal] Portails desactives par configuration : le bloc portail reste inerte.");
         }
     }
 
-    /** Portails : prechargement, synchronisation client, teleportation, interaction a travers le cadre. */
+    /** Portails : prechargement, synchronisation client, teleportation, interaction et lumiere a travers le cadre. */
     private static void initPortalRuntime(boolean developmentEnvironment) {
         DestinationLoader.init();
         PortalViewTracker.init();
         TeleportExecutor.init();
         RemoteInteractionHandler.init();
+        PortalLightTransmission.init();
         if (developmentEnvironment) {
             DebugPortalCommand.register();
             ModConstants.LOGGER.info("[Portal] Commande /backrooms portal enregistree (developpement).");

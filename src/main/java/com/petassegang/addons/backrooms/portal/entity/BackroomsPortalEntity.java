@@ -2,8 +2,6 @@ package com.petassegang.addons.backrooms.portal.entity;
 
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.block.BlockState;
-import net.minecraft.block.DoorBlock;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.data.DataTracker;
@@ -28,15 +26,17 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
+import com.petassegang.addons.init.ModBlockEntities;
 import com.petassegang.addons.init.ModBlocks;
 import com.petassegang.addons.init.ModEntities;
 
 /**
- * Entity persistante qui porte un portail : ou il est, ou il mene, et a quelle porte il appartient.
+ * Entity persistante qui porte un portail : ou il est, ou il mene, et a quel bloc portail il appartient.
  *
- * <p>Les donnees utiles au client (orientations, destination, taille, visibilite, ouverture) passent par le
- * {@link DataTracker} : le client predit les traversees et les collisions avec le meme etat que le serveur. Seule la
- * porte proprietaire reste cote serveur. Un portail ne bouge jamais, ne subit aucune physique et ne peut pas etre frappe.
+ * <p>Les donnees utiles au client (orientations, destination, taille, visibilite, ouverture, passage de la lumiere)
+ * passent par le {@link DataTracker} : le client predit les traversees et les collisions, et eclaire l'autre cote, avec le
+ * meme etat que le serveur. Seul le bloc proprietaire reste cote serveur. Un portail ne bouge jamais, ne subit aucune
+ * physique et ne peut pas etre frappe.
  */
 public class BackroomsPortalEntity extends Entity {
 
@@ -50,6 +50,7 @@ public class BackroomsPortalEntity extends Entity {
     private static final String NBT_HEIGHT = "Height";
     private static final String NBT_TELEPORTABLE = "Teleportable";
     private static final String NBT_VISIBLE = "Visible";
+    private static final String NBT_TRANSMITS_LIGHT = "TransmitsLight";
     private static final String NBT_OWNER_DIM = "OwnerDim";
     private static final String NBT_OWNER_POS = "OwnerPos";
 
@@ -57,6 +58,8 @@ public class BackroomsPortalEntity extends Entity {
     private static final double DETECTION_HALF_THICKNESS = 0.25;
     /** Marge autour de la boite de detection ou chercher les entities qui ont pu traverser ce tick : la vitesse maximale des projectiles. */
     private static final double CROSSING_SEARCH_MARGIN = 3.0;
+    /** Distance, au carre, en dessous de laquelle deux centres de cadre sont le meme point. */
+    private static final double SAME_CENTER_EPSILON_SQUARED = 1.0e-6;
     private static final float MIN_SIZE = 0.1f;
     /** Orientations par ordinal, sans la copie de {@code values()} a chaque lecture. */
     private static final PortalFacing[] FACINGS = PortalFacing.values();
@@ -83,8 +86,10 @@ public class BackroomsPortalEntity extends Entity {
             DataTracker.registerData(BackroomsPortalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
     static final TrackedData<Boolean> TRACKED_TELEPORTABLE =
             DataTracker.registerData(BackroomsPortalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
+    private static final TrackedData<Boolean> TRACKED_TRANSMITS_LIGHT =
+            DataTracker.registerData(BackroomsPortalEntity.class, TrackedDataHandlerRegistry.BOOLEAN);
 
-    /** Porte proprietaire (dimension et position), ou {@code null} pour un portail libre. */
+    /** Bloc proprietaire (dimension et position), ou {@code null} pour un portail libre. */
     private @Nullable GlobalPos owner;
     /** Boite de detection calculee a la demande ; invalidee quand la position change. */
     private @Nullable Box detectionBox;
@@ -94,6 +99,12 @@ public class BackroomsPortalEntity extends Entity {
     private @Nullable RegistryKey<World> destinationDimCache;
     private @Nullable Box crossingBox;
     private @Nullable Vec3d detectionBoxPos;
+    /** Cadre pas encore reverifie par le calcul de la lumiere transmise (voir {@link #takeLightRefresh}). */
+    private boolean lightRefreshPending = true;
+    /** Boite autour du plan d'arrivee, en cache : recalculee quand le centre d'arrivee change. */
+    private @Nullable Box arrivalBox;
+    private @Nullable Box arrivalCrossingBox;
+    private @Nullable Vec3d arrivalBoxPos;
 
     /**
      * Portail vide, tel que le cree le registre d'entities au chargement ou a la reception ; le reste arrive par le NBT
@@ -117,10 +128,11 @@ public class BackroomsPortalEntity extends Entity {
         builder.add(TRACKED_HEIGHT, 2.0f);
         builder.add(TRACKED_VISIBLE, true);
         builder.add(TRACKED_TELEPORTABLE, true);
+        builder.add(TRACKED_TRANSMITS_LIGHT, false);
     }
 
     /**
-     * {@code true} si la porte proprietaire a disparu alors que son chunk est charge (ou que sa dimension n'existe plus) ;
+     * {@code true} si le bloc proprietaire a disparu alors que son chunk est charge (ou que sa dimension n'existe plus) ;
      * un chunk decharge ne tranche pas, et un portail libre n'est jamais orphelin.
      */
     public boolean isOrphan(MinecraftServer server) {
@@ -134,7 +146,9 @@ public class BackroomsPortalEntity extends Entity {
         if (!ownerWorld.isChunkLoaded(ChunkPos.toLong(this.owner.pos()))) {
             return false;
         }
-        return !ownerWorld.getBlockState(this.owner.pos()).isOf(ModBlocks.BACKROOMS_DOOR);
+        // Le bloc est la mais ne tient plus ce portail pour sien : face ou retour retire par ses reglages, ou remplace.
+        return !ownerWorld.getBlockState(this.owner.pos()).isOf(ModBlocks.BACKROOMS_PORTAL)
+                || !ownerWorld.getBlockEntity(this.owner.pos(), ModBlockEntities.BACKROOMS_PORTAL).map(block -> block.owns(this.getUuid())).orElse(true);
     }
 
     /** Orientation du portail dans son monde, normale vers le cote d'entree. */
@@ -178,6 +192,11 @@ public class BackroomsPortalEntity extends Entity {
             this.destinationPosCache = null;
         } else if (TRACKED_DESTINATION_DIM.equals(data)) {
             this.destinationDimCache = null;
+        } else if (TRACKED_WIDTH.equals(data) || TRACKED_HEIGHT.equals(data)
+                || TRACKED_FACING_SOURCE.equals(data) || TRACKED_FACING_DESTINATION.equals(data)) {
+            // Taille ou orientation relues, ou recues par le client apres l'apparition : les boites se recalculent.
+            this.detectionBox = null;
+            this.arrivalBox = null;
         }
     }
 
@@ -206,13 +225,9 @@ public class BackroomsPortalEntity extends Entity {
         return this.dataTracker.get(TRACKED_VISIBLE);
     }
 
-    /** {@code true} si le portail se voit : visible, et pas cache par le battant ferme de la porte qui l'habite. */
-    public boolean isShown() {
-        if (!visible()) {
-            return false;
-        }
-        BlockState state = getWorld().getBlockState(getBlockPos());
-        return !(state.getBlock() instanceof DoorBlock) || state.get(DoorBlock.OPEN);
+    /** {@code true} si la lumiere des blocs passe d'un cote a l'autre du portail. */
+    public boolean transmitsLight() {
+        return this.dataTracker.get(TRACKED_TRANSMITS_LIGHT);
     }
 
     /** Image d'un point de ce cote dans le monde d'arrivee. */
@@ -225,7 +240,7 @@ public class BackroomsPortalEntity extends Entity {
         return PortalFacing.transformPoint(facingDestination(), destinationPos(), facingSource(), getPos(), point);
     }
 
-    /** Porte proprietaire, ou {@code null} pour un portail libre. */
+    /** Bloc proprietaire, ou {@code null} pour un portail libre. */
     public @Nullable GlobalPos owner() {
         return this.owner;
     }
@@ -234,15 +249,36 @@ public class BackroomsPortalEntity extends Entity {
     public Box detectionBox() {
         Vec3d center = getPos();
         if (this.detectionBox == null || this.detectionBoxPos != center) {
-            PortalFacing facing = facingSource();
-            Vec3d w = facing.axisW.multiply(width() / 2.0);
-            Vec3d h = facing.axisH.multiply(height() / 2.0);
-            Vec3d n = facing.normal.multiply(DETECTION_HALF_THICKNESS);
-            this.detectionBox = new Box(center.subtract(w).subtract(h).subtract(n), center.add(w).add(h).add(n));
+            this.detectionBox = frameBox(center, facingSource());
             this.crossingBox = this.detectionBox.expand(CROSSING_SEARCH_MARGIN);
             this.detectionBoxPos = center;
         }
         return this.detectionBox;
+    }
+
+    /** Boite autour du plan d'arrivee, comme {@link #detectionBox()} autour du cadre : on y cherche ce qui sort du portail. */
+    public Box arrivalBox() {
+        Vec3d center = destinationPos();
+        if (this.arrivalBox == null || this.arrivalBoxPos != center) {
+            this.arrivalBox = frameBox(center, facingDestination());
+            this.arrivalCrossingBox = this.arrivalBox.expand(CROSSING_SEARCH_MARGIN);
+            this.arrivalBoxPos = center;
+        }
+        return this.arrivalBox;
+    }
+
+    /** Boite d'arrivee elargie de trois blocs, comme {@link #crossingBox()} : on y cherche ce qui sort du portail. */
+    public Box arrivalCrossingBox() {
+        arrivalBox();
+        return this.arrivalCrossingBox;
+    }
+
+    /** Cadre a la taille du portail, centre et oriente comme donne, d'un demi-bloc d'epaisseur. */
+    private Box frameBox(Vec3d center, PortalFacing facing) {
+        Vec3d w = facing.axisW.multiply(width() / 2.0);
+        Vec3d h = facing.axisH.multiply(height() / 2.0);
+        Vec3d n = facing.normal.multiply(DETECTION_HALF_THICKNESS);
+        return new Box(center.subtract(w).subtract(h).subtract(n), center.add(w).add(h).add(n));
     }
 
     /** Boite de detection elargie de trois blocs : les entities qui s'y trouvent peuvent avoir traverse ce tick. */
@@ -252,15 +288,15 @@ public class BackroomsPortalEntity extends Entity {
     }
 
     /** Deplace le centre d'arrivee ; les clients qui suivent le portail le recoivent par le tracker. */
-    public void setDestinationPos(Vec3d destination) {
+    void setDestinationPos(Vec3d destination) {
         this.dataTracker.set(TRACKED_DESTINATION_X, Double.doubleToRawLongBits(destination.x));
         this.dataTracker.set(TRACKED_DESTINATION_Y, Double.doubleToRawLongBits(destination.y));
         this.dataTracker.set(TRACKED_DESTINATION_Z, Double.doubleToRawLongBits(destination.z));
     }
 
     /**
-     * {@code true} si un point du plan du portail tombe dans le cadre. Teste dans le repere du portail (largeur,
-     * hauteur) : le point est sur le plan par construction.
+     * {@code true} si un point tombe dans le cadre, projete sur son plan : teste dans le repere du portail (largeur,
+     * hauteur), sa distance au plan n'y compte pas.
      */
     public boolean frameContains(double x, double y, double z) {
         PortalFacing facing = facingSource();
@@ -270,6 +306,74 @@ public class BackroomsPortalEntity extends Entity {
         double w = dx * facing.axisW.x + dy * facing.axisW.y + dz * facing.axisW.z;
         double h = dx * facing.axisH.x + dy * facing.axisH.y + dz * facing.axisH.z;
         return Math.abs(w) <= width() / 2.0 && Math.abs(h) <= height() / 2.0;
+    }
+
+    /**
+     * {@code true} si un point est en face de l'ouverture, dans la largeur du cadre : une entity dont le centre passe le
+     * plan ici entre dans le portail ; a cote, elle le contourne, meme si son epaule frole le bord.
+     */
+    public boolean withinFrameWidth(double x, double y, double z) {
+        PortalFacing facing = facingSource();
+        double w = (x - getX()) * facing.axisW.x + (y - getY()) * facing.axisW.y + (z - getZ()) * facing.axisW.z;
+        return Math.abs(w) <= width() / 2.0;
+    }
+
+    /** Comme {@link #withinFrameWidth}, pour le cadre d'arrivee : un point du monde d'arrivee en face de son ouverture. */
+    public boolean withinArrivalWidth(double x, double y, double z) {
+        PortalFacing facing = facingDestination();
+        Vec3d center = destinationPos();
+        double w = (x - center.x) * facing.axisW.x + (y - center.y) * facing.axisW.y + (z - center.z) * facing.axisW.z;
+        return Math.abs(w) <= width() / 2.0;
+    }
+
+    /**
+     * {@code true} si une boite, decalee, est engagee dans le cadre d'entree, a cheval sur son plan : une entity qui
+     * entre dans le portail et n'est pas encore passee tout entiere, a la position ou une image la montre, entre deux
+     * ticks. La partie deja passee se dessine dans la vue, transposee.
+     *
+     * @param box boite de l'entity, dans le monde du portail
+     * @param shiftX decalage de la position affichee sur celle du tick, X
+     * @param shiftY decalage de la position affichee sur celle du tick, Y
+     * @param shiftZ decalage de la position affichee sur celle du tick, Z
+     */
+    public boolean sourceFrameStraddles(Box box, double shiftX, double shiftY, double shiftZ) {
+        return frameStraddles(box, shiftX, shiftY, shiftZ, getPos(), facingSource());
+    }
+
+    /**
+     * {@code true} si une boite, decalee, est engagee dans le cadre d'arrivee, a cheval sur son plan : une entity qui sort
+     * du portail et n'est pas encore passee tout entiere, a la position ou une image la montre, entre deux ticks.
+     *
+     * @param box boite de l'entity, dans le monde d'arrivee
+     * @param shiftX decalage de la position affichee sur celle du tick, X
+     * @param shiftY decalage de la position affichee sur celle du tick, Y
+     * @param shiftZ decalage de la position affichee sur celle du tick, Z
+     * @return {@code true} si la boite traverse le plan d'arrivee dans le cadre ; qui ne fait qu'en toucher un bord n'y est pas
+     */
+    public boolean arrivalFrameStraddles(Box box, double shiftX, double shiftY, double shiftZ) {
+        return frameStraddles(box, shiftX, shiftY, shiftZ, destinationPos(), facingDestination());
+    }
+
+    /** {@code true} si la boite, decalee, traverse le plan de ce cadre dans sa largeur et sa hauteur. */
+    private boolean frameStraddles(Box box, double shiftX, double shiftY, double shiftZ, Vec3d center, PortalFacing facing) {
+        double cx = (box.minX + box.maxX) / 2.0 + shiftX - center.x;
+        double cy = (box.minY + box.maxY) / 2.0 + shiftY - center.y;
+        double cz = (box.minZ + box.maxZ) / 2.0 + shiftZ - center.z;
+        double hx = (box.maxX - box.minX) / 2.0;
+        double hy = (box.maxY - box.minY) / 2.0;
+        double hz = (box.maxZ - box.minZ) / 2.0;
+        return Math.abs(dot(facing.normal, cx, cy, cz)) < extent(facing.normal, hx, hy, hz)
+                && Math.abs(dot(facing.axisW, cx, cy, cz)) < width() / 2.0 + extent(facing.axisW, hx, hy, hz)
+                && Math.abs(dot(facing.axisH, cx, cy, cz)) < height() / 2.0 + extent(facing.axisH, hx, hy, hz);
+    }
+
+    private static double dot(Vec3d axis, double x, double y, double z) {
+        return axis.x * x + axis.y * y + axis.z * z;
+    }
+
+    /** Demi-etendue d'une boite le long d'un axe. */
+    private static double extent(Vec3d axis, double halfX, double halfY, double halfZ) {
+        return Math.abs(axis.x) * halfX + Math.abs(axis.y) * halfY + Math.abs(axis.z) * halfZ;
     }
 
     /**
@@ -296,10 +400,44 @@ public class BackroomsPortalEntity extends Entity {
         return signedDistance(point.x, point.y, point.z);
     }
 
+    /** {@code true} si le centre du cadre est ce point : une face posee sur le cadre d'arrivee d'un autre portail. */
+    public boolean centeredAt(Vec3d point) {
+        return getPos().squaredDistanceTo(point) < SAME_CENTER_EPSILON_SQUARED;
+    }
+
     /** Variante sans allocation de {@link #signedDistance(Vec3d)}. */
     public double signedDistance(double x, double y, double z) {
         Vec3d normal = facingSource().normal;
         return (x - getX()) * normal.x + (y - getY()) * normal.y + (z - getZ()) * normal.z;
+    }
+
+    /**
+     * {@code true} si un point qui se deplace ainsi entre par cette face : il va contre sa normale, et sa trajectoire passe
+     * le plan en face de l'ouverture, comme pour la traversee (voir {@link #withinFrameWidth}), au plus tard dans
+     * {@code maxTicks} ticks, ou l'a passe au tick precedent. Les deux faces d'un bloc portail sont dans le meme plan, dos a
+     * dos : une seule est franchie dans un sens donne, la plus proche ne dit pas laquelle. Un point immobile, qui longe le
+     * plan ou qui passe a cote du cadre n'en franchit aucune.
+     *
+     * @param maxTicks ticks au plus avant que le point n'atteigne le plan
+     */
+    public boolean enteredBy(double x, double y, double z, double moveX, double moveY, double moveZ, int maxTicks) {
+        Vec3d normal = facingSource().normal;
+        double along = moveX * normal.x + moveY * normal.y + moveZ * normal.z;
+        if (along >= 0.0) {
+            return false;
+        }
+        double ticks = signedDistance(x, y, z) / -along;
+        return ticks >= -1.0 && ticks <= maxTicks && withinFrameWidth(x + moveX * ticks, y + moveY * ticks, z + moveZ * ticks);
+    }
+
+    /**
+     * {@code true} au premier calcul de la lumiere transmise qui compte cette copie du portail, {@code false} ensuite : son
+     * cadre est alors reverifie en entier, la lumiere sauvee avec son chunk pouvant venir d'une source eteinte depuis.
+     */
+    public boolean takeLightRefresh() {
+        boolean pending = this.lightRefreshPending;
+        this.lightRefreshPending = false;
+        return pending;
     }
 
     @Override
@@ -316,6 +454,7 @@ public class BackroomsPortalEntity extends Entity {
         this.dataTracker.set(TRACKED_HEIGHT, Math.max(MIN_SIZE, nbt.getFloat(NBT_HEIGHT)));
         this.dataTracker.set(TRACKED_VISIBLE, !nbt.contains(NBT_VISIBLE) || nbt.getBoolean(NBT_VISIBLE));
         this.dataTracker.set(TRACKED_TELEPORTABLE, !nbt.contains(NBT_TELEPORTABLE) || nbt.getBoolean(NBT_TELEPORTABLE));
+        this.dataTracker.set(TRACKED_TRANSMITS_LIGHT, nbt.getBoolean(NBT_TRANSMITS_LIGHT));
 
         // Identifier.tryParse("") renvoie "minecraft:" et non null : on teste la presence des cles.
         Identifier ownerDimId = nbt.contains(NBT_OWNER_DIM, NbtElement.STRING_TYPE)
@@ -324,7 +463,6 @@ public class BackroomsPortalEntity extends Entity {
         this.owner = ownerDimId != null && nbt.contains(NBT_OWNER_POS, NbtElement.LONG_TYPE)
                 ? GlobalPos.create(RegistryKey.of(RegistryKeys.WORLD, ownerDimId), BlockPos.fromLong(nbt.getLong(NBT_OWNER_POS)))
                 : null;
-        this.detectionBox = null;
     }
 
     @Override
@@ -340,6 +478,7 @@ public class BackroomsPortalEntity extends Entity {
         nbt.putFloat(NBT_HEIGHT, height());
         nbt.putBoolean(NBT_TELEPORTABLE, teleportable());
         nbt.putBoolean(NBT_VISIBLE, visible());
+        nbt.putBoolean(NBT_TRANSMITS_LIGHT, transmitsLight());
         if (this.owner != null) {
             nbt.putString(NBT_OWNER_DIM, this.owner.dimension().getValue().toString());
             nbt.putLong(NBT_OWNER_POS, this.owner.pos().asLong());
@@ -391,6 +530,7 @@ public class BackroomsPortalEntity extends Entity {
         private float height = 2.0f;
         private boolean teleportable = true;
         private boolean visible = true;
+        private boolean transmitsLight;
         private @Nullable GlobalPos owner;
 
         private Builder(World world) {
@@ -446,7 +586,13 @@ public class BackroomsPortalEntity extends Entity {
             return this;
         }
 
-        /** Porte proprietaire : le portail disparait avec elle. */
+        /** Lumiere des blocs transmise d'un cote a l'autre ; non par defaut. */
+        public Builder transmitsLight(boolean transmitsLight) {
+            this.transmitsLight = transmitsLight;
+            return this;
+        }
+
+        /** Bloc proprietaire : le portail disparait avec lui. */
         public Builder owner(RegistryKey<World> ownerDimension, BlockPos ownerPos) {
             this.owner = GlobalPos.create(ownerDimension, ownerPos);
             return this;
@@ -487,6 +633,7 @@ public class BackroomsPortalEntity extends Entity {
             portal.dataTracker.set(TRACKED_HEIGHT, this.height);
             portal.dataTracker.set(TRACKED_VISIBLE, this.visible);
             portal.dataTracker.set(TRACKED_TELEPORTABLE, this.teleportable);
+            portal.dataTracker.set(TRACKED_TRANSMITS_LIGHT, this.transmitsLight);
             portal.owner = this.owner;
             return portal;
         }

@@ -13,6 +13,7 @@ import com.petassegang.addons.backrooms.portal.client.interaction.RemoteTargetin
 import com.petassegang.addons.backrooms.portal.client.transition.ClientPortalCrossing;
 import com.petassegang.addons.backrooms.portal.client.transition.EntityHandover;
 import com.petassegang.addons.backrooms.portal.client.world.ClientPortalIndex;
+import com.petassegang.addons.backrooms.portal.client.world.ClientPortalLight;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteSyncReceiver;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorldRegistry;
 import com.petassegang.addons.core.ModConstants;
@@ -48,9 +49,11 @@ public class PeTaSsEgAnGAdditionsClientMod implements ClientModInitializer {
                 return;
             }
             ClientPortalCrossing.onClientTick();
-            EntityHandover.onClientTick();
             RemoteActions.onClientTick();
             RemoteWorldRegistry.tickRemoteWorlds(client);
+            // Apres le tick de tous les mondes : une arrivee se juge sur la premiere image a venir, partie d'avant ce tick.
+            EntityHandover.onClientTick();
+            ClientPortalLight.onClientTick(client);
         });
     }
 

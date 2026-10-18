@@ -8,8 +8,46 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
 ## [Unreleased]
 
 ### Added
+- **Bloc portail** (`backrooms_portal`), qui remplace pour l'instant la porte des Backrooms : un bloc invisible et
+  traversable qui pose un portail plein cadre, le plan au milieu du bloc, face avant vers le joueur. Posé hors du Level 0
+  il y mène, posé dedans il ramène à la surface ; il ne se vise qu'accroupi, pour le casser, et rend alors l'item avec
+  ses réglages. Les clients connaissent ses réglages, pas sa destination : le choix du bloc avec ses données les
+  copie. Copié par `/clone` ou une structure, il garde la destination de l'original et pose ses propres portails, sans
+  toucher à ceux de l'original.
+- **Portails double face** : chaque côté tient deux portails dos à dos dans le même plan, chaque face menant à la face
+  correspondante de l'autre côté. On voit et on traverse le portail par ses deux faces, il ne disparaît plus en tournant
+  autour, et traverser ne fait plus tourner (on ressort dans la direction où l'on marchait).
+- **Réglages par portail**, portés par l'item (composant `petasse_gang_additions:portal_settings`, info-bulle) et
+  gardés par le bloc : largeur et hauteur du cadre (1 à 8 blocs), passage de la lumière, faces et retour (voir
+  ci-dessous). L'onglet *PetasseGang - Portails* propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face et
+  1 x 2 aller simple. La pose est refusée si le cadre traverserait un bloc ;
+  dans le Level 0, le cadre d'arrivée se pose là où il tient sur toute sa largeur, ses deux faces sur un passage libre.
+- **Portail à une face** (réglage `double_sided`) : seule la face avant existe, de chaque côté ; de dos, rien ne se
+  voit et on passe au travers. **Portail aller simple** (réglage `one_way`) : rien n'est posé à l'arrivée pour revenir.
+  L'info-bulle de l'item dit les deux réglages. Un portail que son bloc
+  ne tient plus pour sien (face ou retour retiré par les réglages dans un chunk alors déchargé) est retiré par le
+  registre.
+- **Posture d'attaque des mobs qui poursuivent** à travers un portail : bras levés, arc bandé, regard fixé sur le
+  joueur là où il se voit par le cadre ; ils n'attaquent qu'une fois passés de son côté. La posture passe le portail
+  avec eux, sans retomber le temps de la traversée.
+- **Entités et joueur à cheval sur un portail, des deux côtés à la fois** : celui qui traverse est dessiné en deux
+  moitiés, chacune coupée au plan dans le monde où elle se trouve, la partie pas encore passée de ce côté, la partie
+  passée de l'autre, quel que soit l'angle de vue (de face, de dos, de côté, à la troisième personne). Une entité
+  vivante détruite en franchissant un portail (elle allait passer le plan en face de l'ouverture, vers l'arrière de la
+  face) reste affichée jusqu'à l'arrivée de sa copie de l'autre côté, qui la remplace
+  aussitôt (aucun double resté en arrière) et se dessine des deux côtés jusqu'à être sortie du cadre d'arrivée. La
+  coupe se décide sur la position affichée à chaque image, comme la bascule du joueur : il ne disparaît plus l'image
+  du passage. Comme pour la traversée, seul ce qui passe par l'ouverture est de l'autre côté : une entité qui longe le
+  bord du cadre reste entière de son côté, et un joueur à cheval sur un bloc portail ne se voit de l'autre côté que
+  pour la partie passée, même par la caméra à la troisième personne passée derrière le cadre. Une entité téléportée
+  par un portail de son propre monde passe le portail telle qu'elle est affichée, au lieu de glisser d'un bout à
+  l'autre : même à moins de huit blocs, sa nouvelle position part aux clients en absolu, et non en déplacement relatif.
+- **Lumière transmise** : la lumière des blocs passe par un portail ouvert et visible réglé pour elle, d'un niveau de
+  moins de l'autre côté, serveur comme client (sources de lumière virtuelles lues par le moteur de lumière). La lumière
+  du ciel ne passe pas. Un portail qui apparaît, ou revient avec son chunk, fait revérifier tout son cadre : la lumière
+  sauvée avec le chunk ne survit pas à une source éteinte depuis.
 - Collision à travers les portails ouverts : une entité engagée dans le cadre heurte aussi les
-  blocs de l'autre côté (battant ouvert, murs qui encadrent la porte, sol plus haut monté comme une marche) ; personne
+  blocs de l'autre côté (murs qui encadrent l'arrivée, sol plus haut monté comme une marche) ; personne
   ne ressort dans un bloc. Client pour son joueur, serveur pour les mobs, objets et projectiles.
 - Caméra à la troisième personne à travers un portail : juste après une traversée, tant que le
   recul de la caméra passe par le cadre, l'image entière est rendue de l'autre côté, d'où la caméra voyait la scène.
@@ -26,9 +64,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   `[perf] traversee: vers <dimension> bascule=<ms> pic=<ms> lentes=<n>/119 chunks=<n>` (durée de la bascule, pire
   image et images de plus de 50 ms sur les 120 suivantes, chunks reçus pendant ce temps), repris au F3 en solo. Côté
   serveur, les sections `portal.teleport.player` (dont `portal.teleport.vanilla`), `portal.sync.tick` (dont
-  `portal.sync.chunks` et `portal.sync.entities`) et `portal.destination.tick` entrent dans le résumé `[perf] serveur:`, et le journal de traversée indique combien de chunks de l'arrivée le client tenait déjà.
+  `portal.sync.chunks` et `portal.sync.entities`), `portal.destination.tick` et `portal.light` (lumière transmise ; `portal.light.client` pour la passe du client, en solo) entrent dans le résumé `[perf] serveur:`, et le journal de traversée indique combien de chunks de l'arrivée le client tenait déjà.
 
 ### Changed
+- Une traversée ne compte que si, au moment où ses pieds passent le plan, le centre de l'entité est en face de
+  l'ouverture et sa boîte touche le cadre, au lieu d'une marge fixe d'un demi-bloc autour du centre : passer à côté du
+  cadre ressortait dans le mur qui encadre l'arrivée, et le contourner en frôlant son bord faisait traverser ou buter
+  sur l'autre côté. La collision à travers le cadre suit la même règle ; celui qui entre vraiment, même de biais près
+  du bord, bute toujours sur les murs qui encadrent l'arrivée.
 - Le type d'entité portail est enregistré dans `init/ModEntities`, comme les autres registres. Le cooldown des joueurs
   est tenu par `TeleportExecutor` (plus de `TpCooldownTracker`), `PortalSound` rejoint `client/sound`, et la
   transposition d'un point d'un côté à l'autre est portée par le portail (`toDestination`, `fromDestination`).
@@ -40,12 +83,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   extraites et testées sans changer ce qu'elles décident ; empreintes du Level 0 inchangées.
 - Tests en jeu : joueurs simulés dont on lit les paquets reçus (sons, évènements et particules relayés, chunks tenus
   jamais renvoyés, objet de l'arrivée apparu chez le joueur), aides partagées (`GameTestServerWorlds`), règles complètes
-  de la poursuite des mobs, porte inerte sans portails, retour du Level 0 prêté suivi puis retiré avec sa porte.
-- Le portail de retour d'une porte ramène dans le plan même de la porte, au milieu de son bloc, au lieu de 0,55 bloc
-  devant : c'est l'inverse exact du portail d'entrée, et chaque côté montre l'autre tel qu'on le traverse (le demi-bloc
-  d'un côté, un bloc plein de l'autre auparavant). Les retours déjà posés sont réalignés par leur porte.
-- Une traversée ne compte que si la boîte de l'entité touche le cadre au moment où ses pieds passent le plan, au lieu
-  d'une marge fixe d'un demi-bloc autour du centre : passer à côté du cadre ressortait dans le mur qui encadre l'arrivée.
+  de la poursuite des mobs, bloc inerte sans portails, retour du Level 0 prêté suivi puis retiré avec son bloc.
 - Les portails se dessinent avant la couche translucide du monde : l'eau, le verre, les
   particules, les nuages et la pluie devant un cadre laissent voir l'autre côté par transparence au lieu de le cacher.
 - Stencil des portails par niveau d'imbrication : chaque portail marque sa zone, dessine sa
@@ -56,17 +94,81 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   profondeur dégradée aux angles rasants, repli sans découpe au ras du plan).
 - Culling des vues par le volume visible à travers le cadre (pyramide caméra → arêtes du cadre d'arrivée) : sections,
   entités et portails imbriqués hors de ce volume ne sont plus dessinés.
-- La porte des Backrooms est une vraie porte (`DoorBlock`, chêne noir) : deux blocs de haut, orientée comme le regard,
-  ouverte à la main ou à la redstone. Le portail d'entrée remplit l'encadrement dès que la porte connaît sa destination ;
-  fermée, la porte le cache et rien ne le traverse dans aucun sens (le retour se ferme avec elle), mais l'autre côté
-  reste synchronisé pour que l'ouverture soit immédiate. On entre par le côté d'où la porte a été posée. Seule la moitié basse porte la
-  block entity, la loot table ne lâche qu'une porte, modèles et icône d'item sur les gabarits vanilla des portes. Les portes
-  posées avec une version antérieure gardent leur côté d'entrée et retrouvent leur moitié haute au premier tick, fermées ;
-  leurs portails sont reposés dans l'encadrement.
-- Le chargeur d'arrivée garde la fenêtre d'une porte dix secondes après que plus personne ne la regarde : un coup d'œil
+- Le chargeur d'arrivée garde la fenêtre d'un portail dix secondes après que plus personne ne la regarde : un coup d'œil
   ailleurs ne déchargeait plus rien (le journal montrait des chargements et déchargements du Level 0 toutes les deux secondes).
 
+### Removed
+- **Porte des Backrooms** (`backrooms_door`), en attendant de revenir sur la base du bloc portail : ses blocs
+  disparaissent des mondes existants, et les portails qu'elle avait posés se retirent seuls, leur bloc propriétaire
+  n'existant plus.
+
 ### Fixed
+- Coups et minage à travers un portail passaient outre les gardes de vanilla : on minait en mangeant ou bouclier levé,
+  et l'on frappait pendant le délai d'attaque ou à cheval. Ils les respectent désormais, comme dans le monde du joueur.
+- Côté client, un portail dont la taille ou l'orientation arrivait après son apparition gardait des boîtes de
+  détection à la taille par défaut : elles se refont désormais à chaque changement.
+- Un enderman (ou tout mob que sa cible met en colère) frappé à travers un portail restait en colère et plus rapide
+  quand sa poursuite finissait sans traversée : il lâche désormais cette cible comme vanilla.
+- L'animation du badge du gang montrait l'objet de la main droite quand le badge servait de la main gauche.
+- Les sons de l'autre côté ne passaient pas par un portail sans retour (bloc réglé en aller simple, portail invoqué
+  seul) : le client cherchait leur chemin parmi les portails du monde du son, c'est-à-dire les retours. Il le cherche
+  désormais parmi les portails par lesquels le joueur voit l'autre côté, retour ou non ; un joueur derrière une face
+  n'entend plus rien par elle.
+- Une entité ou un joueur qui passait d'un portail vers une dimension que le joueur voit par un portail (de
+  l'Overworld vers le Level 0 sous ses yeux) restait figé dans le cadre jusqu'à un quart de seconde, avant que sa copie ne sorte de
+  l'autre côté : le serveur n'envoyait la nouvelle copie qu'au prochain alignement de la fenêtre distante, tous les
+  cinq ticks. Elle part désormais au même tick que la destruction de l'ancienne, comme vanilla l'envoie aux joueurs de
+  la dimension.
+- Une entité qui traversait un bloc portail pouvait être transposée par la mauvaise des deux faces dos à dos (la plus
+  proche, toutes deux au même endroit) : sa nouvelle copie apparaissait en miroir, tournée, et ses moitiés se
+  dessinaient du mauvais côté. La face franchie se reconnaît désormais au sens de son déplacement.
+- Un mob qui poursuivait un joueur à travers un portail et l'abordait de biais pouvait longer le cadre sans passer par
+  l'ouverture, son chemin coupant le plan à côté : il vient désormais d'abord en face d'elle, puis la traverse en ligne
+  droite, sans s'arrêter devant.
+- Un mob qui poursuivait un joueur à travers un portail marquait un temps d'arrêt une fois passé : sa copie neuve
+  repartait sans chemin, le temps que ses objectifs la relancent. Elle reprend désormais aussitôt sa course vers le
+  joueur, posture d'attaque comprise.
+- Portail « épais » en tournant autour : sa zone de vue était une boîte de 20 cm derrière le plan, nécessaire seulement
+  quand la caméra touche le plan dans l'encadrement. Vue de biais, ses flancs montraient l'autre côté à côté du cadre,
+  et en passant d'une face à l'autre la boîte basculait d'un coup de l'autre côté du plan. Le portail est désormais
+  plat partout ailleurs : de profil, il n'est plus qu'un trait, et rien ne saute en passant d'une face à l'autre.
+- Une entité qui venait d'apparaître juste derrière un portail pouvait être téléportée sans avoir bougé : avant son
+  premier tick, sa position précédente est l'origine du monde, et le trajet de l'une à l'autre coupait le plan. Le
+  serveur ignore désormais, pour les entités comme pour les joueurs, un déplacement de plus de huit blocs en un tick.
+- Chunks absents à la sortie de certains portails, jusqu'au prochain mouvement : les vues de portail laissent au renderer
+  du monde distant leur liste de sections, limitée au cadre, et vanilla ne refait la sienne qu'après un changement de
+  son graphe ou un regard tourné de deux degrés. Depuis les portails double face, la traversée ne fait plus tourner le
+  joueur : celui qui s'arrêtait juste après ne voyait que ce que montrait le portail. Le renderer promu refait sa liste
+  dès l'image suivante.
+- Joueur vu « à l'envers » à la troisième personne en sortant d'un portail (son visage à la place de sa nuque, quelques
+  images) : à cheval sur le plan d'arrivée, il était coupé par la découpe de la vue, et son modèle, dessiné sans
+  élimination des faces arrière, montrait son intérieur. Chacune de ses moitiés se dessine désormais de son côté (voir
+  les entités à cheval sur un portail) ; dans une vue vue à travers une autre vue, l'entité engagée dans le cadre
+  d'arrivée se dessine entière.
+- Côté quitté déchargé à chaque changement de dimension : vanilla retire les tickets du joueur dès qu'il change de
+  monde, et la fenêtre du portail de retour ne prenait le relais qu'à la passe suivante du chargeur (jusqu'à dix ticks).
+  Entre-temps, les chunks qu'il voyait se déchargeaient puis se rechargeaient (sauvegarde et relecture côté serveur à
+  chaque traversée), et leurs entités revenaient sous de nouveaux identifiants : en double chez le client
+  (`Duplicate entity UUID`), où la nouvelle copie, refusée par l'index, restait affichée figée, et les portails
+  fantômes s'accumulaient au même endroit. Un ticket de départ garde désormais le côté quitté chargé dix secondes, comme
+  une arrivée imminente (distance de vue du serveur, au moins la fenêtre synchronisée élargie), et une copie renvoyée sous un autre identifiant remplace l'ancienne.
+- À-coups à la traversée, surtout à la troisième personne : la vue secondaire du monde du joueur (portails qui y
+  ramènent, vus dans un autre portail) était détruite à chaque traversée puis recréée dès qu'il en fallait une, soit
+  un `WorldRenderer` entier (une grille de sections et leurs tampons) créé et détruit à chaque passage. À la troisième
+  personne, la caméra restée derrière le cadre voit aussitôt le portail franchi, qui montre le monde d'arrivée : chaque
+  traversée la recréait. Chaque monde garde désormais sa vue secondaire d'une traversée à l'autre, ses sections suivant
+  toujours celles du monde ; seule la première d'une dimension se crée, une fois par partie (mesuré à 12 chunks : pic de
+  97 ms et 12 à 32 ms de bascule à chaque traversée auparavant).
+- Pose d'un bloc portail vers une arrivée jamais générée : le chunk d'arrivée, où se pose le retour, était chargé de
+  façon synchrone et figeait le serveur le temps de le générer (plus d'une seconde dans un Level 0 neuf). Il est demandé
+  par un ticket, et le retour est posé dès qu'il est là. La surface de l'Overworld, que vise un bloc posé dans le Level 0,
+  se lit encore sur un chunk chargé à la pose.
+- Vues de portail : la vérification des chunks voisins de chaque section relisait les quatre chunks pour chacune des
+  sections d'une colonne, à chaque image (jusqu'à 40 % du thread de rendu devant un portail) ; elle est faite une fois
+  par chunk et par vue.
+- Nuages noirs en regardant un portail : après les vues de portail, la couleur du brouillard était rendue aux shaders
+  mais pas à `BackgroundRenderer`, où les nuages la relisent ; ils prenaient le brouillard du dernier monde vu (le noir
+  du Level 0).
 - Une déconnexion, ou un respawn dans une autre dimension, après une traversée laissait en place le renderer du monde
   distant promu (deux constructions de sections en parallèle au lieu de toutes, pas de contour des entités en
   surbrillance) : le renderer vanilla reprend sa place avant que vanilla ne crée un monde, et la fin de partie se traite
@@ -74,14 +176,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   libèrent des ressources de rendu).
 - Après un respawn ou une reconnexion, la prédiction de traversée du client restait coupée tant que le nouveau joueur
   n'avait pas l'âge de l'ancien à sa dernière traversée.
-- Une porte tournée garde des portails alignés sur elle : son portail d'entrée et son retour sont reposés dans la
-  nouvelle orientation.
-- Les portails dont la porte a disparu sont retirés même portails désactivés.
-- Porte fermée, rien ne traverse non plus son portail de retour : ni clic, ni minage, ni son de l'autre côté.
-- L'ouverture d'un portail (`teleportable`) est synchronisée au client : un joueur qui avançait dans une porte fermée
+- Les portails dont le bloc propriétaire a disparu sont retirés même portails désactivés.
+- Un portail fermé ne laisse passer ni clic, ni minage, ni son, d'aucun côté.
+- L'ouverture d'un portail (`teleportable`) est synchronisée au client : un joueur qui avançait dans un portail fermé
   franchissait le plan d'un centimètre, son client basculait de l'autre côté et le serveur le renvoyait. La collision à
   travers le cadre et la reprise des entités suivent aussi l'état réel du portail.
-- Une interaction à travers une porte fermée est refusée par le serveur, comme le client ne la propose pas.
+- Une interaction à travers un portail fermé est refusée par le serveur, comme le client ne la propose pas.
 - Eau, glace et verre teinté plus opaques à travers un portail : le rendu des portails coupait l'élimination des faces
   arrière, que les couches de terrain vanilla supposent active sans la rétablir ; les vues dessinaient les deux faces
   de chaque bloc translucide. Elle n'est plus coupée que le temps de dessiner les zones de cadre.
@@ -102,7 +202,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   de la collision du sol.
 - Flicker dans les vues de portail et dans les portails imbriqués : chaque vue choisit désormais ses sections par un
   parcours synchrone qui lui est propre. Le culling asynchrone de vanilla tient un seul graphe par renderer et le
-  recalcule en arrière-plan : deux vues du même monde dans une image (deux portes, un portail imbriqué, la vue
+  recalcule en arrière-plan : deux vues du même monde dans une image (deux portails, un portail imbriqué, la vue
   secondaire) alternaient des listes de sections incomplètes.
 - Sections en reconstruction permanente dans les vues : la grille de sections d'un renderer de vue est ancrée sur
   l'arrivée du portail et ne se recentre que si l'ancrage s'en éloigne de plus de deux chunks, au lieu de suivre la
@@ -110,10 +210,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
 - Flash de luminosité à la bascule : la lightmap est recalculée pour la nouvelle dimension dès l'image de la traversée
   (vanilla ne la recalcule qu'au tick ; au retour du Level 0, l'Overworld s'affichait une image de nuit).
 - Après un respawn ou un changement de dimension vanilla consécutif à une traversée, les mises à jour de blocs partaient
-  vers un renderer qui ne dessinait plus (porte qui ne s'ouvrait pas visuellement, bloc cassé encore affiché) : le
+  vers un renderer qui ne dessinait plus (bloc changé qui ne se redessinait pas, bloc cassé encore affiché) : le
   renderer principal reste celui avec lequel vanilla a créé le monde.
-- Le relais des reconstructions de sections vers la vue secondaire ne se déclenche plus pendant le rendu des portails,
-  où monde et renderer sont substitués.
+- Le relais des reconstructions de sections vers la vue secondaire suit le monde du renderer qui les programme, et non
+  le renderer de `MinecraftClient`, substitué pendant le rendu des portails : rien ne part plus vers le mauvais monde, et
+  les mises à jour de lumière faites pendant une vue sont relayées elles aussi.
 - Traversée à reculons ou de côté : à moins de 16 blocs d'un portail (distance d'activation), l'autre côté se synchronise
   quelle que soit la direction du regard. Auparavant il fallait regarder le portail, et s'y engager sans l'avoir regardé
   aboutissait dans un monde pas encore chargé.

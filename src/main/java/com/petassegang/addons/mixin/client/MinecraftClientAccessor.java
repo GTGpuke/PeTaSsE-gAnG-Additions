@@ -6,17 +6,13 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
-import net.minecraft.client.world.ClientWorld;
 
 /**
- * Echange controle du monde et du renderer courants pendant le rendu d'un monde distant.
+ * Echange controle du renderer courant, champ final, pendant le rendu d'un monde distant et a la bascule de monde ; le
+ * monde courant, champ public, s'affecte directement.
  */
 @Mixin(MinecraftClient.class)
 public interface MinecraftClientAccessor {
-
-    @Mutable
-    @Accessor("world")
-    void backrooms$setWorld(ClientWorld world);
 
     @Mutable
     @Accessor("worldRenderer")

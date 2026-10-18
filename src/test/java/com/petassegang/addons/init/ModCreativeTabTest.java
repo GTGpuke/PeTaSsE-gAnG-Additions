@@ -13,6 +13,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.resource.featuretoggle.FeatureFlags;
 
 import com.petassegang.addons.MinecraftTestBootstrap;
+import com.petassegang.addons.backrooms.portal.block.PortalSettings;
 import com.petassegang.addons.core.ModConstants;
 
 @DisplayName("Onglets creatifs du mod")
@@ -39,8 +40,11 @@ class ModCreativeTabTest {
             assertFalse(group.getDisplayStacks().isEmpty(), "L'onglet liste des objets.");
         }
         assertTrue(tabs >= 2, "Le mod declare au moins ses deux onglets : " + tabs);
-        assertTrue(ModCreativeTab.PORTAL_TAB.getDisplayStacks().stream().anyMatch(stack -> stack.isOf(ModItems.BACKROOMS_DOOR)),
-                "La porte est dans l'onglet des portails.");
-        assertTrue(ModCreativeTab.PORTAL_TAB.getIcon().isOf(ModItems.BACKROOMS_DOOR), "La porte est l'icone de l'onglet des portails.");
+        for (PortalSettings settings : PortalSettings.PRESETS) {
+            assertTrue(ModCreativeTab.PORTAL_TAB.getDisplayStacks().stream()
+                            .anyMatch(stack -> stack.isOf(ModItems.BACKROOMS_PORTAL) && PortalSettings.of(stack).equals(settings)),
+                    "Le bloc portail " + settings + " est dans l'onglet des portails.");
+        }
+        assertTrue(ModCreativeTab.PORTAL_TAB.getIcon().isOf(ModItems.BACKROOMS_PORTAL), "Le bloc portail est l'icone de l'onglet des portails.");
     }
 }

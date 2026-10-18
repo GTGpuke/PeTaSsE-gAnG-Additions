@@ -1,18 +1,27 @@
 package com.petassegang.addons.gametest.backrooms.portal;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
 
 import net.minecraft.block.Blocks;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.entity.MarkerEntity;
 import net.minecraft.entity.MovementType;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.RegistryByteBuf;
+import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.BundleS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.test.AfterBatch;
 import net.minecraft.test.GameTest;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.math.BlockPos;
@@ -34,8 +43,8 @@ import com.petassegang.addons.gametest.support.GameTestPlayers;
 import com.petassegang.addons.gametest.support.GameTestServerWorlds;
 
 /**
- * Tests en jeu des portails sur un vrai serveur : teleportation du joueur et des objets dans le meme monde, collision avec ce
- * qui est de l'autre cote, payload de chunk.
+ * Tests en jeu des portails sur un vrai serveur : teleportation du joueur et des objets dans le meme monde, saut court
+ * envoye aux clients en position absolue, collision avec ce qui est de l'autre cote, payload de chunk.
  *
  * <p>Les portails sont poses a la main entre deux points de l'overworld, ce qui exerce la transposition, le cooldown
  * et le reseau sans autre dimension.
@@ -43,6 +52,8 @@ import com.petassegang.addons.gametest.support.GameTestServerWorlds;
 public final class PortalGameTests implements FabricGameTest {
 
     private static final double EPSILON = 1.0e-3;
+    /** Ce que le test du saut court laisse derriere lui si une attente expire : retire apres son lot, reussi ou non. */
+    private static final List<Entity> SHORT_JUMP_LEFTOVERS = new ArrayList<>();
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 100)
     public void crossingAPortalTeleportsThePlayerTowardsTheExit(TestContext context) {
@@ -113,6 +124,76 @@ public final class PortalGameTests implements FabricGameTest {
         });
     }
 
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 300, batchId = "portal_short_jump")
+    public void aShortJumpThroughAPortalReachesClientsAsAnAbsolutePosition(TestContext context) {
+        ServerWorld world = context.getWorld();
+        Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(1, 2, 1)));
+        // Moins de huit blocs entre l'entree et l'arrivee : vanilla enverrait un deplacement relatif.
+        Vec3d destination = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(4, 2, 6)));
+        BackroomsPortalEntity portal = BackroomsPortalEntity.builder(world)
+                .position(source)
+                .facingSource(PortalFacing.NORTH)
+                .facingDestination(PortalFacing.WEST)
+                .destinationDim(World.OVERWORLD)
+                .destinationPos(destination)
+                .size(1.0f, 2.0f)
+                .build();
+        world.spawnEntity(portal);
+        // Immobile devant le cadre, sans gravite, le temps que le joueur la suive.
+        ItemEntity item = new ItemEntity(world, source.x, source.y, source.z - 1.0, new ItemStack(Items.DIAMOND));
+        item.setNoGravity(true);
+        item.setVelocity(Vec3d.ZERO);
+        item.setPickupDelayInfinite();
+        world.spawnEntity(item);
+        ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, context.getAbsolute(new Vec3d(12.5, 1.0, 12.5)), 0.0f, 0.0f);
+        SHORT_JUMP_LEFTOVERS.add(portal);
+        SHORT_JUMP_LEFTOVERS.add(item);
+        boolean[] tracked = {false};
+        context.createTimedTaskRunner()
+                .createAndAdd(() -> {
+                    // Le faux client acquitte ses chunks et redonne sa position, comme un vrai : vanilla reevalue alors les
+                    // entities qu'il suit, dans les chunks qu'il a recus.
+                    GameTestPlayers.tick(player);
+                    world.getChunkManager().updatePosition(player);
+                    // Vanilla groupe les paquets d'apparition d'une entity.
+                    for (BundleS2CPacket bundle : GameTestPlayers.sent(player, BundleS2CPacket.class)) {
+                        for (Packet<?> packet : bundle.getPackets()) {
+                            tracked[0] |= packet instanceof EntitySpawnS2CPacket spawn && spawn.getEntityId() == item.getId();
+                        }
+                    }
+                    context.assertTrue(tracked[0], "Le joueur ne suit pas encore l'objet.");
+                })
+                .createAndAddReported(() -> {
+                    GameTestPlayers.sent(player, EntityPositionS2CPacket.class);
+                    item.setVelocity(0.0, 0.0, 0.5);
+                })
+                .createAndAdd(() -> {
+                    GameTestPlayers.tick(player);
+                    context.assertTrue(GameTestPlayers.sent(player, EntityPositionS2CPacket.class).stream()
+                                    .anyMatch(packet -> packet.getEntityId() == item.getId()),
+                            "Le saut par le portail n'est pas encore parti au joueur en position absolue.");
+                })
+                .createAndAddReported(() -> {
+                    context.assertTrue(item.hasPortalCooldown() && item.getX() < destination.x && Math.abs(item.getZ() - destination.z) < 0.5,
+                            "L'objet a saute par le portail et file vers l'ouest : " + item.getPos() + ".");
+                    // Un marqueur, que vanilla ne suit pas, traverse sans rien a envoyer.
+                    MarkerEntity marker = EntityType.MARKER.create(world);
+                    marker.refreshPositionAndAngles(source.x, source.y - 1.0, source.z + 0.05, 0.0f, 0.0f);
+                    world.spawnEntity(marker);
+                    SHORT_JUMP_LEFTOVERS.add(marker);
+                    context.assertTrue(TeleportExecutor.execute(marker, portal), "Le marqueur traverse.");
+                })
+                .completeIfSuccessful();
+    }
+
+    /** Apres le lot du saut court, reussi ou non : joueur deconnecte, portail et entities retires. */
+    @AfterBatch(batchId = "portal_short_jump")
+    public void afterShortJump(ServerWorld world) {
+        GameTestPlayers.disconnectAll();
+        SHORT_JUMP_LEFTOVERS.forEach(Entity::discard);
+        SHORT_JUMP_LEFTOVERS.clear();
+    }
+
     /** Pousse un objet d'un demi-bloc vers le sud depuis un point, et renvoie le Z ou il s'arrete. */
     private static double pushSouth(ServerWorld world, double x, double y, double z) {
         ItemEntity item = new ItemEntity(world, x, y, z, new ItemStack(Items.DIAMOND));
@@ -127,7 +208,7 @@ public final class PortalGameTests implements FabricGameTest {
         Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(2, 2, 3)));
         Vec3d destination = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(8, 2, 3)));
         // Nord vers sud : l'arrivee est une translation de l'entree. La pierre a l'est de l'arrivee, cote sortie, revient a
-        // l'est du cadre d'entree, derriere son plan : le mur qui encadrerait une porte.
+        // l'est du cadre d'entree, derriere son plan : le mur qui encadrerait un passage.
         BlockPos wall = new BlockPos(9, 2, 3);
         context.setBlockState(wall, Blocks.STONE);
         BackroomsPortalEntity portal = GameTestServerWorlds.spawnNorthPortal(world, source, World.OVERWORLD, destination);

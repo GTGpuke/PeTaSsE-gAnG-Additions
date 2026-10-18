@@ -180,7 +180,7 @@ public final class PortalInteractionGameTests implements FabricGameTest {
                 .destinationDim(GameTestServerWorlds.nowhere()).destinationPos(Vec3d.ofCenter(context.getAbsolutePos(EXIT)))
                 .size(1.0f, 2.0f).build();
         world.spawnEntity(broken);
-        // Visible mais ferme, comme le retour d'une porte fermee : rien ne le traverse.
+        // Visible mais ferme : rien ne le traverse.
         BackroomsPortalEntity closed = BackroomsPortalEntity.builder(world)
                 .position(Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(7, 2, 1))))
                 .facingSource(PortalFacing.SOUTH).facingDestination(PortalFacing.EAST)

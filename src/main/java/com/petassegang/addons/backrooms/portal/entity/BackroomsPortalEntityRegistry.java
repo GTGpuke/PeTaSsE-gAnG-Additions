@@ -18,11 +18,11 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
  *
  * <p>Evite de parcourir toutes les entities de tous les mondes a chaque tick : la teleportation,
  * le prechargement et la synchronisation ne lisent que cette liste, iteree par index sans allocation. Le registre
- * retire aussi, de temps en temps, les portails dont la porte a disparu.
+ * retire aussi, de temps en temps, les portails dont le bloc portail a disparu.
  */
 public final class BackroomsPortalEntityRegistry {
 
-    /** Intervalle de verification des portes proprietaires. */
+    /** Intervalle de verification des blocs proprietaires. */
     private static final int OWNER_CHECK_INTERVAL_TICKS = 100;
 
     private static final List<BackroomsPortalEntity> PORTALS = new ArrayList<>();
@@ -52,7 +52,7 @@ public final class BackroomsPortalEntityRegistry {
         initialized = true;
     }
 
-    /** Toutes les cinq secondes, les portails dont la porte proprietaire a disparu sont retires. */
+    /** Toutes les cinq secondes, les portails dont le bloc proprietaire a disparu sont retires. */
     private static void discardOrphans(MinecraftServer server) {
         if (server.getTicks() % OWNER_CHECK_INTERVAL_TICKS != 0) {
             return;

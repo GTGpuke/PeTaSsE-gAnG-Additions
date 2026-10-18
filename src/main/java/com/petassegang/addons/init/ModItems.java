@@ -4,12 +4,13 @@ import net.minecraft.block.Block;
 import net.minecraft.component.type.FoodComponent;
 import net.minecraft.item.BlockItem;
 import net.minecraft.item.Item;
-import net.minecraft.item.TallBlockItem;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.Rarity;
 
+import com.petassegang.addons.backrooms.portal.block.BackroomsPortalItem;
+import com.petassegang.addons.backrooms.portal.block.PortalSettings;
 import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.feature.cursed.CursedSnackItem;
 import com.petassegang.addons.feature.gang.GangBadgeItem;
@@ -31,8 +32,9 @@ public final class ModItems {
     public static final BlockItem LEVEL_ZERO_FLUORESCENT_LIGHT =
             blockItem("level_zero_fluorescent_light", ModBlocks.LEVEL_ZERO_FLUORESCENT_LIGHT);
 
-    /** Porte des Backrooms : deux blocs de haut, posee comme une porte ; ouverte, elle pose ses portails toute seule. */
-    public static final BlockItem BACKROOMS_DOOR = register("backrooms_door", new TallBlockItem(ModBlocks.BACKROOMS_DOOR, new Item.Settings()));
+    /** Bloc portail : pose un portail aux reglages qu'il porte (par defaut un sur deux, lumiere transmise, deux faces, aller-retour). */
+    public static final BackroomsPortalItem BACKROOMS_PORTAL = register("backrooms_portal", new BackroomsPortalItem(
+            ModBlocks.BACKROOMS_PORTAL, new Item.Settings().component(ModDataComponents.PORTAL_SETTINGS, PortalSettings.DEFAULT)));
 
     /** Badge de la Gang : jeton d'appartenance, unique par pile, rarete EPIC. */
     public static final GangBadgeItem GANG_BADGE = register(

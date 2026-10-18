@@ -35,7 +35,7 @@ Détails d'installation : [docs/SETUP.md](docs/SETUP.md).
 | **Gang Badge** | Item EPIC unique par pile ; clic droit = miaulement + animation de totem. |
 | **Casse-croûte Maudit** | Nourriture toujours mangeable qui retire 2 points de faim. |
 | **Arbre Maudit** | Tronc, feuilles, pousse (arbre custom), planches. |
-| **Portails Backrooms** | **Porte des Backrooms** (onglet créatif dédié) : portail visible et traversable vers le Level 0, portail de retour, monde distant rendu à travers le cadre avec ses entités et ses propres portails, interaction à travers le cadre (chunks et entités synchronisés serveur → client). Détail : [docs/PORTALS.md](docs/PORTALS.md). |
+| **Portails Backrooms** | **Portail des Backrooms** (onglet créatif dédié) : portail double face, visible et traversable dans les deux sens vers le Level 0, taille et lumière réglables, portail de retour, monde distant rendu à travers le cadre avec ses entités et ses propres portails, interaction à travers le cadre (chunks et entités synchronisés serveur → client). Détail : [docs/PORTALS.md](docs/PORTALS.md). |
 
 Accès au Level 0 en jeu :
 
@@ -43,7 +43,7 @@ Accès au Level 0 en jeu :
 /execute in petasse_gang_additions:backrooms_level_0 run teleport @s 1 1 1
 ```
 
-ou, en jeu, poser une **Porte des Backrooms** (onglet *PetasseGang - Portails*) et la traverser.
+ou, en jeu, poser un **Portail des Backrooms** (onglet *PetasseGang - Portails*) et le traverser.
 
 ---
 
@@ -70,7 +70,7 @@ src/main/java/com/petassegang/addons/
 │   │       ├── sector/  (labyrinthe brut + cache LRU)
 │   │       ├── layout/  (évaluation des cellules : topologie, lumière, gaps)
 │   │       └── write/   (palette, writer, détails muraux)
-│   └── portal/                           ← portails (entity, porte, transition, sync, interaction, propagation, client, debug)
+│   └── portal/                           ← portails (entity, bloc, transition, sync, interaction, propagation, lumière, client, debug)
 ├── perf/                                 ← moniteur de performance opt-in
 └── mixin/                                ← mixins (relais serveur des blocs, sons et particules, collision, mobs ; rendu client des portails)
 

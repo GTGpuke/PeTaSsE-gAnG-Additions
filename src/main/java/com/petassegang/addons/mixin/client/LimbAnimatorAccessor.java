@@ -17,9 +17,6 @@ public interface LimbAnimatorAccessor {
     @Accessor("prevSpeed")
     void backrooms$setPrevSpeed(float prevSpeed);
 
-    @Accessor("speed")
-    void backrooms$setSpeed(float speed);
-
     @Accessor("pos")
     void backrooms$setPos(float pos);
 }

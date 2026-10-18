@@ -62,7 +62,7 @@ public final class ModPerformanceMonitor {
     }
 
     /** {@code true} si le monitoring est actif. */
-    public static boolean isEnabled() {
+    static boolean isEnabled() {
         return enabled;
     }
 
@@ -139,7 +139,7 @@ public final class ModPerformanceMonitor {
     }
 
     /** Dernier resume serveur publie. */
-    public static String lastServerSummary() {
+    static String lastServerSummary() {
         return lastServerSummary;
     }
 

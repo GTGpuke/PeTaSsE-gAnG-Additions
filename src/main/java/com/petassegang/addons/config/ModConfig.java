@@ -28,7 +28,7 @@ public final class ModConfig {
     public static final int PERFORMANCE_LOG_INTERVAL_SECONDS =
             intProperty("petassegang.performanceLogIntervalSeconds", 10);
 
-    /** Active les portails Backrooms : porte, teleportation et rendu du monde distant. */
+    /** Active les portails Backrooms : bloc portail, teleportation et rendu du monde distant. */
     public static final boolean ENABLE_PORTAL_FEATURE =
             booleanProperty("petassegang.portal.enablePortalFeature", true);
 

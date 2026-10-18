@@ -35,6 +35,7 @@ import com.petassegang.addons.mixin.EntityAccessor;
 import com.petassegang.addons.mixin.client.ClientPlayNetworkHandlerAccessor;
 import com.petassegang.addons.mixin.client.LightmapTextureManagerAccessor;
 import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
+import com.petassegang.addons.mixin.client.WorldRendererAccessor;
 import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
@@ -323,9 +324,12 @@ public final class ClientPortalCrossing {
         placement.run();
         newWorld.addEntity(player);
 
-        MinecraftClientAccessor clientAccessor = (MinecraftClientAccessor) client;
-        clientAccessor.backrooms$setWorld(newWorld);
-        clientAccessor.backrooms$setWorldRenderer(remote.renderer());
+        client.world = newWorld;
+        ((MinecraftClientAccessor) client).backrooms$setWorldRenderer(remote.renderer());
+        // Les vues de portail ont laisse a ce renderer leurs sections, limitees au cadre. Vanilla ne refait sa liste qu'apres
+        // un changement de son graphe ou un regard tourne de deux degres : un joueur qui ressort sans tourner la tete (le
+        // portail double face ne le fait pas tourner) et s'arrete ne verrait que ce que montrait le portail.
+        ((WorldRendererAccessor) remote.renderer()).backrooms$setLastCameraPitch(Double.MIN_VALUE);
         client.getBlockEntityRenderDispatcher().setWorld(newWorld);
         client.getEntityRenderDispatcher().setWorld(newWorld);
         client.setCameraEntity(player);

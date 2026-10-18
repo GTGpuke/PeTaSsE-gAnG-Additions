@@ -9,6 +9,8 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.ItemEntity;
 import net.minecraft.util.math.Vec3d;
 
 import com.petassegang.addons.MinecraftTestBootstrap;
@@ -47,7 +49,7 @@ class TeleportExecutorTest {
     @DisplayName("Marcher du cote d'entree vers l'arriere, le corps dans le cadre, compte comme une traversee")
     void walkingThroughCounts() {
         assertTrue(crossed(0.0, 63.0, -0.5, 0.0, 63.0, 0.3), "Du nord vers le sud, les pieds au bas du cadre.");
-        assertTrue(crossed(0.75, 63.0, -0.2, 0.75, 63.0, 0.1), "Le centre hors du cadre, mais l'epaule dedans.");
+        assertTrue(crossed(0.45, 63.0, -0.2, 0.45, 63.0, 0.1), "Le centre au bord du cadre, l'epaule au-dela.");
         assertTrue(crossed(0.0, 61.5, -0.2, 0.0, 61.5, 0.1), "Les pieds sous le cadre, la tete dedans.");
     }
 
@@ -56,11 +58,28 @@ class TeleportExecutorTest {
     void otherMovesDoNotCount() {
         assertFalse(crossed(0.0, 63.0, 0.3, 0.0, 63.0, -0.5), "Du sud vers le nord : mauvais sens.");
         assertFalse(crossed(0.85, 63.0, -0.2, 0.85, 63.0, 0.1), "Le corps passe juste a cote du cadre : il ressortirait dans le mur d'en face.");
+        assertFalse(crossed(0.75, 63.0, -0.2, 0.75, 63.0, 0.1), "Le centre a cote du cadre, l'epaule dedans : on contourne le portail.");
         assertFalse(crossed(-3.0, 63.0, -0.5, -3.0, 63.0, 0.3), "Trois blocs a l'ouest du cadre.");
         assertFalse(crossed(0.0, 63.0, -2.0, 0.0, 63.0, -0.1), "Le plan n'est pas atteint.");
         assertFalse(crossed(0.0, 63.0, -0.5, 0.0, 63.0, -0.5), "Immobile du cote d'entree.");
         assertFalse(crossed(0.0, 70.0, -0.5, 0.0, 70.0, 0.3), "Bien au-dessus du cadre.");
         assertFalse(crossed(0.0, 58.0, -0.5, 0.0, 58.0, 0.3), "Sous le cadre, la tete comprise.");
+    }
+
+    @Test
+    @DisplayName("Une entity traverse d'apres son deplacement du tick, mais pas en apparaissant ni en sautant de position")
+    void entityCrossingIgnoresSpawnsAndJumps() {
+        ItemEntity item = new ItemEntity(EntityType.ITEM, null);
+        item.setPosition(0.0, 63.0, 0.3);
+        item.prevX = 0.0;
+        item.prevY = 63.0;
+        item.prevZ = -0.2;
+        assertTrue(TeleportExecutor.crossedThisTick(portal, item), "Un pas du nord vers le sud, dans le cadre.");
+        // Avant son premier tick, sa position precedente est l'origine du monde : loin au nord, le trajet couperait le plan.
+        item.prevX = 0.0;
+        item.prevY = 63.0;
+        item.prevZ = -40.0;
+        assertFalse(TeleportExecutor.crossedThisTick(portal, item), "Un saut de quarante blocs ne traverse rien.");
     }
 
     @Test

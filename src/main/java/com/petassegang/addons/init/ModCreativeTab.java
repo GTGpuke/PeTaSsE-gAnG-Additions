@@ -1,6 +1,7 @@
 package com.petassegang.addons.init;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemGroup;
@@ -12,6 +13,7 @@ import net.minecraft.util.Identifier;
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 
+import com.petassegang.addons.backrooms.portal.block.PortalSettings;
 import com.petassegang.addons.core.ModConstants;
 
 /**
@@ -35,14 +37,18 @@ public final class ModCreativeTab {
             ModItems.CURSED_LEAVES,
             ModItems.CURSED_SAPLING);
 
-    /** Items de l'onglet des portails, dans l'ordre. */
-    public static final List<Item> PORTAL_ENTRIES = List.of(ModItems.BACKROOMS_DOOR);
+    /** Items de l'onglet des portails : le bloc portail, une pile par reglage propose. */
+    public static final List<Item> PORTAL_ENTRIES = List.of(ModItems.BACKROOMS_PORTAL);
 
     /** Onglet creatif principal. */
-    public static final ItemGroup PETASSEGANG_TAB = register("petassegang", ModItems.GANG_BADGE, ENTRIES);
+    public static final ItemGroup PETASSEGANG_TAB = register("petassegang", ModItems.GANG_BADGE,
+            () -> ENTRIES.stream().map(ItemStack::new).toList());
 
-    /** Onglet creatif des portails Backrooms. */
-    public static final ItemGroup PORTAL_TAB = register("portals", ModItems.BACKROOMS_DOOR, PORTAL_ENTRIES);
+    /** Onglet creatif des portails Backrooms : chacun de ses items dans chacun des reglages proposes. */
+    public static final ItemGroup PORTAL_TAB = register("portals", ModItems.BACKROOMS_PORTAL,
+            () -> PORTAL_ENTRIES.stream()
+                    .flatMap(item -> PortalSettings.PRESETS.stream().map(settings -> settings.toStack(new ItemStack(item))))
+                    .toList());
 
     private ModCreativeTab() {
         throw new UnsupportedOperationException("Classe de registre.");
@@ -53,14 +59,14 @@ public final class ModCreativeTab {
         ModConstants.LOGGER.debug("Onglets creatifs du mod enregistres.");
     }
 
-    private static ItemGroup register(String name, Item icon, List<Item> entries) {
+    private static ItemGroup register(String name, Item icon, Supplier<List<ItemStack>> entries) {
         return Registry.register(
                 Registries.ITEM_GROUP,
                 Identifier.of(ModConstants.MOD_ID, name),
                 FabricItemGroup.builder()
                         .displayName(Text.translatable("itemGroup." + ModConstants.MOD_ID + "." + name))
                         .icon(() -> new ItemStack(icon))
-                        .entries((context, output) -> entries.forEach(output::add))
+                        .entries((context, output) -> output.addAll(entries.get()))
                         .build());
     }
 }

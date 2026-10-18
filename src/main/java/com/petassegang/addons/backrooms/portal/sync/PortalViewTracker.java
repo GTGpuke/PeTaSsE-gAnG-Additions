@@ -12,7 +12,9 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.entity.Entity;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket;
@@ -41,6 +43,8 @@ import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import com.petassegang.addons.backrooms.portal.transition.DestinationLoader;
 import com.petassegang.addons.backrooms.portal.transition.PortalRelevance;
+import com.petassegang.addons.mixin.EntityTrackerAccessor;
+import com.petassegang.addons.mixin.EntityTrackerEntryAccessor;
 import com.petassegang.addons.perf.ModPerformanceMonitor;
 
 /**
@@ -202,15 +206,58 @@ public final class PortalViewTracker {
         long chunk = ChunkPos.toLong(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
         int served = 0;
         for (int i = 0; i < VIEW_LIST.size(); i++) {
-            PlayerView view = VIEW_LIST.get(i);
-            // Une vue d'entities n'existe que pour une dimension dont des chunks ont ete envoyes.
-            RemoteEntityView entities = view.entities.get(dimension);
-            if (entities != null && view.sentChunks.get(dimension).contains(chunk)) {
+            RemoteEntityView entities = viewerOf(VIEW_LIST.get(i), dimension, chunk);
+            if (entities != null) {
                 entities.sendPacket(packet);
                 served++;
             }
         }
         return served;
+    }
+
+    /**
+     * Une entity vient d'arriver dans une dimension par un portail : les joueurs qui la voient a travers un portail
+     * recoivent sa copie tout de suite, comme vanilla l'envoie aux joueurs de la dimension, et non au prochain
+     * alignement de leur fenetre. Leur client recoit au meme tick la destruction de l'ancienne copie, de ce cote :
+     * sans cela, celle-ci resterait figee dans le cadre jusqu'a cinq ticks avant que la nouvelle n'en sorte.
+     *
+     * @param destination monde ou l'entity est arrivee
+     * @param entity entity arrivee
+     */
+    public static void onEntityArrived(ServerWorld destination, Entity entity) {
+        if (watchedChunkCount == 0) {
+            return;
+        }
+        RegistryKey<World> dimension = destination.getRegistryKey();
+        long chunk = entity.getChunkPos().toLong();
+        for (int i = 0; i < VIEW_LIST.size(); i++) {
+            RemoteEntityView entities = viewerOf(VIEW_LIST.get(i), dimension, chunk);
+            if (entities != null) {
+                entities.track(destination, entity);
+            }
+        }
+    }
+
+    /**
+     * Un portail vient de deplacer une entity dans son propre monde : son prochain deplacement part aux clients en position
+     * absolue, comme a la descente d'une monture. En dessous de huit blocs, vanilla enverrait un deplacement relatif, et les
+     * clients la feraient glisser jusqu'a l'arrivee a travers ce qui les separe ; en position absolue, ils la font passer
+     * par le portail. Une entity que vanilla ne suit pas (un marqueur) n'a rien a envoyer.
+     *
+     * @param world monde de l'entity
+     * @param entity entity deplacee
+     */
+    public static void onEntityJumped(ServerWorld world, Entity entity) {
+        if (RemoteEntityView.trackers(world).get(entity.getId()) instanceof EntityTrackerAccessor tracker) {
+            ((EntityTrackerEntryAccessor) tracker.backrooms$getEntry()).backrooms$setHadVehicle(true);
+        }
+    }
+
+    /** Vue d'entities d'un joueur pour cette dimension si le chunk est dans sa fenetre, sinon {@code null}. */
+    private static @Nullable RemoteEntityView viewerOf(PlayerView view, RegistryKey<World> dimension, long chunk) {
+        // Une vue d'entities n'existe que pour une dimension dont des chunks ont ete envoyes.
+        RemoteEntityView entities = view.entities.get(dimension);
+        return entities != null && view.sentChunks.get(dimension).contains(chunk) ? entities : null;
     }
 
     /** Paquets qu'un joueur recoit d'une dimension vue a travers un portail, en plus de ceux de ses entities. */

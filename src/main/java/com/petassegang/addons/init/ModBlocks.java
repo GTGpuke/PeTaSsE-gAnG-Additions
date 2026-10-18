@@ -9,14 +9,16 @@ import net.minecraft.block.LeavesBlock;
 import net.minecraft.block.PillarBlock;
 import net.minecraft.block.SaplingBlock;
 import net.minecraft.block.SaplingGenerator;
+import net.minecraft.block.piston.PistonBehavior;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.sound.BlockSoundGroup;
 import net.minecraft.util.Identifier;
 
 import com.petassegang.addons.backrooms.level0.block.LevelZeroWallpaperBlock;
-import com.petassegang.addons.backrooms.portal.block.BackroomsDoorBlock;
+import com.petassegang.addons.backrooms.portal.block.BackroomsPortalBlock;
 import com.petassegang.addons.core.ModConstants;
 
 /**
@@ -59,10 +61,19 @@ public final class ModBlocks {
             "level_zero_fluorescent_light",
             new Block(AbstractBlock.Settings.copy(Blocks.SEA_LANTERN).luminance(state -> 15)));
 
-    /** Porte des Backrooms : une porte en chene noir ; posee hors du Level 0 elle y mene, posee dedans elle ramene a la surface. */
-    public static final BackroomsDoorBlock BACKROOMS_DOOR = register(
-            "backrooms_door",
-            new BackroomsDoorBlock(AbstractBlock.Settings.copy(Blocks.DARK_OAK_DOOR)));
+    /**
+     * Bloc portail : invisible et traversable, il pose un portail plein cadre, a une ou deux faces, aller-retour ou aller
+     * simple selon ses reglages ; pose hors du Level 0 il y mene,
+     * pose dedans il ramene a la surface. Les pistons ne le deplacent pas : ses portails ne le suivraient pas.
+     */
+    public static final BackroomsPortalBlock BACKROOMS_PORTAL = register(
+            "backrooms_portal",
+            new BackroomsPortalBlock(AbstractBlock.Settings.create()
+                    .noCollision()
+                    .nonOpaque()
+                    .strength(0.5f)
+                    .sounds(BlockSoundGroup.GLASS)
+                    .pistonBehavior(PistonBehavior.BLOCK)));
 
     /** Generateur de l'Arbre Maudit, branche sur la configured feature {@code cursed_tree}. */
     public static final SaplingGenerator CURSED_TREE_GROWER = new SaplingGenerator(

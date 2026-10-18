@@ -118,7 +118,7 @@ public final class RemoteTargeting {
         double crossedAt = limit;
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity candidate = portals.get(i);
-            if (!candidate.isShown()) {
+            if (!candidate.visible()) {
                 continue;
             }
             double t = frameHit(candidate, eye, direction);
@@ -131,7 +131,7 @@ public final class RemoteTargeting {
             return;
         }
         if (!crossed.teleportable()) {
-            // Porte fermee de l'autre cote : on voit a travers le cadre, rien ne s'y atteint ; le regard s'arrete au plan.
+            // Portail ferme : on voit a travers le cadre, rien ne s'y atteint ; le regard s'arrete au plan.
             Vec3d stop = eye.add(direction.multiply(crossedAt));
             client.crosshairTarget = BlockHitResult.createMissed(stop, Direction.getFacing(direction), BlockPos.ofFloored(stop));
             client.targetedEntity = null;

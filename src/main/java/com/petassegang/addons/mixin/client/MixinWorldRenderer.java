@@ -16,8 +16,11 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.util.math.Vec3d;
 
@@ -25,12 +28,14 @@ import com.petassegang.addons.backrooms.portal.client.view.PortalRenderState;
 import com.petassegang.addons.backrooms.portal.client.view.PortalStencilRenderer;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorld;
 import com.petassegang.addons.backrooms.portal.client.world.RemoteWorldRegistry;
+import com.petassegang.addons.backrooms.portal.client.world.StraddlingEntityRenderer;
 
 /**
- * Points d'accroche du rendu monde pour les portails : dessin des portails avant la couche translucide, centre de la grille de sections
- * d'une vue substitue a la position du joueur dans {@code setupTerrain}, ciel d'une vue rapporte a sa camera,
- * particules des mondes distants confiees a leur propre contenu, et reconstructions de sections repercutees sur la
- * vue secondaire du monde principal.
+ * Points d'accroche du rendu monde pour les portails : dessin des portails avant la couche translucide et fin de l'image
+ * sous une vue qui couvre l'ecran, centre de la grille de sections d'une vue substitue a la position du joueur dans
+ * {@code setupTerrain}, ciel d'une vue rapporte a sa camera, particules des mondes distants confiees a leur propre
+ * contenu, entities a cheval sur un portail laissees a leur dessin en deux moities, et reconstructions de sections
+ * repercutees sur la vue secondaire de leur monde.
  */
 @Mixin(WorldRenderer.class)
 public abstract class MixinWorldRenderer {
@@ -126,14 +131,22 @@ public abstract class MixinWorldRenderer {
         }
     }
 
+    /** Une entity a cheval sur un portail se dessine en deux moities, chacune coupee au plan : vanilla ne la dessine pas entiere. */
+    @Inject(method = "renderEntity", at = @At("HEAD"), cancellable = true)
+    private void backrooms$skipEntityDrawnInParts(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta,
+            MatrixStack matrices, VertexConsumerProvider vertexConsumers, CallbackInfo ci) {
+        if (StraddlingEntityRenderer.skipsVanillaDraw(entity, tickDelta)) {
+            ci.cancel();
+        }
+    }
+
     /**
-     * Une section du monde principal a reconstruire l'est aussi dans sa vue secondaire (portails imbriques). Pendant le
-     * rendu des portails, monde et renderer de {@code MinecraftClient} sont substitues : rien n'est relaye a ce moment-la.
+     * Une section a reconstruire l'est aussi dans la vue secondaire de son monde (portails qui y ramenent). Le monde du
+     * renderer designe la vue, pas celui de {@code MinecraftClient}, substitue pendant le rendu des portails : les mises
+     * a jour de lumiere faites pendant une vue sont relayees elles aussi.
      */
     @Inject(method = "scheduleChunkRender", at = @At("HEAD"))
     private void backrooms$mirrorChunkRender(int x, int y, int z, boolean important, CallbackInfo ci) {
-        if (!PortalRenderState.isRendering() && (Object) this == this.client.worldRenderer) {
-            RemoteWorldRegistry.onMainChunkRenderScheduled(x, y, z, important);
-        }
+        RemoteWorldRegistry.onChunkRenderScheduled((WorldRenderer) (Object) this, this.world, x, y, z, important);
     }
 }

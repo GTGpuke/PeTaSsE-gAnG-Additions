@@ -38,10 +38,15 @@ En 1.21.1 le dossier `assets/<ns>/items/` **n'est pas lu** (format 1.21.4+). `Mo
 Le bloc plinthe autonome a été retiré en 0.8.0 (il était invisible et sans collision). Les plinthes des murs
 sont rendues en overlay et ne sont pas concernées.
 
-### La porte des Backrooms ne fait rien
+### Le bloc portail ne fait rien
 La feature est coupée par `-Dpetassegang.portal.enablePortalFeature=false` (ou `-PportalFeature=false` en dev) :
-la porte reste décorative. Sinon, la porte n'a pas encore trouvé de destination : hors du Level 0 il faut que la
-dimension `backrooms_level_0` existe (datapack du mod chargé) ; elle réessaie toutes les 5 secondes.
+le bloc reste inerte. Sinon, il n'a pas encore trouvé de destination : hors du Level 0 il faut que la dimension
+`backrooms_level_0` existe (datapack du mod chargé) ; il réessaie toutes les 5 secondes. Le bloc ne se pose pas : son
+cadre, à la taille réglée, traverserait un bloc. Il ne se casse pas : il ne se vise qu'accroupi.
+
+### La lumière ne passe pas par le portail
+Le portail est réglé sans lumière (`transmits_light:false`), fermé ou invisible, ou la lumière vient du ciel : seule
+celle des blocs passe, d'un niveau de moins que de l'autre côté.
 
 ### Le portail est un cadre noir
 Le monde distant n'est pas encore arrivé (chunks envoyés 8 par 8, toutes les 5 ticks) ou le chunk d'arrivée est
@@ -85,8 +90,8 @@ dans `TeleportExecutor` ; seul le secours serveur téléporte à la vanilla.
 
 ### Le joueur est renvoyé d'un côté à l'autre d'un portail
 
-Deux portes se recouvrent : l'une est posée exactement au point d'arrivée de l'autre, leurs portails se superposent
-et chaque arrivée retombe dans le cadre de l'autre. Décaler ou casser l'une des deux (voir `docs/PORTALS.md`, limites).
+Deux blocs portail se recouvrent : l'un est posé exactement au point d'arrivée de l'autre, leurs portails se superposent
+et chaque arrivée retombe dans le cadre de l'autre. Décaler ou casser l'un des deux (voir `docs/PORTALS.md`, limites).
 
 ### Les entités de l'autre côté manquent ou restent figées
 
@@ -96,7 +101,8 @@ restent figées, le tick des mondes distants (`RemoteWorldRegistry.tickRemoteWor
 `PeTaSsEgAnGAdditionsClientMod`.
 
 ### Des portails orphelins traînent dans le Level 0
-Ils se retirent seuls dès que le chunk de leur porte est chargé et que la porte n'y est plus. En dev :
+Ils se retirent seuls dès que le chunk de leur bloc est chargé et que le bloc n'y est plus (les portails d'une
+ancienne porte des Backrooms aussi). En dev :
 `/backrooms portal list` puis `/backrooms portal clear`.
 
 ### Le jeu gèle sans message

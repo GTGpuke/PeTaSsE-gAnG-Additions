@@ -11,8 +11,9 @@ import net.minecraft.util.math.Vec3d;
  * <p>Chaque orientation definit une base orthonormee directe : largeur W, hauteur H, normale N = W x H.
  * La normale pointe vers le cote d'entree : le joueur se tient du cote +N et avance vers -N pour
  * traverser. A l'arrivee, il ressort du cote +N' du portail de destination, en s'eloignant de lui.
- * Ce qui est devant la source est donc derriere la destination, et la droite devient la gauche :
- * le passage est une rotation de 180 degres autour de l'axe H, jamais un miroir.
+ * Ce qui est devant la source est donc derriere la destination ; le voyageur garde sa droite (vue de face, la
+ * largeur W de la source s'inverse a l'arrivee) : le passage est une rotation de 180 degres autour de l'axe H, jamais
+ * un miroir.
  */
 public enum PortalFacing {
     NORTH(Direction.NORTH, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, 1.0, 0.0)),
@@ -31,6 +32,9 @@ public enum PortalFacing {
     /** Normale du portail, cote d'entree (unitaire). */
     public final Vec3d normal;
 
+    /** Orientations, sans la copie de {@code values()} a chaque recherche. */
+    private static final PortalFacing[] VALUES = values();
+
     PortalFacing(Direction direction, Vec3d axisW, Vec3d axisH) {
         this.direction = direction;
         this.axisW = axisW;
@@ -46,12 +50,27 @@ public enum PortalFacing {
      * @throws IllegalArgumentException si la direction est nulle
      */
     public static PortalFacing fromDirection(Direction direction) {
-        for (PortalFacing facing : values()) {
+        for (PortalFacing facing : VALUES) {
             if (facing.direction == direction) {
                 return facing;
             }
         }
         throw new IllegalArgumentException("Direction non geree : " + direction + ".");
+    }
+
+    /**
+     * Orientation de la face arriere d'un portail : meme plan, normale opposee. Deux portails dos a dos, chacun vers la
+     * face correspondante de l'autre cote, font la meme transformation : un trou qui se traverse dans les deux sens.
+     */
+    public PortalFacing opposite() {
+        return switch (this) {
+            case NORTH -> SOUTH;
+            case SOUTH -> NORTH;
+            case EAST -> WEST;
+            case WEST -> EAST;
+            case UP -> DOWN;
+            case DOWN -> UP;
+        };
     }
 
     /**

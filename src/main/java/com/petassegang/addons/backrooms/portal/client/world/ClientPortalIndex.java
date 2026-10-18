@@ -7,10 +7,8 @@ import java.util.Map;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jetbrains.annotations.Nullable;
 
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
-import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
@@ -48,24 +46,11 @@ public final class ClientPortalIndex {
 
             @Override
             public @Nullable World destination(BackroomsPortalEntity portal) {
-                return portal.getWorld().isClient() ? clientDestination(portal) : PortalCollision.SERVER_WORLDS.destination(portal);
+                return portal.getWorld().isClient()
+                        ? RemoteWorldRegistry.worldOf(portal.destinationDim())
+                        : PortalCollision.SERVER_WORLDS.destination(portal);
             }
         });
-    }
-
-    /** Monde client ou mene un portail : le sien, le monde principal, ou le monde distant de sa dimension s'il est charge. */
-    private static @Nullable World clientDestination(BackroomsPortalEntity portal) {
-        RegistryKey<World> dimension = portal.destinationDim();
-        World own = portal.getWorld();
-        if (dimension.equals(own.getRegistryKey())) {
-            return own;
-        }
-        ClientWorld main = MinecraftClient.getInstance().world;
-        if (main != null && dimension.equals(main.getRegistryKey())) {
-            return main;
-        }
-        RemoteWorld remote = RemoteWorldRegistry.get(dimension);
-        return remote == null ? null : remote.world();
     }
 
     /** Portails charges dans ce monde ; liste vivante, a lire par index et a ne pas modifier. */

@@ -102,7 +102,7 @@ class PortalCollisionTest {
     }
 
     @Test
-    @DisplayName("Une entity n'est engagee que les pieds devant un portail ouvert, la boite contre le cadre")
+    @DisplayName("Une entity n'est engagee que les pieds devant un portail ouvert, le centre en face de l'ouverture, la boite contre le cadre")
     void engagesOnlyInFrontAndInTheFrame() {
         BackroomsPortalEntity portal = northPortal();
         ItemEntity item = new ItemEntity(EntityType.ITEM, null);
@@ -112,6 +112,9 @@ class PortalCollisionTest {
         assertFalse(PortalCollision.engages(portal, item, item.getBoundingBox()), "Les pieds derriere le plan.");
         item.setPosition(3.0, 63.5, -0.3);
         assertFalse(PortalCollision.engages(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)), "Devant, mais a cote du cadre.");
+        item.setPosition(0.6, 63.5, -0.3);
+        assertFalse(PortalCollision.engages(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)),
+                "Le centre a cote du cadre, la boite contre son bord : on contourne le portail, rien de l'autre cote ne gene.");
         portal.setTeleportable(false);
         item.setPosition(0.3, 63.5, -0.3);
         assertFalse(PortalCollision.engages(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)), "Portail ferme.");

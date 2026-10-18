@@ -19,12 +19,14 @@ import net.minecraft.util.Identifier;
 import net.minecraft.world.World;
 import net.minecraft.world.dimension.DimensionType;
 
+import com.petassegang.addons.backrooms.portal.client.view.PortalRenderState;
 import com.petassegang.addons.core.ModConstants;
 import com.petassegang.addons.mixin.client.ClientWorldAccessor;
 import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
 
 /**
- * Mondes distants du client, un par dimension annoncee par le serveur, plus la vue secondaire du monde principal.
+ * Mondes distants du client, un par dimension annoncee par le serveur, plus les vues secondaires des mondes qui ont ete
+ * principaux.
  *
  * <p>Ils sont tous oublies quand le monde principal change (changement de dimension, reconnexion) :
  * le serveur repart lui aussi de zero a ce moment-la, les deux cotes restent donc d'accord.
@@ -37,8 +39,13 @@ public final class RemoteWorldRegistry {
     private static @Nullable ClientWorld mainWorld;
     /** Renderer cree par vanilla, a rendre a {@code MinecraftClient} quand les mondes distants sont liberes. */
     private static @Nullable WorldRenderer vanillaRenderer;
-    /** Vue secondaire du monde principal, creee a la demande pour les portails qui y ramenent. */
-    private static @Nullable RemoteWorld mirror;
+    /**
+     * Vues secondaires, au plus une par monde client : creee a la demande pour les portails qui ramenent dans le monde
+     * principal, chacune est gardee quand son monde devient distant et resert quand il redevient principal. Un
+     * {@code WorldRenderer} cree puis detruit a chaque traversee (des milliers de sections et leurs tampons) figeait
+     * l'image, surtout a la troisieme personne, ou la camera restee derriere voit aussitot le portail franchi.
+     */
+    private static final List<RemoteWorld> MIRRORS = new ArrayList<>();
 
     private RemoteWorldRegistry() {
         throw new UnsupportedOperationException("Classe de registre.");
@@ -59,13 +66,23 @@ public final class RemoteWorldRegistry {
         MinecraftClient client = MinecraftClient.getInstance();
         ClientWorld current = client.world;
         if (current != null && dimension.equals(current.getRegistryKey())) {
-            if (mirror == null) {
-                mirror = RemoteWorld.mirror(client, current);
-                ModConstants.LOGGER.debug("[Portal] Vue secondaire creee pour le monde principal {}.", dimension.getValue());
-            }
-            return mirror;
+            return mirrorOf(client, current);
         }
         return WORLDS.get(dimension);
+    }
+
+    /** Vue secondaire d'un monde, creee a sa premiere demande. */
+    private static RemoteWorld mirrorOf(MinecraftClient client, ClientWorld world) {
+        for (int i = 0; i < MIRRORS.size(); i++) {
+            RemoteWorld mirror = MIRRORS.get(i);
+            if (mirror.world() == world) {
+                return mirror;
+            }
+        }
+        RemoteWorld mirror = RemoteWorld.mirror(client, world);
+        MIRRORS.add(mirror);
+        ModConstants.LOGGER.debug("[Portal] Vue secondaire creee pour le monde {}.", world.getRegistryKey().getValue());
+        return mirror;
     }
 
     /**
@@ -99,6 +116,31 @@ public final class RemoteWorldRegistry {
         client.getEntityRenderDispatcher().setWorld(client.world);
         ModConstants.LOGGER.debug("[Portal] Monde distant cree pour {}.", dimension.getValue());
         return remote;
+    }
+
+    /**
+     * Monde client d'une dimension : celui du joueur, ou le monde distant charge. Pendant le dessin d'une vue, le monde
+     * du client est celui de la vue : le monde du joueur est alors celui que le registre a vu en dernier.
+     *
+     * @return monde de cette dimension, ou {@code null} si le client ne la tient pas
+     */
+    public static @Nullable ClientWorld worldOf(RegistryKey<World> dimension) {
+        ClientWorld main = PortalRenderState.isRendering() ? mainWorld : MinecraftClient.getInstance().world;
+        if (main != null && main.getRegistryKey().equals(dimension)) {
+            return main;
+        }
+        RemoteWorld remote = WORLDS.get(dimension);
+        return remote == null ? null : remote.world();
+    }
+
+    /** Nombre de mondes distants charges, vues secondaires exclues. */
+    public static int remoteWorldCount() {
+        return WORLD_LIST.size();
+    }
+
+    /** Monde distant d'indice donne, dans [0, {@link #remoteWorldCount()}[ : un parcours par index, sans allocation. */
+    public static ClientWorld remoteWorld(int index) {
+        return WORLD_LIST.get(index).world();
     }
 
     /** Oublie tous les mondes distants si le monde principal n'est plus celui de la derniere operation. */
@@ -144,8 +186,8 @@ public final class RemoteWorldRegistry {
         RemoteWorld adopted = RemoteWorld.adopt(oldWorld, oldRenderer, playerChunkX, playerChunkZ, oldParticles);
         WORLDS.put(oldWorld.getRegistryKey(), adopted);
         WORLD_LIST.add(adopted);
-        // La vue secondaire regardait l'ancien monde principal : elle sera recreee a la demande pour le nouveau.
-        disposeMirror();
+        // Les vues secondaires restent liees a leur monde : celle de l'ancien monde principal attend son retour, celle
+        // du nouveau, s'il en a deja eu une, resert telle quelle.
         mainWorld = promoted.world();
     }
 
@@ -178,10 +220,20 @@ public final class RemoteWorldRegistry {
         }
     }
 
-    /** Le renderer principal programme la reconstruction d'une section : la vue secondaire la reprend. */
-    public static void onMainChunkRenderScheduled(int x, int y, int z, boolean important) {
-        if (mirror != null) {
-            mirror.scheduleChunkRender(x, y, z, important);
+    /**
+     * Un renderer programme la reconstruction d'une section de son monde : la vue secondaire de ce monde la reprend, que
+     * le monde soit principal ou distant pour l'instant.
+     *
+     * @param source renderer qui programme la reconstruction ; la vue secondaire elle-meme n'est pas relayee
+     * @param world monde de ce renderer
+     */
+    public static void onChunkRenderScheduled(WorldRenderer source, @Nullable ClientWorld world, int x, int y, int z, boolean important) {
+        for (int i = 0; i < MIRRORS.size(); i++) {
+            RemoteWorld mirror = MIRRORS.get(i);
+            if (mirror.world() == world && mirror.renderer() != source) {
+                mirror.scheduleChunkRender(x, y, z, important);
+                return;
+            }
         }
     }
 
@@ -206,7 +258,7 @@ public final class RemoteWorldRegistry {
         }
         WORLDS.clear();
         WORLD_LIST.clear();
-        disposeMirror();
+        disposeMirrors();
         if (vanillaRenderer != null) {
             WorldRenderer current = client.worldRenderer;
             WorldRenderer expected = client.world == null ? vanillaRenderer : ((ClientWorldAccessor) client.world).backrooms$getWorldRenderer();
@@ -232,10 +284,10 @@ public final class RemoteWorldRegistry {
         }
     }
 
-    private static void disposeMirror() {
-        if (mirror != null) {
-            mirror.dispose();
-            mirror = null;
+    private static void disposeMirrors() {
+        for (int i = 0; i < MIRRORS.size(); i++) {
+            MIRRORS.get(i).dispose();
         }
+        MIRRORS.clear();
     }
 }

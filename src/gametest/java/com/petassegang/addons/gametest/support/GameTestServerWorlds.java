@@ -30,7 +30,7 @@ import com.petassegang.addons.core.ModConstants;
  * perdue.
  *
  * <p>Le serveur de test vanilla ignore les dimensions de datapack : il n'a pas de Level 0. Pour exercer ce qui le
- * cherche par sa cle (cible des portes, portails de retour), un monde existant lui est prete sous cette cle le temps
+ * cherche par sa cle (cible des blocs portail, portails de retour), un monde existant lui est prete sous cette cle le temps
  * d'un test, par reflexion sur la table des mondes du serveur (noms Yarn de l'environnement de dev).
  */
 public final class GameTestServerWorlds {

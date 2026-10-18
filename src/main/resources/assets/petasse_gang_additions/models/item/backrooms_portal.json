@@ -1,6 +1,6 @@
 {
   "parent": "minecraft:item/generated",
   "textures": {
-    "layer0": "petasse_gang_additions:item/backrooms_door"
+    "layer0": "petasse_gang_additions:item/backrooms_portal"
   }
 }

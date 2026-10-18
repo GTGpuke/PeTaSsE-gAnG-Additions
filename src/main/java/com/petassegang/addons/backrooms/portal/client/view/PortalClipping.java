@@ -9,8 +9,9 @@ import org.lwjgl.opengl.GL30;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Plan de decoupe actif pendant le dessin d'une vue de portail : la pile des plans (la vue, puis la vue imbriquee)
- * et leur envoi aux shaders.
+ * Plans de decoupe actifs pendant le dessin d'une vue de portail ou d'une entity a cheval sur un portail : la pile des
+ * plans (la vue, puis la vue imbriquee ; ou la moitie d'une entity, dans le monde du joueur ou dans une vue qui couvre
+ * l'ecran) et leur envoi aux shaders.
  *
  * <p>Le plan, en espace camera, vient de {@link PortalViewTransform#clipPlane} et part a chaque shader que vanilla
  * active ({@code MixinShaderProgram}) par l'uniforme ajoute par {@link ShaderClipInjector} ; le pilote coupe alors
@@ -19,10 +20,12 @@ import net.minecraft.util.math.Vec3d;
  */
 public final class PortalClipping {
 
-    /** Une vue, puis un niveau de portail imbrique. */
+    /** Une vue, puis un niveau de portail imbrique ; ou la moitie d'une entity, toujours sous une seule vue au plus. */
     private static final int MAX_DEPTH = 2;
     private static final Vector4f[] PLANES = {new Vector4f(), new Vector4f()};
     private static int depth;
+    /** Plan courant ignore le temps d'une passe : dans une vue imbriquee, les entities engagees dans le cadre d'arrivee s'y dessinent entieres. */
+    private static boolean suspended;
 
     private PortalClipping() {
         throw new UnsupportedOperationException("Classe utilitaire.");
@@ -53,7 +56,26 @@ public final class PortalClipping {
         }
     }
 
-    /** {@code true} pendant le dessin d'une vue. */
+    /** Ignore le plan courant, sans le retirer, jusqu'a {@link #resume()} : les shaders actives entre-temps ne coupent rien. */
+    public static void suspend() {
+        suspended = true;
+        GL11.glDisable(GL30.GL_CLIP_DISTANCE0);
+    }
+
+    /** Reprend la decoupe ignoree par {@link #suspend()}. */
+    public static void resume() {
+        suspended = false;
+        if (depth > 0) {
+            GL11.glEnable(GL30.GL_CLIP_DISTANCE0);
+        }
+    }
+
+    /** Nombre de plans empiles : 1 dans une vue ou pour la moitie d'une entity, 2 dans une vue imbriquee dans une autre. */
+    public static int depth() {
+        return depth;
+    }
+
+    /** {@code true} tant qu'un plan est empile. */
     public static boolean isActive() {
         return depth > 0;
     }
@@ -67,7 +89,7 @@ public final class PortalClipping {
         if (depth == 0) {
             return;
         }
-        if (uniformLocation < 0) {
+        if (suspended || uniformLocation < 0) {
             GL11.glDisable(GL30.GL_CLIP_DISTANCE0);
             return;
         }

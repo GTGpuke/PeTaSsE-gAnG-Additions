@@ -59,7 +59,7 @@ class BackroomsPortalEntityTest {
         assertFalse(portal.teleportable(), "Teleportation desactivee.");
         assertFalse(portal.visible(), "Invisible.");
         assertFalse(portal.canHit(), "Un portail ne peut pas etre frappe.");
-        assertNull(portal.owner(), "Portail libre, sans porte.");
+        assertNull(portal.owner(), "Portail libre, sans bloc proprietaire.");
         portal.setTeleportable(true);
         assertTrue(portal.teleportable(), "Teleportation reactivee.");
     }
@@ -94,7 +94,7 @@ class BackroomsPortalEntityTest {
     }
 
     @Test
-    @DisplayName("La sauvegarde NBT restitue exactement le portail, porte proprietaire comprise")
+    @DisplayName("La sauvegarde NBT restitue exactement le portail, bloc proprietaire compris")
     void nbtRoundTrip() {
         BackroomsPortalEntity original = validBuilder().teleportable(false).owner(World.OVERWORLD, new BlockPos(4, 65, -9)).build();
         NbtCompound nbt = new NbtCompound();
@@ -110,11 +110,11 @@ class BackroomsPortalEntityTest {
         assertEquals(original.height(), restored.height(), 1e-6f, "Hauteur.");
         assertEquals(original.teleportable(), restored.teleportable(), "Teleportable.");
         assertEquals(original.visible(), restored.visible(), "Visible.");
-        assertEquals(GlobalPos.create(World.OVERWORLD, new BlockPos(4, 65, -9)), restored.owner(), "Dimension et position de la porte proprietaire.");
+        assertEquals(GlobalPos.create(World.OVERWORLD, new BlockPos(4, 65, -9)), restored.owner(), "Dimension et position du bloc proprietaire.");
 
         NbtCompound free = new NbtCompound();
         validBuilder().build().writeCustomDataToNbt(free);
-        assertFalse(free.contains("OwnerDim"), "Un portail libre n'ecrit pas de porte.");
+        assertFalse(free.contains("OwnerDim"), "Un portail libre n'ecrit pas de proprietaire.");
     }
 
     @Test
@@ -132,7 +132,7 @@ class BackroomsPortalEntityTest {
         assertEquals(0.1f, portal.width(), 1e-6f, "Largeur minimale.");
         assertTrue(portal.visible(), "Visible par defaut.");
         assertTrue(portal.teleportable(), "Teleportable par defaut.");
-        assertNull(portal.owner(), "Une porte sans position n'est pas retenue.");
+        assertNull(portal.owner(), "Un proprietaire sans position n'est pas retenu.");
     }
 
     @Test
@@ -215,7 +215,7 @@ class BackroomsPortalEntityTest {
     }
 
     @Test
-    @DisplayName("Un NBT ancien sans visibilite, sans traversabilite ou sans position de porte garde des valeurs sures")
+    @DisplayName("Un NBT ancien sans visibilite, sans traversabilite ou sans position de proprietaire garde des valeurs sures")
     void partialNbtDefaults() {
         BackroomsPortalEntity portal = validBuilder().visible(false).teleportable(false).build();
         NbtCompound nbt = new NbtCompound();
@@ -228,7 +228,7 @@ class BackroomsPortalEntityTest {
         portal.readCustomDataFromNbt(nbt);
         assertTrue(portal.visible(), "Sans cle, le portail est visible.");
         assertTrue(portal.teleportable(), "Sans cle, le portail est traversable.");
-        assertNull(portal.owner(), "Une dimension de porte sans position ne fait pas un proprietaire.");
+        assertNull(portal.owner(), "Une dimension sans position ne fait pas un proprietaire.");
     }
 
     @Test
@@ -251,5 +251,96 @@ class BackroomsPortalEntityTest {
         assertFalse(portal.frameContains(11.1, 64.0, 20.0), "Trop a l'est.");
         assertFalse(portal.frameContains(10.0, 65.6, 20.0), "Trop haut.");
         assertFalse(portal.frameContains(8.9, 62.4, 20.0), "Trop a l'ouest et trop bas.");
+    }
+
+    @Test
+    @DisplayName("Une boite, a sa place ou decalee, est a cheval sur le cadre d'arrivee si elle traverse son plan dans le cadre")
+    void arrivalFrameStraddles() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        // Arrivee est de 2 x 3 centree en (1.5, 1, 1.5) : plan x = 1.5, largeur le long de Z, hauteur le long de Y.
+        assertTrue(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 1.2, 1.8, 1.8, 1.8), 0.0, 0.0, 0.0), "Un joueur a moitie sorti du cadre.");
+        assertTrue(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 2.2, 1.8, 1.8, 2.8), 0.0, 0.0, 0.0), "Au bord du cadre, il y est encore engage.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.5, 0.0, 1.2, 2.1, 1.8, 1.8), 0.0, 0.0, 0.0),
+                "Tout entier devant, la boite touchant le plan.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(0.6, 0.0, 1.2, 1.2, 1.8, 1.8), 0.0, 0.0, 0.0), "Tout entier derriere.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 3.0, 1.8, 1.8, 3.6), 0.0, 0.0, 0.0),
+                "A cheval sur le plan, mais a cote du cadre.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 3.0, 1.2, 1.8, 4.8, 1.8), 0.0, 0.0, 0.0),
+                "A cheval sur le plan, mais au-dessus du cadre.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 1.2, 1.8, 1.8, 1.8), -0.6, 0.0, 0.0),
+                "Affichee un peu en arriere, elle n'est pas encore sortie.");
+    }
+
+    @Test
+    @DisplayName("Une boite, a sa place ou decalee, est engagee dans le cadre d'entree si elle traverse son plan dans le cadre")
+    void sourceFrameStraddles() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        // Entree nord de 2 x 3 centree en (10, 64, 20) : plan z = 20, largeur le long de X.
+        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 19.7, 10.3, 64.3, 20.3), 0.0, 0.0, 0.0), "A moitie entre dans le cadre d'entree.");
+        assertFalse(portal.sourceFrameStraddles(new Box(9.7, 62.5, 18.0, 10.3, 64.3, 18.6), 0.0, 0.0, 0.0), "Encore devant le cadre d'entree.");
+        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 18.0, 10.3, 64.3, 18.6), 0.0, 0.0, 1.7),
+                "Affichee un bloc et demi plus loin, elle est engagee dans le cadre d'entree.");
+    }
+
+    @Test
+    @DisplayName("Une face n'est franchie que vers son arriere, par une trajectoire qui passe en face de son ouverture a bref delai")
+    void enteredOnlyTowardsItsBack() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        // Entree nord de 2 x 3 en (10, 64, 20) : devant elle, z < 20 ; ouverture de x = 9 a 11.
+        assertTrue(portal.enteredBy(10.0, 64.0, 19.5, 0.0, 0.0, 0.2, 10), "Vers l'arriere, le cadre droit devant : il y entre.");
+        assertTrue(portal.enteredBy(10.0, 64.0, 20.1, 0.0, 0.0, 0.2, 10), "Le plan passe au tick precedent, dans le cadre : il y entre.");
+        assertFalse(portal.enteredBy(10.0, 64.0, 20.5, 0.0, 0.0, 0.2, 10), "Passe depuis plus d'un tick : il n'y entre plus.");
+        assertFalse(portal.enteredBy(10.0, 64.0, 19.9, 0.0, 0.0, -0.2, 10), "Vers l'avant : il entre par la face dos a dos.");
+        assertFalse(portal.enteredBy(10.0, 64.0, 19.9, 0.2, 0.0, 0.0, 10), "Le long du plan, ou immobile : aucune face.");
+        assertFalse(portal.enteredBy(12.0, 64.0, 19.5, 0.0, 0.0, 0.2, 10), "A cote du cadre : il le longe.");
+        assertTrue(portal.enteredBy(12.0, 64.0, 19.5, -0.6, 0.0, 0.2, 10), "En biais vers l'ouverture : il y entre.");
+        assertFalse(portal.enteredBy(10.0, 64.0, 17.0, 0.0, 0.0, 0.2, 10), "Trop loin pour atteindre le plan dans le delai.");
+    }
+
+    @Test
+    @DisplayName("Seul le premier calcul de la lumiere transmise reverifie tout le cadre d'un portail")
+    void onlyTheFirstLightPassRefreshesTheFrame() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        assertTrue(portal.takeLightRefresh(), "Un portail qui apparait fait reverifier son cadre.");
+        assertFalse(portal.takeLightRefresh(), "Une seule fois.");
+    }
+
+    @Test
+    @DisplayName("Un cadre est centre en un point a un millieme de bloc pres")
+    void centeredAtItsOwnCenterOnly() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        assertTrue(portal.centeredAt(portal.getPos().add(0.0, 0.0, 1.0e-4)), "Le meme centre, aux arrondis pres.");
+        assertFalse(portal.centeredAt(portal.getPos().add(0.0, 0.0, 0.01)), "Un centieme de bloc a cote : un autre cadre.");
+    }
+
+    @Test
+    @DisplayName("Une taille relue refait les boites du cadre d'entree et du cadre d'arrivee")
+    void boxesFollowARereadSize() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        Box detection = portal.detectionBox();
+        Box arrival = portal.arrivalBox();
+        NbtCompound nbt = new NbtCompound();
+        portal.writeCustomDataToNbt(nbt);
+        nbt.putFloat("Width", 4.0f);
+        portal.readCustomDataFromNbt(nbt);
+        assertNotEquals(detection, portal.detectionBox(), "La boite du cadre d'entree suit la nouvelle largeur.");
+        assertNotEquals(arrival, portal.arrivalBox(), "Celle du cadre d'arrivee aussi.");
+    }
+
+    @Test
+    @DisplayName("La boite d'arrivee entoure le cadre d'arrivee, gardee tant que l'arrivee ne bouge pas")
+    void arrivalBoxFollowsTheDestination() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        Box arrival = portal.arrivalBox();
+        // Arrivee est de 2 x 3 en (1.5, 1, 1.5) : un demi-bloc d'epaisseur le long de X, la largeur le long de Z.
+        assertEquals(new Box(1.25, -0.5, 0.5, 1.75, 2.5, 2.5), arrival, "Le cadre d'arrivee, d'un demi-bloc d'epaisseur.");
+        assertSame(arrival, portal.arrivalBox(), "Gardee tant que l'arrivee ne bouge pas.");
+        assertEquals(arrival.expand(3.0), portal.arrivalCrossingBox(), "Elargie de trois blocs pour la recherche.");
+        assertTrue(portal.withinArrivalWidth(1.5, 9.0, 2.4), "En face de l'ouverture d'arrivee, a toute hauteur.");
+        assertFalse(portal.withinArrivalWidth(1.5, 1.0, 2.6), "A cote du cadre d'arrivee.");
+        assertSame(portal.arrivalCrossingBox(), portal.arrivalCrossingBox(), "Elargie, gardee de meme.");
+        portal.setDestinationPos(new Vec3d(4.5, 1.0, 1.5));
+        assertEquals(new Box(4.25, -0.5, 0.5, 4.75, 2.5, 2.5), portal.arrivalBox(), "Recalculee quand l'arrivee bouge.");
+        assertEquals(new Box(1.25, -3.5, -2.5, 7.75, 5.5, 5.5), portal.arrivalCrossingBox(), "Elargie, recalculee de meme.");
     }
 }

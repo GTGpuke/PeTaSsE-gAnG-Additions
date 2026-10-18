@@ -20,7 +20,6 @@ import com.petassegang.addons.backrooms.portal.client.world.RemoteWorld;
 import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
 import com.petassegang.addons.backrooms.portal.sync.PortalBlockActionPayload;
 import com.petassegang.addons.backrooms.portal.sync.PortalEntityActionPayload;
-import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
 
 /**
  * Clics du joueur quand il vise a travers un portail : frapper, miner, utiliser.
@@ -74,7 +73,11 @@ public final class RemoteActions {
     public static boolean attack(MinecraftClient client) {
         ClientPlayerEntity player = client.player;
         BackroomsPortalEntity portal = RemoteTargeting.portal();
-        if (player == null || portal == null) {
+        if (player == null || portal == null || client.world == null) {
+            return false;
+        }
+        // Les gardes de vanilla avant tout coup : delai d'attaque, monture, objet desactive. Refuse, vanilla refuse aussi.
+        if (client.attackCooldown > 0 || player.isRiding() || !player.getMainHandStack().isItemEnabled(client.world.getEnabledFeatures())) {
             return false;
         }
         EntityHitResult entityHit = RemoteTargeting.entityHit();
@@ -109,11 +112,13 @@ public final class RemoteActions {
             abortMining();
             return false;
         }
-        stopVanillaMining(client);
-        if (!breaking) {
+        // Comme vanilla : bouton relache, delai d'attaque ou usage en cours (manger, bouclier leve), rien ne se mine. Vanilla
+        // remet le delai a zero au relachement et arrete son propre minage.
+        if (!breaking || client.attackCooldown > 0 || player.isUsingItem()) {
             abortMining();
-            return true;
+            return false;
         }
+        stopVanillaMining(client);
         if (miningHit == null || !miningHit.getBlockPos().equals(blockHit.getBlockPos()) || !portal.getUuid().equals(miningPortal)) {
             startMining(player, portal, blockHit);
         } else {
@@ -166,13 +171,12 @@ public final class RemoteActions {
             return;
         }
         HitResult crosshair = client.crosshairTarget;
-        MinecraftClientAccessor accessor = (MinecraftClientAccessor) client;
         client.crosshairTarget = hit;
-        accessor.backrooms$setWorld(view.world());
+        client.world = view.world();
         try {
             vanilla.run();
         } finally {
-            accessor.backrooms$setWorld(world);
+            client.world = world;
             client.crosshairTarget = crosshair;
         }
     }

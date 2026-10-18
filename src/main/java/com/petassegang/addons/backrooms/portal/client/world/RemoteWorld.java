@@ -4,7 +4,6 @@ import java.util.BitSet;
 import java.util.Iterator;
 import java.util.Set;
 
-import it.unimi.dsi.fastutil.ints.IntList;
 import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.block.Block;
@@ -64,6 +63,7 @@ import net.minecraft.world.chunk.light.LightingProvider;
 import net.minecraft.world.dimension.DimensionType;
 
 import com.petassegang.addons.backrooms.portal.client.sound.FrameSoundPlayer;
+import com.petassegang.addons.backrooms.portal.client.transition.EntityHandover;
 import com.petassegang.addons.backrooms.portal.sync.RemoteChunkWindow;
 import com.petassegang.addons.mixin.client.ClientPlayNetworkHandlerAccessor;
 import com.petassegang.addons.mixin.client.WorldRendererAccessor;
@@ -74,10 +74,10 @@ import com.petassegang.addons.mixin.client.WorldRendererAccessor;
  *
  * <p>Deux formes. Le monde distant proprement dit est nourri par les payloads du serveur (chunks, blocs, paquets
  * d'entities, sons, evenements et particules) : il tique ses entities pour les interpoler et, tant qu'une vue le montre,
- * ses particules et les effets d'ambiance de ses blocs ; ses sons ressortent par le cadre qui les rapproche du joueur
- * ({@link FrameSoundPlayer}). La vue secondaire du monde principal partage le monde du joueur, deja entretenu par
- * vanilla, et ne possede que son renderer : elle sert aux portails qui ramenent dans la dimension courante,
- * directement ou imbriques dans un autre portail.
+ * ses particules et les effets d'ambiance de ses blocs ; ses sons ressortent par le cadre ou le joueur voit ce monde
+ * ({@link FrameSoundPlayer}). Une vue secondaire partage un monde que vanilla entretient deja (celui du joueur, ou un
+ * monde distant qui l'a ete) et ne possede que son renderer : elle sert aux portails qui ramenent dans la dimension
+ * courante, directement ou imbriques dans un autre portail, et reste liee a son monde quand il devient distant.
  */
 public final class RemoteWorld {
 
@@ -182,7 +182,7 @@ public final class RemoteWorld {
         return remote;
     }
 
-    /** Vue secondaire du monde principal : un renderer de plus sur le monde que vanilla entretient deja. */
+    /** Vue secondaire d'un monde : un renderer de plus sur ce monde, gardee quand il devient distant. */
     static RemoteWorld mirror(MinecraftClient client, ClientWorld world) {
         WorldRenderer renderer = newRenderer(client);
         renderer.setWorld(world);
@@ -198,7 +198,7 @@ public final class RemoteWorld {
                 new BufferBuilderStorage(RENDER_BUFFER_COUNT));
     }
 
-    /** Monde client de cette dimension : le monde distant, ou le monde du joueur pour la vue secondaire. */
+    /** Monde client de cette dimension : le monde distant, ou le monde que la vue secondaire partage. */
     public ClientWorld world() {
         return this.world;
     }
@@ -343,10 +343,8 @@ public final class RemoteWorld {
             return;
         }
         if (packet instanceof EntitiesDestroyS2CPacket destroy) {
-            IntList ids = destroy.getEntityIds();
-            for (int i = 0; i < ids.size(); i++) {
-                this.world.removeEntity(ids.getInt(i), Entity.RemovalReason.DISCARDED);
-            }
+            // Une entity qui franchit un portail reste affichee jusqu'a l'arrivee de sa copie de l'autre cote.
+            EntityHandover.applyDestroys(this.world, destroy.getEntityIds());
             return;
         }
         if (packet instanceof PlaySoundS2CPacket sound) {
@@ -430,7 +428,7 @@ public final class RemoteWorld {
         }
     }
 
-    /** Reconstruction de section demandee au renderer principal, repercutee sur la vue secondaire. */
+    /** Reconstruction de section demandee au renderer de ce monde, principal ou distant, repercutee sur la vue secondaire. */
     void scheduleChunkRender(int x, int y, int z, boolean important) {
         ((WorldRendererAccessor) this.renderer).backrooms$scheduleChunkRender(x, y, z, important);
     }

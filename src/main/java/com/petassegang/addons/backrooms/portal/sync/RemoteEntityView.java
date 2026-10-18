@@ -94,14 +94,8 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
         destination.collectEntitiesByType(ENTITY_FILTER, window, ANY, this.scratch);
         for (int i = 0; i < this.scratch.size(); i++) {
             Entity entity = this.scratch.get(i);
-            int id = entity.getId();
-            this.seen.add(id);
-            if (this.tracked.contains(id) || !(trackers.get(id) instanceof EntityTrackerAccessor tracker)) {
-                continue;
-            }
-            tracker.backrooms$getListeners().add(this);
-            tracker.backrooms$getEntry().sendPackets(this.viewer, this.sender);
-            this.tracked.add(id);
+            this.seen.add(entity.getId());
+            startTracking(trackers, entity);
         }
         IntIterator iterator = this.tracked.iterator();
         while (iterator.hasNext()) {
@@ -112,6 +106,28 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
             }
         }
         this.scratch.clear();
+    }
+
+    /**
+     * Une entity vient d'arriver dans la fenetre par un portail : suivie tout de suite, sans attendre le prochain
+     * alignement, pour que sa copie parte au meme tick que la destruction de l'ancienne.
+     *
+     * @param destination monde distant ou elle est arrivee
+     * @param entity entity arrivee
+     */
+    void track(ServerWorld destination, Entity entity) {
+        startTracking(trackers(destination), entity);
+    }
+
+    /** Suit l'entity si elle ne l'est pas deja et qu'un suivi vanilla existe : ses paquets d'apparition partent aussitot. */
+    private void startTracking(Int2ObjectMap<?> trackers, Entity entity) {
+        int id = entity.getId();
+        if (this.tracked.contains(id) || !(trackers.get(id) instanceof EntityTrackerAccessor tracker)) {
+            return;
+        }
+        tracker.backrooms$getListeners().add(this);
+        tracker.backrooms$getEntry().sendPackets(this.viewer, this.sender);
+        this.tracked.add(id);
     }
 
     /**
@@ -170,7 +186,8 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
         }
     }
 
-    private static Int2ObjectMap<?> trackers(ServerWorld world) {
+    /** Suivis vanilla des entities d'un monde, par identifiant. */
+    static Int2ObjectMap<?> trackers(ServerWorld world) {
         return ((ServerChunkLoadingManagerAccessor) world.getChunkManager().chunkLoadingManager).backrooms$getEntityTrackers();
     }
 }

@@ -19,11 +19,12 @@ import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegis
 /**
  * Collision a travers les portails ouverts : une entity engagee dans un cadre heurte aussi les blocs de l'autre cote.
  *
- * <p>Tant que ses pieds sont devant le plan et que sa boite touche le cadre, les blocs de l'autre cote, au-dela du plan
- * d'arrivee, sont ramenes de ce cote, derriere le plan. On ne s'engage pas la ou l'autre cote est un mur ou le battant
- * ouvert d'une porte, et un sol plus haut que le bas du cadre se monte comme une marche : personne ne ressort dans un
- * bloc. Les blocs de ce cote, derriere le plan, restent : le plan d'une porte passe au milieu de son bloc, et une entity
- * plus etroite qu'un bloc l'a franchi avant d'y toucher.
+ * <p>Tant que ses pieds sont devant le plan, son centre en face de l'ouverture, et que sa boite touche le cadre, les blocs
+ * de l'autre cote, au-dela du plan d'arrivee, sont ramenes de ce cote, derriere le plan. Celui qui contourne le portail
+ * en frolant son bord n'y entre pas : rien ne le gene de l'autre cote. On ne s'engage pas la ou l'autre cote est un mur, et un sol
+ * plus haut que le bas du cadre se monte comme une marche : personne ne ressort dans un bloc. Les blocs de ce cote,
+ * derriere le plan, restent : le plan d'un bloc portail passe au milieu de son bloc, et une entity plus etroite qu'un
+ * bloc l'a franchi avant d'y toucher.
  *
  * <p>Le client l'applique a son joueur, qui decide de ses deplacements ; le serveur l'applique aux mobs, objets et
  * projectiles, pas aux joueurs : il refuserait des pas qu'un client sans monde distant charge aurait faits librement.
@@ -97,10 +98,11 @@ public final class PortalCollision {
         return result;
     }
 
-    /** L'entity a les pieds devant le plan d'un portail ouvert, et sa boite deplacee touche le cadre. */
+    /** L'entity a les pieds devant le plan d'un portail ouvert, le centre en face de l'ouverture, et sa boite deplacee touche le cadre. */
     static boolean engages(BackroomsPortalEntity portal, Entity entity, Box movingBox) {
         return portal.teleportable()
                 && portal.signedDistance(entity.getX(), entity.getY(), entity.getZ()) > 0.0
+                && portal.withinFrameWidth(entity.getX(), entity.getY(), entity.getZ())
                 && portal.detectionBox().intersects(movingBox);
     }
 

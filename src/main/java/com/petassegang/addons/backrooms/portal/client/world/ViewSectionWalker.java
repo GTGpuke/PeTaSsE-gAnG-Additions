@@ -2,12 +2,14 @@ package com.petassegang.addons.backrooms.portal.client.world;
 
 import java.util.BitSet;
 
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 
 import net.minecraft.client.render.BuiltChunkStorage;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.chunk.ChunkBuilder;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.HeightLimitView;
@@ -23,7 +25,7 @@ import com.petassegang.addons.mixin.client.BuiltChunkStorageAccessor;
  *
  * <p>Le parcours asynchrone de vanilla ({@code ChunkRenderingDataPreparer}) ne convient pas aux vues : il tient un
  * seul graphe par renderer, le recalcule en arriere-plan quand la camera change de section, et filtre entre-temps
- * l'ancien graphe par le nouveau frustum. Deux vues du meme monde dans une image (deux portes, un portail imbrique)
+ * l'ancien graphe par le nouveau frustum. Deux vues du meme monde dans une image (deux portails, un portail imbrique)
  * alterneraient donc des listes de sections incompletes : des pans de la vue clignoteraient. Ici chaque vue fait son
  * propre parcours, sans etat partage et sans allocation une fois les tampons dimensionnes. Les sections sortent dans
  * l'ordre du parcours, de la plus proche a la plus lointaine, celui qu'attend le rendu des couches translucides.
@@ -33,8 +35,16 @@ final class ViewSectionWalker {
     private static final Direction[] DIRECTIONS = Direction.values();
     /** Demi-section, en blocs : le milieu d'une section, d'ou part le parcours hors des limites du monde, comme vanilla. */
     static final int HALF_SECTION = 8;
+    /** Colonnes retenues par le cache des voisins au-dela desquelles il repart de zero (la camera s'est beaucoup deplacee). */
+    private static final int NEIGHBOUR_CACHE_LIMIT = 16_384;
 
     private final BlockPos.Mutable scratch = new BlockPos.Mutable();
+    /**
+     * Voisins deja verifies, par chunk : numero du parcours, decale d'un bit, et ce bit a un si ses quatre voisins sont
+     * charges. Une colonne compte jusqu'a vingt-quatre sections : chaque chunk n'est verifie qu'une fois par parcours.
+     */
+    private final Long2IntOpenHashMap neighbours = new Long2IntOpenHashMap();
+    private int pass;
     private final BitSet visited = new BitSet();
     private int[] queue = new int[0];
 
@@ -51,6 +61,10 @@ final class ViewSectionWalker {
     void discover(BuiltChunkStorage storage, ChunkManager chunkManager, BlockPos cameraPos, Frustum frustum, ViewCone cone,
                   ObjectArrayList<ChunkBuilder.BuiltChunk> out) {
         out.clear();
+        if (++this.pass >= Integer.MAX_VALUE >> 1 || this.neighbours.size() > NEIGHBOUR_CACHE_LIMIT) {
+            this.neighbours.clear();
+            this.pass = 1;
+        }
         ChunkBuilder.BuiltChunk[] chunks = storage.chunks;
         if (this.queue.length < chunks.length) {
             this.queue = new int[chunks.length];
@@ -115,19 +129,27 @@ final class ViewSectionWalker {
         return count;
     }
 
-    private static boolean accept(ChunkBuilder.BuiltChunk chunk, Frustum frustum, ViewCone cone, ChunkManager chunkManager) {
+    private boolean accept(ChunkBuilder.BuiltChunk chunk, Frustum frustum, ViewCone cone, ChunkManager chunkManager) {
         return cone.intersects(chunk.getBoundingBox()) && frustum.isVisible(chunk.getBoundingBox()) && neighboursLoaded(chunk, chunkManager);
     }
 
     /**
      * {@code true} si les quatre chunks voisins de la section sont charges, comme vanilla l'exige avant de construire une
-     * section ; sans l'exemption de vanilla autour de la camera du joueur, qui n'est pas celle de la vue.
+     * section ; sans l'exemption de vanilla autour de la camera du joueur, qui n'est pas celle de la vue. Une fois par
+     * chunk et par parcours.
      */
-    private static boolean neighboursLoaded(ChunkBuilder.BuiltChunk chunk, ChunkManager chunkManager) {
+    private boolean neighboursLoaded(ChunkBuilder.BuiltChunk chunk, ChunkManager chunkManager) {
         int chunkX = ChunkSectionPos.getSectionCoord(chunk.getOrigin().getX());
         int chunkZ = ChunkSectionPos.getSectionCoord(chunk.getOrigin().getZ());
-        return chunkManager.isChunkLoaded(chunkX + 1, chunkZ) && chunkManager.isChunkLoaded(chunkX - 1, chunkZ)
+        long key = ChunkPos.toLong(chunkX, chunkZ);
+        int known = this.neighbours.get(key);
+        if (known >> 1 == this.pass) {
+            return (known & 1) != 0;
+        }
+        boolean loaded = chunkManager.isChunkLoaded(chunkX + 1, chunkZ) && chunkManager.isChunkLoaded(chunkX - 1, chunkZ)
                 && chunkManager.isChunkLoaded(chunkX, chunkZ + 1) && chunkManager.isChunkLoaded(chunkX, chunkZ - 1);
+        this.neighbours.put(key, this.pass << 1 | (loaded ? 1 : 0));
+        return loaded;
     }
 
     /** {@code true} si la section stockee a cet emplacement est bien celle qui contient la position. */

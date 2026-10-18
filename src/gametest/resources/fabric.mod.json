@@ -8,7 +8,8 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.petassegang.addons.gametest.backrooms.level0.LevelZeroGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.BackroomsDoorGameTests",
+      "com.petassegang.addons.gametest.backrooms.portal.BackroomsPortalBlockGameTests",
+      "com.petassegang.addons.gametest.backrooms.portal.PortalLightGameTests",
       "com.petassegang.addons.gametest.backrooms.portal.PortalGameTests",
       "com.petassegang.addons.gametest.backrooms.portal.PortalSyncGameTests",
       "com.petassegang.addons.gametest.backrooms.portal.PortalInteractionGameTests",

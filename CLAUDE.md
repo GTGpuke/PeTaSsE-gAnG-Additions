@@ -31,9 +31,9 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 - `feature/gang`, `feature/cursed` : contenu gameplay, une classe par item.
 - `backrooms/level0/generation/` : `coord` → `noise` → `sector` → `layout` → `write`, orchestrés par `LevelZeroChunkGenerator`.
 - `backrooms/level0/client/model/` : rendu adaptatif du mur (client uniquement).
-- `backrooms/portal/` : portails (porte, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
+- `backrooms/portal/` : portails (bloc portail double face et ses réglages, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
 - `perf/` : moniteur de performance opt-in.
-- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, accesseurs du suivi vanilla des entities) et `client/` (rendu des portails, découpe dans les shaders, monde distant, visée et clics à travers le cadre).
+- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre).
 - `src/gametest/` : tests en jeu, mod séparé `petasse_gang_additions_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
 
 ## Règles de code
@@ -74,11 +74,16 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   `petasse_gang_additions_gametest:test_arena` (24 blocs) : la structure vide de Fabric fait un bloc et les voisins se marchent dessus.
   Le dossier de run `build/run/gameTest` est recréé à chaque lancement et le serveur de test tique sans attendre : générer
   l'arrivée d'avance (`GameTestServerWorlds.pregenerate`) et guetter les chunks du Nether (`PortalViewTracker.watchedChunkCount() > 0`) plutôt que compter les ticks. Un bateau embarque de lui-même les créatures qui le touchent.
+  Un joueur simulé ne suit une entité vanilla qu'une fois ses chunks reçus (`GameTestPlayers.tick`) et sa position
+  redonnée (`getChunkManager().updatePosition`, ce que fait un vrai client en bougeant) ; l'apparition arrive groupée
+  dans un `BundleS2CPacket`.
 - Tests en jeu : les arènes ont un plafond de barrières que la heightmap voit (`getTopY` y renvoie le plafond), un chunk forcé
   ne suit ses entités qu'après quelques ticks (attendre `shouldTickEntity` avant d'y faire arriver une entité), et le dossier de
   run n'est vidé que par `clean` : une entité sauvée par un lancement précédent peut s'y trouver. Une entité qui change de
   monde garde son UUID : la retrouver par `getEntity(uuid)` plutôt que par une recherche dans une boîte. Les messages des
-  échecs sont dans `build/junit.xml`, pas dans le journal.
+  échecs sont dans `build/junit.xml`, pas dans le journal. `TimedTaskRunner.createAndAdd` rejoue sa tâche à chaque tick
+  tant qu'elle lève (une attente) ; une vérification définitive va dans `createAndAddReported` (jouée une fois, échec
+  immédiat), nettoyage en `try/finally`, et ce qu'une attente expirée laisserait dans un `@AfterBatch`.
 - Mixins : `@Shadow` ne voit que les membres déclarés dans la classe cible, pas ceux hérités (`ClientPlayNetworkHandler.client`
   est déclaré dans `ClientCommonNetworkHandler`) ; l'erreur ne sort qu'au chargement de la cible, donc au lancement du client
   pour un mixin client. `MixinTargetsTest` charge la cible de chaque mixin déclaré et fait échouer le build à la place. Aucune
@@ -92,12 +97,23 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - Changement de dimension d'un joueur : le serveur retire chez lui les copies d'entités qu'il ne suit plus de la même
   façon et les renvoie aussitôt par l'autre voie ; un retrait immédiat côté client fait disparaître quelques ticks le
   portail de retour juste derrière le joueur (`EntityHandover.deferRemoval` diffère le retrait).
-- Moteur de lumière (pour une source virtuelle, aucune dans le mod aujourd'hui) : `ChunkBlockLightProvider.getLightSourceLuminance` est la seule entrée des sources ; le moteur serveur
+- Un joueur qui change de dimension perd aussitôt ses tickets de chunk : sans autre ticket, le côté quitté se décharge en
+  quelques ticks et ses entités reviennent sous de nouveaux identifiants (`DestinationLoader.holdDeparture` le garde
+  chargé). Côté client, `EntityIndex` refuse une copie dont l'UUID est déjà présent (`Duplicate entity UUID`) : elle
+  reste affichée sans jamais être mise à jour (`EntityHandover.replaceStaleCopy` retire l'ancienne d'abord). Les bancs
+  en `forceload` ne voient pas ce déchargement.
+- Entités : avant son premier tick, une entité qui vient d'apparaître a `prevX/prevY/prevZ` à l'origine du monde (un
+  trajet de là coupe n'importe quel plan : `TeleportExecutor.crossedThisTick` ignore les sauts de plus de 8 blocs).
+  Côté client, une entité s'affiche environ un bloc derrière le serveur (interpolation) : téléportée par un portail,
+  sa copie n'a pas encore atteint le plan, et la nouvelle, reprise à cette position, reste derrière le plan d'arrivée
+  (`EntityHandover` garde l'ancienne jusqu'à l'arrivée de la nouvelle, dessinée ensuite des deux côtés par
+  `StraddlingEntityRenderer`). Une décision de rendu se prend sur la position affichée (`lerp(tickDelta, lastRenderX,
+  getX())`), jamais sur celle du tick, qui a jusqu'à un tick d'avance.
+- Moteur de lumière (sources virtuelles, celles de la lumière transmise par les portails) : `ChunkBlockLightProvider.getLightSourceLuminance` est l'entrée des sources
+  des mises à jour (`checkBlock`) ; l'éclairage initial d'un chunk lit `getLuminance()` sans elle, et la lumière sauvée
+  avec un chunk revient telle quelle (re-signaler ce qui manque ou ce qui a pu s'éteindre). Le moteur serveur
   tourne sur son propre thread (lectures thread-safe obligatoires), et `checkBlock` sur les cellules changées suffit à
   propager ou éteindre une source virtuelle, serveur comme client.
-- `DoorBlock` : deux moitiés synchronisées par `getStateForNeighborUpdate` (ouvrir, tourner ou casser l'une agit sur l'autre) ; seule la
-  moitié basse porte la block entity (`createBlockEntity` et `getTicker` renvoient `null` pour la haute). Dans les tests, poser les deux
-  moitiés sur un bloc plein, sinon la porte tombe à la première mise à jour de voisinage.
 - L'extension Java de VSCode compile avec JDT dans `build/classes/java/main` (même dossier que Gradle) ; avec un modèle de projet périmé, elle y écrit des classes `Unresolved compilation problems` qui font planter le client au chargement. L'autobuild est coupé dans `.vscode/settings.json` ; ne jamais le réactiver sans un import Gradle sain (JDK 21).
 
 ## Avant de push

@@ -166,21 +166,30 @@ public final class PortalPropagationGameTests implements FabricGameTest {
         // Un husk ne brule pas au soleil : il a tout le temps de voir la proie par le cadre, de marcher et de traverser.
         HuskEntity husk = context.spawnEntity(EntityType.HUSK, new Vec3d(1.5, 0.0, 2.5));
         husk.setPersistent();
+        boolean[] threatening = {false};
         context.createTimedTaskRunner()
                 .createAndAdd(() -> {
+                    // En chemin, avant le cadre : posture d'attaque, sans cible de ce cote.
+                    threatening[0] |= !husk.isRemoved() && husk.isAttacking() && husk.getTarget() == null;
                     // Vanilla garde l'identifiant de l'entity qui change de monde : c'est par lui qu'on la retrouve.
-                    if (!(nether.getEntity(husk.getUuid()) instanceof HuskEntity arrived)) {
+                    if (!(nether.getEntity(husk.getUuid()) instanceof HuskEntity)) {
                         throw new GameTestException("Le husk n'a pas encore traverse le portail.");
                     }
-                    context.assertTrue(arrived.getTarget() == prey, "De l'autre cote, la proie qu'il a vue par le cadre est sa cible.");
                 })
-                .createAndAdd(() -> {
-                    GameTestServerWorlds.discardEverywhere(nether, husk);
-                    GameTestPlayers.disconnect(prey);
-                    GameTestPlayers.disconnect(builder);
-                    portal.discard();
-                    platform(nether, PURSUIT_EXIT, Blocks.AIR);
-                    GameTestServerWorlds.forceChunk(nether, PURSUIT_EXIT, false);
+                .createAndAddReported(() -> {
+                    try {
+                        HuskEntity arrived = (HuskEntity) nether.getEntity(husk.getUuid());
+                        context.assertTrue(threatening[0], "En marchant vers le portail, le husk avait deja la posture d'attaque.");
+                        context.assertTrue(arrived.getTarget() == prey, "De l'autre cote, la proie qu'il a vue par le cadre est sa cible.");
+                        context.assertTrue(arrived.isAttacking(), "Arrive, il garde la posture d'attaque sans attendre ses objectifs.");
+                    } finally {
+                        GameTestServerWorlds.discardEverywhere(nether, husk);
+                        GameTestPlayers.disconnect(prey);
+                        GameTestPlayers.disconnect(builder);
+                        portal.discard();
+                        platform(nether, PURSUIT_EXIT, Blocks.AIR);
+                        GameTestServerWorlds.forceChunk(nether, PURSUIT_EXIT, false);
+                    }
                 })
                 .completeIfSuccessful();
     }
@@ -210,7 +219,7 @@ public final class PortalPropagationGameTests implements FabricGameTest {
         BlockPos wall = context.getAbsolutePos(new BlockPos(1, 1, 4));
         BlockPos screen = BlockPos.ofFloored(PERCEPTION_EXIT).south(2);
         try {
-            // Porte fermee : le cadre ne laisse rien voir.
+            // Portail ferme : le cadre ne laisse rien voir.
             portal.setTeleportable(false);
             PortalPursuit.perceive(husk, rules);
             context.assertTrue(PortalPursuit.active(husk) == null && BackroomsPortalEntityRegistry.all().contains(closed),
@@ -319,8 +328,18 @@ public final class PortalPropagationGameTests implements FabricGameTest {
             context.assertTrue(goal.canStart() && goal.shouldContinue() && goal.shouldRunEveryTick(), "La poursuite active l'objectif.");
             goal.start();
             goal.tick();
-            context.assertTrue(walker.getNavigation().isFollowingPath(), "Le husk marche vers le portail.");
+            context.assertTrue(walker.getNavigation().isFollowingPath()
+                    && walker.getNavigation().getTargetPos().equals(context.getAbsolutePos(new BlockPos(1, 0, 5))),
+                    "De biais, le husk vient d'abord en face de l'ouverture.");
+            Vec3d inFront = context.getAbsolute(new Vec3d(1.5, 0.0, 5.5));
+            walker.refreshPositionAndAngles(inFront.x, inFront.y, inFront.z, 0.0f, 0.0f);
+            goal.tick();
+            Vec3d through = context.getAbsolute(new Vec3d(1.5, 0.0, 8.5));
+            context.assertTrue(!walker.getNavigation().isFollowingPath() && walker.getMoveControl().isMoving()
+                    && walker.getMoveControl().getTargetX() == through.x && walker.getMoveControl().getTargetZ() == through.z,
+                    "Aligne, il marche aussitot droit a travers, vers le point derriere le cadre.");
             goal.stop();
+            context.assertTrue(walker.getMoveControl().getSpeed() == 0.0, "Arrete, il ne marche plus droit vers le cadre.");
             context.assertTrue(!goal.canStart() && PortalPursuit.active(walker) == null, "Arrete, l'objectif oublie la poursuite.");
             goal.tick();
             context.assertTrue(!walker.getNavigation().isFollowingPath(), "Sans poursuite, le tick de l'objectif ne relance pas la marche.");
@@ -328,7 +347,7 @@ public final class PortalPropagationGameTests implements FabricGameTest {
             // Le portail se ferme : la poursuite cesse.
             walker.setTarget(player);
             portal.setTeleportable(false);
-            context.assertTrue(PortalPursuit.active(walker) == null, "Porte fermee, plus de poursuite.");
+            context.assertTrue(PortalPursuit.active(walker) == null, "Portail ferme, plus de poursuite.");
             portal.setTeleportable(true);
 
             // Le husk passe le portail : de l'autre cote, sa poursuite devient sa cible.
@@ -454,6 +473,30 @@ public final class PortalPropagationGameTests implements FabricGameTest {
             pursuer.backrooms$setPursuit(new PortalPursuit.Pursuit(portal, prey, later));
             husk.setTarget(neighbour);
             context.assertTrue(!goal.canStart(), "Le husk a deja une cible dans son monde : l'objectif de poursuite attend.");
+
+            // Posture d'attaque le temps de la poursuite, le regard sur la proie, la ou elle semble etre par le cadre.
+            husk.setTarget(null);
+            goal.start();
+            goal.tick();
+            context.assertTrue(husk.isAttacking(), "En poursuite, le husk prend la posture d'attaque.");
+            goal.stop();
+            context.assertTrue(!husk.isAttacking() && PortalPursuit.active(husk) == null, "La poursuite finie, il la quitte.");
+            // Une poursuite qui finit alors qu'il a une cible de ce cote ne la lui retire pas.
+            husk.setTarget(neighbour);
+            goal.stop();
+            context.assertTrue(husk.getTarget() == neighbour, "La poursuite finie, il garde sa cible de ce cote.");
+            husk.setTarget(null);
+
+            // Arrive de l'autre cote : il reprend sa proie aussitot, la posture seulement s'il a un chemin vers elle.
+            husk.setOnGround(true);
+            PortalPursuit.resumeAfterCrossing(husk, neighbour);
+            context.assertTrue(husk.getTarget() == neighbour && husk.isAttacking(), "Un chemin vers sa proie : il la cible et garde la posture.");
+            husk.setAttacking(false);
+            husk.setOnGround(false);
+            husk.getNavigation().stop();
+            PortalPursuit.resumeAfterCrossing(husk, neighbour);
+            context.assertTrue(husk.getTarget() == neighbour && !husk.isAttacking(),
+                    "En l'air, sans chemin : il la cible, sans posture qu'aucune attaque ne rendrait.");
         } finally {
             husk.discard();
             neighbour.discard();

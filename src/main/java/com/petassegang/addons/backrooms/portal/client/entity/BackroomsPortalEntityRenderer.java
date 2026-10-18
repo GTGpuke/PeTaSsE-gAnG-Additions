@@ -17,7 +17,7 @@ import com.petassegang.addons.config.ModConfig;
 
 /**
  * Renderer de l'entity portail : rien quand le rendu distant est actif (le contenu passe par le
- * stencil) ou quand le portail est cache (porte fermee), un cadre sombre sinon, pour que le portail reste visible.
+ * stencil) ou quand le portail est invisible, un cadre sombre sinon, pour que le portail reste visible.
  */
 public final class BackroomsPortalEntityRenderer extends EntityRenderer<BackroomsPortalEntity> {
 
@@ -37,7 +37,7 @@ public final class BackroomsPortalEntityRenderer extends EntityRenderer<Backroom
             MatrixStack matrices,
             VertexConsumerProvider vertexConsumers,
             int light) {
-        if (ModConfig.ENABLE_PORTAL_FEATURE && PortalRenderState.remoteRenderingAvailable() || !entity.isShown()) {
+        if (ModConfig.ENABLE_PORTAL_FEATURE && PortalRenderState.remoteRenderingAvailable() || !entity.visible()) {
             return;
         }
         VertexConsumer consumer = vertexConsumers.getBuffer(RenderLayer.getDebugQuads());

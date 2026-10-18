@@ -188,12 +188,22 @@ public final class TeleportExecutor {
             world.collectEntitiesByType(ENTITY_FILTER, portal.crossingBox(), CROSSING_CANDIDATE, ENTITY_SCRATCH);
             for (int j = 0; j < ENTITY_SCRATCH.size(); j++) {
                 Entity entity = ENTITY_SCRATCH.get(j);
-                if (crossedPortalPlane(portal, entity, entity.prevX, entity.prevY, entity.prevZ, entity.getX(), entity.getY(), entity.getZ())) {
+                if (crossedThisTick(portal, entity)) {
                     execute(entity, portal);
                 }
             }
         }
         ENTITY_SCRATCH.clear();
+    }
+
+    /**
+     * {@code true} si le deplacement du tick d'une entity passe le plan du portail. Une entity qui vient d'apparaitre n'a
+     * pas encore de position precedente (l'origine du monde, avant son premier tick) : comme un saut de position, son
+     * trajet traverserait les plans sans les franchir, et elle serait teleportee sans avoir bouge.
+     */
+    static boolean crossedThisTick(BackroomsPortalEntity portal, Entity entity) {
+        return entity.squaredDistanceTo(entity.prevX, entity.prevY, entity.prevZ) <= MAX_STEP_SQUARED
+                && crossedPortalPlane(portal, entity, entity.prevX, entity.prevY, entity.prevZ, entity.getX(), entity.getY(), entity.getZ());
     }
 
     /** Le client annonce un franchissement : on l'applique s'il est plausible, sinon on le ramene a l'etat serveur. */
@@ -236,8 +246,8 @@ public final class TeleportExecutor {
     }
 
     /**
-     * {@code true} si les pieds d'une entity passent le plan du portail depuis le cote d'entree, entre deux positions,
-     * et que sa boite touche alors le cadre. Sert aussi a la prediction client.
+     * {@code true} si les pieds d'une entity passent le plan du portail depuis le cote d'entree, entre deux positions, le
+     * centre en face de l'ouverture, et que sa boite touche alors le cadre. Sert aussi a la prediction client.
      *
      * @param portal portail teste
      * @param entity entity qui se deplace, pour sa largeur et sa hauteur
@@ -254,8 +264,9 @@ public final class TeleportExecutor {
     }
 
     /**
-     * Meme test pour une boite de dimensions donnees, sans allocation. Le corps doit toucher le cadre, pas seulement
-     * passer a cote : ressortir de l'autre cote a cote du cadre d'arrivee, ce serait ressortir dans le mur qui l'encadre.
+     * Meme test pour une boite de dimensions donnees, sans allocation. Le centre doit passer dans la largeur du cadre et le
+     * corps toucher le cadre en hauteur : contourner le portail en frolant son bord ne fait pas traverser, et passer a
+     * cote ressortirait dans le mur qui encadre l'arrivee.
      *
      * @param portal portail teste
      * @param lastX position precedente des pieds, X
@@ -266,7 +277,7 @@ public final class TeleportExecutor {
      * @param currentZ position courante des pieds, Z
      * @param halfWidth demi-largeur de la boite
      * @param height hauteur de la boite, au-dessus des pieds
-     * @return {@code true} si les pieds passent le plan depuis le cote d'entree, la boite contre le cadre
+     * @return {@code true} si les pieds passent le plan depuis le cote d'entree, dans la largeur du cadre, la boite contre lui
      */
     static boolean crossedPortalPlane(
             BackroomsPortalEntity portal,
@@ -287,8 +298,10 @@ public final class TeleportExecutor {
         double x = lastX + (currentX - lastX) * t;
         double y = lastY + (currentY - lastY) * t;
         double z = lastZ + (currentZ - lastZ) * t;
-        // Au point de passage, la boite chevauche le plan : la toucher, c'est toucher le cadre en largeur et en hauteur.
-        return portal.detectionBox().intersects(x - halfWidth, y, z - halfWidth, x + halfWidth, y + height, z + halfWidth);
+        // Au point de passage, la boite chevauche le plan : la toucher, c'est toucher le cadre en hauteur ; le centre, lui,
+        // doit etre en face de l'ouverture.
+        return portal.withinFrameWidth(x, y, z)
+                && portal.detectionBox().intersects(x - halfWidth, y, z - halfWidth, x + halfWidth, y + height, z + halfWidth);
     }
 
     /**
@@ -323,6 +336,10 @@ public final class TeleportExecutor {
         if (destinationWorld == world) {
             entity.refreshPositionAndAngles(exit.x, exit.y, exit.z, look.x, look.y);
             entity.setVelocity(exitVelocity);
+            // Position et vitesse partent aux clients des le prochain tick, la position en absolu : ils font passer le
+            // portail a l'entity au lieu de la faire glisser jusqu'a l'arrivee.
+            entity.velocityDirty = true;
+            PortalViewTracker.onEntityJumped(world, entity);
             arrived = entity;
         } else {
             arrived = entity.teleportTo(new TeleportTarget(destinationWorld, exit, exitVelocity, look.x, look.y, false, TeleportTarget.NO_OP));
@@ -333,9 +350,13 @@ public final class TeleportExecutor {
             arrived.setPitch(look.y);
         }
         arrived.setPortalCooldown(ENTITY_PORTAL_COOLDOWN_TICKS);
-        // Seul un mob poursuit, et sa proie est dans le monde d'arrivee : de ce cote, elle devient sa cible.
+        // Seul un mob poursuit, et sa proie est dans le monde d'arrivee : de ce cote, il la reprend sans s'arreter.
         if (chased != null) {
-            ((MobEntity) arrived).setTarget(chased);
+            PortalPursuit.resumeAfterCrossing((MobEntity) arrived, chased);
+        }
+        if (arrived != entity) {
+            // Une copie neuve dans l'autre dimension : ceux qui la voient par un portail la recoivent tout de suite.
+            PortalViewTracker.onEntityArrived(destinationWorld, arrived);
         }
         ModConstants.LOGGER.debug("[Portal] {} traverse un portail vers {}.", entity.getType().getUntranslatedName(), portal.destinationDim().getValue());
         return true;
@@ -395,6 +416,7 @@ public final class TeleportExecutor {
         if (destinationWorld == player.getServerWorld()) {
             placePlayer(player, exit, look.x, look.y, predicted);
             player.networkHandler.syncWithPlayerPosition();
+            PortalViewTracker.onEntityJumped(destinationWorld, player);
             ServerPlayNetworking.send(player, PortalTeleportPayload.of(destinationWorld, exit, look.x, look.y, exitVelocity));
         } else {
             heldChunks = changeDimension(player, destinationWorld, exit, look.x, look.y, exitVelocity, predicted);
@@ -425,6 +447,8 @@ public final class TeleportExecutor {
         ServerPlayNetworking.send(player, PortalTeleportPayload.of(destination, exit, yaw, pitch, velocity));
         player.networkHandler.sendPacket(new DifficultyS2CPacket(properties.getDifficulty(), properties.isDifficultyLocked()));
         playerManager.sendCommandTree(player);
+        // Avant que vanilla ne retire les tickets du joueur : le cote quitte, qu'il voit encore par le portail, reste charge.
+        DestinationLoader.holdDeparture(origin, player.getPos());
         origin.removePlayer(player, Entity.RemovalReason.CHANGED_DIMENSION);
         ((EntityAccessor) player).backrooms$unsetRemoved();
         player.setServerWorld(destination);
@@ -437,6 +461,8 @@ public final class TeleportExecutor {
         try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_TELEPORT_VANILLA)) {
             destination.onDimensionChanged(player);
         }
+        // Ceux qui voient la destination par un portail recoivent sa copie au meme tick que la destruction de l'ancienne.
+        PortalViewTracker.onEntityArrived(destination, player);
         Criteria.CHANGED_DIMENSION.trigger(player, origin.getRegistryKey(), destination.getRegistryKey());
         player.networkHandler.sendPacket(new PlayerAbilitiesS2CPacket(player.getAbilities()));
         playerManager.sendWorldInfo(player, destination);
