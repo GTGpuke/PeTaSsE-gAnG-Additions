@@ -43,6 +43,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalSettings;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalTargets;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSight;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSightPayload;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestPlayers;
@@ -391,8 +392,8 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
         context.createTimedTaskRunner()
                 .createAndAdd(() -> context.assertTrue(portal(world, watched.returnPortal(FRONT)) != null, "La sortie n'est pas encore posee."))
                 .createAndAddReported(() -> since[0] = context.getTick())
-                // Plus que le delai sans regard, moins que la grace d'une sortie qui vient d'etre posee.
-                .createAndAdd(() -> waitTicks(context, since[0], BackroomsPortalBlockEntity.EXIT_UNSEEN_TICKS + 12))
+                // Plus que l'arrivee du joueur et le delai sans regard reunis, moins que la grace d'une sortie qui vient d'etre posee.
+                .createAndAdd(() -> waitTicks(context, since[0], PortalSight.ARRIVAL_GRACE_TICKS + BackroomsPortalBlockEntity.EXIT_UNSEEN_TICKS + 7))
                 .createAndAddReported(() -> {
                     context.assertTrue(watched.returnPortal(FRONT) != null,
                             "Juste posee, la sortie laisse au client le temps de la voir : un rapport vide ne la perd pas encore.");
@@ -423,7 +424,11 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
                     sees(watcher);
                     since[0] = context.getTick();
                 })
-                .createAndAdd(() -> context.assertTrue(watched.returnPortal(FRONT) == null, "La sortie perdue de vue n'a pas encore disparu."))
+                // Comme un vrai client, il rapporte sans cesse ne rien voir : ses rapports ne le font pas arriver de nouveau.
+                .createAndAdd(() -> {
+                    sees(watcher);
+                    context.assertTrue(watched.returnPortal(FRONT) == null, "La sortie perdue de vue n'a pas encore disparu.");
+                })
                 .createAndAddReported(() -> {
                     context.assertTrue(context.getTick() - since[0] >= BackroomsPortalBlockEntity.EXIT_UNSEEN_TICKS,
                             "La sortie ne disparait qu'apres une seconde sans regard.");
@@ -472,9 +477,51 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
                 .createAndAdd(() -> waitTicks(context, since[0], BackroomsPortalBlockEntity.EXIT_UNSEEN_TICKS + 12))
                 .createAndAddReported(() -> {
                     context.assertTrue(other.returnPortal(FRONT) != null, "Un rapport trop vieux ne compte plus : la sortie reste.");
+                    // De loin, son client la voit ; pres d'elle, un autre joueur ne la voit pas.
+                    watcher.refreshPositionAndAngles(farFromOther.x, farFromOther.y, farFromOther.z, 0.0f, 0.0f);
+                    silent[0] = GameTestPlayers.connect(context, GameMode.CREATIVE, nearOther, 0.0f, 0.0f);
+                    since[0] = context.getTick();
+                })
+                // Rapports renvoyes a chaque tick : aucun ne vieillit le temps de l'attente.
+                .createAndAdd(() -> {
+                    sees(watcher, other.returnPortal(FRONT));
+                    sees(silent[0]);
+                    waitTicks(context, since[0], PortalSight.ARRIVAL_GRACE_TICKS + BackroomsPortalBlockEntity.EXIT_UNSEEN_TICKS + 12);
+                })
+                .createAndAddReported(() -> {
+                    context.assertTrue(other.returnPortal(FRONT) != null,
+                            "De loin, le client d'un joueur la voit : elle reste, meme si le joueur pres d'elle ne la voit pas.");
+                    GameTestPlayers.disconnect(silent[0]);
+                    // Revenu pres d'elle, il ne la voit plus ; loin d'elle, un joueur dont le client ne rapporte rien ne la
+                    // garde pas : il ne peut pas la voir.
+                    watcher.refreshPositionAndAngles(nearOther.x, nearOther.y, nearOther.z, 0.0f, 0.0f);
+                    silent[0] = GameTestPlayers.connect(context, GameMode.CREATIVE, farFromOther, 0.0f, 0.0f);
                     sees(watcher);
                 })
                 .createAndAdd(() -> context.assertTrue(other.returnPortal(FRONT) == null, "La seconde sortie n'a pas encore disparu."))
+                .createAndAddReported(() -> {
+                    GameTestPlayers.disconnect(silent[0]);
+                    // Arrive d'un autre monde pres de la sortie de la copie, il ne la voit pas : le temps de se retourner, elle tient.
+                    watcher.teleportTo(new TeleportTarget(GameTestServerWorlds.nether(context), new Vec3d(0.5, 120.0, 0.5), Vec3d.ZERO, 0.0f, 0.0f,
+                            TeleportTarget.NO_OP));
+                    sees(watcher);
+                    Vec3d nearCopy = context.getAbsolute(new Vec3d(1.5, 1.0, 7.5));
+                    watcher.teleportTo(new TeleportTarget(world, nearCopy, Vec3d.ZERO, 0.0f, 0.0f, TeleportTarget.NO_OP));
+                    sees(watcher);
+                    since[0] = context.getTick();
+                })
+                .createAndAdd(() -> {
+                    sees(watcher);
+                    waitTicks(context, since[0], PortalSight.ARRIVAL_GRACE_TICKS - 2);
+                })
+                .createAndAddReported(() -> context.assertTrue(copy[0].returnPortal(FRONT) != null,
+                        "Juste arrive pres d'elle, le joueur a le temps de se retourner : la sortie tient."))
+                .createAndAdd(() -> {
+                    sees(watcher);
+                    context.assertTrue(copy[0].returnPortal(FRONT) == null, "La sortie de la copie n'a pas encore disparu.");
+                })
+                .createAndAddReported(() -> context.assertTrue(context.getTick() - since[0] >= PortalSight.ARRIVAL_GRACE_TICKS,
+                        "La sortie ne disparait qu'une fois passe le temps laisse au joueur qui arrive."))
                 // Assez de verifications des retours pour qu'un retour manquant soit repose, si le bloc oubliait la perte.
                 .createAndAdd(() -> waitTicks(context, lost[0],
                         BackroomsPortalBlockEntity.RETURN_CHECK_INTERVAL_TICKS * BackroomsPortalBlockEntity.RETURN_MISSING_CHECKS + 10))

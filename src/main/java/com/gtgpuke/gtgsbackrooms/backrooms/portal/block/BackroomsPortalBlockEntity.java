@@ -94,11 +94,11 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
      */
     private static final int EXIT_GRACE_TICKS = 40;
     /**
-     * Ticks pendant lesquels plus personne ne doit voir une sortie fugace pour qu'elle disparaisse : un regard en arriere
-     * juste apres un passage de cote (la sortie quitte l'ecran sans qu'on se soit retourne) la garde, et une image isolee
-     * sans elle, pendant une traversee, ne la perd pas.
+     * Ticks pendant lesquels plus personne ne doit voir une sortie fugace pour qu'elle disparaisse : une image isolee sans
+     * elle, pendant une traversee, ne la perd pas (le client rapporte toutes les quatre ticks), un regard detourne une
+     * demi-seconde si. Juste apres une arrivee, le joueur a en plus le temps de se retourner (voir {@link PortalSight}).
      */
-    public static final int EXIT_UNSEEN_TICKS = 20;
+    public static final int EXIT_UNSEEN_TICKS = 10;
 
     private PortalSettings settings = PortalSettings.DEFAULT;
     /** Cadre d'entree en cache, lu a chaque tick : recalcule quand l'etat du bloc (tourne) ou les reglages changent. */
@@ -233,7 +233,9 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     /**
      * {@code true} si la sortie fugace n'est pas vue : un joueur s'en tient pres, et aucun joueur de son monde ne voit ses
      * retours, d'apres ce que rapporte son client ({@link PortalSight}, troisieme personne comprise). Tant que personne
-     * n'en approche, elle reste. Un spectateur n'agit pas sur le monde : il ne la garde ni ne la perd.
+     * n'en approche, elle reste. Pres d'elle, un joueur sans nouvelles recentes de son client, ou qui vient d'arriver, est
+     * tenu pour la voir ; loin d'elle, seul un rapport qui la nomme compte (un client muet ne garde pas, de l'autre bout du
+     * monde, une sortie qu'il ne voit pas). Un spectateur n'agit pas sur le monde : il ne la garde ni ne la perd.
      */
     private boolean exitForsaken(ServerWorld destination) {
         boolean someoneNear = false;
@@ -243,10 +245,11 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
             if (player.isSpectator()) {
                 continue;
             }
-            if (PortalSight.seesAny(player, this.returnPortals)) {
+            boolean near = player.squaredDistanceTo(this.destinationPos) <= EXIT_NEAR_DISTANCE * EXIT_NEAR_DISTANCE;
+            if (near ? PortalSight.seesAny(player, this.returnPortals) : PortalSight.reportsAny(player, this.returnPortals)) {
                 return false;
             }
-            someoneNear |= player.squaredDistanceTo(this.destinationPos) <= EXIT_NEAR_DISTANCE * EXIT_NEAR_DISTANCE;
+            someoneNear |= near;
         }
         return someoneNear;
     }

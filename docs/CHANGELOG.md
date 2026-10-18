@@ -154,10 +154,12 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   entière dans son monde (un bras ou un objet tenu dépassait derrière le cadre, au lieu de passer dans la vue) : la
   coupe au plan part du modèle (la boîte élargie d'un bloc pour une entité vivante, d'un demi-bloc sinon), à l'entrée
   comme à l'arrivée.
-- **Sortie fugace** : elle ne disparaît plus qu'après une seconde entière sans que personne la voie. Un seul rapport
-  « rien de vu » la perdait : une image sans elle autour d'une traversée la faisait parfois disparaître sous les yeux du
-  joueur (surtout aux passages suivant le premier, qui profitait de la grâce d'une sortie toute neuve), et un passage de
-  côté, qui la fait sortir de l'écran, la perdait avant qu'on ait pu se retourner.
+- **Sortie fugace** : un seul rapport « rien de vu » la perdait. Une image sans elle autour d'une traversée la faisait
+  parfois disparaître sous les yeux du joueur (surtout aux passages suivant le premier, qui profitait de la grâce d'une
+  sortie toute neuve), et un passage de côté, qui la fait sortir de l'écran, la perdait avant qu'on ait pu se
+  retourner. Elle disparaît désormais après une demi-seconde sans que personne la voie, et qui vient d'arriver a une
+  seconde pour se retourner vers elle. En multijoueur, un joueur dont le client ne rapporte rien ne la garde plus de
+  l'autre bout du monde : seulement s'il est près d'elle.
 - Les renderers des vues de portail gardaient, une fois jetés, leurs tampons de dessin alloués hors du tas Java (une
   trentaine de Mio chacun) : chaque changement de monde après avoir vu des portails en perdait autant. Ils servent
   désormais au renderer suivant.

@@ -137,6 +137,9 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   après une traversée, `MixinChunkDataSender`) et qui change doit partir quand même.
 - `ClientPlayNetworkHandler.onBlockEntityUpdate` applique les données à `client.world`, pas au monde du gestionnaire :
   rebrancher le gestionnaire sur un monde distant ne suffit pas, le monde distant les applique lui-même.
+- Tests en jeu : un client rapporte ce qu'il voit toutes les quatre ticks (`PortalSightReporter`) ; un test qui attend une
+  sortie fugace perdue renvoie ses rapports a chaque tick, comme un vrai client, sinon un defaut qui ne se montre qu'avec
+  des rapports continus (une arrivee relancee par chacun d'eux) passe inapercu.
 - Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
   type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
   fautif passe inaperçu).

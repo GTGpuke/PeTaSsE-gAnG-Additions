@@ -23,15 +23,22 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
  * portail, qui ne tient que sous le regard.
  *
  * <p>Un joueur dont le client n'a rien rapporte de recent dans le monde ou il est (il vient d'y arriver, ou son client n'a
- * pas le mod) est tenu pour tout voir : rien ne disparait faute de nouvelles.
+ * pas le mod) peut tout voir : rien ne disparait faute de nouvelles. Un joueur qui vient d'arriver dans un monde le peut
+ * aussi le temps de se retourner ({@link #ARRIVAL_GRACE_TICKS}) : passe de cote, il a la sortie juste a cote de lui,
+ * hors de l'ecran.
  */
 public final class PortalSight {
 
     /** Age, en ticks, au-dela duquel un rapport ne compte plus ; le client en renvoie un au moins chaque seconde. */
     static final int STALE_TICKS = 40;
+    /** Ticks, depuis son premier rapport dans un monde, pendant lesquels un joueur qui y arrive peut tout voir. */
+    public static final int ARRIVAL_GRACE_TICKS = 20;
 
-    /** Rapport d'un client : son monde, les portails vus, et le tick de ce monde ou il est arrive. */
-    private record Report(RegistryKey<World> world, Set<UUID> seen, long tick) {
+    /**
+     * Rapport d'un client : son monde, les portails vus, le tick de ce monde ou il est arrive, et celui du premier rapport
+     * du joueur dans ce monde.
+     */
+    private record Report(RegistryKey<World> world, Set<UUID> seen, long tick, long arrivedAt) {
     }
 
     private static final Map<UUID, Report> REPORTS = new HashMap<>();
@@ -65,22 +72,44 @@ public final class PortalSight {
         if (!payload.dimension().equals(world.getRegistryKey().getValue())) {
             return;
         }
-        REPORTS.put(player.getUuid(), new Report(world.getRegistryKey(), Set.copyOf(payload.seen()), world.getTime()));
+        Report previous = REPORTS.get(player.getUuid());
+        long now = world.getTime();
+        long arrivedAt = previous != null && previous.world() == world.getRegistryKey() ? previous.arrivedAt() : now;
+        REPORTS.put(player.getUuid(), new Report(world.getRegistryKey(), Set.copyOf(payload.seen()), now, arrivedAt));
     }
 
     /**
-     * {@code true} si le joueur voit l'un de ces portails, ou si son client n'a rien rapporte de recent dans le monde ou il
-     * est.
+     * {@code true} si le joueur peut voir l'un de ces portails : un rapport recent de son client le nomme, son client n'a
+     * rien rapporte de recent dans le monde ou il est, ou il vient d'y arriver.
      *
      * @param player joueur
      * @param portals identifiants uniques des portails ; les cases vides sont ignorees
      */
     public static boolean seesAny(ServerPlayerEntity player, @Nullable UUID[] portals) {
+        Report report = recentReport(player);
+        return report == null || player.getServerWorld().getTime() - report.arrivedAt() < ARRIVAL_GRACE_TICKS || names(report, portals);
+    }
+
+    /**
+     * {@code true} seulement si un rapport recent du client du joueur, dans le monde ou il est, nomme l'un de ces portails :
+     * sans nouvelles, rien n'est suppose.
+     *
+     * @param player joueur
+     * @param portals identifiants uniques des portails ; les cases vides sont ignorees
+     */
+    public static boolean reportsAny(ServerPlayerEntity player, @Nullable UUID[] portals) {
+        Report report = recentReport(player);
+        return report != null && names(report, portals);
+    }
+
+    /** Dernier rapport du joueur s'il vaut encore : fait dans le monde ou il est, il y a moins de {@value #STALE_TICKS} ticks. */
+    private static @Nullable Report recentReport(ServerPlayerEntity player) {
         Report report = REPORTS.get(player.getUuid());
         ServerWorld world = player.getServerWorld();
-        if (report == null || report.world() != world.getRegistryKey() || world.getTime() - report.tick() > STALE_TICKS) {
-            return true;
-        }
+        return report == null || report.world() != world.getRegistryKey() || world.getTime() - report.tick() > STALE_TICKS ? null : report;
+    }
+
+    private static boolean names(Report report, @Nullable UUID[] portals) {
         for (UUID portal : portals) {
             if (portal != null && report.seen().contains(portal)) {
                 return true;
