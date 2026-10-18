@@ -1,5 +1,6 @@
 package com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,10 +20,12 @@ import net.minecraft.entity.passive.PigEntity;
 import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
 import net.minecraft.server.OperatorEntry;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.test.GameTest;
+import net.minecraft.test.GameTestException;
 import net.minecraft.test.TestContext;
 import net.minecraft.util.Hand;
 import net.minecraft.util.Identifier;
@@ -242,6 +245,35 @@ public final class PortalInteractionGameTests implements FabricGameTest {
                 hidden.discard();
                 broken.discard();
                 closed.discard();
+                portal.discard();
+                world.setBlockState(target, Blocks.AIR.getDefaultState());
+            }
+            context.complete();
+        });
+    }
+
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
+    public void nothingIsReachedThroughAFrameFarToTheSide(TestContext context) {
+        ServerWorld world = context.getWorld();
+        // Un passage sans rotation : le regard ressort a cote de la sortie, du meme ecart qu'a cote de l'entree.
+        BackroomsPortalEntity portal = BackroomsPortalEntity.builder(world)
+                .position(Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(12, 2, 1))))
+                .facingSource(PortalFacing.SOUTH).facingDestination(PortalFacing.SOUTH)
+                .destinationDim(World.OVERWORLD).destinationPos(Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(12, 2, 12))))
+                .size(1.0f, 2.0f).build();
+        world.spawnEntity(portal);
+        // A un bloc du plan, mais a huit blocs a cote du cadre ; le bloc vise est la ou son regard ressortirait.
+        ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, context.getAbsolute(new Vec3d(20.5, 1.0, 2.5)), 180.0f, 0.0f);
+        BlockPos target = BlockPos.ofFloored(portal.toDestination(player.getEyePos()));
+        world.setBlockState(target, Blocks.DIRT.getDefaultState());
+        context.runAtTick(2, () -> {
+            try {
+                GameTestPlayers.receive(player, new PortalBlockActionPayload(portal.getUuid(), OVERWORLD_ID,
+                        new BlockHitResult(Vec3d.ofCenter(target), Direction.NORTH, target, false), PortalBlockActionPayload.Action.START_MINING));
+                context.assertTrue(world.getBlockState(target).isOf(Blocks.DIRT),
+                        "Pres du plan mais loin a cote du cadre, on ne vise rien par lui : rien ne se casse.");
+            } finally {
+                GameTestPlayers.disconnect(player);
                 portal.discard();
                 world.setBlockState(target, Blocks.AIR.getDefaultState());
             }
@@ -493,6 +525,64 @@ public final class PortalInteractionGameTests implements FabricGameTest {
             }
             context.complete();
         });
+    }
+
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 120)
+    public void aMinerWhoLeavesOrDiesLeavesNoCracks(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BackroomsPortalEntity portal = portal(context, true);
+        BlockPos dirt = context.getAbsolutePos(TARGET_BLOCK);
+        world.setBlockState(dirt, Blocks.DIRT.getDefaultState());
+        // Un temoin pres du bloc, de ce cote-ci : vanilla lui envoie les fissures que posent les autres.
+        ServerPlayerEntity witness = GameTestPlayers.connect(context, GameMode.SURVIVAL, context.getAbsolute(new Vec3d(10.5, 1.0, 8.5)), 0.0f, 0.0f);
+        ServerPlayerEntity[] miner = {player(context, GameMode.SURVIVAL)};
+        int[] minerId = new int[1];
+        long[] since = new long[1];
+        List<BlockBreakingProgressS2CPacket> seen = new ArrayList<>();
+        context.createTimedTaskRunner()
+                .createAndAddReported(() -> {
+                    minerId[0] = miner[0].getId();
+                    blockAction(miner[0], portal, hitOn(context, TARGET_BLOCK), PortalBlockActionPayload.Action.START_MINING);
+                })
+                .createAndAdd(() -> awaitCracks(witness, seen, minerId[0], dirt, true))
+                .createAndAddReported(() -> GameTestPlayers.disconnect(miner[0]))
+                .createAndAdd(() -> awaitCracks(witness, seen, minerId[0], dirt, false))
+                // Un second mineur meurt en plein minage.
+                .createAndAddReported(() -> {
+                    miner[0] = player(context, GameMode.SURVIVAL);
+                    minerId[0] = miner[0].getId();
+                    seen.clear();
+                    blockAction(miner[0], portal, hitOn(context, TARGET_BLOCK), PortalBlockActionPayload.Action.START_MINING);
+                })
+                .createAndAdd(() -> awaitCracks(witness, seen, minerId[0], dirt, true))
+                .createAndAddReported(() -> miner[0].kill())
+                .createAndAdd(() -> awaitCracks(witness, seen, minerId[0], dirt, false))
+                .createAndAddReported(() -> since[0] = context.getTick())
+                // Plus que le temps qu'il faut pour casser de la terre a la main.
+                .createAndAdd(() -> {
+                    if (context.getTick() < since[0] + 30) {
+                        throw new GameTestException("Le temps de casser la terre a la main n'est pas encore passe.");
+                    }
+                })
+                .createAndAddReported(() -> {
+                    try {
+                        context.assertTrue(world.getBlockState(dirt).isOf(Blocks.DIRT), "Mort, il ne mine plus : la terre tient.");
+                    } finally {
+                        GameTestPlayers.disconnect(miner[0]);
+                        GameTestPlayers.disconnect(witness);
+                        portal.discard();
+                        world.setBlockState(dirt, Blocks.AIR.getDefaultState());
+                    }
+                })
+                .completeIfSuccessful();
+    }
+
+    /** Leve tant que le temoin n'a pas recu les fissures du mineur sur ce bloc : posees ({@code shown}), ou effacees. */
+    private static void awaitCracks(ServerPlayerEntity witness, List<BlockBreakingProgressS2CPacket> seen, int minerId, BlockPos pos, boolean shown) {
+        seen.addAll(GameTestPlayers.sent(witness, BlockBreakingProgressS2CPacket.class));
+        if (seen.stream().noneMatch(crack -> crack.getEntityId() == minerId && crack.getPos().equals(pos) && crack.getProgress() >= 0 == shown)) {
+            throw new GameTestException(shown ? "Le temoin ne voit pas encore les fissures du mineur." : "Les fissures du mineur ne sont pas encore effacees.");
+        }
     }
 
     /** {@code true} si le mineur a recu l'effacement des fissures de ce bloc depuis la derniere lecture : le minage a cesse. */

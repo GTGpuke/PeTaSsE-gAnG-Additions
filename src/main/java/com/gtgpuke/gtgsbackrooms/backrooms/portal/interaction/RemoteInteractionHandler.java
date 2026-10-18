@@ -92,7 +92,8 @@ public final class RemoteInteractionHandler {
 
     /**
      * Valide un portail annonce par le client : dans le monde du joueur, visible, menant bien a la dimension
-     * annoncee, et dont le plan est devant le joueur a portee de bloc.
+     * annoncee, devant le joueur, et dont le cadre lui-meme est a portee de bloc : pres du plan mais loin a cote du cadre,
+     * on ne vise rien par lui.
      *
      * @return la portee distante, ou {@code null} si la demande ne tient pas
      */
@@ -108,8 +109,8 @@ public final class RemoteInteractionHandler {
             return null;
         }
         Vec3d eye = player.getEyePos();
-        double distance = portal.signedDistance(eye);
-        if (distance <= 0.0 || distance > player.getBlockInteractionRange() + REACH_MARGIN) {
+        double range = player.getBlockInteractionRange() + REACH_MARGIN;
+        if (portal.signedDistance(eye) <= 0.0 || portal.squaredDistanceToFrame(eye.x, eye.y, eye.z) > range * range) {
             return null;
         }
         return new RemoteReach(portal, destination, portal.toDestination(eye));

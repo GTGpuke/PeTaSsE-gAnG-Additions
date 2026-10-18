@@ -258,17 +258,32 @@ class BackroomsPortalEntityTest {
     void arrivalFrameStraddles() {
         BackroomsPortalEntity portal = validBuilder().build();
         // Arrivee est de 2 x 3 centree en (1.5, 1, 1.5) : plan x = 1.5, largeur le long de Z, hauteur le long de Y.
-        assertTrue(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 1.2, 1.8, 1.8, 1.8), 0.0, 0.0, 0.0), "Un joueur a moitie sorti du cadre.");
-        assertTrue(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 2.2, 1.8, 1.8, 2.8), 0.0, 0.0, 0.0), "Au bord du cadre, il y est encore engage.");
-        assertFalse(portal.arrivalFrameStraddles(new Box(1.5, 0.0, 1.2, 2.1, 1.8, 1.8), 0.0, 0.0, 0.0),
+        assertTrue(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 1.2, 1.8, 1.8, 1.8), 0.0, 0.0, 0.0, 0.0), "Un joueur a moitie sorti du cadre.");
+        assertTrue(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 2.2, 1.8, 1.8, 2.8), 0.0, 0.0, 0.0, 0.0), "Au bord du cadre, il y est encore engage.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.5, 0.0, 1.2, 2.1, 1.8, 1.8), 0.0, 0.0, 0.0, 0.0),
                 "Tout entier devant, la boite touchant le plan.");
-        assertFalse(portal.arrivalFrameStraddles(new Box(0.6, 0.0, 1.2, 1.2, 1.8, 1.8), 0.0, 0.0, 0.0), "Tout entier derriere.");
-        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 3.0, 1.8, 1.8, 3.6), 0.0, 0.0, 0.0),
+        assertFalse(portal.arrivalFrameStraddles(new Box(0.6, 0.0, 1.2, 1.2, 1.8, 1.8), 0.0, 0.0, 0.0, 0.0), "Tout entier derriere.");
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 3.0, 1.8, 1.8, 3.6), 0.0, 0.0, 0.0, 0.0),
                 "A cheval sur le plan, mais a cote du cadre.");
-        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 3.0, 1.2, 1.8, 4.8, 1.8), 0.0, 0.0, 0.0),
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 3.0, 1.2, 1.8, 4.8, 1.8), 0.0, 0.0, 0.0, 0.0),
                 "A cheval sur le plan, mais au-dessus du cadre.");
-        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 1.2, 1.8, 1.8, 1.8), -0.6, 0.0, 0.0),
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.2, 0.0, 1.2, 1.8, 1.8, 1.8), 0.0, -0.6, 0.0, 0.0),
                 "Affichee un peu en arriere, elle n'est pas encore sortie.");
+        // Sa boite a passe le plan, son modele pas encore tout entier.
+        assertFalse(portal.arrivalFrameStraddles(new Box(1.7, 0.0, 1.2, 2.3, 1.8, 1.8), 0.0, 0.0, 0.0, 0.0), "Sa boite est sortie.");
+        assertTrue(portal.arrivalFrameStraddles(new Box(1.7, 0.0, 1.2, 2.3, 1.8, 1.8), 0.5, 0.0, 0.0, 0.0),
+                "Son modele, qui deborde de sa boite, est encore engage dans le cadre d'arrivee.");
+    }
+
+    @Test
+    @DisplayName("La distance d'un point au cadre d'entree est celle au rectangle plein, pas au plan infini")
+    void squaredDistanceToFrame() {
+        BackroomsPortalEntity portal = validBuilder().build();
+        // Entree nord de 2 x 3 centree en (10, 64, 20) : plan z = 20, largeur de x = 9 a 11, hauteur de y = 62,5 a 65,5.
+        assertEquals(0.0, portal.squaredDistanceToFrame(10.5, 63.0, 20.0), 1e-9, "Sur l'ouverture.");
+        assertEquals(9.0, portal.squaredDistanceToFrame(10.5, 63.0, 17.0), 1e-9, "Droit devant, a trois blocs du plan.");
+        assertEquals(1.0 + 64.0, portal.squaredDistanceToFrame(19.0, 63.0, 19.0), 1e-9, "Pres du plan, mais a huit blocs a cote du cadre.");
+        assertEquals(4.0 + 0.25, portal.squaredDistanceToFrame(10.0, 66.0, 18.0), 1e-9, "Au-dessus du cadre.");
     }
 
     @Test
@@ -276,10 +291,14 @@ class BackroomsPortalEntityTest {
     void sourceFrameStraddles() {
         BackroomsPortalEntity portal = validBuilder().build();
         // Entree nord de 2 x 3 centree en (10, 64, 20) : plan z = 20, largeur le long de X.
-        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 19.7, 10.3, 64.3, 20.3), 0.0, 0.0, 0.0), "A moitie entre dans le cadre d'entree.");
-        assertFalse(portal.sourceFrameStraddles(new Box(9.7, 62.5, 18.0, 10.3, 64.3, 18.6), 0.0, 0.0, 0.0), "Encore devant le cadre d'entree.");
-        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 18.0, 10.3, 64.3, 18.6), 0.0, 0.0, 1.7),
+        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 19.7, 10.3, 64.3, 20.3), 0.0, 0.0, 0.0, 0.0), "A moitie entre dans le cadre d'entree.");
+        assertFalse(portal.sourceFrameStraddles(new Box(9.7, 62.5, 18.0, 10.3, 64.3, 18.6), 0.0, 0.0, 0.0, 0.0), "Encore devant le cadre d'entree.");
+        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 18.0, 10.3, 64.3, 18.6), 0.0, 0.0, 0.0, 1.7),
                 "Affichee un bloc et demi plus loin, elle est engagee dans le cadre d'entree.");
+        // A 0,4 bloc du plan : sa boite n'y touche pas, son modele (bras, objet tenu) si.
+        assertFalse(portal.sourceFrameStraddles(new Box(9.7, 62.5, 19.0, 10.3, 64.3, 19.6), 0.0, 0.0, 0.0, 0.0), "Sa boite n'y touche pas.");
+        assertTrue(portal.sourceFrameStraddles(new Box(9.7, 62.5, 19.0, 10.3, 64.3, 19.6), 0.5, 0.0, 0.0, 0.0),
+                "Son modele, qui deborde de sa boite, est deja engage dans le cadre d'entree.");
     }
 
     @Test

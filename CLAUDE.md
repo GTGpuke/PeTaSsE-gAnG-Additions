@@ -85,7 +85,10 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   monde garde son UUID : la retrouver par `getEntity(uuid)` plutôt que par une recherche dans une boîte. Les messages des
   échecs sont dans `build/junit.xml`, pas dans le journal. `TimedTaskRunner.createAndAdd` rejoue sa tâche à chaque tick
   tant qu'elle lève (une attente) ; une vérification définitive va dans `createAndAddReported` (jouée une fois, échec
-  immédiat), nettoyage en `try/finally`, et ce qu'une attente expirée laisserait dans un `@AfterBatch`.
+  immédiat), nettoyage en `try/finally`, et ce qu'une attente expirée laisserait dans un `@AfterBatch`. Un échec de
+  `createAndAddReported` n'arrête pas la suite : les tâches suivantes s'enchaînent (une attente réussie passe à la
+  suivante dans le même tick) et le message gardé dans `build/junit.xml` est celui de la dernière vérification ratée,
+  pas de la première.
 - Mixins : `@Shadow` ne voit que les membres déclarés dans la classe cible, pas ceux hérités (`ClientPlayNetworkHandler.client`
   est déclaré dans `ClientCommonNetworkHandler`) ; l'erreur ne sort qu'au chargement de la cible, donc au lancement du client
   pour un mixin client. `MixinTargetsTest` charge la cible de chaque mixin déclaré et fait échouer le build à la place. Aucune
@@ -124,9 +127,19 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   trentaine de Mio hors du tas Java) ne sont jamais rendus. Un renderer de vue jeté passe par `RemoteWorld.release`, qui
   garde ses tampons pour le suivant.
 - Spectateur : `ServerPlayerEntity.attack` d'un spectateur appelle `setCameraEntity`, qui le téléporte vers la cible,
-  dans son monde ; toute action d'un spectateur à travers un portail est refusée. La traversée d'un portail ne passe pas
+  dans son monde ; toute action d'un spectateur à travers un portail est refusée. Vanilla ne suit un joueur spectateur
+  que pour les spectateurs (`canBeSpectated`) : une vue de portail fait de même, et un spectateur ne compte pas pour une
+  sortie fugace. La traversée d'un portail ne passe pas
   par `teleportTo` : l'événement Fabric `AFTER_PLAYER_CHANGE_WORLD` ne signale que les changements de monde vanilla
   (`AFTER_RESPAWN` une réapparition), et `ENTITY_UNLOAD` part juste avant que vanilla ne retire le suivi d'une entité.
+- Envoi des chunks : tant qu'un chunk attend son tour dans le `ChunkDataSender` d'un joueur, vanilla ne lui envoie aucun
+  changement de bloc (`isTracked` exclut `isInNextBatch`), comptant l'envoyer entier : un chunk qu'on lui épargne (tenu
+  après une traversée, `MixinChunkDataSender`) et qui change doit partir quand même.
+- `ClientPlayNetworkHandler.onBlockEntityUpdate` applique les données à `client.world`, pas au monde du gestionnaire :
+  rebrancher le gestionnaire sur un monde distant ne suffit pas, le monde distant les applique lui-même.
+- Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
+  type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
+  fautif passe inaperçu).
 - Tests en jeu : `PlayerManager.respawnPlayer` appelé directement ne met pas à jour `networkHandler.player` (vanilla le
   fait à la demande de respawn) ; sans cela, la déconnexion retire l'ancien joueur et le nouveau reste dans le monde,
   compté parmi les joueurs des tests suivants.

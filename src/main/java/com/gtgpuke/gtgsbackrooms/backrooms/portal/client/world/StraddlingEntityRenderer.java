@@ -19,6 +19,7 @@ import net.minecraft.client.render.entity.EntityRenderDispatcher;
 import net.minecraft.client.util.BufferAllocator;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.util.TypeFilter;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
@@ -53,6 +54,18 @@ import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
  */
 public final class StraddlingEntityRenderer {
 
+    /**
+     * Marge du modele d'une entity au-dela de sa boite de collision, de tous cotes : vanilla tient la meme pour decider si
+     * une entity est a l'ecran. Le modele touche le plan avant la boite : coupe des ce moment, il passe de l'autre cote au
+     * lieu de rester entier dans son monde. Trop large, elle ne change rien a l'image : coupee sans depasser le plan,
+     * l'entity reste entiere de son cote.
+     */
+    private static final double MODEL_MARGIN = 0.5;
+    /**
+     * Marge d'une entity vivante : bras ecartes et membres qui balancent, epee levee au bout du bras, tete d'un cheval,
+     * nage et vol plane (modele allonge dans une boite reduite a un cube).
+     */
+    private static final double LIVING_MODEL_MARGIN = 1.0;
     /** Rotation du passage de chaque paire d'orientations (source, arrivee), calculee une fois. */
     private static final Quaternionf[][] ROTATIONS = rotations();
     private static final Quaternionf IDENTITY = new Quaternionf();
@@ -127,7 +140,7 @@ public final class StraddlingEntityRenderer {
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
             if (portal.teleportable() && portal.visible() && portal.signedDistance(shownX, shownY, shownZ) > 0.0
-                    && portal.withinFrameWidth(shownX, shownY, shownZ) && portal.sourceFrameStraddles(box, shiftX, shiftY, shiftZ)) {
+                    && portal.withinFrameWidth(shownX, shownY, shownZ) && portal.sourceFrameStraddles(box, modelMargin(entity), shiftX, shiftY, shiftZ)) {
                 return portal;
             }
         }
@@ -153,7 +166,12 @@ public final class StraddlingEntityRenderer {
     /** {@code true} si l'entity, a sa position affichee, est a cheval sur le plan d'arrivee du portail, dans son cadre. */
     static boolean straddlesArrival(BackroomsPortalEntity portal, Entity entity, float tickDelta) {
         show(entity, tickDelta);
-        return portal.arrivalFrameStraddles(entity.getBoundingBox(), shiftX, shiftY, shiftZ);
+        return portal.arrivalFrameStraddles(entity.getBoundingBox(), modelMargin(entity), shiftX, shiftY, shiftZ);
+    }
+
+    /** Marge du modele de l'entity au-dela de sa boite de collision (voir {@link #MODEL_MARGIN}). */
+    public static double modelMargin(Entity entity) {
+        return entity instanceof LivingEntity ? LIVING_MODEL_MARGIN : MODEL_MARGIN;
     }
 
     /** Pose la position affichee de l'entity a cette image, comme vanilla l'interpole, et son ecart a celle du tick. */

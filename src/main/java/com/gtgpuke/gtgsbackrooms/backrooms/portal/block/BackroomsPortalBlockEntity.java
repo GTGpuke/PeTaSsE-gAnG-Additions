@@ -93,6 +93,12 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
      * image, rapport et trajet ; avant, un rapport recent ne peut pas encore le nommer.
      */
     private static final int EXIT_GRACE_TICKS = 40;
+    /**
+     * Ticks pendant lesquels plus personne ne doit voir une sortie fugace pour qu'elle disparaisse : un regard en arriere
+     * juste apres un passage de cote (la sortie quitte l'ecran sans qu'on se soit retourne) la garde, et une image isolee
+     * sans elle, pendant une traversee, ne la perd pas.
+     */
+    public static final int EXIT_UNSEEN_TICKS = 20;
 
     private PortalSettings settings = PortalSettings.DEFAULT;
     /** Cadre d'entree en cache, lu a chaque tick : recalcule quand l'etat du bloc (tourne) ou les reglages changent. */
@@ -115,6 +121,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private boolean exitLost;
     /** Heure du monde d'arrivee a partir de laquelle la sortie fugace se juge : son dernier retour pose est connu des clients. */
     private long exitJudgedFrom;
+    /** Heure du monde d'arrivee depuis laquelle personne ne voit la sortie fugace ; negative tant qu'on la voit. */
+    private long exitUnseenSince = -1L;
     private int ticksSinceLoad;
 
     /** Block entity du bloc portail, creee par le bloc a la pose ou au chargement. */
@@ -196,8 +204,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         }
         if (this.settings.fleetingExit() && !noReturn() && this.ticksSinceLoad % EXIT_SIGHT_INTERVAL_TICKS == 0) {
             ServerWorld destination = serverWorld.getServer().getWorld(this.destinationDim);
-            if (destination != null && exitForsaken(destination)) {
-                loseExit(serverWorld);
+            if (destination != null) {
+                watchExit(serverWorld, destination);
             }
         }
     }
@@ -208,18 +216,33 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     }
 
     /**
-     * {@code true} si la sortie fugace est perdue de vue : un joueur s'en tient pres, et aucun joueur de son monde ne voit
-     * ses retours, d'apres ce que rapporte son client ({@link PortalSight}, troisieme personne comprise). Tant que personne
-     * n'en approche, elle reste ; un retour qui vient d'apparaitre aussi, le temps que les clients le voient.
+     * Veille sur la sortie fugace : perdue de vue {@value #EXIT_UNSEEN_TICKS} ticks d'affilee, elle disparait. Un retour qui
+     * vient d'apparaitre tient quoi qu'on en rapporte, le temps que les clients le voient.
+     */
+    private void watchExit(ServerWorld world, ServerWorld destination) {
+        long now = destination.getTime();
+        if (now < this.exitJudgedFrom || !exitForsaken(destination)) {
+            this.exitUnseenSince = -1L;
+        } else if (this.exitUnseenSince < 0L) {
+            this.exitUnseenSince = now;
+        } else if (now - this.exitUnseenSince >= EXIT_UNSEEN_TICKS) {
+            loseExit(world);
+        }
+    }
+
+    /**
+     * {@code true} si la sortie fugace n'est pas vue : un joueur s'en tient pres, et aucun joueur de son monde ne voit ses
+     * retours, d'apres ce que rapporte son client ({@link PortalSight}, troisieme personne comprise). Tant que personne
+     * n'en approche, elle reste. Un spectateur n'agit pas sur le monde : il ne la garde ni ne la perd.
      */
     private boolean exitForsaken(ServerWorld destination) {
-        if (destination.getTime() < this.exitJudgedFrom) {
-            return false;
-        }
         boolean someoneNear = false;
         List<ServerPlayerEntity> players = destination.getPlayers();
         for (int i = 0; i < players.size(); i++) {
             ServerPlayerEntity player = players.get(i);
+            if (player.isSpectator()) {
+                continue;
+            }
             if (PortalSight.seesAny(player, this.returnPortals)) {
                 return false;
             }

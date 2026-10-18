@@ -131,6 +131,33 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- **Multijoueur et réseau** :
+  - un bloc changé dans un chunk que le client tenait déjà au moment d'une traversée (un autre joueur, l'eau, la
+    redstone) restait faux chez lui jusqu'au déchargement du chunk : vanilla ne relaie rien à un chunk qu'il compte
+    envoyer, et ce chunk-là n'était plus envoyé. Il repart désormais ;
+  - les chunks et les blocs encore en route pendant une traversée prédite par le client étaient perdus (trous ou blocs
+    faux juste après le passage, surtout en ligne) ; une traversée refusée par le serveur laissait, deux secondes durant,
+    des entités de ce monde affichées pour de bon (objets, mobs morts) ;
+  - les données d'une block entity (texte d'un panneau, motifs d'une bannière, tête d'un joueur) ne suivaient pas un
+    changement vu à travers un portail : elle s'y affichait vide ;
+  - la portée d'une action à travers un portail se mesurait au plan infini du cadre : un client modifié, près du plan
+    mais loin à côté du cadre, agissait de l'autre côté. Elle se mesure au cadre lui-même ;
+  - un spectateur était montré par les portails aux autres joueurs (vanilla ne le montre qu'aux spectateurs), et
+    perdait une sortie fugace en passant près d'elle : il ne la garde ni ne la perd plus ;
+  - un rapport de regard arrivé après un changement de monde comptait pour le nouveau : il porte désormais son monde ;
+  - les fissures d'un bloc miné à travers un portail restaient si le mineur se déconnectait, et un mineur mort
+    continuait de miner ; elles se voient aussi, comme vanilla, de qui regarde par un portail ;
+  - sur un serveur lent, le portail de retour clignotait juste après une traversée : la vue d'un joueur qui vient de
+    passer repart au tick suivant ;
+  - le regard porté à travers un portail de son propre monde pouvait viser son propre corps.
+- Une entité dont le modèle touchait déjà le plan d'un portail, sa boîte de collision pas encore, restait dessinée tout
+  entière dans son monde (un bras ou un objet tenu dépassait derrière le cadre, au lieu de passer dans la vue) : la
+  coupe au plan part du modèle (la boîte élargie d'un bloc pour une entité vivante, d'un demi-bloc sinon), à l'entrée
+  comme à l'arrivée.
+- **Sortie fugace** : elle ne disparaît plus qu'après une seconde entière sans que personne la voie. Un seul rapport
+  « rien de vu » la perdait : une image sans elle autour d'une traversée la faisait parfois disparaître sous les yeux du
+  joueur (surtout aux passages suivant le premier, qui profitait de la grâce d'une sortie toute neuve), et un passage de
+  côté, qui la fait sortir de l'écran, la perdait avant qu'on ait pu se retourner.
 - Les renderers des vues de portail gardaient, une fois jetés, leurs tampons de dessin alloués hors du tas Java (une
   trentaine de Mio chacun) : chaque changement de monde après avoir vu des portails en perdait autant. Ils servent
   désormais au renderer suivant.

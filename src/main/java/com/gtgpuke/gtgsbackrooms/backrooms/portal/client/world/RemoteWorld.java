@@ -12,6 +12,7 @@ import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.option.ParticlesMode;
@@ -24,6 +25,8 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
+import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ChunkData;
 import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntityAnimationS2CPacket;
@@ -390,6 +393,19 @@ public final class RemoteWorld {
             if (source != null) {
                 FrameSoundPlayer.redirect(this.world, source.getX(), source.getY(), source.getZ(), sound.getSound().value(), sound.getCategory(),
                         sound.getVolume(), sound.getPitch(), false, sound.getSeed());
+            }
+            return;
+        }
+        if (packet instanceof BlockBreakingProgressS2CPacket breaking) {
+            // Fissures d'un bloc mine de l'autre cote, par quiconque : vanilla les poserait sur le renderer du joueur.
+            this.world.setBlockBreakingInfo(breaking.getEntityId(), breaking.getPos(), breaking.getProgress());
+            return;
+        }
+        if (packet instanceof BlockEntityUpdateS2CPacket update) {
+            // Vanilla l'appliquerait a client.world : c'est le bloc de ce monde-ci qui change.
+            BlockEntity blockEntity = this.world.getBlockEntity(update.getPos());
+            if (blockEntity != null && blockEntity.getType() == update.getBlockEntityType() && !update.getNbt().isEmpty()) {
+                blockEntity.read(update.getNbt(), handler.getRegistryManager());
             }
             return;
         }

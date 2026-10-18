@@ -338,7 +338,10 @@ public final class ClientPortalCrossing {
         ((LightmapTextureManagerAccessor) client.gameRenderer.getLightmapTextureManager()).backrooms$setDirty(true);
         hasLastFeet = false;
         lastFeetWorld = null;
-        if (confirmed) {
+        // Un passage refuse ramene le joueur dans le monde que le flux vanilla n'a pas quitte : rien a rebrancher, et aucun
+        // nettoyage de l'ancien monde a attendre (les destructions de ce monde-ci, detournees, n'y seraient jamais faites).
+        ClientPlayNetworkHandler handler = client.getNetworkHandler();
+        if (confirmed && handler != null && handler.getWorld() != newWorld) {
             bindNetworkHandler(client, newWorld, oldWorld);
         }
         ModPerformanceMonitor.onCrossingSwitched(newWorld.getRegistryKey().getValue());

@@ -37,6 +37,8 @@ public final class RemoteWorldRegistry {
     /** Memes mondes que {@link #WORLDS}, pour les parcourir a chaque tick sans iterateur. */
     private static final List<RemoteWorld> WORLD_LIST = new ArrayList<>();
     private static @Nullable ClientWorld mainWorld;
+    /** Monde distant devenu principal a la derniere traversee, avec son renderer ; {@code null} avant la premiere. */
+    private static @Nullable RemoteWorld promotedWorld;
     /** Renderer cree par vanilla, a rendre a {@code MinecraftClient} quand les mondes distants sont liberes. */
     private static @Nullable WorldRenderer vanillaRenderer;
     /**
@@ -54,6 +56,26 @@ public final class RemoteWorldRegistry {
     /** Monde distant d'une dimension, ou {@code null} si le serveur ne l'a pas annoncee. */
     public static @Nullable RemoteWorld get(RegistryKey<World> dimension) {
         return WORLDS.get(dimension);
+    }
+
+    /**
+     * Monde qui recoit les chunks et les blocs que le serveur synchronise pour une dimension : son monde distant, ou,
+     * pendant une traversee predite que le serveur n'a pas encore confirmee (le flux vanilla nourrit encore l'ancien
+     * monde), le monde qui vient de devenir principal. Le serveur, qui tient encore le joueur de l'autre cote, les lui
+     * envoie toujours comme a une vue et les compte comme recus : perdus, ils manqueraient au nouveau monde, vanilla ne
+     * renvoyant pas les chunks que le client tient deja.
+     *
+     * @return monde a nourrir, ou {@code null} si la dimension n'est ni distante ni en attente de confirmation
+     */
+    public static @Nullable RemoteWorld syncTarget(MinecraftClient client, RegistryKey<World> dimension) {
+        RemoteWorld remote = WORLDS.get(dimension);
+        if (remote != null) {
+            return remote;
+        }
+        RemoteWorld promoted = promotedWorld;
+        ClientPlayNetworkHandler handler = client.getNetworkHandler();
+        return promoted != null && handler != null && promoted.world() == client.world && handler.getWorld() != client.world
+                && dimension.equals(promoted.world().getRegistryKey()) ? promoted : null;
     }
 
     /**
@@ -189,6 +211,7 @@ public final class RemoteWorldRegistry {
         // Les vues secondaires restent liees a leur monde : celle de l'ancien monde principal attend son retour, celle
         // du nouveau, s'il en a deja eu une, resert telle quelle.
         mainWorld = promoted.world();
+        promotedWorld = promoted;
     }
 
     /**
@@ -264,6 +287,7 @@ public final class RemoteWorldRegistry {
         }
         WORLDS.clear();
         WORLD_LIST.clear();
+        promotedWorld = null;
         disposeMirrors();
         if (vanillaRenderer != null) {
             WorldRenderer current = client.worldRenderer;

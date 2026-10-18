@@ -14,8 +14,11 @@ import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
+import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
+import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlaySoundS2CPacket;
@@ -82,8 +85,19 @@ public final class PortalViewTracker {
      * plus tard) a pu etre oublie par le client entre-temps, et doit partir comme les autres.
      */
     public static final int HELD_CHUNKS_TTL_TICKS = 100;
-    /** Chunks de sa nouvelle dimension que le client d'un joueur tient deja, le temps que vanilla les lui propose. */
-    private static final Map<UUID, HeldChunks> HELD_AFTER_CROSSING = new HashMap<>();
+    /**
+     * Chunks de sa nouvelle dimension que le client d'un joueur tient deja, le temps que vanilla les lui propose. Peu
+     * d'entrees (les joueurs passes depuis moins de {@link #HELD_CHUNKS_TTL_TICKS} ticks) : une liste, parcourue sans
+     * iterateur a chaque changement de bloc.
+     */
+    private static final List<HeldChunks> HELD_AFTER_CROSSING = new ArrayList<>();
+    /**
+     * Joueurs passes par un portail depuis le dernier tick : leur vue repart des le tick suivant, sans attendre le passage
+     * regulier. Leur client differe d'une dizaine de ses ticks le retrait des copies que la bascule efface, le temps que le
+     * serveur les renvoie : un serveur lent (moins de dix ticks par seconde) les renverrait trop tard, et le portail de
+     * retour juste derriere le joueur clignoterait.
+     */
+    private static final List<UUID> CHANGED_WORLD = new ArrayList<>();
     /** Nombre total de chunks distants presents chez les clients ; zero = rien a faire sur les changements de blocs. */
     private static int watchedChunkCount;
     private static boolean initialized;
@@ -107,8 +121,8 @@ public final class PortalViewTracker {
         }
     }
 
-    /** Chunks tenus par le client d'un joueur apres une traversee, et tick serveur jusqu'auquel ils valent. */
-    private record HeldChunks(LongSet chunks, long expiresAt) {
+    /** Chunks tenus par le client d'un joueur apres une traversee, leur dimension, et tick serveur jusqu'auquel ils valent. */
+    private record HeldChunks(UUID player, RegistryKey<World> dimension, LongSet chunks, long expiresAt) {
     }
 
     private PortalViewTracker() {
@@ -132,6 +146,7 @@ public final class PortalViewTracker {
             VIEWS.clear();
             VIEW_LIST.clear();
             HELD_AFTER_CROSSING.clear();
+            CHANGED_WORLD.clear();
             RELEVANT_SCRATCH.clear();
             ANCHOR_SCRATCH.clear();
             watchedChunkCount = 0;
@@ -141,17 +156,26 @@ public final class PortalViewTracker {
 
     /**
      * Signale un changement de bloc serveur ; appele par le mixin de {@code ServerChunkManager}.
-     * Sans joueur regardant un chunk distant, le cout est un test d'entier.
+     * Sans joueur regardant un chunk distant ni passe a l'instant, le cout est deux tests.
+     *
+     * <p>Un chunk tenu par un client apres une traversee, et qui change, n'est plus a jour chez lui : vanilla, qui compte
+     * le lui envoyer entier, ne lui envoie pas le changement tant que le chunk attend son tour ; il doit donc partir.
      *
      * @param world monde du bloc
      * @param pos position du bloc
      */
     public static void onBlockChanged(ServerWorld world, BlockPos pos) {
-        if (watchedChunkCount == 0) {
+        if (watchedChunkCount == 0 && HELD_AFTER_CROSSING.isEmpty()) {
             return;
         }
         long chunkKey = ChunkPos.toLong(pos);
         RegistryKey<World> dimension = world.getRegistryKey();
+        for (int i = 0; i < HELD_AFTER_CROSSING.size(); i++) {
+            HeldChunks held = HELD_AFTER_CROSSING.get(i);
+            if (held.dimension() == dimension) {
+                held.chunks().remove(chunkKey);
+            }
+        }
         for (int i = 0; i < VIEW_LIST.size(); i++) {
             PlayerView view = VIEW_LIST.get(i);
             LongSet sent = view.sentChunks.get(dimension);
@@ -169,11 +193,12 @@ public final class PortalViewTracker {
      */
     public static void onPlayerChangedWorld(ServerPlayerEntity player) {
         forget(player.getServer(), player.getUuid(), true);
+        CHANGED_WORLD.add(player.getUuid());
     }
 
     /** Changement de monde vanilla ou respawn : le client recree son monde, et ne tient plus aucun chunk. */
     private static void onVanillaWorldChange(ServerPlayerEntity player) {
-        HELD_AFTER_CROSSING.remove(player.getUuid());
+        releaseHeldChunks(player.getUuid());
         onPlayerChangedWorld(player);
     }
 
@@ -185,15 +210,23 @@ public final class PortalViewTracker {
      * @return nombre de chunks de {@code destination} que le client tient deja
      */
     public static int keepHeldChunks(ServerPlayerEntity player, RegistryKey<World> destination) {
+        releaseHeldChunks(player.getUuid());
         PlayerView view = VIEWS.get(player.getUuid());
         LongSet sent = view == null ? null : view.sentChunks.get(destination);
-        int held = sent == null ? 0 : sent.size();
-        if (held == 0) {
-            HELD_AFTER_CROSSING.remove(player.getUuid());
+        if (sent == null) {
             return 0;
         }
-        HELD_AFTER_CROSSING.put(player.getUuid(), new HeldChunks(new LongOpenHashSet(sent), player.getServer().getTicks() + HELD_CHUNKS_TTL_TICKS));
-        return held;
+        LongSet held = new LongOpenHashSet(sent);
+        // Un changement pas encore relaye manque au client : son chunk part avec les autres.
+        LongSet pending = view.pendingBlockUpdates.get(destination);
+        if (pending != null) {
+            for (LongIterator positions = pending.iterator(); positions.hasNext(); ) {
+                long pos = positions.nextLong();
+                held.remove(ChunkPos.toLong(BlockPos.unpackLongX(pos) >> 4, BlockPos.unpackLongZ(pos) >> 4));
+            }
+        }
+        HELD_AFTER_CROSSING.add(new HeldChunks(player.getUuid(), destination, held, player.getServer().getTicks() + HELD_CHUNKS_TTL_TICKS));
+        return held.size();
     }
 
     /**
@@ -201,21 +234,34 @@ public final class PortalViewTracker {
      * traversee recente. Consomme l'entree ; passe {@link #HELD_CHUNKS_TTL_TICKS}, plus rien n'est tenu.
      */
     public static boolean consumeHeldChunk(ServerPlayerEntity player, ChunkPos pos) {
-        HeldChunks held = HELD_AFTER_CROSSING.get(player.getUuid());
-        if (held == null) {
+        int index = heldIndex(player.getUuid());
+        if (index < 0) {
             return false;
         }
-        if (player.getServer().getTicks() > held.expiresAt()) {
-            HELD_AFTER_CROSSING.remove(player.getUuid());
-            return false;
-        }
+        HeldChunks held = HELD_AFTER_CROSSING.get(index);
         if (!held.chunks().remove(pos.toLong())) {
             return false;
         }
         if (held.chunks().isEmpty()) {
-            HELD_AFTER_CROSSING.remove(player.getUuid());
+            HELD_AFTER_CROSSING.remove(index);
         }
         return true;
+    }
+
+    private static int heldIndex(UUID player) {
+        for (int i = 0; i < HELD_AFTER_CROSSING.size(); i++) {
+            if (HELD_AFTER_CROSSING.get(i).player().equals(player)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private static void releaseHeldChunks(UUID player) {
+        int index = heldIndex(player);
+        if (index >= 0) {
+            HELD_AFTER_CROSSING.remove(index);
+        }
     }
 
     /** Nombre de chunks distants actuellement presents chez tous les clients. */
@@ -224,7 +270,7 @@ public final class PortalViewTracker {
     }
 
     /**
-     * Envoie un son, un evenement de monde ou des particules d'une dimension aux joueurs qui la voient a travers un
+     * Envoie un son, un evenement de monde, des particules ou des fissures d'une dimension aux joueurs qui la voient a travers un
      * portail, si le point tombe dans un chunk de leur fenetre ; appele par les mixins de {@code PlayerManager} et de
      * {@code ServerWorld}, apres l'envoi vanilla aux joueurs de la dimension. C'est le client qui decide par quel
      * portail le son lui parvient et ou s'affichent les particules.
@@ -320,7 +366,8 @@ public final class PortalViewTracker {
         return packet instanceof PlaySoundS2CPacket
                 || packet instanceof PlaySoundFromEntityS2CPacket
                 || packet instanceof WorldEventS2CPacket
-                || packet instanceof ParticleS2CPacket;
+                || packet instanceof ParticleS2CPacket
+                || packet instanceof BlockBreakingProgressS2CPacket;
     }
 
     @SuppressWarnings("try")
@@ -330,6 +377,21 @@ public final class PortalViewTracker {
                 List<ServerPlayerEntity> players = server.getPlayerManager().getPlayerList();
                 for (int i = 0; i < players.size(); i++) {
                     update(server, players.get(i));
+                }
+            } else {
+                for (int i = 0; i < CHANGED_WORLD.size(); i++) {
+                    ServerPlayerEntity player = server.getPlayerManager().getPlayer(CHANGED_WORLD.get(i));
+                    // Deconnecte depuis : plus rien a faire.
+                    if (player != null) {
+                        update(server, player);
+                    }
+                }
+            }
+            CHANGED_WORLD.clear();
+            // Perimes, des chunks tenus ne valent plus rien : retires, ils ne coutent plus rien aux changements de blocs.
+            for (int i = HELD_AFTER_CROSSING.size() - 1; i >= 0; i--) {
+                if (server.getTicks() > HELD_AFTER_CROSSING.get(i).expiresAt()) {
+                    HELD_AFTER_CROSSING.remove(i);
                 }
             }
             flushBlockUpdates(server);
@@ -513,6 +575,13 @@ public final class PortalViewTracker {
                 while (iterator.hasNext()) {
                     BlockPos pos = BlockPos.fromLong(iterator.nextLong());
                     ServerPlayNetworking.send(view.player, new RemoteBlockUpdatePayload(dimensionId, pos, world.getBlockState(pos)));
+                    // Comme vanilla apres un changement : les donnees de la block entity suivent l'etat (texte d'un
+                    // panneau, motifs d'une banniere, tete d'un joueur), sinon la vue la montrerait vide.
+                    BlockEntity blockEntity = world.getBlockEntity(pos);
+                    Packet<ClientPlayPacketListener> update = blockEntity == null ? null : blockEntity.toUpdatePacket();
+                    if (update != null) {
+                        ServerPlayNetworking.send(view.player, new RemoteEntityPacketPayload(dimensionId, update));
+                    }
                 }
                 pending.clear();
             }
@@ -521,7 +590,7 @@ public final class PortalViewTracker {
 
     private static void forget(MinecraftServer server, UUID playerUuid, boolean notifyClient) {
         if (!notifyClient) {
-            HELD_AFTER_CROSSING.remove(playerUuid);
+            releaseHeldChunks(playerUuid);
         }
         PlayerView view = VIEWS.remove(playerUuid);
         if (view == null) {

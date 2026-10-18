@@ -14,9 +14,10 @@ import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 /**
  * Client vers serveur : les portails que la camera du joueur voit, dans le monde ou il est (voir {@link PortalSight}).
  *
+ * @param dimension monde du client au moment du rapport : arrive apres un changement de monde, il ne dit rien du nouveau
  * @param seen identifiants uniques des portails vus, au plus {@link #MAX_PORTALS}
  */
-public record PortalSightPayload(List<UUID> seen) implements CustomPayload {
+public record PortalSightPayload(Identifier dimension, List<UUID> seen) implements CustomPayload {
 
     /** Portails rapportes au plus : bien au-dela de ce qu'un ecran montre, en deca d'un abus. */
     public static final int MAX_PORTALS = 64;
@@ -28,11 +29,13 @@ public record PortalSightPayload(List<UUID> seen) implements CustomPayload {
             PacketCodec.of(PortalSightPayload::write, PortalSightPayload::read);
 
     private void write(PacketByteBuf buf) {
+        buf.writeIdentifier(this.dimension);
         buf.writeCollection(this.seen, (out, uuid) -> out.writeUuid(uuid));
     }
 
     private static PortalSightPayload read(PacketByteBuf buf) {
-        return new PortalSightPayload(buf.readCollection(PacketByteBuf.getMaxValidator(ArrayList::new, MAX_PORTALS), in -> in.readUuid()));
+        Identifier dimension = buf.readIdentifier();
+        return new PortalSightPayload(dimension, buf.readCollection(PacketByteBuf.getMaxValidator(ArrayList::new, MAX_PORTALS), in -> in.readUuid()));
     }
 
     @Override

@@ -115,7 +115,7 @@ public final class PortalSightReporter {
         if (!SEEN.equals(sent) || world != sentWorld || sinceSent >= HEARTBEAT_TICKS) {
             // Le paquet s'ecrit plus tard, sur le fil du reseau : il emporte sa propre liste.
             sent = List.copyOf(SEEN);
-            ClientPlayNetworking.send(new PortalSightPayload(sent));
+            ClientPlayNetworking.send(new PortalSightPayload(world.getValue(), sent));
             sentWorld = world;
             sinceSent = 0;
         }

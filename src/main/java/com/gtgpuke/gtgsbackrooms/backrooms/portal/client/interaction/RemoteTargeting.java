@@ -40,8 +40,12 @@ import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 public final class RemoteTargeting {
 
     private static final TypeFilter<Entity, Entity> ENTITY_FILTER = TypeFilter.instanceOf(Entity.class);
-    /** Les portails ne se visent pas ({@code canHit} faux) : ils se traversent. */
-    private static final Predicate<Entity> TARGETABLE = entity -> !entity.isSpectator() && entity.canHit();
+    /**
+     * Les portails ne se visent pas ({@code canHit} faux) : ils se traversent. Comme le rayon vanilla, celui qui regarde
+     * ne se vise pas lui-meme, son corps vu dans un portail de son propre monde.
+     */
+    private static final Predicate<Entity> TARGETABLE = entity -> !entity.isSpectator() && entity.canHit()
+            && entity != MinecraftClient.getInstance().getCameraEntity();
     private static final List<Entity> ENTITY_SCRATCH = new ArrayList<>();
     /** Depart du rayon distant un peu devant le plan d'arrivee, pour ne pas toucher ce qui l'affleure. */
     private static final double RAY_OFFSET = 1.0e-3;

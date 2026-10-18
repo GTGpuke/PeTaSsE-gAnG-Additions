@@ -114,7 +114,7 @@ public final class RemoteSyncReceiver {
             return null;
         }
         RemoteWorldRegistry.syncWithMainWorld(client.world);
-        return RemoteWorldRegistry.get(worldKey(dimension));
+        return RemoteWorldRegistry.syncTarget(client, worldKey(dimension));
     }
 
     private static RegistryKey<World> worldKey(Identifier dimension) {

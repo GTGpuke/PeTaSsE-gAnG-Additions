@@ -3,16 +3,20 @@ package com.gtgpuke.gtgsbackrooms.mixin;
 import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockPos;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 
 /**
- * Particules diffusees par le serveur (coups critiques, explosions, fumee) : elles partent aussi aux joueurs qui voient
- * la dimension a travers un portail, et s'affichent dans la vue.
+ * Particules diffusees par le serveur (coups critiques, explosions, fumee) et fissures d'un bloc qu'on mine : elles
+ * partent aussi aux joueurs qui voient la dimension a travers un portail, et s'affichent dans la vue.
  */
 @Mixin(ServerWorld.class)
 public abstract class MixinServerWorld {
@@ -26,5 +30,13 @@ public abstract class MixinServerWorld {
             PortalViewTracker.relayToViewers(self.getRegistryKey(), packet.getX(), packet.getZ(), packet);
         }
         return packet;
+    }
+
+    @Inject(method = "setBlockBreakingInfo", at = @At("TAIL"))
+    private void backrooms$relayBreakingToPortalViewers(int entityId, BlockPos pos, int progress, CallbackInfo ci) {
+        if (ModConfig.ENABLE_PORTAL_FEATURE && PortalViewTracker.watchedChunkCount() > 0) {
+            ServerWorld self = (ServerWorld) (Object) this;
+            PortalViewTracker.relayToViewers(self.getRegistryKey(), pos.getX(), pos.getZ(), new BlockBreakingProgressS2CPacket(entityId, pos, progress));
+        }
     }
 }

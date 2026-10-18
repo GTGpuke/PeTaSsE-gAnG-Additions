@@ -64,7 +64,7 @@ final class RemoteMiningTracker {
     /** Branche le tick et le nettoyage ; appele une fois, par {@link RemoteInteractionHandler#init()}. */
     static void init() {
         ServerTickEvents.END_SERVER_TICK.register(RemoteMiningTracker::tick);
-        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> MINING.remove(handler.player.getUuid()));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> forget(handler.player));
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> MINING.clear());
     }
 
@@ -80,6 +80,17 @@ final class RemoteMiningTracker {
             return;
         }
         MINING.put(player.getUuid(), new Mining(reach.portal().getUuid(), world.getRegistryKey(), pos.toImmutable()));
+    }
+
+    /**
+     * Le joueur s'en va en plein minage : ses fissures s'effacent chez les autres, sans plus rien lui envoyer (meme s'il
+     * n'en a pas encore pose : effacer ce qui n'est pas la ne coute qu'un paquet).
+     */
+    private static void forget(ServerPlayerEntity player) {
+        Mining mining = MINING.remove(player.getUuid());
+        if (mining != null) {
+            player.getServer().getWorld(mining.dimension).setBlockBreakingInfo(player.getId(), mining.pos, -1);
+        }
     }
 
     /** Le joueur relache le bouton ou vise ailleurs : les fissures s'effacent. */
@@ -102,7 +113,8 @@ final class RemoteMiningTracker {
             Mining mining = entry.getValue();
             RemoteReach reach = RemoteInteractionHandler.resolve(player, mining.portal, mining.dimension.getValue());
             BlockState state = reach == null ? null : reach.destination().getBlockState(mining.pos);
-            if (state == null || state.isAir() || !reach.canReachBlock(player, mining.pos)) {
+            // Mort, il ne mine plus : vanilla arrete aussi le minage d'un joueur mort.
+            if (state == null || state.isAir() || !player.isAlive() || !reach.canReachBlock(player, mining.pos)) {
                 iterator.remove();
                 clearProgress(player, mining);
                 continue;

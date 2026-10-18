@@ -118,16 +118,18 @@ class PortalPayloadsTest {
     @Test
     @DisplayName("Le regard du client transporte les portails vus, et pas plus que le plafond")
     void sightPayload() {
-        PortalSightPayload payload = new PortalSightPayload(List.of(UUID.randomUUID(), UUID.randomUUID()));
-        assertEquals(payload, roundTripPacket(PortalSightPayload.CODEC, payload), "Aller-retour identique.");
-        assertEquals(new PortalSightPayload(List.of()), roundTripPacket(PortalSightPayload.CODEC, new PortalSightPayload(List.of())), "Rien de vu.");
+        Identifier level0 = BackroomsConstants.LEVEL_ZERO_WORLD.getValue();
+        PortalSightPayload payload = new PortalSightPayload(level0, List.of(UUID.randomUUID(), UUID.randomUUID()));
+        assertEquals(payload, roundTripPacket(PortalSightPayload.CODEC, payload), "Aller-retour identique, dimension comprise.");
+        assertEquals(new PortalSightPayload(level0, List.of()), roundTripPacket(PortalSightPayload.CODEC, new PortalSightPayload(level0, List.of())),
+                "Rien de vu.");
         assertEquals(PortalSightPayload.ID, payload.getId(), "Identifiant du payload.");
         List<UUID> tooMany = new ArrayList<>();
         for (int i = 0; i <= PortalSightPayload.MAX_PORTALS; i++) {
             tooMany.add(UUID.randomUUID());
         }
         PacketByteBuf buffer = new PacketByteBuf(Unpooled.buffer());
-        PortalSightPayload.CODEC.encode(buffer, new PortalSightPayload(tooMany));
+        PortalSightPayload.CODEC.encode(buffer, new PortalSightPayload(level0, tooMany));
         assertThrows(RuntimeException.class, () -> PortalSightPayload.CODEC.decode(buffer), "Au-dela du plafond, le paquet est refuse.");
     }
 

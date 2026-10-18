@@ -23,6 +23,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.StraddlingEntityRenderer;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.mixin.client.LimbAnimatorAccessor;
@@ -359,7 +360,8 @@ public final class EntityHandover {
         Vec3d center = portal.destinationPos();
         double ahead = (entity.lastRenderX - center.x) * normal.x + (entity.lastRenderY - center.y) * normal.y
                 + (entity.lastRenderZ - center.z) * normal.z;
-        return ahead > 0.0 && !portal.arrivalFrameStraddles(entity.getBoundingBox(), entity.lastRenderX - entity.getX(),
+        return ahead > 0.0 && !portal.arrivalFrameStraddles(entity.getBoundingBox(), StraddlingEntityRenderer.modelMargin(entity),
+                entity.lastRenderX - entity.getX(),
                 entity.lastRenderY - entity.getY(), entity.lastRenderZ - entity.getZ());
     }
 

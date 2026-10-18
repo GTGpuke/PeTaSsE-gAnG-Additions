@@ -11,6 +11,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.Blocks;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ItemEntity;
+import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
 import net.minecraft.network.packet.s2c.play.GameMessageS2CPacket;
 import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlaySoundFromEntityS2CPacket;
@@ -34,7 +35,7 @@ class PortalViewTrackerTest {
     }
 
     @Test
-    @DisplayName("Sons, sons d'entity, evenements de monde et particules passent ; le reste concerne les joueurs presents")
+    @DisplayName("Sons, sons d'entity, evenements de monde, particules et fissures passent ; le reste concerne les joueurs presents")
     void relayedPackets() {
         assertTrue(PortalViewTracker.isRelayed(new PlaySoundS2CPacket(SoundEvents.BLOCK_NOTE_BLOCK_BELL, SoundCategory.BLOCKS,
                 0.0, 64.0, 0.0, 1.0f, 1.0f, 0L)), "Un son a une position.");
@@ -44,6 +45,7 @@ class PortalViewTrackerTest {
                 Block.getRawIdFromState(Blocks.STONE.getDefaultState()), false)), "Un evenement de monde.");
         assertTrue(PortalViewTracker.isRelayed(new ParticleS2CPacket(ParticleTypes.FLAME, false, 0.0, 64.0, 0.0, 0.0f, 0.0f, 0.0f, 0.0f, 1)),
                 "Des particules.");
+        assertTrue(PortalViewTracker.isRelayed(new BlockBreakingProgressS2CPacket(42, BlockPos.ORIGIN, 3)), "Les fissures d'un bloc mine.");
         assertFalse(PortalViewTracker.isRelayed(new GameMessageS2CPacket(Text.literal("Bonjour."), false)), "Un message de chat.");
     }
 }

@@ -44,7 +44,6 @@ import com.gtgpuke.gtgsbackrooms.mixin.WorldAccessor;
 final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
 
     private static final TypeFilter<Entity, Entity> ENTITY_FILTER = TypeFilter.instanceOf(Entity.class);
-    private static final Predicate<Entity> ANY = entity -> true;
 
     private final ServerPlayerEntity viewer;
     private final RegistryKey<World> dimension;
@@ -54,6 +53,8 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
     private final List<Entity> scratch = new ArrayList<>();
     /** Envoi enveloppe, cree une fois : le suivi vanilla le recoit pour chaque entity nouvellement suivie. */
     private final Consumer<Packet<ClientPlayPacketListener>> sender = this::sendPacket;
+    /** Comme le suivi vanilla : un joueur spectateur n'est montre qu'aux spectateurs. Cree une fois. */
+    private final Predicate<Entity> shown = entity -> entity.canBeSpectated(getPlayer());
     /** Boite des chunks synchronises, reconstruite seulement quand leurs bornes changent. */
     private @Nullable Box window;
     private int windowMinChunkX;
@@ -96,7 +97,7 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
         Int2ObjectMap<?> trackers = trackers(destination);
         this.scratch.clear();
         this.seen.clear();
-        destination.collectEntitiesByType(ENTITY_FILTER, window, ANY, this.scratch);
+        destination.collectEntitiesByType(ENTITY_FILTER, window, this.shown, this.scratch);
         for (int i = 0; i < this.scratch.size(); i++) {
             Entity entity = this.scratch.get(i);
             this.seen.add(entity.getId());
@@ -141,7 +142,9 @@ final class RemoteEntityView implements PlayerAssociatedNetworkHandler {
      * @param entity entity arrivee
      */
     void track(ServerWorld destination, Entity entity) {
-        startTracking(trackers(destination), entity);
+        if (entity.canBeSpectated(this.viewer)) {
+            startTracking(trackers(destination), entity);
+        }
     }
 
     /** Suit l'entity si elle ne l'est pas deja et qu'un suivi vanilla existe : ses paquets d'apparition partent aussitot. */

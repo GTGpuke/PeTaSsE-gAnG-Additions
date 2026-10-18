@@ -55,9 +55,16 @@ public final class PortalSight {
         initialized = true;
     }
 
-    /** Rapport du client : ce qu'il voit, dans le monde ou il est. */
+    /**
+     * Rapport du client : ce qu'il voit, dans le monde ou il est. Un rapport fait dans un autre monde que celui ou le
+     * serveur tient le joueur (parti juste avant qu'il n'arrive, ou passage predit puis refuse) ne dit rien de celui-ci :
+     * il est ignore.
+     */
     static void report(ServerPlayerEntity player, PortalSightPayload payload) {
         ServerWorld world = player.getServerWorld();
+        if (!payload.dimension().equals(world.getRegistryKey().getValue())) {
+            return;
+        }
         REPORTS.put(player.getUuid(), new Report(world.getRegistryKey(), Set.copyOf(payload.seen()), world.getTime()));
     }
 

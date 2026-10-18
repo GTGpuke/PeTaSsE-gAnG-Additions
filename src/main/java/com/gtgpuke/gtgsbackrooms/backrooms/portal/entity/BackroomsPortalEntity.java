@@ -332,12 +332,13 @@ public class BackroomsPortalEntity extends Entity {
      * ticks. La partie deja passee se dessine dans la vue, transposee.
      *
      * @param box boite de l'entity, dans le monde du portail
+     * @param margin marge ajoutee a la boite de tous cotes : le modele d'une entity deborde de sa boite de collision
      * @param shiftX decalage de la position affichee sur celle du tick, X
      * @param shiftY decalage de la position affichee sur celle du tick, Y
      * @param shiftZ decalage de la position affichee sur celle du tick, Z
      */
-    public boolean sourceFrameStraddles(Box box, double shiftX, double shiftY, double shiftZ) {
-        return frameStraddles(box, shiftX, shiftY, shiftZ, getPos(), facingSource());
+    public boolean sourceFrameStraddles(Box box, double margin, double shiftX, double shiftY, double shiftZ) {
+        return frameStraddles(box, margin, shiftX, shiftY, shiftZ, getPos(), facingSource());
     }
 
     /**
@@ -345,23 +346,25 @@ public class BackroomsPortalEntity extends Entity {
      * du portail et n'est pas encore passee tout entiere, a la position ou une image la montre, entre deux ticks.
      *
      * @param box boite de l'entity, dans le monde d'arrivee
+     * @param margin marge ajoutee a la boite de tous cotes : le modele d'une entity deborde de sa boite de collision
      * @param shiftX decalage de la position affichee sur celle du tick, X
      * @param shiftY decalage de la position affichee sur celle du tick, Y
      * @param shiftZ decalage de la position affichee sur celle du tick, Z
      * @return {@code true} si la boite traverse le plan d'arrivee dans le cadre ; qui ne fait qu'en toucher un bord n'y est pas
      */
-    public boolean arrivalFrameStraddles(Box box, double shiftX, double shiftY, double shiftZ) {
-        return frameStraddles(box, shiftX, shiftY, shiftZ, destinationPos(), facingDestination());
+    public boolean arrivalFrameStraddles(Box box, double margin, double shiftX, double shiftY, double shiftZ) {
+        return frameStraddles(box, margin, shiftX, shiftY, shiftZ, destinationPos(), facingDestination());
     }
 
-    /** {@code true} si la boite, decalee, traverse le plan de ce cadre dans sa largeur et sa hauteur. */
-    private boolean frameStraddles(Box box, double shiftX, double shiftY, double shiftZ, Vec3d center, PortalFacing facing) {
+    /** {@code true} si la boite, elargie de la marge et decalee, traverse le plan de ce cadre dans sa largeur et sa hauteur. */
+    private boolean frameStraddles(
+            Box box, double margin, double shiftX, double shiftY, double shiftZ, Vec3d center, PortalFacing facing) {
         double cx = (box.minX + box.maxX) / 2.0 + shiftX - center.x;
         double cy = (box.minY + box.maxY) / 2.0 + shiftY - center.y;
         double cz = (box.minZ + box.maxZ) / 2.0 + shiftZ - center.z;
-        double hx = (box.maxX - box.minX) / 2.0;
-        double hy = (box.maxY - box.minY) / 2.0;
-        double hz = (box.maxZ - box.minZ) / 2.0;
+        double hx = (box.maxX - box.minX) / 2.0 + margin;
+        double hy = (box.maxY - box.minY) / 2.0 + margin;
+        double hz = (box.maxZ - box.minZ) / 2.0 + margin;
         return Math.abs(dot(facing.normal, cx, cy, cz)) < extent(facing.normal, hx, hy, hz)
                 && Math.abs(dot(facing.axisW, cx, cy, cz)) < width() / 2.0 + extent(facing.axisW, hx, hy, hz)
                 && Math.abs(dot(facing.axisH, cx, cy, cz)) < height() / 2.0 + extent(facing.axisH, hx, hy, hz);
@@ -374,6 +377,18 @@ public class BackroomsPortalEntity extends Entity {
     /** Demi-etendue d'une boite le long d'un axe. */
     private static double extent(Vec3d axis, double halfX, double halfY, double halfZ) {
         return Math.abs(axis.x) * halfX + Math.abs(axis.y) * halfY + Math.abs(axis.z) * halfZ;
+    }
+
+    /** Carre de la distance d'un point au cadre d'entree, rectangle plein : nulle sur l'ouverture, sans allocation. */
+    public double squaredDistanceToFrame(double x, double y, double z) {
+        PortalFacing facing = facingSource();
+        double dx = x - getX();
+        double dy = y - getY();
+        double dz = z - getZ();
+        double n = dot(facing.normal, dx, dy, dz);
+        double outW = Math.max(0.0, Math.abs(dot(facing.axisW, dx, dy, dz)) - width() / 2.0);
+        double outH = Math.max(0.0, Math.abs(dot(facing.axisH, dx, dy, dz)) - height() / 2.0);
+        return n * n + outW * outW + outH * outH;
     }
 
     /**
