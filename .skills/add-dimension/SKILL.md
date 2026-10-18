@@ -1,6 +1,6 @@
 ---
 name: add-dimension
-description: "Ajouter une dimension au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'dimension', 'monde', 'portail', 'téléportation', 'monde custom', 'realm', 'dimension custom'."
+description: "Ajouter une dimension au mod GTG's Backrooms (Fabric 1.21.1). Déclenche pour 'dimension', 'monde', 'portail', 'téléportation', 'monde custom', 'realm', 'dimension custom'."
 ---
 
 # Skill — Ajouter une Dimension (Fabric 1.21.1)
@@ -33,7 +33,7 @@ Les dimensions dans Fabric sont entièrement définies par des fichiers JSON dan
 
 **Structure :**
 ```
-data/petasse_gang_additions/
+data/gtgs_backrooms/
 ├── dimension/
 │   └── gang_realm.json           ← définit la dimension
 └── dimension_type/
@@ -44,7 +44,7 @@ data/petasse_gang_additions/
 
 ### 3. dimension_type JSON
 
-**Fichier :** `data/petasse_gang_additions/dimension_type/gang_realm_type.json`
+**Fichier :** `data/gtgs_backrooms/dimension_type/gang_realm_type.json`
 
 ```json
 {
@@ -75,11 +75,11 @@ data/petasse_gang_additions/
 
 ### 4. dimension JSON
 
-**Fichier :** `data/petasse_gang_additions/dimension/gang_realm.json`
+**Fichier :** `data/gtgs_backrooms/dimension/gang_realm.json`
 
 ```json
 {
-  "type": "petasse_gang_additions:gang_realm_type",
+  "type": "gtgs_backrooms:gang_realm_type",
   "generator": {
     "type": "minecraft:noise",
     "biome_source": {
@@ -102,7 +102,7 @@ Crée un item ou bloc de portail qui téléporte vers la dimension :
 if (world instanceof ServerWorld serverWorld) {
     RegistryKey<World> dimensionKey = RegistryKey.of(
             RegistryKeys.WORLD,
-            Identifier.of("petasse_gang_additions", "gang_realm")
+            Identifier.of("gtgs_backrooms", "gang_realm")
     );
     ServerWorld targetWorld = serverWorld.getServer().getWorld(dimensionKey);
     if (targetWorld != null && player instanceof ServerPlayerEntity serverPlayer) {
@@ -136,11 +136,11 @@ Dans l'arborescence v4, un generateur de niveau Backrooms doit rester dans
 
 ## Checklist finale
 
-- [ ] `data/petasse_gang_additions/dimension_type/my_dim_type.json`
-- [ ] `data/petasse_gang_additions/dimension/my_dim.json`
+- [ ] `data/gtgs_backrooms/dimension_type/my_dim_type.json`
+- [ ] `data/gtgs_backrooms/dimension/my_dim.json`
 - [ ] Biome custom si nécessaire
 - [ ] Portail/téléportation si souhaité
 - [ ] Chunk generator custom enregistré dans `ModChunkGenerators.java` si nécessaire
 - [ ] Lang key pour le nom de la dimension
 - [ ] `docs/DIMENSIONS.md` + `CHANGELOG.md` mis à jour
-- [ ] Testé en jeu : `/execute in petasse_gang_additions:my_dim run teleport @s 0 64 0`
+- [ ] Testé en jeu : `/execute in gtgs_backrooms:my_dim run teleport @s 0 64 0`

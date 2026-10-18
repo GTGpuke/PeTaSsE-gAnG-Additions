@@ -1,4 +1,4 @@
-# CI/CD — PeTaSsE_gAnG_Additions
+# CI/CD — GTG's Backrooms
 
 ## Workflows
 

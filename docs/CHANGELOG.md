@@ -1,6 +1,6 @@
 # Changelog
 
-Toutes les évolutions notables de PeTaSsE_gAnG_Additions sont documentées ici.
+Toutes les évolutions notables de GTG's Backrooms sont documentées ici.
 Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [SemVer](https://semver.org/lang/fr/).
 
 ---
@@ -17,9 +17,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
 - **Portails double face** : chaque côté tient deux portails dos à dos dans le même plan, chaque face menant à la face
   correspondante de l'autre côté. On voit et on traverse le portail par ses deux faces, il ne disparaît plus en tournant
   autour, et traverser ne fait plus tourner (on ressort dans la direction où l'on marchait).
-- **Réglages par portail**, portés par l'item (composant `petasse_gang_additions:portal_settings`, info-bulle) et
+- **Réglages par portail**, portés par l'item (composant `gtgs_backrooms:portal_settings`, info-bulle) et
   gardés par le bloc : largeur et hauteur du cadre (1 à 8 blocs), passage de la lumière, faces et retour (voir
-  ci-dessous). L'onglet *PetasseGang - Portails* propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face,
+  ci-dessous). L'onglet *GTG's Backrooms - Portails* propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face,
   1 x 2 aller simple et 1 x 2 à sortie fugace. La pose est refusée si le cadre traverserait un bloc ;
   dans le Level 0, le cadre d'arrivée se pose là où il tient sur toute sa largeur, ses deux faces sur un passage libre.
 - **Portail à une face** (réglage `double_sided`) : seule la face avant existe, de chaque côté ; de dos, rien ne se
@@ -81,6 +81,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   Level 0 ou le Nether, qui n'en ont pas.
 
 ### Changed
+- **Nom** : le projet devient *GTG's Backrooms*, de GTGpuke. Identifiant du mod `gtgs_backrooms`, paquet
+  `com.gtgpuke.gtgsbackrooms`, classes `GtgsBackroomsMod` et `GtgsBackroomsClientMod`, propriétés système
+  `gtgsbackrooms.*`, onglets créatifs *GTG's Backrooms* (identifiant `gtgs_backrooms:main`) et *GTG's Backrooms -
+  Portails*. L'info-bulle du Badge de la Gang ne nomme plus de groupe (« Membre officiel »). Changement incompatible :
+  un monde créé avant ne retrouve ni les blocs, ni les items, ni les portails du mod (vanilla les remplace par de
+  l'air), et son Level 0 repart d'une dimension neuve.
+- **Licence** : la licence MIT est remplacée par une licence propriétaire, tous droits réservés à GTGpuke
+  (`LICENSE`). Jouer avec un JAR publié par l'auteur reste permis ; copier, modifier ou redistribuer le code ou les
+  ressources demande son accord écrit. Le texte de la licence voyage dans le JAR du mod et dans celui des sources
+  (`LICENSE_gtgs_backrooms`).
 - Moins d'objets créés à chaque image et à chaque passage : transformations d'un portail à l'autre composante par
   composante (résultats identiques au bit près), pertinence d'un portail calculée sans vecteur de regard, rapport de vue
   sans liste neuve. Clés de langue `item.*` des items de bloc retirées (le jeu lit celle du bloc) ; clé du biome du
@@ -268,7 +278,7 @@ synchronisation des chunks et des entités de l'autre dimension, rendu du monde 
 niveau de portails imbriqués, et interaction à travers le cadre. Conception, protocole et limites dans [PORTALS.md](PORTALS.md).
 
 ### Added
-- **Porte des Backrooms** (`backrooms_door`) en item, dans un nouvel onglet créatif *PetasseGang - Portails*.
+- **Porte des Backrooms** (`backrooms_door`) en item, dans un nouvel onglet créatif *GTG's Backrooms - Portails*.
   Posée hors du Level 0, elle y mène (cellule réellement libre la plus proche des mêmes X/Z, sortie vers une
   cellule ouverte) ; posée dans le Level 0, elle ramène à la surface. Portail d'entrée devant la porte, portail
   de retour à l'arrivée ; les deux disparaissent avec la porte et se retirent seuls s'ils deviennent orphelins.
@@ -312,7 +322,7 @@ niveau de portails imbriqués, et interaction à travers le cadre. Conception, p
 - Textures 32x32 de la porte (`backrooms_door`, `backrooms_door_top`).
 
 ### Changed
-- `ModConfig.ENABLE_PORTAL_FEATURE` vaut `true` par défaut (`-Dpetassegang.portal.enablePortalFeature=false` coupe tout).
+- `ModConfig.ENABLE_PORTAL_FEATURE` vaut `true` par défaut (`-Dgtgsbackrooms.portal.enablePortalFeature=false` coupe tout).
 - `ModConfig.PORTAL_PRELOAD_RADIUS_CHUNKS` vaut `3` par défaut (fenêtre de 7x7 chunks : les arrivées voisines tiennent dans la même vue).
 - Arrivée sans saccade : après une prédiction client, le serveur s'aligne sans paquet de téléportation vanilla (plus de
   retour en arrière d'un tick ni de perte d'élan), et le client ignore une confirmation identique à sa prédiction.
@@ -326,7 +336,7 @@ niveau de portails imbriqués, et interaction à travers le cadre. Conception, p
   client et les mixins. Branches mortes retirées au passage (gardes sur des invariants : fenêtre d'arrivée toujours
   enregistrée, portails du registre toujours serveur, vue de joueur toujours inscrite, `switch` sans cas inatteignable).
 - Tests en jeu déplacés dans un source set dédié `src/gametest` (Loom `fabricApi.configureTests`) : mod séparé
-  `petasse_gang_additions_gametest` chargé par `runGameTest` seulement, dossier de run `build/run/gameTest`, arborescence par
+  `gtgs_backrooms_gametest` chargé par `runGameTest` seulement, dossier de run `build/run/gameTest`, arborescence par
   domaine (`support/`, `backrooms/level0/`, `backrooms/portal/`, `feature/`). Plus aucun
   test dans le JAR, ce que la tâche `verifyJarContents` vérifie à chaque `build` (JAR = le mod seul, sans dépendance embarquée).
 - Conventions du code vérifiées par Checkstyle (`config/checkstyle/`) dans `check` : sources ASCII, ordre des imports sans
@@ -399,7 +409,7 @@ Détail et mesures dans [AUDIT.md](AUDIT.md).
 - **Rendu client** : `LevelZeroWallpaperBakedModel` lit la pile verticale canonique ; plus de constantes Y héritées (60-67).
 - **Portails** : logger commun, feature-flag appliqué au mixin de framebuffer et au rendu stencil
   (plus aucun coût par frame quand désactivé), texture d'entity inexistante remplacée.
-- **Config** : `-Dpetassegang.levelZero.noiseGeometry` est maintenant réellement appliqué (il était ignoré).
+- **Config** : `-Dgtgsbackrooms.levelZero.noiseGeometry` est maintenant réellement appliqué (il était ignoré).
 - **Documentation** : README, CLAUDE.md, docs techniques et skills réécrits sur l'état réel du code.
 
 ### Fixed

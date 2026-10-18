@@ -1,5 +1,5 @@
 // ============================================================
-//  PeTaSsE_gAnG_Additions — build.gradle (Fabric 1.21.1)
+//  GTG's Backrooms — build.gradle (Fabric 1.21.1)
 // ============================================================
 
 plugins {
@@ -21,17 +21,17 @@ java {
 // Toggles debug/perf passes en -D au client de dev et au benchmark.
 // Usage : ./gradlew runClient -PdebugPerformanceMonitor=true -PportalFeature=false
 def passthroughProperties = [
-        levelZeroNoiseGeometry            : 'petassegang.levelZero.noiseGeometry',
-        levelZeroDebugMicroGeometry       : 'petassegang.levelZero.debugMicroGeometry',
-        levelZeroDebugWallProps           : 'petassegang.levelZero.debugWallProps',
-        debugPerformanceMonitor           : 'petassegang.debugPerformanceMonitor',
-        performanceLogIntervalSeconds     : 'petassegang.performanceLogIntervalSeconds',
-        portalFeature                     : 'petassegang.portal.enablePortalFeature',
-        portalActivationRadiusBlocks      : 'petassegang.portal.activationRadiusBlocks',
-        portalPreloadRadiusChunks         : 'petassegang.portal.preloadRadiusChunks',
-        portalRenderDistanceBlocks        : 'petassegang.portal.renderDistanceBlocks',
-        portalTeleportCooldownTicks       : 'petassegang.portal.teleportCooldownTicks',
-        portalDebugRendering              : 'petassegang.portal.debugRendering',
+        levelZeroNoiseGeometry            : 'gtgsbackrooms.levelZero.noiseGeometry',
+        levelZeroDebugMicroGeometry       : 'gtgsbackrooms.levelZero.debugMicroGeometry',
+        levelZeroDebugWallProps           : 'gtgsbackrooms.levelZero.debugWallProps',
+        debugPerformanceMonitor           : 'gtgsbackrooms.debugPerformanceMonitor',
+        performanceLogIntervalSeconds     : 'gtgsbackrooms.performanceLogIntervalSeconds',
+        portalFeature                     : 'gtgsbackrooms.portal.enablePortalFeature',
+        portalActivationRadiusBlocks      : 'gtgsbackrooms.portal.activationRadiusBlocks',
+        portalPreloadRadiusChunks         : 'gtgsbackrooms.portal.preloadRadiusChunks',
+        portalRenderDistanceBlocks        : 'gtgsbackrooms.portal.renderDistanceBlocks',
+        portalTeleportCooldownTicks       : 'gtgsbackrooms.portal.teleportCooldownTicks',
+        portalDebugRendering              : 'gtgsbackrooms.portal.debugRendering',
 ]
 def activeSystemProperties = passthroughProperties.findAll { project.hasProperty(it.key) }
         .collectEntries { [(it.value): project.property(it.key)] }
@@ -57,7 +57,7 @@ loom {
 fabricApi {
     configureTests {
         createSourceSet = true
-        modId = 'petasse_gang_additions_gametest'
+        modId = 'gtgs_backrooms_gametest'
         enableGameTests = true
         enableClientGameTests = false
     }
@@ -66,7 +66,7 @@ afterEvaluate {
     loom.runs.named('gameTest') {
         vmArg "-Dfabric-api.gametest.report-file=${project.layout.buildDirectory.get().asFile}/junit.xml"
         // Les tests en jeu exercent le cooldown de traversee, nul par defaut : trois ticks suffisent a le voir agir.
-        vmArg '-Dpetassegang.portal.teleportCooldownTicks=3'
+        vmArg '-Dgtgsbackrooms.portal.teleportCooldownTicks=3'
     }
 }
 
@@ -121,19 +121,19 @@ test {
 // portee de JUnit comme du serveur GameTest), les mixins (tisses dans les classes vanilla) et les gametests eux-memes.
 // La logique client pure (transformation de vue, etat de rendu) reste mesuree.
 def coverageExcludes = [
-        'com/petassegang/addons/PeTaSsEgAnGAdditionsClientMod*',
-        'com/petassegang/addons/backrooms/level0/client/**',
-        'com/petassegang/addons/backrooms/portal/client/entity/**',
-        'com/petassegang/addons/backrooms/portal/client/interaction/**',
-        'com/petassegang/addons/backrooms/portal/client/sound/FrameSoundPlayer*',
-        'com/petassegang/addons/backrooms/portal/client/transition/**',
-        'com/petassegang/addons/backrooms/portal/client/view/PortalStencilRenderer*',
-        'com/petassegang/addons/backrooms/portal/client/view/PortalClipping*',
-        'com/petassegang/addons/backrooms/portal/client/view/FrameAreaRenderer*',
-        'com/petassegang/addons/backrooms/portal/client/world/**',
-        'com/petassegang/addons/feature/gang/client/**',
-        'com/petassegang/addons/perf/client/**',
-        'com/petassegang/addons/mixin/**',
+        'com/gtgpuke/gtgsbackrooms/GtgsBackroomsClientMod*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/level0/client/**',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/entity/**',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/interaction/**',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/sound/FrameSoundPlayer*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/transition/**',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalStencilRenderer*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalClipping*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/FrameAreaRenderer*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/world/**',
+        'com/gtgpuke/gtgsbackrooms/feature/gang/client/**',
+        'com/gtgpuke/gtgsbackrooms/perf/client/**',
+        'com/gtgpuke/gtgsbackrooms/mixin/**',
 ]
 def coverageClassDirs = { files(sourceSets.main.output.classesDirs.collect { fileTree(dir: it, exclude: coverageExcludes) }) }
 def coverageExecutionData = fileTree(layout.buildDirectory.dir('jacoco')) { include 'test.exec', 'gametest.exec' }
@@ -156,7 +156,7 @@ afterEvaluate {
         outputs.file gametestExec
         doFirst {
             def agentJar = zipTree(configurations.jacocoAgent.singleFile).matching { include 'jacocoagent.jar' }.singleFile
-            jvmArgs "-javaagent:${agentJar}=destfile=${gametestExec},append=false,includes=com.petassegang.addons.*"
+            jvmArgs "-javaagent:${agentJar}=destfile=${gametestExec},append=false,includes=com.gtgpuke.gtgsbackrooms.*"
         }
     }
 }
@@ -204,8 +204,9 @@ check.dependsOn 'jacocoCoverageVerification'
 def allowedJarEntry = { String name ->
     name.endsWith('/')
             || name == 'fabric.mod.json' || name == 'pack.mcmeta' || name == "${mod_id}.mixins.json" || name == 'META-INF/MANIFEST.MF'
+            || name == "LICENSE_${mod_id}"
             || name.startsWith("assets/${mod_id}/") || name.startsWith("data/${mod_id}/") || name.startsWith('data/minecraft/tags/')
-            || (name.startsWith('com/petassegang/addons/') && !name.startsWith('com/petassegang/addons/gametest/'))
+            || (name.startsWith('com/gtgpuke/gtgsbackrooms/') && !name.startsWith('com/gtgpuke/gtgsbackrooms/gametest/'))
 }
 tasks.register('verifyJarContents') {
     group = 'verification'
@@ -274,8 +275,13 @@ processResources {
     filesMatching('pack.mcmeta') { expand props }
 }
 
+// La licence voyage avec chaque JAR publie, celui du mod et celui des sources.
 jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from('LICENSE') { rename { "LICENSE_${mod_id}" } }
+}
+tasks.named('sourcesJar') {
+    from('LICENSE') { rename { "LICENSE_${mod_id}" } }
 }
 
 tasks.withType(JavaCompile).configureEach {

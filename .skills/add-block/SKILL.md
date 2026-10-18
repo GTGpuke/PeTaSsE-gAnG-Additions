@@ -1,6 +1,6 @@
 ---
 name: add-block
-description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc décoratif', 'bloc fonctionnel', 'ore' ou 'block'."
+description: "Ajouter un bloc au mod GTG's Backrooms (Fabric 1.21.1). Déclenche pour 'bloc', 'minerai', 'dalle', 'mur', 'escalier', 'porte', 'bloc décoratif', 'bloc fonctionnel', 'ore' ou 'block'."
 ---
 
 # Skill — Ajouter un Bloc (Fabric 1.21.1)
@@ -17,8 +17,8 @@ description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Dé
 
 | Paramètre | Valeur |
 |-----------|--------|
-| `BLOCK_ID` | `gangite_ore`, `petasse_block` |
-| `ClassName` | `GangiteOreBlock`, `PetasseBlock` |
+| `BLOCK_ID` | `gangite_ore`, `backrooms_block` |
+| `ClassName` | `GangiteOreBlock`, `BackroomsBlock` |
 | Hardness | ex. `3.0f` |
 | Blast resistance | ex. `3.0f` |
 | Son | `BlockSoundGroup.STONE`, `WOOD`, `METAL`, `GLASS` |
@@ -26,10 +26,10 @@ description: "Ajouter un bloc au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Dé
 
 ### 2. Créer la classe bloc si un comportement custom est nécessaire
 
-**Fichier :** `src/main/java/com/petassegang/addons/feature/my_feature/block/my_block/MyBlock.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/feature/my_feature/block/my_block/MyBlock.java`
 
 ```java
-package com.petassegang.addons.feature.my_feature.block.my_block;
+package com.gtgpuke.gtgsbackrooms.feature.my_feature.block.my_block;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.AbstractBlock;

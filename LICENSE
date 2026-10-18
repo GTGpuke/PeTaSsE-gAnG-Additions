@@ -1,21 +1,129 @@
-MIT License
+GTG's Backrooms
+Copyright (c) 2025-2026 GTGpuke. Tous droits réservés. All rights reserved.
 
-Copyright (c) 2026 PétasseGang
+LICENCE PROPRIÉTAIRE — TOUS DROITS RÉSERVÉS
+(English translation below. In case of difference, the French version prevails.)
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+1. Propriété
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Le mod GTG's Backrooms (le « Logiciel ») est l'œuvre et la propriété exclusive de GTGpuke
+(l'« Auteur »). Cela comprend son code source et son code compilé, ses tests, ses textures, modèles, traductions et
+données, ainsi que sa documentation. Le Logiciel est protégé par le Code de la propriété intellectuelle et par les
+conventions internationales sur le droit d'auteur.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Le Logiciel n'est pas un logiciel libre. Même publié en accès public, il ne fait l'objet d'aucune licence, sauf ce
+que permet l'article 2.
+
+2. Ce qui est permis
+
+Sans autre accord, toute personne peut seulement :
+a) installer et utiliser, sans le modifier, un fichier JAR du Logiciel publié par l'Auteur, pour jouer, en solo ou sur
+   un serveur ;
+b) consulter le code source là où l'Auteur le publie ;
+c) exercer, sur un dépôt public, ce que les conditions d'utilisation de GitHub accordent à ses utilisateurs : le
+   consulter et en créer une copie (fork) sur GitHub. Cela ne donne aucun autre droit.
+
+3. Ce qui est interdit
+
+Sauf autorisation écrite et préalable de l'Auteur, il est interdit, pour tout ou partie du Logiciel :
+a) de le copier ou de le reproduire, sauf ce qu'exige l'usage permis à l'article 2 ;
+b) de le modifier, de l'adapter, de le traduire ou d'en tirer une œuvre dérivée. Cela vaut aussi pour la reprise de
+   code, de textures ou d'autres ressources dans un autre projet ;
+c) de le distribuer, de le republier, de l'héberger, de le vendre, de le louer, de le prêter ou de le sous-licencier,
+   y compris dans un modpack, sur une plateforme de mods ou sur un site miroir ;
+d) de l'utiliser pour constituer un jeu de données ou pour entraîner un modèle d'intelligence artificielle ;
+e) de supprimer ou de modifier la présente notice ou les mentions de propriété.
+
+La présente licence ne restreint pas les droits que la loi accorde impérativement à l'utilisateur légitime d'un
+logiciel (article L. 122-6-1 du Code de la propriété intellectuelle).
+
+4. Autorisations
+
+Toute demande d'autorisation s'adresse à l'Auteur, par son compte GitHub (https://github.com/GTGpuke).
+
+Une autorisation n'existe que si elle est écrite. Elle est personnelle et ne se transmet pas.
+
+5. Fin des droits
+
+Tout manquement à la présente licence met fin au droit d'utiliser le Logiciel. Cette fin est immédiate et intervient
+sans préavis.
+
+6. Absence de garantie
+
+Le Logiciel est fourni « en l'état », sans garantie d'aucune sorte. Dans les limites permises par la loi, l'Auteur
+n'est responsable d'aucun dommage résultant de son utilisation, notamment la perte ou la corruption de mondes ou de
+sauvegardes.
+
+7. Composants tiers
+
+La présente licence ne couvre que l'œuvre de l'Auteur. Minecraft appartient à Mojang et à Microsoft. Fabric Loader et
+Fabric API restent sous leurs propres licences ; le Logiciel en dépend, mais ne les embarque pas.
+
+Le Logiciel n'est pas un produit officiel Minecraft. Il n'est ni approuvé par Mojang ou Microsoft, ni associé à eux.
+
+8. Droit applicable
+
+La présente licence est régie par le droit français.
+
+---
+
+PROPRIETARY LICENSE — ALL RIGHTS RESERVED (English translation, for information only)
+
+1. Ownership
+
+The GTG's Backrooms mod (the "Software") is the work and exclusive property of GTGpuke (the
+"Author"). This includes its source code and compiled code, its tests, its textures, models, translations and data,
+and its documentation. The Software is protected by French intellectual property law and by international copyright
+treaties.
+
+The Software is not free or open-source software. Even when published publicly, it is not licensed to anyone, except
+as Section 2 permits.
+
+2. What is permitted
+
+Without any other agreement, anyone may only:
+a) install and use, unmodified, a JAR file of the Software published by the Author, to play, in single player or on
+   a server;
+b) read the source code where the Author publishes it;
+c) exercise, on a public repository, what the GitHub Terms of Service grant its users: viewing it and forking it on
+   GitHub. This grants no other right.
+
+3. What is forbidden
+
+Without the Author's prior written permission, it is forbidden, for all or part of the Software:
+a) to copy or reproduce it, except as required by the use permitted in Section 2;
+b) to modify, adapt or translate it, or to create derivative works. This includes reusing code, textures or other
+   assets in another project;
+c) to distribute, republish, host, sell, rent, lend or sublicense it, including in a modpack, on a mod platform or on
+   a mirror site;
+d) to use it to build a dataset or to train an artificial intelligence model;
+e) to remove or alter this notice or any proprietary notice.
+
+This license does not restrict the rights that the law grants to the lawful user of a software program and that
+cannot be waived (Article L. 122-6-1 of the French Intellectual Property Code).
+
+4. Permissions
+
+Requests for permission go to the Author, through the Author's GitHub account (https://github.com/GTGpuke).
+
+A permission exists only if it is in writing. It is personal and cannot be transferred.
+
+5. Termination
+
+Any breach of this license ends the right to use the Software. This termination is immediate and requires no notice.
+
+6. No warranty
+
+The Software is provided "as is", without warranty of any kind. To the extent permitted by law, the Author is not
+liable for any damage arising from its use, including the loss or corruption of worlds or saves.
+
+7. Third-party components
+
+This license covers only the Author's work. Minecraft belongs to Mojang and Microsoft. Fabric Loader and Fabric API
+remain under their own licenses; the Software depends on them but does not bundle them.
+
+NOT AN OFFICIAL MINECRAFT PRODUCT. NOT APPROVED BY OR ASSOCIATED WITH MOJANG OR MICROSOFT.
+
+8. Governing law
+
+This license is governed by French law.

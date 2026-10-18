@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "id": "petasse_gang_additions",
+  "id": "gtgs_backrooms",
   "version": "${mod_version}",
   "name": "${mod_name}",
   "description": "${mod_description}",
   "authors": ["${mod_authors}"],
-  "license": "MIT",
+  "license": "LicenseRef-All-Rights-Reserved",
   "environment": "*",
   "entrypoints": {
     "main": [
-      "com.petassegang.addons.PeTaSsEgAnGAdditionsMod"
+      "com.gtgpuke.gtgsbackrooms.GtgsBackroomsMod"
     ],
     "client": [
-      "com.petassegang.addons.PeTaSsEgAnGAdditionsClientMod"
+      "com.gtgpuke.gtgsbackrooms.GtgsBackroomsClientMod"
     ]
   },
   "mixins": [
-    "petasse_gang_additions.mixins.json"
+    "gtgs_backrooms.mixins.json"
   ],
   "depends": {
     "fabricloader": ">=0.16.9",

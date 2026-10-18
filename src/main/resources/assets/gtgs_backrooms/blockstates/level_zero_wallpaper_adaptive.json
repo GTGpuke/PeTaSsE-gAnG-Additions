@@ -1,0 +1,20 @@
+{
+  "variants": {
+    "face_mask=0":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=1":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=2":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=3":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=4":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=5":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=6":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=7":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=8":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=9":  { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=10": { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=11": { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=12": { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=13": { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=14": { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" },
+    "face_mask=15": { "model": "gtgs_backrooms:block/level_zero_wallpaper_adaptive" }
+  }
+}

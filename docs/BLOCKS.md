@@ -1,4 +1,4 @@
-# Blocs — PeTaSsE_gAnG_Additions
+# Blocs — GTG's Backrooms
 
 Catalogue des blocs du mod. Tous sont enregistrés dans `init/ModBlocks.java` ; les `BlockItem`
 correspondants dans `init/ModItems.java`. Textures du Level 0 en 32x32.
@@ -19,7 +19,7 @@ correspondants dans `init/ModItems.java`. Textures du Level 0 en 32x32.
 | `backrooms_portal` | `BackroomsPortalBlock` (block entity `BackroomsPortalBlockEntity`) | invisible, sans collision, son du verre, résistance 0,5, immobile pour les pistons | **Portail des Backrooms** : pose un portail plein cadre, le plan au milieu du bloc, à la taille, avec la lumière, les faces (une ou deux), le retour (aller-retour ou aller simple) et la sortie (durable, ou fugace : perdue de vue, elle disparaît) réglés par l'item ; face avant vers le joueur ; pose refusée si le cadre traverserait un bloc. Posé hors du Level 0 il y mène, posé dedans il ramène à la surface ; ses portails disparaissent avec lui. Ne se vise qu'accroupi. Loot : l'item avec ses réglages (`copy_components`). Voir [PORTALS.md](PORTALS.md). |
 
 Chaque bloc a un blockstate, un modèle, un modèle d'item et une loot table
-(`data/petasse_gang_additions/loot_table/blocks/<id>.json`) ; le mur adaptatif donne `level_zero_wallpaper`.
+(`data/gtgs_backrooms/loot_table/blocks/<id>.json`) ; le mur adaptatif donne `level_zero_wallpaper`.
 Le test `ModRegistriesTest` vérifie la présence de ces fichiers.
 
 ### Mur adaptatif et détails muraux
@@ -50,5 +50,5 @@ Aucun bloc supplémentaire n'existe dans le monde pour ces détails.
 
 1. Champ `static final` dans `ModBlocks`, puis `BlockItem` dans `ModItems`, puis entrée dans `ModCreativeTab.ENTRIES`.
 2. `blockstates/<id>.json`, `models/block/<id>.json`, `models/item/<id>.json`, texture, loot table.
-3. Clé `block.petasse_gang_additions.<id>` dans `en_us.json` **et** `fr_fr.json` : l'item du bloc la reprend, pas de clé `item.*`.
+3. Clé `block.gtgs_backrooms.<id>` dans `en_us.json` **et** `fr_fr.json` : l'item du bloc la reprend, pas de clé `item.*`.
 4. `./gradlew test` : `ModRegistriesTest` échoue tant qu'un fichier ou une traduction manque.

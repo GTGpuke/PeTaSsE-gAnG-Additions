@@ -1,4 +1,4 @@
-# Audit complet — PeTaSsE_gAnG_Additions
+# Audit complet — GTG's Backrooms
 
 **Date :** 2026-10-15 · **Version produite :** 0.8.0 · **Périmètre :** tout le dépôt (build, sources, tests, ressources, docs)
 **Méthode :** lecture intégrale du code (≈ 11 500 lignes main, 3 300 lignes test), empreintes de génération
@@ -43,7 +43,7 @@ avant/après, benchmark avant/après sur la même machine, suite de tests rééc
 | 122 `.gitkeep` matérialisant l'arborescence spéculative v4 (`system/sanity/client`, `shader/uniform/provider`…). | Supprimés : un package n'existe que s'il contient du code. |
 | ~25 `package-info.java` d'une ligne. | Supprimés ; `docs/ARCHITECTURE.md` décrit les packages. |
 | `backrooms/level/level0/`, `perf/section/`, `creative/`, `network/`, `feature/gang/item/gang_badge/`, `feature/gang/network/c2s/` (payload S2C rangé en c2s). | `backrooms/level0/`, `perf/`, `init/` regroupe onglet et payloads, features aplaties. |
-| `GangBadgeActivatePacket` et `PetasseGangGameTests` : classes vides dépréciées « conservées pour éviter les conflits git ». | Supprimées. |
+| `GangBadgeActivatePacket` et l'ancienne classe de tests en jeu du contenu Gang : classes vides dépréciées « conservées pour éviter les conflits git ». | Supprimées. |
 | `AGENT.md` au contenu « CLAUDE.md ». | Renommé `CLAUDE.md`, réécrit. |
 
 ### 2.3 Génération du Level 0 : intention
@@ -58,7 +58,7 @@ a été **conservé à l'identique**. Les problèmes étaient autour.
 | `LevelZeroChunkSlice` recopiait 10 tableaux de 256 valeurs par chunk à partir de ≤ 49 cellules ; `LevelZeroLayout` dupliquait encore 5 de ces tableaux. | Le layout stocke les ≤ 49 évaluations de cellules ; `cellAt(localX, localZ)` indexe la cellule. |
 | **Bug de frontière** : la fenêtre de traversabilité couvrait exactement les cellules du chunk ; au bord, les voisins hors fenêtre étaient vus comme des murs. Topologie (cul-de-sac au lieu de couloir), arbitrage des gaps et lumière des cellules de bord dépendaient du chunk depuis lequel on les évaluait. | Marge de **2 cellules** (nécessaire à l'arbitrage des gaps qui regarde les voisins des voisins). Testé : `LevelZeroLayoutTest.chunkBordersAreSeamless` compare l'évaluation complète des cellules partagées. Effet visible : des gaps peuvent apparaître sur les couloirs traversant une frontière ; néons, murs, salles et biomes inchangés (empreintes h1/h3/h4 identiques). |
 | `hasWinningLightNeighbor` : arbitrage de proximité entre néons évalué pour chaque cellule éclairée (8 voisins × topologie + biome). Démonstration : la trame en quinconce (rangs 0/2, parité alternée) ne produit **jamais** deux candidats adjacents, donc la fonction retournait toujours `false`. | Supprimé. Test `LevelZeroLightPatternTest.noAdjacentLights` verrouille la propriété. |
-| `LevelZeroLegacyLayoutPipeline(LIGHT_INTERVAL)` forçait `noiseGeometryEnabled = true` : le flag `-Dpetassegang.levelZero.noiseGeometry` documenté dans `build.gradle`, `SETUP.md` et testé « par défaut » n'avait aucun effet en jeu. | Le flag alimente `LevelZeroCellEvaluator` ; sa valeur par défaut (true) garde la génération identique. |
+| `LevelZeroLegacyLayoutPipeline(LIGHT_INTERVAL)` forçait `noiseGeometryEnabled = true` : le flag `-Dgtgsbackrooms.levelZero.noiseGeometry` documenté dans `build.gradle`, `SETUP.md` et testé « par défaut » n'avait aucun effet en jeu. | Le flag alimente `LevelZeroCellEvaluator` ; sa valeur par défaut (true) garde la génération identique. |
 | `LevelZeroLightStage(lightInterval)` ignorait son paramètre ; `roomKind` passé à `sampleCandidate` jamais lu ; `LevelZeroCellTopology.JUNCTION` et `ALCOVE` jamais produits ; `LevelZeroCellTag` redondant avec la topologie ; `LevelZeroVerticalLayout` (Y 60-67 de l'ancienne dimension monocouche) et `LevelZeroVerticalSlice.legacySingleLayer()` encore utilisés par le mur et le modèle client. | Supprimés. Le mur et le modèle lisent `LevelZeroLayerStackLayout`. |
 | Couche `surface details` : résolveur, profils, variantes connectées, flag `ENABLE_LEVEL_ZERO_SURFACE_DETAILS = false`, résolveur qui renvoyait un `none()` neuf par colonne. Jamais rendue en jeu. | Supprimée (≈ 350 lignes + 2 tests). |
 | Couche `structures` rares : 5 classes de footprints/rôles/points de gameplay, uniquement rendue en béton de debug. La roadmap prévoit un autre système (prefabs manuels). | Supprimée (≈ 400 lignes + 2 tests). `LevelZeroSectorRoomKind` (la vraie donnée) est conservé et exposé par `LevelZeroCellEvaluation`. |
@@ -201,7 +201,7 @@ monde) et les points d'entrée Fabric.
 ## 7. Fichiers supprimés (récapitulatif)
 
 Sources : `backrooms/level/**` (remplacé par `backrooms/level0/**`), `creative/`, `network/`, `perf/section/`,
-`feature/*/item/**`, `feature/gang/network/**`, `GangBadgeActivatePacket`, `PetasseGangGameTests`,
+`feature/*/item/**`, `feature/gang/network/**`, `GangBadgeActivatePacket`, l'ancienne classe de tests en jeu du contenu Gang,
 tous les `package-info.java`, tous les `.gitkeep`.
 Ressources : `META-INF/mods.toml`, `atlases/blocks.json`, `items/*.json` (13), `blockstates/level_zero_baseboard.json`,
 `models/block/level_zero_baseboard.json`, `models/item/level_zero_baseboard.json`.

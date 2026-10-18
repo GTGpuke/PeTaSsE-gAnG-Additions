@@ -1,6 +1,6 @@
 ---
 name: add-sound
-description: "Ajouter un son au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'son', 'audio', 'musique', 'bruit', 'ambiance', 'sfx', 'sound', 'play sound'."
+description: "Ajouter un son au mod GTG's Backrooms (Fabric 1.21.1). Déclenche pour 'son', 'audio', 'musique', 'bruit', 'ambiance', 'sfx', 'sound', 'play sound'."
 ---
 
 # Skill — Ajouter un Son (Fabric 1.21.1)
@@ -20,10 +20,10 @@ description: "Ajouter un son au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déc
 - Format : **OGG Vorbis** (.ogg) — seul format supporté par Minecraft
 - Sample rate : 44100 Hz recommandé
 - Mono pour les sons positionnels in-world
-- Placer dans : `src/main/resources/assets/petasse_gang_additions/sounds/`
+- Placer dans : `src/main/resources/assets/gtgs_backrooms/sounds/`
 
 ```
-assets/petasse_gang_additions/sounds/
+assets/gtgs_backrooms/sounds/
 ├── item/
 │   └── gang_badge_equip.ogg
 └── ambient/
@@ -34,15 +34,15 @@ assets/petasse_gang_additions/sounds/
 
 ### 2. Créer/Mettre à jour sounds.json
 
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/sounds.json`
+**Fichier :** `src/main/resources/assets/gtgs_backrooms/sounds.json`
 
 ```json
 {
   "item.gang_badge.equip": {
-    "subtitle": "subtitles.petasse_gang_additions.item.gang_badge.equip",
+    "subtitle": "subtitles.gtgs_backrooms.item.gang_badge.equip",
     "sounds": [
       {
-        "name": "petasse_gang_additions:item/gang_badge_equip",
+        "name": "gtgs_backrooms:item/gang_badge_equip",
         "volume": 1.0,
         "pitch": 1.0,
         "weight": 1
@@ -52,18 +52,18 @@ assets/petasse_gang_additions/sounds/
 }
 ```
 
-La clé (`"item.gang_badge.equip"`) devient la partie après `petasse_gang_additions.` dans le `SoundEvent`.
+La clé (`"item.gang_badge.equip"`) devient la partie après `gtgs_backrooms.` dans le `SoundEvent`.
 
 ---
 
 ### 3. Créer ModSounds.java (si absent)
 
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModSounds.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModSounds.java`
 
 ```java
-package com.petassegang.addons.init;
+package com.gtgpuke.gtgsbackrooms.init;
 
-import com.petassegang.addons.core.ModConstants;
+import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import net.minecraft.registry.Registries;
 import net.minecraft.registry.Registry;
 import net.minecraft.sound.SoundEvent;
@@ -87,7 +87,7 @@ public final class ModSounds {
 }
 ```
 
-Appeler `ModSounds.initialize()` dans `PeTaSsEgAnGAdditionsMod.onInitialize()`.
+Appeler `ModSounds.initialize()` dans `GtgsBackroomsMod.onInitialize()`.
 
 ---
 
@@ -109,17 +109,17 @@ world.playSound(null, player.getBlockPos(),
 
 ```json
 // en_us.json
-"subtitles.petasse_gang_additions.item.gang_badge.equip": "Gang Badge equipped",
+"subtitles.gtgs_backrooms.item.gang_badge.equip": "Gang Badge equipped",
 
 // fr_fr.json
-"subtitles.petasse_gang_additions.item.gang_badge.equip": "Badge de Gang équipé",
+"subtitles.gtgs_backrooms.item.gang_badge.equip": "Badge de Gang équipé",
 ```
 
 ---
 
 ## Checklist finale
 
-- [ ] Fichier `.ogg` placé dans `assets/petasse_gang_additions/sounds/`
+- [ ] Fichier `.ogg` placé dans `assets/gtgs_backrooms/sounds/`
 - [ ] `sounds.json` créé/mis à jour
 - [ ] `init/ModSounds.java` — champ `static final` ajouté via `Registry.register(Registries.SOUND_EVENT, ...)`
 - [ ] `ModSounds.initialize()` appelé depuis `onInitialize()`

@@ -14,7 +14,7 @@ Lis ces fichiers dans l'ordre avant de toucher au code.
 
 ## 3. Code
 - `core/ModConstants.java`, `config/ModConfig.java`.
-- `PeTaSsEgAnGAdditionsMod.java` → `registerContent()` ; `init/*`.
+- `GtgsBackroomsMod.java` → `registerContent()` ; `init/*`.
 - `backrooms/level0/generation/LevelZeroChunkGenerator.java` puis `layout/LevelZeroLayout.java`,
   `layout/LevelZeroCellEvaluator.java`, `write/LevelZeroBlockWriter.java`.
 

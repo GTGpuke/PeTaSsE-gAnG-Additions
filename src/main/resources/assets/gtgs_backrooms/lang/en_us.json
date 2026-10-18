@@ -1,0 +1,38 @@
+{
+  "itemGroup.gtgs_backrooms.main": "GTG's Backrooms",
+  "itemGroup.gtgs_backrooms.portals": "GTG's Backrooms - Portals",
+
+  "item.gtgs_backrooms.gang_badge": "Gang Badge",
+  "tooltip.gtgs_backrooms.gang_badge.member": "Official Member",
+  "tooltip.gtgs_backrooms.gang_badge.flavour": "Don't lose it, there's no replacement",
+
+  "item.gtgs_backrooms.cursed_snack": "Cursed Snack",
+  "tooltip.gtgs_backrooms.cursed_snack.warning": "Maybe don't eat that.",
+
+  "block.gtgs_backrooms.cursed_log": "Cursed Log",
+  "block.gtgs_backrooms.cursed_leaves": "Cursed Leaves",
+  "block.gtgs_backrooms.cursed_sapling": "Cursed Sapling",
+  "block.gtgs_backrooms.cursed_planks": "Cursed Planks",
+  "block.gtgs_backrooms.level_zero_wallpaper": "Level 0 Wallpaper",
+  "block.gtgs_backrooms.level_zero_wallpaper_aged": "White Level 0 Wallpaper",
+  "block.gtgs_backrooms.level_zero_wallpaper_adaptive": "Adaptive Level 0 Wallpaper",
+  "block.gtgs_backrooms.level_zero_damp_carpet": "Level 0 Damp Carpet",
+  "block.gtgs_backrooms.level_zero_damp_carpet_aged": "Red Level 0 Carpet",
+  "block.gtgs_backrooms.level_zero_ceiling_tile": "Level 0 Ceiling Tile",
+  "block.gtgs_backrooms.level_zero_fluorescent_light": "Level 0 Fluorescent Light",
+  "block.gtgs_backrooms.backrooms_portal": "Backrooms Portal",
+  "entity.gtgs_backrooms.backrooms_portal": "Backrooms Portal",
+
+  "tooltip.gtgs_backrooms.backrooms_portal.size": "Size: %s x %s",
+  "tooltip.gtgs_backrooms.backrooms_portal.light": "Block light passes through",
+  "tooltip.gtgs_backrooms.backrooms_portal.no_light": "Block light does not pass through",
+  "tooltip.gtgs_backrooms.backrooms_portal.double_sided": "Double-sided: can be crossed from both sides",
+  "tooltip.gtgs_backrooms.backrooms_portal.single_sided": "Single face: nothing from behind, walk right through",
+  "tooltip.gtgs_backrooms.backrooms_portal.round_trip": "Round trip",
+  "tooltip.gtgs_backrooms.backrooms_portal.one_way": "One way: nothing at the arrival to come back",
+  "tooltip.gtgs_backrooms.backrooms_portal.fleeting_exit": "Fleeting exit: the way back vanishes once out of sight",
+  "tooltip.gtgs_backrooms.backrooms_portal.break": "Sneak to target it and break it",
+
+  "biome.gtgs_backrooms.backrooms_level_0": "Backrooms - Level 0",
+  "dimension.gtgs_backrooms.backrooms_level_0": "Backrooms - Level 0"
+}

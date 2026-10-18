@@ -1,9 +1,9 @@
 ---
 name: project-conventions
-description: "Rappelle les conventions du projet PeTaSsE_gAnG_Additions (Fabric 1.21.1) : mod id, structure des packages, nommage, patterns Registry.register(), imports, séparation client/serveur, règles de génération et de qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture' ou 'comment organiser'."
+description: "Rappelle les conventions du projet GTG's Backrooms (Fabric 1.21.1) : mod id, structure des packages, nommage, patterns Registry.register(), imports, séparation client/serveur, règles de génération et de qualité. Déclenche pour 'conventions', 'structure', 'règles', 'comment ajouter', 'architecture' ou 'comment organiser'."
 ---
 
-# Conventions du projet PeTaSsE_gAnG_Additions (Fabric 1.21.1)
+# Conventions du projet GTG's Backrooms (Fabric 1.21.1)
 
 Source de vérité : `CLAUDE.md` (racine) et `docs/ARCHITECTURE.md`.
 
@@ -11,8 +11,8 @@ Source de vérité : `CLAUDE.md` (racine) et `docs/ARCHITECTURE.md`.
 
 | Constante | Valeur |
 |-----------|--------|
-| MOD_ID | `petasse_gang_additions` |
-| Package racine | `com.petassegang.addons` |
+| MOD_ID | `gtgs_backrooms` |
+| Package racine | `com.gtgpuke.gtgsbackrooms` |
 | Minecraft / Yarn | `1.21.1` / `1.21.1+build.3` |
 | Fabric Loader / API | `0.19.5` / `0.116.17+1.21.1` |
 | Fabric Loom / Gradle | `1.17.21` / `9.8.1` |
@@ -22,9 +22,9 @@ Source de vérité : `CLAUDE.md` (racine) et `docs/ARCHITECTURE.md`.
 ## Structure des packages
 
 ```text
-com.petassegang.addons/
-|- PeTaSsEgAnGAdditionsMod.java        <- ModInitializer (registerContent + hooks)
-|- PeTaSsEgAnGAdditionsClientMod.java  <- ClientModInitializer
+com.gtgpuke.gtgsbackrooms/
+|- GtgsBackroomsMod.java        <- ModInitializer (registerContent + hooks)
+|- GtgsBackroomsClientMod.java  <- ClientModInitializer
 |- core/ModConstants.java
 |- config/ModConfig.java
 |- init/                                <- ModBlocks, ModItems, ModBlockEntities, ModChunkGenerators, ModCreativeTab, ModNetworking
@@ -51,7 +51,7 @@ contient du code utilisé.
 | Méthode / variable | camelCase | `wallpaperFaceMask` |
 | Constante | UPPER_SNAKE_CASE | `REGION_MARGIN_CELLS` |
 | Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
-| Clé de langue | `block.<mod_id>.<id>` / `item.<mod_id>.<id>` / `itemGroup.<mod_id>.<id>` | `block.petasse_gang_additions.cursed_log` |
+| Clé de langue | `block.<mod_id>.<id>` / `item.<mod_id>.<id>` / `itemGroup.<mod_id>.<id>` | `block.gtgs_backrooms.cursed_log` |
 
 ## Enregistrement Fabric
 
@@ -66,7 +66,7 @@ Le champ contient l'objet (pas de `.get()`). Tout nouvel item va aussi dans `Mod
 
 ## Imports
 
-`java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang`, aucun wildcard.
+`java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke`, aucun wildcard.
 
 ## Règles de qualité
 

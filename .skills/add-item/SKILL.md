@@ -1,6 +1,6 @@
 ---
 name: add-item
-description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Utilise ce skill dès qu'on veut créer un item, outil, arme, consommable, ou objet. Déclenche pour 'ajoute', 'crée', 'nouveau' + 'item', 'objet', 'outil', 'arme', 'nourriture', 'carte', 'clé', 'badge', 'épée', 'pioche', 'hache', 'arc'."
+description: "Ajouter un nouvel item au mod GTG's Backrooms (Fabric 1.21.1). Utilise ce skill dès qu'on veut créer un item, outil, arme, consommable, ou objet. Déclenche pour 'ajoute', 'crée', 'nouveau' + 'item', 'objet', 'outil', 'arme', 'nourriture', 'carte', 'clé', 'badge', 'épée', 'pioche', 'hache', 'arc'."
 ---
 
 # Skill — Ajouter un Item (Fabric 1.21.1)
@@ -31,10 +31,10 @@ description: "Ajouter un nouvel item au mod PeTaSsE_gAnG_Additions (Fabric 1.21.
 
 ### 2. Créer la classe item
 
-**Fichier :** `src/main/java/com/petassegang/addons/feature/my_feature/MyItem.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/feature/my_feature/MyItem.java`
 
 ```java
-package com.petassegang.addons.feature.my_feature;
+package com.gtgpuke.gtgsbackrooms.feature.my_feature;
 
 import java.util.List;
 
@@ -53,7 +53,7 @@ import net.minecraft.world.World;
  */
 public class MyItem extends Item {
 
-    private static final String TOOLTIP_KEY = "item.petasse_gang_additions.my_item_id.tooltip";
+    private static final String TOOLTIP_KEY = "item.gtgs_backrooms.my_item_id.tooltip";
     private static final Text TOOLTIP_LINE =
             Text.translatable(TOOLTIP_KEY).formatted(Formatting.GOLD);
 
@@ -85,7 +85,7 @@ public class MyItem extends Item {
 
 ### 3. Enregistrer dans ModItems.java
 
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModItems.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModItems.java`
 
 ```java
 // Ajouter après le dernier champ static final :
@@ -109,22 +109,22 @@ public static final Item MY_ITEM = Registry.register(
 
 ### 4. Ajouter au creative tab
 
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModCreativeTab.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModCreativeTab.java`
 
-Ajouter `ModItems.MY_ITEM` à la liste `ENTRIES` (onglet PétasseGang) ou `PORTAL_ENTRIES` (onglet Portails) :
+Ajouter `ModItems.MY_ITEM` à la liste `ENTRIES` (onglet principal) ou `PORTAL_ENTRIES` (onglet Portails) :
 `register(...)` construit l'onglet à partir de cette liste. `ModCreativeTabTest` vérifie que chaque item y figure.
 
 ---
 
 ### 5. Créer le modèle JSON
 
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/models/item/my_item_id.json`
+**Fichier :** `src/main/resources/assets/gtgs_backrooms/models/item/my_item_id.json`
 
 ```json
 {
   "parent": "item/generated",
   "textures": {
-    "layer0": "petasse_gang_additions:item/my_item_id"
+    "layer0": "gtgs_backrooms:item/my_item_id"
   }
 }
 ```
@@ -137,7 +137,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ### 6. Ajouter la texture
 
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/textures/item/my_item_id.png`
+**Fichier :** `src/main/resources/assets/gtgs_backrooms/textures/item/my_item_id.png`
 
 - Format : PNG, 16×16 px, RGBA
 - Crée la texture dans ton éditeur préféré (Aseprite, GIMP, Pixilart…)
@@ -146,23 +146,23 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ### 7. Ajouter les traductions
 
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/en_us.json`
+**Fichier :** `src/main/resources/assets/gtgs_backrooms/lang/en_us.json`
 ```json
-"item.petasse_gang_additions.my_item_id": "My Item Name",
-"item.petasse_gang_additions.my_item_id.tooltip": "My item description."
+"item.gtgs_backrooms.my_item_id": "My Item Name",
+"item.gtgs_backrooms.my_item_id.tooltip": "My item description."
 ```
 
-**Fichier :** `src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json`
+**Fichier :** `src/main/resources/assets/gtgs_backrooms/lang/fr_fr.json`
 ```json
-"item.petasse_gang_additions.my_item_id": "Nom de Mon Objet",
-"item.petasse_gang_additions.my_item_id.tooltip": "Description de mon objet."
+"item.gtgs_backrooms.my_item_id": "Nom de Mon Objet",
+"item.gtgs_backrooms.my_item_id.tooltip": "Description de mon objet."
 ```
 
 ---
 
 ### 8. Ajouter une recette (optionnel)
 
-**Fichier :** `data/petasse_gang_additions/recipes/my_item_id.json`
+**Fichier :** `data/gtgs_backrooms/recipes/my_item_id.json`
 
 ```json
 {
@@ -178,7 +178,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
     "C": { "item": "minecraft:nether_star" }
   },
   "result": {
-    "id": "petasse_gang_additions:my_item_id",
+    "id": "gtgs_backrooms:my_item_id",
     "count": 1
   }
 }
@@ -188,7 +188,7 @@ Pour un outil/arme (tenu à la main) : utiliser `"parent": "item/handheld"`.
 
 ### 9. Écrire le test
 
-**Fichier :** `src/test/java/com/petassegang/addons/feature/my_feature/MyItemTest.java`
+**Fichier :** `src/test/java/com/gtgpuke/gtgsbackrooms/feature/my_feature/MyItemTest.java`
 
 Un test de comportement par méthode (pas de test par réflexion), sous le classloader Fabric avec les vrais registres :
 
@@ -212,7 +212,7 @@ class MyItemTest {
 ```
 
 Modèle, texture, traductions EN et FR et onglet créatif sont vérifiés automatiquement par `ModRegistriesTest` et
-`ModCreativeTabTest` (`src/test/java/com/petassegang/addons/init/`). La couverture fusionnée exige que chaque
+`ModCreativeTabTest` (`src/test/java/com/gtgpuke/gtgsbackrooms/init/`). La couverture fusionnée exige que chaque
 instruction de la classe soit exécutée par un test unitaire ou un test en jeu (`docs/TESTING.md`).
 
 ---

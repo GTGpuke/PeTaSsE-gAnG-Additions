@@ -1,27 +1,27 @@
-# Portails — PeTaSsE_gAnG_Additions
+# Portails — GTG's Backrooms
 
 Les portails relient le monde normal et le Level 0 à travers un **bloc portail** : on voit l'autre
 côté à travers le cadre (blocs, entités, block entities, et les portails qui s'y trouvent), par ses deux faces, on le
 traverse en marchant dans les deux sens, on en ressort de l'autre côté sans tourner ; objets, mobs et projectiles
 passent aussi, la lumière des blocs aussi si le portail la transmet, et l'on peut frapper, miner ou poser à travers le
 cadre. Tout le système vit dans `backrooms/portal/` et ses mixins ; il est actif par défaut
-(`ModConfig.ENABLE_PORTAL_FEATURE`, `-Dpetassegang.portal.enablePortalFeature=false` pour le couper). La porte des
+(`ModConfig.ENABLE_PORTAL_FEATURE`, `-Dgtgsbackrooms.portal.enablePortalFeature=false` pour le couper). La porte des
 Backrooms, retirée pour l'instant, reviendra sur la base du bloc portail.
 
 ---
 
 ## En jeu
 
-1. Prendre un **Portail des Backrooms** (onglet créatif *PetasseGang - Portails*, un par réglage proposé) et le poser
+1. Prendre un **Portail des Backrooms** (onglet créatif *GTG's Backrooms - Portails*, un par réglage proposé) et le poser
    comme un bloc. Il ne se voit pas et ne bloque rien : seul le portail compte, plein cadre, le plan au milieu du bloc.
    Sa face avant regarde le joueur qui l'a posé.
-2. **Réglages**, portés par l'item (composant `petasse_gang_additions:portal_settings`, affichés dans l'info-bulle) et
+2. **Réglages**, portés par l'item (composant `gtgs_backrooms:portal_settings`, affichés dans l'info-bulle) et
    gardés par le bloc : largeur et hauteur du cadre (1 à 8 blocs, un sur deux par défaut), passage de la lumière des
    blocs (oui par défaut), faces (`double_sided`, deux par défaut), retour (`one_way`, aller-retour par défaut) et sortie
    (`fleeting_exit`, durable par défaut). L'onglet propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face,
    1 x 2 aller simple et 1 x 2 à sortie fugace ; les autres se
    donnent par commande, par exemple
-   `/give @s petasse_gang_additions:backrooms_portal[petasse_gang_additions:portal_settings={width:4,height:3,transmits_light:false}]`.
+   `/give @s gtgs_backrooms:backrooms_portal[gtgs_backrooms:portal_settings={width:4,height:3,transmits_light:false}]`.
    Le cadre monte de la hauteur réglée depuis le bloc et s'étend de part et d'autre de sa colonne (une largeur paire
    prend une colonne de plus d'un côté) ; la pose est refusée si le cadre traverserait un bloc.
 3. Posé **hors du Level 0**, il mène au layer 0 du Level 0, près des mêmes X/Z : dans la cellule ouverte la plus
@@ -400,12 +400,12 @@ Fermé (`teleportable` faux) ou invisible, un portail ne laisse rien passer, lum
 
 | Propriété | Défaut | Rôle |
 |-----------|--------|------|
-| `petassegang.portal.enablePortalFeature` | `true` | Coupe tout (le bloc portail reste inerte, les mixins ne font rien). |
-| `petassegang.portal.preloadRadiusChunks` | `3` | Rayon de la fenêtre chargée et synchronisée autour de chaque arrivée (7 x 7 chunks). |
-| `petassegang.portal.renderDistanceBlocks` | `64` | Distance de rendu et de synchronisation d'un portail. |
-| `petassegang.portal.activationRadiusBlocks` | `16` | En deçà, un portail compte quelle que soit la direction du regard (préchargement, synchronisation, rendu) ; au-delà, seulement s'il est devant le joueur, jusqu'à la plus grande de cette distance et de `renderDistanceBlocks` côté serveur. |
-| `petassegang.portal.teleportCooldownTicks` | `0` | Délai minimal entre deux traversées d'un joueur ; zéro par défaut, on enchaîne aller et retour librement (les objets et mobs gardent un cooldown vanilla fixe de 10 ticks). |
-| `petassegang.portal.debugRendering` | `false` | Une ligne de log par seconde et par portail rendu (chunks chargés, entités, état du renderer). |
+| `gtgsbackrooms.portal.enablePortalFeature` | `true` | Coupe tout (le bloc portail reste inerte, les mixins ne font rien). |
+| `gtgsbackrooms.portal.preloadRadiusChunks` | `3` | Rayon de la fenêtre chargée et synchronisée autour de chaque arrivée (7 x 7 chunks). |
+| `gtgsbackrooms.portal.renderDistanceBlocks` | `64` | Distance de rendu et de synchronisation d'un portail. |
+| `gtgsbackrooms.portal.activationRadiusBlocks` | `16` | En deçà, un portail compte quelle que soit la direction du regard (préchargement, synchronisation, rendu) ; au-delà, seulement s'il est devant le joueur, jusqu'à la plus grande de cette distance et de `renderDistanceBlocks` côté serveur. |
+| `gtgsbackrooms.portal.teleportCooldownTicks` | `0` | Délai minimal entre deux traversées d'un joueur ; zéro par défaut, on enchaîne aller et retour librement (les objets et mobs gardent un cooldown vanilla fixe de 10 ticks). |
+| `gtgsbackrooms.portal.debugRendering` | `false` | Une ligne de log par seconde et par portail rendu (chunks chargés, entités, état du renderer). |
 
 `./gradlew runClient -PportalPreloadRadiusChunks=2 -PportalDebugRendering=true` passe ces propriétés au client de dev.
 

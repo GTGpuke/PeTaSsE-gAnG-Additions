@@ -1,4 +1,4 @@
-# Tests — PeTaSsE_gAnG_Additions
+# Tests — GTG's Backrooms
 
 ## Vue d'ensemble
 
@@ -33,7 +33,7 @@ GameTest, et les mixins (tissés dans les classes vanilla). La liste exacte est 
 |-------|----------|
 | `PortalStencilRenderer`, `FrameAreaRenderer`, `PortalClipping`, `portal/client/world/**` (`RemoteWorld`, `RemoteViewRenderer`, `ViewSectionWalker`, `RemoteParticles`, `RemoteWorldRegistry`, `RemoteSyncReceiver`, `ClientPortalIndex`, `ClientPortalLight`, `PortalSightReporter`, `StraddlingEntityRenderer`) | appels GL, `WorldRenderer`, `MinecraftClient` |
 | `portal/client/transition/**`, `portal/client/interaction/**`, `portal/client/sound/FrameSoundPlayer`, `portal/client/entity/**` | bascule de monde client, visée et clics du client, son rejoué par le moteur de son du client, renderer d'entité |
-| `level0/client/**`, `feature/gang/client/**`, `perf/client/**`, `PeTaSsEgAnGAdditionsClientMod` | modèles, hooks client, point d'entrée client |
+| `level0/client/**`, `feature/gang/client/**`, `perf/client/**`, `GtgsBackroomsClientMod` | modèles, hooks client, point d'entrée client |
 | `mixin/**` | mesurés à travers les classes vanilla qu'ils modifient |
 
 La logique client pure reste mesurée et testée : `PortalViewTransform` (plan de découpe, caméra transposée), `ViewCone`
@@ -43,7 +43,7 @@ La logique client pure reste mesurée et testée : `PortalViewTransform` (plan d
 
 Les classes utilitaires (constructeur privé qui refuse l'appel) sont couvertes par `UtilityClassesTest`, qui les
 énumère ; une nouvelle classe utilitaire s'y ajoute. Les tests en jeu tournent avec un cooldown de traversée de trois
-ticks (`-Dpetassegang.portal.teleportCooldownTicks=3` dans la configuration `gameTest` de `build.gradle`) pour exercer
+ticks (`-Dgtgsbackrooms.portal.teleportCooldownTicks=3` dans la configuration `gameTest` de `build.gradle`) pour exercer
 le refus sous cooldown, nul par défaut en jeu.
 
 ---
@@ -82,7 +82,7 @@ static void bootstrap() {
 | Registres et ressources | `ModRegistriesTest`, `ModDatapackLoadingTest` | identifiants, items de blocs, onglet complet, blockstates/modèles/loot tables présents, EN = FR, dimension Level 0 chargée depuis le datapack du mod |
 | Items | `GangBadgeItemTest`, `CursedSnackItemTest` | propriétés, composants, tooltips |
 | Config et perf | `ModConfigTest`, `ModPerformanceMonitorTest` | parsing, valeurs par défaut, mesure active |
-| Utilitaires et point d'entrée | `UtilityClassesTest`, `PeTaSsEgAnGAdditionsModTest`, `ModCreativeTabTest` | classes finales non instanciables, portails activés ou non, branchements idempotents, onglets remplis |
+| Utilitaires et point d'entrée | `UtilityClassesTest`, `GtgsBackroomsModTest`, `ModCreativeTabTest` | classes finales non instanciables, portails activés ou non, branchements idempotents, onglets remplis |
 | Mixins | `MixinTargetsTest` | chaque mixin déclaré (communs et client) s'applique à sa cible : les tests unitaires tournent côté client sous le chargeur Fabric, et charger la cible applique le mixin ; un mixin client cassé fait échouer le build au lieu de planter le client au lancement |
 | Client (logique pure) | `PortalViewTransformTest`, `ViewConeTest`, `ShaderClipInjectorTest`, `PortalRenderStateTest`, `RemoteViewRendererTest`, `ThirdPersonPortalTest` | plan de découpe en espace caméra, caméra et regard transposés, volume visible à travers le cadre (et sans limite), recul de la caméra à la troisième personne à travers le cadre ou au-dessus du linteau, injection du plan dans 54 des 55 vertex shaders vanilla (`blit_screen` exclu), garde de rendu et numéro d'image, coupure du rendu distant, ancrage de la grille de sections |
 | Portails | `PortalFacingTest`, `BackroomsPortalEntityTest`, `BackroomsPortalBlockTest`, `PortalSettingsTest`, `PortalTargetsTest`, `VirtualLightSourcesTest`, `PortalRelevanceTest`, `TeleportExecutorTest`, `PortalCollisionTest`, `PortalPayloadsTest`, `PortalViewTrackerTest`, `RemoteChunkWindowTest`, `RemoteEntityViewTest`, `PortalSoundTest`, `PortalPursuitTest` | rotation sans miroir sur les 36 paires, faces arrière qui transposent comme les faces avant, NBT, bloc invisible visé seulement accroupi, réglages (format, bornes, piles, colonnes, centre et pied du cadre), cadre d'arrivée qui tient sur toute sa largeur avec ses deux faces libres, sources de lumière immuables, traversée du plan (le centre en face de l'ouverture, la boîte touchant le cadre ; ni apparition ni saut de position), face franchie d'après le sens du déplacement, boîtes à cheval sur le cadre d'entrée ou d'arrivée à la position affichée, boîtes refaites quand la taille change, côté de sortie et image d'une boîte d'un portail à l'autre, entité engagée dans un cadre, onze payloads dont un paquet d'entité vanilla enveloppé et les portails vus, paquets relayés aux joueurs qui regardent une dimension, fenêtre de chunks et sa boîte d'entités ; volume du son après le trajet et sortie par le cadre où le joueur voit l'autre côté, point de passage du regard dans le cadre, point d'approche et alignement sur l'ouverture, cooldown des joueurs |
@@ -100,14 +100,14 @@ Il hache, pour trois seeds et cinq layers, toute la génération logique d'une z
 
 ```bash
 ./gradlew test --tests "*LevelZeroLayoutTest*"
-./gradlew test --tests "com.petassegang.addons.init.*"
+./gradlew test --tests "com.gtgpuke.gtgsbackrooms.init.*"
 ```
 
 ---
 
 ## Tests en jeu (GameTest)
 
-Source set dédié `src/gametest` (Loom `fabricApi.configureTests`) : un mod séparé, `petasse_gang_additions_gametest`,
+Source set dédié `src/gametest` (Loom `fabricApi.configureTests`) : un mod séparé, `gtgs_backrooms_gametest`,
 avec son `fabric.mod.json` et son entrypoint `fabric-gametest`, chargé par `runGameTest` seulement. Rien de tout cela
 n'entre dans le JAR du mod, ce que `verifyJarContents` vérifie à chaque `build`. Le serveur de test vanilla force le
 preset plat avec l'overworld, le Nether et l'End, sans les dimensions de datapack : le Level 0 n'y existe pas, et le
@@ -136,8 +136,8 @@ Les joueurs simulés viennent de `GameTestPlayers` : connexion réelle au serveu
 joueurs, suivi des chunks, événements de connexion), mode de jeu au choix, `setOnGround(true)` faute de client pour le
 dire, `tick(player)` fait tourner son gestionnaire réseau en acquittant les lots de chunks (le serveur ne tique pas
 lui-même ces connexions), et `receive(player, payload)` fait entrer un payload comme venu de son client. Les tests qui posent des blocs, des
-entités ou des joueurs utilisent l'arène `petasse_gang_additions_gametest:test_arena` (24 x 8 x 24,
-`src/gametest/resources/data/petasse_gang_additions_gametest/structure/test_arena.nbt`) :
+entités ou des joueurs utilisent l'arène `gtgs_backrooms_gametest:test_arena` (24 x 8 x 24,
+`src/gametest/resources/data/gtgs_backrooms_gametest/structure/test_arena.nbt`) :
 la structure vide de Fabric fait un bloc et les tests voisins se marcheraient dessus. Dans l'arène, le sol est en
 y = -1 relatif ; y = 0 est la première couche d'air.
 
@@ -154,7 +154,7 @@ par test dans `build/junit.xml`.
 
 `./gradlew checkstyleMain checkstyleTest checkstyleGametest` (dans `check`, donc dans `build`) applique
 `config/checkstyle/checkstyle.xml` aux trois source sets : sources ASCII, imports ordonnés par groupes
-(`java` → tiers → `net.minecraft` → `net.fabricmc` → `com.petassegang`) sans wildcard ni doublon, journal via
+(`java` → tiers → `net.minecraft` → `net.fabricmc` → `com.gtgpuke`) sans wildcard ni doublon, journal via
 `ModConstants.LOGGER` uniquement, Javadoc sur chaque type public, classes utilitaires finales au constructeur privé,
 mise en forme (accolades, espaces, une instruction par ligne, 180 colonnes). Zéro avertissement toléré (`maxWarnings = 0`).
 Les deux exceptions assumées sont dans `config/checkstyle/suppressions.xml` : le logger est créé dans `ModConstants`,
@@ -165,9 +165,10 @@ le benchmark écrit ses chiffres sur la console. Rapports : `build/reports/check
 ## Contenu du JAR
 
 `./gradlew verifyJarContents` (dans `check`) ouvre le JAR remappé et échoue s'il contient autre chose que le mod :
-`fabric.mod.json`, `pack.mcmeta`, le fichier de mixins, le manifeste, `assets/` et `data/` du mod, les tags
-`data/minecraft/tags/` et les classes `com/petassegang/addons/` hors `gametest/`. Une dépendance embarquée (classe
-tierce ou clé `jars` du `fabric.mod.json`) ou un test qui se glisserait dans le JAR fait échouer le build.
+`fabric.mod.json`, `pack.mcmeta`, le fichier de mixins, le manifeste, la licence (`LICENSE_gtgs_backrooms`),
+`assets/` et `data/` du mod, les tags `data/minecraft/tags/` et les classes `com/gtgpuke/gtgsbackrooms/` hors
+`gametest/`. Une dépendance embarquée (classe tierce ou clé `jars` du `fabric.mod.json`) ou un test qui se glisserait
+dans le JAR fait échouer le build.
 
 ---
 

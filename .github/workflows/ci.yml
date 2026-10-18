@@ -64,7 +64,7 @@ jobs:
       - name: Publier les JARs
         uses: actions/upload-artifact@v4
         with:
-          name: petasse_gang_additions-${{ github.sha }}
+          name: gtgs_backrooms-${{ github.sha }}
           path: build/libs/*.jar
           if-no-files-found: error
           retention-days: 14

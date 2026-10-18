@@ -1,0 +1,6 @@
+{
+  "parent": "minecraft:block/leaves",
+  "textures": {
+    "all": "gtgs_backrooms:block/cursed_leaves"
+  }
+}

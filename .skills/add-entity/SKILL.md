@@ -1,6 +1,6 @@
 ---
 name: add-entity
-description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'mob', 'entité', 'monstre', 'boss', 'NPC', 'créature', 'animal', 'pet', 'entity'."
+description: "Ajouter une entité/mob au mod GTG's Backrooms (Fabric 1.21.1). Déclenche pour 'mob', 'entité', 'monstre', 'boss', 'NPC', 'créature', 'animal', 'pet', 'entity'."
 ---
 
 # Skill — Ajouter une Entité / Mob (Fabric 1.21.1)
@@ -19,8 +19,8 @@ description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions (Fabric 1.21
 
 | Paramètre | Valeur |
 |-----------|--------|
-| `ENTITY_ID` | `gang_member`, `petasse_boss` |
-| `ClassName` | `GangMemberEntity`, `PetasseBossEntity` |
+| `ENTITY_ID` | `gang_member`, `backrooms_boss` |
+| `ClassName` | `GangMemberEntity`, `BackroomsBossEntity` |
 | Catégorie | `SpawnGroup.CREATURE` / `MONSTER` / `AMBIENT` / `WATER_CREATURE` |
 | HP | `20.0f` (10 cœurs) |
 | Taille | `EntityDimensions.changing(0.6f, 1.95f)` (humanoïde) |
@@ -29,10 +29,10 @@ description: "Ajouter une entité/mob au mod PeTaSsE_gAnG_Additions (Fabric 1.21
 
 ### 2. Créer la classe entité
 
-**Fichier :** `src/main/java/com/petassegang/addons/entity/MyEntity.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/entity/MyEntity.java`
 
 ```java
-package com.petassegang.addons.entity;
+package com.gtgpuke.gtgsbackrooms.entity;
 
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.goal.LookAroundGoal;
@@ -70,13 +70,13 @@ public class MyEntity extends PathAwareEntity {
 
 ### 3. Créer ModEntities.java (si absent)
 
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModEntities.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModEntities.java`
 
 ```java
-package com.petassegang.addons.init;
+package com.gtgpuke.gtgsbackrooms.init;
 
-import com.petassegang.addons.entity.MyEntity;
-import com.petassegang.addons.core.ModConstants;
+import com.gtgpuke.gtgsbackrooms.entity.MyEntity;
+import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnGroup;
 import net.minecraft.registry.Registries;
@@ -105,7 +105,7 @@ Appeler `ModEntities.initialize()` dans `onInitialize()`.
 
 ### 4. Enregistrer les attributs
 
-Dans `PeTaSsEgAnGAdditionsMod.onInitialize()`, via l'event Fabric :
+Dans `GtgsBackroomsMod.onInitialize()`, via l'event Fabric :
 
 ```java
 // Dans onInitialize() :
@@ -116,12 +116,12 @@ FabricDefaultAttributeRegistry.register(ModEntities.MY_ENTITY, MyEntity.createAt
 
 ### 5. Créer le renderer (CLIENT uniquement)
 
-**Fichier :** `src/main/java/com/petassegang/addons/client/renderer/MyEntityRenderer.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/client/renderer/MyEntityRenderer.java`
 
 ```java
-package com.petassegang.addons.client.renderer;
+package com.gtgpuke.gtgsbackrooms.client.renderer;
 
-import com.petassegang.addons.entity.MyEntity;
+import com.gtgpuke.gtgsbackrooms.entity.MyEntity;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.client.render.entity.EntityRendererFactory;
@@ -132,7 +132,7 @@ import net.minecraft.util.Identifier;
 public class MyEntityRenderer extends MobEntityRenderer<MyEntity, MyEntityModel<MyEntity>> {
 
     private static final Identifier TEXTURE =
-            Identifier.of("petasse_gang_additions", "textures/entity/my_entity.png");
+            Identifier.of("gtgs_backrooms", "textures/entity/my_entity.png");
 
     public MyEntityRenderer(EntityRendererFactory.Context context) {
         super(context, new MyEntityModel<>(context.getPart(MyEntityModel.MODEL_LAYER)), 0.5f);
@@ -145,7 +145,7 @@ public class MyEntityRenderer extends MobEntityRenderer<MyEntity, MyEntityModel<
 }
 ```
 
-Enregistrer dans `PeTaSsEgAnGAdditionsClientMod.onInitializeClient()` :
+Enregistrer dans `GtgsBackroomsClientMod.onInitializeClient()` :
 ```java
 EntityRendererRegistry.register(ModEntities.MY_ENTITY, MyEntityRenderer::new);
 ```
@@ -155,7 +155,7 @@ EntityRendererRegistry.register(ModEntities.MY_ENTITY, MyEntityRenderer::new);
 ### 6. Fichiers ressources
 
 - `textures/entity/my_entity.png` — texture du mob (64×32 ou 64×64)
-- `lang/en_us.json` : `"entity.petasse_gang_additions.my_entity": "My Entity"`
+- `lang/en_us.json` : `"entity.gtgs_backrooms.my_entity": "My Entity"`
 - `lang/fr_fr.json` : traduction FR
 
 ---

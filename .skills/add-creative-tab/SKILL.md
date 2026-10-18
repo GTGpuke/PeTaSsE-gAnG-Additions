@@ -1,6 +1,6 @@
 ---
 name: add-creative-tab
-description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'onglet créatif', 'creative tab', 'catégorie d'items', 'nouvel onglet', 'déplacer item dans tab', 'changer l'icône du tab'."
+description: "Ajouter ou modifier un onglet créatif dans GTG's Backrooms (Fabric 1.21.1). Déclenche pour 'onglet créatif', 'creative tab', 'catégorie d'items', 'nouvel onglet', 'déplacer item dans tab', 'changer l'icône du tab'."
 ---
 
 # Skill — Ajouter / Modifier un Creative Tab (Fabric 1.21.1)
@@ -9,16 +9,16 @@ description: "Ajouter ou modifier un onglet créatif dans PeTaSsE_gAnG_Additions
 
 - "Ajoute un nouvel onglet créatif [nom]"
 - "Déplace [item] dans un autre onglet"
-- "Change l'icône du tab PétasseGang"
+- "Change l'icône du tab principal"
 - "Crée une catégorie séparée pour [type de contenu]"
 
 ---
 
-## Modifier le tab existant (PétasseGang)
+## Modifier le tab principal
 
 ### Ajouter un item au tab existant
 
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModCreativeTab.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModCreativeTab.java`
 
 ```java
 private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Entries entries) {
@@ -42,10 +42,10 @@ private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Ent
 
 ## Créer un nouvel onglet
 
-**Fichier :** `src/main/java/com/petassegang/addons/init/ModCreativeTab.java`
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModCreativeTab.java`
 
 ```java
-package com.petassegang.addons.init;
+package com.gtgpuke.gtgsbackrooms.init;
 
 import net.fabricmc.fabric.api.itemgroup.v1.FabricItemGroup;
 import net.minecraft.item.ItemGroup;
@@ -55,8 +55,8 @@ import net.minecraft.registry.Registry;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
-import com.petassegang.addons.init.ModItems;
-import com.petassegang.addons.core.ModConstants;
+import com.gtgpuke.gtgsbackrooms.init.ModItems;
+import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 
 public final class ModCreativeTab {
 
@@ -64,7 +64,7 @@ public final class ModCreativeTab {
             Registries.ITEM_GROUP,
             Identifier.of(ModConstants.MOD_ID, "my_tab"),
             FabricItemGroup.builder()
-                    .displayName(Text.translatable("itemGroup.petasse_gang_additions.my_tab"))
+                    .displayName(Text.translatable("itemGroup.gtgs_backrooms.my_tab"))
                     .icon(() -> new ItemStack(ModItems.MY_ICON_ITEM))
                     .entries((context, entries) -> {
                         entries.add(ModItems.SOME_ITEM);
@@ -78,7 +78,7 @@ public final class ModCreativeTab {
 }
 ```
 
-Appeler `ModCreativeTab.register()` dans `PeTaSsEgAnGAdditionsMod.onInitialize()`.
+Appeler `ModCreativeTab.register()` dans `GtgsBackroomsMod.onInitialize()`.
 
 ---
 
@@ -117,10 +117,10 @@ private static void displayItems(ItemGroup.DisplayContext context, ItemGroup.Ent
 
 ```json
 // en_us.json
-"itemGroup.petasse_gang_additions.my_tab": "My Tab Name",
+"itemGroup.gtgs_backrooms.my_tab": "My Tab Name",
 
 // fr_fr.json
-"itemGroup.petasse_gang_additions.my_tab": "Nom de Mon Onglet",
+"itemGroup.gtgs_backrooms.my_tab": "Nom de Mon Onglet",
 ```
 
 ---

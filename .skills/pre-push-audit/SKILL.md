@@ -3,7 +3,7 @@ name: pre-push-audit
 description: "Audit pré-push obligatoire avant tout commit final, push ou déclaration de feature terminée. Utilise ce skill AUTOMATIQUEMENT dès que l'utilisateur dit 'push', 'c'est bon', 'c'est fini', 'c'est prêt', 'commit', 'merge', 'on push', 'terminé', 'fini', 'done', 'prêt à push', 'vérifie avant de push', 'audit', 'check'. Ne JAMAIS déclarer une feature prête sans avoir exécuté ce skill en entier."
 ---
 
-# Audit pré-push — PeTaSsE_gAnG_Additions
+# Audit pré-push — GTG's Backrooms
 
 ## INSTRUCTIONS D'EXÉCUTION — LIS CECI EN PREMIER
 
@@ -79,16 +79,16 @@ Si ❌ sur l'un de ces points : corrige le code, ré-exécute, confirme ✅.
 
 ```bash
 echo "========== ÉTAPE 1.2 — Vérification du JAR =========="
-ls -lh build/libs/petasse_gang_additions-*.jar
+ls -lh build/libs/gtgs_backrooms-*.jar
 echo "--- Contenu du JAR ---"
-jar tf build/libs/petasse_gang_additions-*.jar | head -40
+jar tf build/libs/gtgs_backrooms-*.jar | head -40
 ```
 
 Vérifie :
 - ✅/❌ Le JAR existe et a une taille > 10KB ?
-- ✅/❌ Contient les classes dans `com/petassegang/addons/` ?
+- ✅/❌ Contient les classes dans `com/gtgpuke/gtgsbackrooms/` ?
 - ✅/❌ Contient `fabric.mod.json` ?
-- ✅/❌ Contient les assets dans `assets/petasse_gang_additions/` ?
+- ✅/❌ Contient les assets dans `assets/gtgs_backrooms/` ?
 
 ---
 
@@ -128,7 +128,7 @@ grep -rn " $" src/main/java/ --include="*.java" | head -5 || echo "✅ Aucun tra
 
 ```bash
 echo "========== ÉTAPE 2.7 — Imports client hors package client/ =========="
-grep -rn "import net.minecraft.client" src/main/java/com/petassegang/addons/ --include="*.java" | grep -v "/client/" | grep -v "compat/" || echo "✅ Aucun import client dans les classes communes."
+grep -rn "import net.minecraft.client" src/main/java/com/gtgpuke/gtgsbackrooms/ --include="*.java" | grep -v "/client/" | grep -v "compat/" || echo "✅ Aucun import client dans les classes communes."
 ```
 
 ```bash
@@ -150,7 +150,7 @@ Pour chaque résultat non vide : CORRIGE immédiatement → ré-exécute → con
 ```bash
 echo "========== ÉTAPE 3.1 — Commentaires en français =========="
 echo "Affichage de tous les commentaires pour vérification manuelle :"
-grep -rn "^\s*//" src/main/java/com/petassegang/addons/ --include="*.java" | head -30
+grep -rn "^\s*//" src/main/java/com/gtgpuke/gtgsbackrooms/ --include="*.java" | head -30
 ```
 
 Vérifie CHAQUE commentaire affiché :
@@ -170,7 +170,7 @@ Vérifie CHAQUE message de log :
 
 ```bash
 echo "========== ÉTAPE 3.3 — Textes in-game non traduits (texte en dur) =========="
-grep -rn "Text\.literal\|Text\.of(" src/main/java/com/petassegang/addons/ --include="*.java" | grep -v "test\|Test" || echo "✅ Aucun texte en dur trouvé."
+grep -rn "Text\.literal\|Text\.of(" src/main/java/com/gtgpuke/gtgsbackrooms/ --include="*.java" | grep -v "test\|Test" || echo "✅ Aucun texte en dur trouvé."
 ```
 
 Si des `Text.literal()` sont trouvés dans le code principal (pas les tests) : remplace par `Text.translatable()` → ajoute les clés dans les fichiers de langue.
@@ -187,13 +187,13 @@ cat /tmp/keys_code.txt
 
 ```bash
 echo "========== ÉTAPE 4.2 — Clés dans en_us.json =========="
-python3 -c "import json; [print(k) for k in sorted(json.load(open('src/main/resources/assets/petasse_gang_additions/lang/en_us.json')).keys())]" > /tmp/keys_en.txt
+python3 -c "import json; [print(k) for k in sorted(json.load(open('src/main/resources/assets/gtgs_backrooms/lang/en_us.json')).keys())]" > /tmp/keys_en.txt
 cat /tmp/keys_en.txt
 ```
 
 ```bash
 echo "========== ÉTAPE 4.3 — Clés dans fr_fr.json =========="
-python3 -c "import json; [print(k) for k in sorted(json.load(open('src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json')).keys())]" > /tmp/keys_fr.txt
+python3 -c "import json; [print(k) for k in sorted(json.load(open('src/main/resources/assets/gtgs_backrooms/lang/fr_fr.json')).keys())]" > /tmp/keys_fr.txt
 cat /tmp/keys_fr.txt
 ```
 
@@ -246,14 +246,14 @@ done
 
 ```bash
 echo "========== ÉTAPE 5.3 — Textures sans modèle associé =========="
-for f in src/main/resources/assets/petasse_gang_additions/textures/item/*.png 2>/dev/null; do
+for f in src/main/resources/assets/gtgs_backrooms/textures/item/*.png 2>/dev/null; do
   name=$(basename "$f" .png)
-  [ ! -f "src/main/resources/assets/petasse_gang_additions/models/item/$name.json" ] && echo "⚠️  Texture orpheline : $f"
+  [ ! -f "src/main/resources/assets/gtgs_backrooms/models/item/$name.json" ] && echo "⚠️  Texture orpheline : $f"
 done || echo "✅ Aucune texture orpheline."
 echo "--- Modèles sans texture ---"
-for f in src/main/resources/assets/petasse_gang_additions/models/item/*.json 2>/dev/null; do
+for f in src/main/resources/assets/gtgs_backrooms/models/item/*.json 2>/dev/null; do
   name=$(basename "$f" .json)
-  [ ! -f "src/main/resources/assets/petasse_gang_additions/textures/item/$name.png" ] && echo "⚠️  Modèle orphelin : $f"
+  [ ! -f "src/main/resources/assets/gtgs_backrooms/textures/item/$name.png" ] && echo "⚠️  Modèle orphelin : $f"
 done || echo "✅ Aucun modèle orphelin."
 ```
 
@@ -286,7 +286,7 @@ find src/test -name "*.java" -type f 2>/dev/null
 
 ```bash
 echo "========== ÉTAPE 6.3 — Fichiers source SANS test correspondant =========="
-for f in $(find src/main/java/com/petassegang/addons -name "*.java" ! -name "ModConstants.java" ! -name "*Mod.java" -type f); do
+for f in $(find src/main/java/com/gtgpuke/gtgsbackrooms -name "*.java" ! -name "ModConstants.java" ! -name "*Mod.java" -type f); do
   cls=$(basename "$f" .java)
   if ! find src/test -name "${cls}Test.java" -type f 2>/dev/null | grep -q .; then
     echo "⚠️  Pas de test pour : $cls"
@@ -397,11 +397,11 @@ Et si la zone auditée touche `backrooms`, confirmer explicitement :
 ```bash
 echo "========== ÉTAPE 9.3 — Vérification des enregistrements Fabric =========="
 echo "--- Enregistrements Registry.register dans init/ ---"
-grep -rn "Registry\.register" src/main/java/com/petassegang/addons/init/ --include="*.java"
+grep -rn "Registry\.register" src/main/java/com/gtgpuke/gtgsbackrooms/init/ --include="*.java"
 echo "--- Traductions existantes ---"
-python3 -c "import json; d=json.load(open('src/main/resources/assets/petasse_gang_additions/lang/en_us.json')); print(f'{len(d)} clés EN'); d=json.load(open('src/main/resources/assets/petasse_gang_additions/lang/fr_fr.json')); print(f'{len(d)} clés FR')"
+python3 -c "import json; d=json.load(open('src/main/resources/assets/gtgs_backrooms/lang/en_us.json')); print(f'{len(d)} clés EN'); d=json.load(open('src/main/resources/assets/gtgs_backrooms/lang/fr_fr.json')); print(f'{len(d)} clés FR')"
 echo "--- Textures existantes ---"
-find src/main/resources/assets/petasse_gang_additions/textures -name "*.png" -type f
+find src/main/resources/assets/gtgs_backrooms/textures -name "*.png" -type f
 echo "--- fabric.mod.json valide ---"
 python3 -c "import json; json.load(open('src/main/resources/fabric.mod.json')); print('✅ fabric.mod.json valide')"
 ```
@@ -421,7 +421,7 @@ Compte le nombre total de ✅, ❌ corrigés, et ⚠️ de tout l'audit.
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║              RAPPORT PRÉ-PUSH — PeTaSsE_gAnG_Additions         ║
+║                 RAPPORT PRÉ-PUSH — GTG's Backrooms           ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                              ║
 ║  Feature : [nom de la feature]                               ║

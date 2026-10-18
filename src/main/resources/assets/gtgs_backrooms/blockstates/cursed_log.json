@@ -1,0 +1,7 @@
+{
+  "variants": {
+    "axis=x": { "model": "gtgs_backrooms:block/cursed_log", "x": 90, "y": 90 },
+    "axis=y": { "model": "gtgs_backrooms:block/cursed_log" },
+    "axis=z": { "model": "gtgs_backrooms:block/cursed_log", "x": 90 }
+  }
+}

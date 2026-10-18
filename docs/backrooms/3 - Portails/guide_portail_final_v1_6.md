@@ -30,12 +30,12 @@
 | `// FALLBACK: <comportement>` | Comportement dégradé volontaire si une dépendance échoue. | Implémenter explicitement, jamais un `try/catch` muet. |
 | `// IP: <fichier>` | Référence au fichier source d'ImmersivePortals (branche `1.21`) à consulter pour la logique exacte. | Lire le fichier IP avant d'écrire la version adaptée. |
 
-**Conventions du projet PétasseGang** (rappel) :
+**Conventions du projet GTG's Backrooms** (rappel) :
 - Commentaires Java en **français**, **capitalisés**, **terminés par un point**.
 - Messages d'erreur en **français**, capitalisés, ponctués.
 - Tout texte in-game traduit dans `en_us.json` ET `fr_fr.json`.
-- Mod ID : `petasse_gang_additions`.
-- Package racine : `com.petassegang.addons.*`.
+- Mod ID : `gtgs_backrooms`.
+- Package racine : `com.gtgpuke.gtgsbackrooms.*`.
 
 ---
 
@@ -110,16 +110,16 @@ Ces 10 règles sont **dures**. Chaque PR doit passer la vérif `tools/check_port
 
 | # | Interdiction | Vérif grep |
 |---|---|---|
-| **C-1** | Aucun `import foundry.veil` dans `backrooms/portal/` (le portail n'utilise pas Veil — DA-3, Pilier 2 only). | `grep -r "import foundry.veil" src/main/java/com/petassegang/addons/backrooms/portal && exit 1` |
+| **C-1** | Aucun `import foundry.veil` dans `backrooms/portal/` (le portail n'utilise pas Veil — DA-3, Pilier 2 only). | `grep -r "import foundry.veil" src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/portal && exit 1` |
 | **C-2** | Aucun appel direct à `level()`, `world()`, ou setter sur `Minecraft.client` en dehors d'un bloc `try { ... } finally { /* restore */ }`. | Code review obligatoire pour tout `client.world =` ou `client.worldRenderer =`. Pattern attendu : `try/finally` autour. |
-| **C-3** | `TeleportExecutor.execute()` invocable uniquement depuis `ServerTickEvents.END_SERVER_TICK` ou `server.execute()`. Jamais depuis le render thread, `WorldRenderEvents`, ou un Mixin client. | `grep -rn "TeleportExecutor.execute" src/main/java/com/petassegang/addons/backrooms/portal/client && exit 1` (rien attendu côté client) |
-| **C-4** | Aucune classe nommée `PortalLink`, `PortalTransform`, `DQuaternion`, `EntityEcho*`, `CrossPortalSound*`, `PortalLureGoal` **dans `backrooms/portal/`**. (Concepts V3 non réintroduits dans le périmètre MVP courant. Le scope est restreint au sous-package portail pour ne pas casser un éventuel `DQuaternion` utilitaire d'un autre Pilier.) | `grep -rn "class PortalLink\|class PortalTransform\|class DQuaternion\|class EntityEcho\|class CrossPortalSound\|class PortalLureGoal" src/main/java/com/petassegang/addons/backrooms/portal && exit 1` |
+| **C-3** | `TeleportExecutor.execute()` invocable uniquement depuis `ServerTickEvents.END_SERVER_TICK` ou `server.execute()`. Jamais depuis le render thread, `WorldRenderEvents`, ou un Mixin client. | `grep -rn "TeleportExecutor.execute" src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/portal/client && exit 1` (rien attendu côté client) |
+| **C-4** | Aucune classe nommée `PortalLink`, `PortalTransform`, `DQuaternion`, `EntityEcho*`, `CrossPortalSound*`, `PortalLureGoal` **dans `backrooms/portal/`**. (Concepts V3 non réintroduits dans le périmètre MVP courant. Le scope est restreint au sous-package portail pour ne pas casser un éventuel `DQuaternion` utilitaire d'un autre Pilier.) | `grep -rn "class PortalLink\|class PortalTransform\|class DQuaternion\|class EntityEcho\|class CrossPortalSound\|class PortalLureGoal" src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/portal && exit 1` |
 | **C-5** | Aucune allocation OpenGL (`GlStateManager._glGen*`, `new Framebuffer`, `new SimpleFramebuffer`) dans un constructeur. Toujours dans `init()` appelé depuis le render thread. | Code review : tout `glGen` / `new Framebuffer` doit être dans une méthode `init()` ou équivalent. |
 | **C-6** | Création de `BackroomsPortalEntity` autorisée uniquement depuis : `RoomGraph` (génération), `BackroomsDoorBlockEntity`, ou `DebugPortalCommand` (dev-only). Pas ailleurs. **Le fichier `BackroomsPortalEntity.java` lui-même est exclu** car son Builder contient légitimement `new BackroomsPortalEntity(...)`. | `grep -rn "BackroomsPortalEntity.builder\|new BackroomsPortalEntity(" src/main/java \| grep -v "BackroomsPortalEntity\.java\|RoomGraph\|BackroomsDoorBlockEntity\|DebugPortalCommand\|PortalFacingTest" && exit 1` |
 | **C-7** | Pas de signature Yarn 1.21.1 inventée. Toute classe ou méthode non-vanilla-évidente est tagguée `// SPIKE-N` validé dans `phase0_findings.md`. | Code review. Si Codex écrit `import foo.bar.NotARealClass`, build casse — la CI Gradle attrape. |
 | **C-8** | Sync entity côté client : si `facingSource`, `facingDestination`, `destinationDim`, `destinationPos`, `width`, `height` ne sont pas visibles côté client immédiatement après spawn, **bloqué**. Pas de fallback silencieux. | SPIKE-4 obligatoire en `OK`. Voir §6 pour les 3 stratégies (`TrackedData`, `SpawnExtraData`, `PortalSpawnPayload` custom). |
 | **C-9** | `DebugPortalCommand` enregistré uniquement si `FabricLoader.getInstance().isDevelopmentEnvironment() == true`. | `grep -A 2 "DebugPortalCommand.register" src/main/java | grep "isDevelopmentEnvironment"` doit matcher. |
-| **C-10** | Aucun `Thread.sleep`, `wait()`, `join()` dans le code portail (TP doit être tick-instant, pas async). | `grep -rn "Thread.sleep\|\.wait(\|\.join(" src/main/java/com/petassegang/addons/backrooms/portal && exit 1` |
+| **C-10** | Aucun `Thread.sleep`, `wait()`, `join()` dans le code portail (TP doit être tick-instant, pas async). | `grep -rn "Thread.sleep\|\.wait(\|\.join(" src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/portal && exit 1` |
 
 > Le script `tools/check_portal_contract.sh` est livré en Phase 1. Tant qu'il n'existe pas, l'agent est responsable de respecter ces 10 règles à la main.
 
@@ -171,10 +171,10 @@ Ces 10 règles sont **dures**. Chaque PR doit passer la vérif `tools/check_port
 ### §4.1 Fichiers à créer
 
 ```
-src/main/java/com/petassegang/addons/
+src/main/java/com/gtgpuke/gtgsbackrooms/
 │
-├── PetasseGangAddons.java                              # Main mod class — MAJ §6.3
-├── PetasseGangAddonsClient.java                        # Client init — MAJ §8.5
+├── GtgsBackroomsMod.java                              # Main mod class — MAJ §6.3
+├── GtgsBackroomsClientMod.java                        # Client init — MAJ §8.5
 │
 ├── backrooms/
 │   ├── BackroomsConfig.java                            # MAJ avec section portail (§13)
@@ -216,12 +216,12 @@ src/main/java/com/petassegang/addons/
 
 src/main/resources/
 ├── fabric.mod.json                                     # MAJ §4.3
-├── petasse_gang_additions.mixins.json                  # MAJ §4.4
-└── assets/petasse_gang_additions/lang/
+├── gtgs_backrooms.mixins.json                  # MAJ §4.4
+└── assets/gtgs_backrooms/lang/
     ├── en_us.json                                      # +clés portail
     └── fr_fr.json                                      # +clés portail
 
-src/test/java/com/petassegang/addons/backrooms/portal/entity/
+src/test/java/com/gtgpuke/gtgsbackrooms/backrooms/portal/entity/
 └── PortalFacingTest.java                               # §16
 
 docs/
@@ -252,20 +252,20 @@ test { useJUnitPlatform() }
 ```json
 {
     "entrypoints": {
-        "main":   ["com.petassegang.addons.PetasseGangAddons"],
-        "client": ["com.petassegang.addons.PetasseGangAddonsClient"]
+        "main":   ["com.gtgpuke.gtgsbackrooms.GtgsBackroomsMod"],
+        "client": ["com.gtgpuke.gtgsbackrooms.GtgsBackroomsClientMod"]
     },
-    "mixins": ["petasse_gang_additions.mixins.json"]
+    "mixins": ["gtgs_backrooms.mixins.json"]
 }
 ```
 
-### §4.4 `petasse_gang_additions.mixins.json`
+### §4.4 `gtgs_backrooms.mixins.json`
 
 ```json
 {
     "required": true,
     "minVersion": "0.8",
-    "package": "com.petassegang.addons.mixin",
+    "package": "com.gtgpuke.gtgsbackrooms.mixin",
     "compatibilityLevel": "JAVA_21",
     "client": [
         "client.MixinLevelRenderer",
@@ -283,16 +283,16 @@ test { useJUnitPlatform() }
 `en_us.json` :
 ```json
 {
-    "entity.petasse_gang_additions.backrooms_portal": "Backrooms Portal",
-    "block.petasse_gang_additions.backrooms_door": "Backrooms Door"
+    "entity.gtgs_backrooms.backrooms_portal": "Backrooms Portal",
+    "block.gtgs_backrooms.backrooms_door": "Backrooms Door"
 }
 ```
 
 `fr_fr.json` :
 ```json
 {
-    "entity.petasse_gang_additions.backrooms_portal": "Portail des Backrooms",
-    "block.petasse_gang_additions.backrooms_door": "Porte des Backrooms"
+    "entity.gtgs_backrooms.backrooms_portal": "Portail des Backrooms",
+    "block.gtgs_backrooms.backrooms_door": "Porte des Backrooms"
 }
 ```
 
@@ -305,7 +305,7 @@ C'est la pièce qui simplifie tout le système. Pas de quaternion. Code complet,
 ### §5.1 Le fichier complet
 
 ```java
-package com.petassegang.addons.backrooms.portal.entity;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.entity;
 
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
@@ -497,9 +497,9 @@ Voir §16 pour le fichier complet `PortalFacingTest.java` couvrant les 36 combin
 ### §6.1 Le fichier `BackroomsPortalEntity.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.entity;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.entity;
 
-import com.petassegang.addons.core.annotation.SourceOfTruth;
+import com.gtgpuke.gtgsbackrooms.core.annotation.SourceOfTruth;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.data.DataTracker;
@@ -782,7 +782,7 @@ public class BackroomsPortalEntity extends Entity {
 ### §6.2 `BackroomsPortalEntityType.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.entity;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.entity;
 
 import net.fabricmc.fabric.api.object.builder.v1.entity.FabricEntityTypeBuilder;
 import net.minecraft.entity.EntityDimensions;
@@ -794,11 +794,11 @@ import net.minecraft.util.Identifier;
 
 /**
  * Enregistrement du type d'entity pour BackroomsPortalEntity.
- * Appelé depuis PetasseGangAddons.onInitialize().
+ * Appelé depuis GtgsBackroomsMod.onInitialize().
  */
 public final class BackroomsPortalEntityType {
 
-    public static final Identifier ID = Identifier.of("petasse_gang_additions", "backrooms_portal");
+    public static final Identifier ID = Identifier.of("gtgs_backrooms", "backrooms_portal");
 
     public static final EntityType<BackroomsPortalEntity> INSTANCE =
         FabricEntityTypeBuilder
@@ -816,13 +816,13 @@ public final class BackroomsPortalEntityType {
 }
 ```
 
-### §6.3 Modification de `PetasseGangAddons.java`
+### §6.3 Modification de `GtgsBackroomsMod.java`
 
 Ajouter l'appel d'enregistrement dans `onInitialize()`. **Règle critique** : les enregistrements de types Minecraft (`EntityType`, `BlockEntityType`, `BlockItem`, etc.) sont stables et **toujours faits**, indépendamment du flag de feature. Le flag gate uniquement les **systèmes runtime** (event handlers, commandes, ticks). Sans ça, un monde sauvegardé contenant des `BackroomsPortalEntity` planterait au load si on désactive `enablePortalFeature`.
 
 ```java
 // CODE TEMPLATE — VERIFY BEFORE COMPILE
-// Dans com.petassegang.addons.PetasseGangAddons.onInitialize() :
+// Dans com.gtgpuke.gtgsbackrooms.GtgsBackroomsMod.onInitialize() :
 
 // --- Registrations stables — toujours exécutées, indépendamment du flag ---
 // Indispensable : si le monde a déjà des entities portail sauvegardées, le registry
@@ -867,9 +867,9 @@ if (BackroomsConfig.INSTANCE.portal.enablePortalFeature) {
 ### §7.1 Le fichier complet
 
 ```java
-package com.petassegang.addons.backrooms.portal.entity;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.entity;
 
-import com.petassegang.addons.core.annotation.SourceOfTruth;
+import com.gtgpuke.gtgsbackrooms.core.annotation.SourceOfTruth;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerEntityEvents;
 import net.minecraft.entity.Entity;
 import net.minecraft.server.world.ServerWorld;
@@ -944,10 +944,10 @@ public final class BackroomsPortalEntityRegistry {
 ### §8.1 Le fichier `ClientWorldRegistry.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.world;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world;
 
-import com.petassegang.addons.core.annotation.SourceOfTruth;
-import com.petassegang.addons.core.lifecycle.Lifecycle;
+import com.gtgpuke.gtgsbackrooms.core.annotation.SourceOfTruth;
+import com.gtgpuke.gtgsbackrooms.core.lifecycle.Lifecycle;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
@@ -964,7 +964,7 @@ import org.jetbrains.annotations.Nullable;
  * IP: src/main/java/qouteall/imm_ptl/core/ducks/ClientWorldLoader.java
  *
  * Lifecycle :
- *  - init()    : appelé au démarrage client (PetasseGangAddonsClient.onInitializeClient).
+ *  - init()    : appelé au démarrage client (GtgsBackroomsClientMod.onInitializeClient).
  *  - dispose() : appelé sur disconnect (ClientPlayConnectionEvents.DISCONNECT) → libère tout.
  *
  * Création paresseuse : un ClientWorld distant n'est créé qu'au premier portail visible.
@@ -1056,7 +1056,7 @@ public final class ClientWorldRegistry implements Lifecycle {
 ### §8.2 `RemoteWorldFactory` — helper de création (à adapter de IP)
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.world;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world;
 
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
@@ -1088,7 +1088,7 @@ final class RemoteWorldFactory {
 ### §8.3 `RemoteLevelRenderer` — un LevelRenderer par dim distante
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.world;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
@@ -1132,10 +1132,10 @@ public final class RemoteLevelRenderer implements AutoCloseable {
 }
 ```
 
-### §8.4 Modification de `PetasseGangAddonsClient.java`
+### §8.4 Modification de `GtgsBackroomsClientMod.java`
 
 ```java
-// Dans com.petassegang.addons.PetasseGangAddonsClient.onInitializeClient() :
+// Dans com.gtgpuke.gtgsbackrooms.GtgsBackroomsClientMod.onInitializeClient() :
 ClientWorldRegistry.get().init();
 ClientWorldRegistry.get().start();
 
@@ -1160,14 +1160,14 @@ net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.DISCONNE
 6. Restaurer l'état dans un `finally` (Codex Contract critique : sans ça, crash → fausse dim persistante).
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.view;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view;
 
-import com.petassegang.addons.backrooms.portal.client.world.ClientWorldRegistry;
-import com.petassegang.addons.backrooms.portal.client.world.RemoteLevelRenderer;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
-import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
-import com.petassegang.addons.mixin.client.GameRendererAccessor;
-import com.petassegang.addons.mixin.client.MinecraftClientAccessor;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientWorldRegistry;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteLevelRenderer;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.mixin.client.GameRendererAccessor;
+import com.gtgpuke.gtgsbackrooms.mixin.client.MinecraftClientAccessor;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -1332,9 +1332,9 @@ public final class PortalStencilRenderer {
 ### §9.2 `ViewAreaRenderer.java` — quad du portail
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.view;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view;
 
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.MinecraftClient;
@@ -1407,7 +1407,7 @@ public final class ViewAreaRenderer {
 ### §9.3 `RemoteWorldRenderInfo.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.view;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view;
 
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.Vec3d;
@@ -1432,7 +1432,7 @@ public record RemoteWorldRenderInfo(
 ### §9.4 `PortalDepthTracker.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.client.view;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view;
 
 /**
  * Compteur statique scopé par frame : profondeur de récursion du rendu portail.
@@ -1471,10 +1471,10 @@ public final class PortalDepthTracker {
 **Cible** : injecter après le rendu translucent dans `WorldRenderer.render(...)` pour appeler `PortalStencilRenderer.renderAllVisiblePortals()`.
 
 ```java
-package com.petassegang.addons.mixin.client;
+package com.gtgpuke.gtgsbackrooms.mixin.client;
 
-import com.petassegang.addons.backrooms.portal.client.view.PortalDepthTracker;
-import com.petassegang.addons.backrooms.portal.client.view.PortalStencilRenderer;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalDepthTracker;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalStencilRenderer;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.WorldRenderer;
@@ -1506,7 +1506,7 @@ public abstract class MixinLevelRenderer {
         method = "render",
         at = @At("HEAD")
     )
-    private void petasse_gang$resetPortalDepth(CallbackInfo ci) {
+    private void gtgs_backrooms$resetPortalDepth(CallbackInfo ci) {
         PortalDepthTracker.reset();
     }
 
@@ -1527,7 +1527,7 @@ public abstract class MixinLevelRenderer {
             shift = At.Shift.AFTER
         )
     )
-    private void petasse_gang$renderPortals(
+    private void gtgs_backrooms$renderPortals(
         MatrixStack matrices, float tickDelta, /* ... autres args à confirmer */
         CallbackInfo ci
     ) {
@@ -1543,7 +1543,7 @@ public abstract class MixinLevelRenderer {
 - Allouer un renderbuffer stencil séparé attaché au FBO.
 
 ```java
-package com.petassegang.addons.mixin.client;
+package com.gtgpuke.gtgsbackrooms.mixin.client;
 
 import com.mojang.blaze3d.platform.GlConst;
 import net.minecraft.client.gl.Framebuffer;
@@ -1566,7 +1566,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class MixinFramebuffer {
 
     @Inject(method = "initFbo", at = @At("RETURN"))
-    private void petasse_gang$attachStencil(int width, int height, boolean checkError, CallbackInfo ci) {
+    private void gtgs_backrooms$attachStencil(int width, int height, boolean checkError, CallbackInfo ci) {
         // SPIKE-2 : signature à valider — initFbo() pourrait être resize() en 1.21.1.
         //
         // Logique : reattacher le depth-stencil buffer en format combiné DEPTH24_STENCIL8.
@@ -1581,7 +1581,7 @@ public abstract class MixinFramebuffer {
 ### §10.3 `MinecraftClientAccessor.java`
 
 ```java
-package com.petassegang.addons.mixin.client;
+package com.gtgpuke.gtgsbackrooms.mixin.client;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.WorldRenderer;
@@ -1605,7 +1605,7 @@ public interface MinecraftClientAccessor {
 ### §10.4 `GameRendererAccessor.java`
 
 ```java
-package com.petassegang.addons.mixin.client;
+package com.gtgpuke.gtgsbackrooms.mixin.client;
 
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -1636,11 +1636,11 @@ public interface GameRendererAccessor {
 ### §11.1 Le fichier complet
 
 ```java
-package com.petassegang.addons.backrooms.portal.transition;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.transition;
 
-import com.petassegang.addons.backrooms.BackroomsConfig;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
+import com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConfig;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRegistry;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -1679,7 +1679,7 @@ public final class DestinationLoader {
      */
     private static final ChunkTicketType<UUID> TICKET_TYPE =
         ChunkTicketType.create(
-            "petasse_gang_portal",
+            "gtgs_backrooms_portal",
             Comparator.comparingLong(UUID::getMostSignificantBits)
         );
 
@@ -1770,11 +1770,11 @@ public final class DestinationLoader {
 **Règle critique** : invocable uniquement depuis `ServerTickEvents.END_SERVER_TICK` ou `server.execute()`. Jamais depuis le render thread.
 
 ```java
-package com.petassegang.addons.backrooms.portal.transition;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.transition;
 
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityRegistry;
-import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRegistry;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -1894,7 +1894,7 @@ public final class TeleportExecutor {
 
 ```java
 // CODE COMPLETE — pure Java, no Yarn deps
-package com.petassegang.addons.backrooms.portal.transition;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.transition;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -1949,7 +1949,7 @@ public final class TpCooldownTracker {
 Ajout d'une sous-section dans la classe `BackroomsConfig` existante.
 
 ```java
-// Dans com.petassegang.addons.backrooms.BackroomsConfig — ajouter :
+// Dans com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConfig — ajouter :
 
 /** Configuration du Pilier 3 (Portail). */
 public PortalConfig portal = new PortalConfig();
@@ -2023,7 +2023,7 @@ Une **porte Backrooms** = un bloc placé scriptement avec un `BlockEntity` qui s
 #### `BackroomsDoorBlock.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.block;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.block;
 
 import net.minecraft.block.*;
 import net.minecraft.block.entity.BlockEntity;
@@ -2079,11 +2079,11 @@ public class BackroomsDoorBlock extends BlockWithEntity {
 #### `BackroomsDoorBlockEntity.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.block;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.block;
 
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntityType;
-import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityType;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityType;
@@ -2235,16 +2235,16 @@ if (be instanceof BackroomsDoorBlockEntity door) {
 
 Cette commande est **strictement dev-only** : enregistrée uniquement si `FabricLoader.getInstance().isDevelopmentEnvironment() == true`. Elle ne **doit jamais** apparaître dans une release. Le contrat C-9 (§2bis) garde cette invariant grep-able.
 
-**Fichier** : `src/main/java/com/petassegang/addons/backrooms/portal/debug/DebugPortalCommand.java`
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/portal/debug/DebugPortalCommand.java`
 
 ```java
 // CODE TEMPLATE — VERIFY BEFORE COMPILE (Brigadier API + ServerCommandSource signatures)
-package com.petassegang.addons.backrooms.portal.debug;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.debug;
 
 import com.mojang.brigadier.arguments.FloatArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
-import com.petassegang.addons.backrooms.portal.entity.BackroomsPortalEntity;
-import com.petassegang.addons.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.server.command.ServerCommandSource;
 import net.minecraft.server.network.ServerPlayerEntity;
@@ -2269,7 +2269,7 @@ public final class DebugPortalCommand {
 
     private DebugPortalCommand() {}
 
-    /** À appeler depuis PetasseGangAddons.onInitialize(), gated par isDevelopmentEnvironment(). */
+    /** À appeler depuis GtgsBackroomsMod.onInitialize(), gated par isDevelopmentEnvironment(). */
     public static void register() {
         CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, env) -> {
             dispatcher.register(literal("backrooms")
@@ -2370,7 +2370,7 @@ public final class DebugPortalCommand {
 }
 ```
 
-**Câblage dans `PetasseGangAddons.onInitialize()`** : déjà montré en §13. La condition `FabricLoader.getInstance().isDevelopmentEnvironment()` doit envelopper l'appel.
+**Câblage dans `GtgsBackroomsMod.onInitialize()`** : déjà montré en §13. La condition `FabricLoader.getInstance().isDevelopmentEnvironment()` doit envelopper l'appel.
 
 ---
 
@@ -2416,7 +2416,7 @@ S7 (chunk tickets) ────────────────────�
 ### §15.2 SPIKE-2 — Stencil framebuffer
 
 **Bloque** : Phase 2.
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S2_Stencil/StencilSpikeCommand.java` + Mixin temporaire.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S2_Stencil/StencilSpikeCommand.java` + Mixin temporaire.
 
 **Quoi tester** :
 - Le framebuffer principal Minecraft a un attachement stencil (`GL_DEPTH24_STENCIL8`).
@@ -2432,7 +2432,7 @@ S7 (chunk tickets) ────────────────────�
 ### §15.3 SPIKE-3 — Hook `LevelRenderer` après translucent
 
 **Bloque** : Phase 2 (nécessite SPIKE-2 OK pour pouvoir écrire dans le stencil dans le hook).
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S3_LevelRenderer/MixinSpikeLevelRenderer.java`.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S3_LevelRenderer/MixinSpikeLevelRenderer.java`.
 
 **Quoi tester** :
 - Un `@Inject` après le rendu translucent fire chaque frame.
@@ -2448,7 +2448,7 @@ S7 (chunk tickets) ────────────────────�
 ### §15.4 SPIKE-4 — Sync entity côté client (Contrat C-8)
 
 **Bloque** : Phase 1.
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S4_EntitySync/SyncSpikeEntity.java` + sa registration + commande `/spike4_spawn`.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S4_EntitySync/SyncSpikeEntity.java` + sa registration + commande `/spike4_spawn`.
 
 **Quoi tester** : stratégie A — `TrackedData` primitifs pour `facingSrc/Dst` (Integer), `destDim` (String), `destPos` (3× Float), `width`/`height` (Float), `visible` (Boolean).
 - Spawn côté serveur avec valeurs distinctives (`facingSrc=EAST`, `destDim=minecraft:the_nether`, `destPos=(123,64,-456)`).
@@ -2466,7 +2466,7 @@ S7 (chunk tickets) ────────────────────�
 ### §15.5 SPIKE-5 — `ClientWorld` distant
 
 **Bloque** : Phase 2.
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S5_ClientWorld/ClientWorldSpikeCommand.java`.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S5_ClientWorld/ClientWorldSpikeCommand.java`.
 
 **Quoi tester** :
 - Créer un `ClientLevel` pour une dim qui n'est pas celle du joueur.
@@ -2485,7 +2485,7 @@ S7 (chunk tickets) ────────────────────�
 
 **Bloque** : Phase 2 (pipeline complet).
 **Dépend de** : SPIKE-2, SPIKE-3, SPIKE-5.
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S6_RemoteRender/RemoteRenderSpike.java`.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S6_RemoteRender/RemoteRenderSpike.java`.
 
 **Quoi tester** :
 - Le swap `client.world` / `client.worldRenderer` / `lightmap` peut se faire dans `try { ... } finally { restore; }` sans crash.
@@ -2503,7 +2503,7 @@ S7 (chunk tickets) ────────────────────�
 ### §15.7 SPIKE-7 — `ChunkTicketType<UUID>`
 
 **Bloque** : Phase 3.
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S7_Tickets/TicketSpikeCommand.java`.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S7_Tickets/TicketSpikeCommand.java`.
 
 **Quoi tester** :
 - `TicketType.create(name, comparator)` ou équivalent 1.21.1 compile et accepte un `Comparator<UUID>`.
@@ -2520,7 +2520,7 @@ S7 (chunk tickets) ────────────────────�
 
 **Bloque** : Phase 3.
 **Dépend de** : SPIKE-7 (chunks doivent être chargés à l'arrivée).
-**Fichier** : `src/main/java/com/petassegang/addons/spike/S8_Teleport/TeleportSpikeCommand.java`.
+**Fichier** : `src/main/java/com/gtgpuke/gtgsbackrooms/spike/S8_Teleport/TeleportSpikeCommand.java`.
 
 **Quoi tester** :
 - `ServerPlayerEntity.teleport(ServerWorld, x, y, z, Set<PositionFlag>, yaw, pitch)` (signature 1.21.1 exacte) fonctionne cross-dim.
@@ -2556,7 +2556,7 @@ S7 (chunk tickets) ────────────────────�
 ## §16. Tests JUnit — fichier complet `PortalFacingTest.java`
 
 ```java
-package com.petassegang.addons.backrooms.portal.entity;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal.entity;
 
 import net.minecraft.util.math.Vec3d;
 import org.junit.jupiter.api.DisplayName;
@@ -2752,7 +2752,7 @@ Voir §15. Ordre des spikes :
 | 4 | `portal/entity/BackroomsPortalEntityType.java` | `CODE TEMPLATE` | §6.2 |
 | 5 | `portal/entity/BackroomsPortalEntityRegistry.java` | `CODE TEMPLATE` | §7 |
 | 6 | `BackroomsConfig.java` (édition — ajouter PortalConfig) | — | §13 |
-| 7 | `PetasseGangAddons.java` (édition — câbler les inits) | — | §13 |
+| 7 | `GtgsBackroomsMod.java` (édition — câbler les inits) | — | §13 |
 | 8 | `portal/debug/DebugPortalCommand.java` | `CODE TEMPLATE` | §14.4 |
 | 9 | `tools/check_portal_contract.sh` (vérif Codex Contract) | shell | §2bis |
 
@@ -2784,7 +2784,7 @@ Voir §15. Ordre des spikes :
 | 7 | `portal/client/view/PortalDepthTracker.java` | `CODE COMPLETE — pure Java` | §9.4 |
 | 8 | `portal/client/view/ViewAreaRenderer.java` | `CODE TEMPLATE` | §9.2 |
 | 9 | `portal/client/view/PortalStencilRenderer.java` | `CODE TEMPLATE` (try/finally rigide C-2) | §9.1 |
-| 10 | `petasse_gang_additions.mixins.json` (édition — déclarer les Mixins) | — | §10 |
+| 10 | `gtgs_backrooms.mixins.json` (édition — déclarer les Mixins) | — | §10 |
 
 **DoD Phase 2** :
 - [ ] Le joueur **voit** la dim destination dans le rectangle du portail.
@@ -2890,7 +2890,7 @@ Les **règles dures grep-able** sont en §2bis (Codex Contract : C-1 à C-10). C
 /*
  * Adapté de iPortalTeam/ImmersivePortalsMod (Apache License 2.0, Copyright 2020 qouteall).
  * Original : <chemin original> (commit <SHA> sur la branche 1.21).
- * Adapté pour : PétasseGang Addons Backrooms — guide_portail_final_v1.
+ * Adapté pour : GTG's Backrooms — guide_portail_final_v1.
  *
  * Mappings Yarn 1.21.1 validés par : SPIKE-N (voir docs/phase0_findings.md).
  */

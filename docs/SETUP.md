@@ -1,4 +1,4 @@
-# Setup — PeTaSsE_gAnG_Additions
+# Setup — GTG's Backrooms
 
 ## Prérequis
 
@@ -21,8 +21,8 @@ winget install EclipseAdoptium.Temurin.21.JDK
 ## Cloner et lancer
 
 ```bash
-git clone https://github.com/GTGpuke/PeTaSsE-gAnG-Additions.git
-cd PeTaSsE-gAnG-Additions
+git clone https://github.com/GTGpuke/GTGs-Backrooms.git
+cd GTGs-Backrooms
 ./gradlew runClient
 ```
 
@@ -47,7 +47,7 @@ adapter le chemin si nécessaire. **Ctrl+Shift+B** lance `runClient`.
 ./gradlew runGameTest                                 # tests en jeu (serveur headless)
 ./gradlew checkstyleMain checkstyleTest checkstyleGametest  # conventions du code (Checkstyle)
 ./gradlew benchmarkLevelZeroGeneration                # benchmark de génération
-./gradlew build                                       # JAR : build/libs/petasse_gang_additions-<version>.jar
+./gradlew build                                       # JAR : build/libs/gtgs_backrooms-<version>.jar
 ./gradlew clean build --warning-mode all              # build propre, doit être sans warning
 
 # Toggles de dev (passés en -D au client et au benchmark)
@@ -65,7 +65,7 @@ adapter le chemin si nécessaire. **Ctrl+Shift+B** lance `runClient`.
 ## Installer le mod sur le serveur
 
 1. `./gradlew build`
-2. Copier `build/libs/petasse_gang_additions-<version>.jar` dans `mods/` du serveur et de chaque client.
+2. Copier `build/libs/gtgs_backrooms-<version>.jar` dans `mods/` du serveur et de chaque client.
 3. Fabric Loader ≥ 0.16.9 et Fabric API pour 1.21.1 doivent être présents.
 4. Redémarrer.
 

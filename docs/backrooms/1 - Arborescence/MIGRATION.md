@@ -1,6 +1,6 @@
 # MIGRATION.md — Plan de migration vers la nouvelle architecture
 
-> **Objet** : migrer le repo `PeTaSsE-gAnG-Additions` de sa structure actuelle vers l'arbo cible définie dans `ARCHITECTURE.md` §3 (draft local : `1 - Arborescence/arborescence_v4.md`).
+> **Objet** : migrer le repo `GTGs-Backrooms` de sa structure actuelle vers l'arbo cible définie dans `ARCHITECTURE.md` §3 (draft local : `1 - Arborescence/arborescence_v4.md`).
 > **Périmètre** : features existantes uniquement (Backrooms Level 0, Gang Badge, Cursed Snack). Aucun code Veil/portail n'est implémenté ici — seuls les packages vides sont créés en prévision.
 > **Garantie** : zéro régression fonctionnelle. Le build et `runClient` doivent rester verts à chaque commit.
 
@@ -15,9 +15,9 @@
 ### Fichiers Java existants
 
 ```
-src/main/java/com/petassegang/addons/
-├── PeTaSsEgAnGAdditionsMod.java
-├── PeTaSsEgAnGAdditionsClientMod.java
+src/main/java/com/gtgpuke/gtgsbackrooms/
+├── GtgsBackroomsMod.java
+├── GtgsBackroomsClientMod.java
 ├── config/
 │   └── ModConfig.java
 ├── creative/
@@ -239,7 +239,7 @@ Format des `package-info.java` (un par dossier) :
  *
  * Voir docs/ARCHITECTURE.md §3 pour le rôle exact (draft local : 1 - Arborescence/arborescence_v4.md).
  */
-package com.petassegang.addons.<chemin>;
+package com.gtgpuke.gtgsbackrooms.<chemin>;
 ```
 
 **Vérification** :
@@ -265,13 +265,13 @@ No code moved. Build remains green.
 
 ```bash
 # Déplacer le fichier
-git mv src/main/java/com/petassegang/addons/util/ModConstants.java \
-       src/main/java/com/petassegang/addons/core/ModConstants.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/util/ModConstants.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/core/ModConstants.java
 ```
 
 **Modifier `ModConstants.java`** :
 ```java
-package com.petassegang.addons.core;  // ← changer ici
+package com.gtgpuke.gtgsbackrooms.core;  // ← changer ici
 
 // (le reste inchangé)
 ```
@@ -280,15 +280,15 @@ package com.petassegang.addons.core;  // ← changer ici
 
 ```bash
 # Recherche-remplacement global
-grep -rl "import com.petassegang.addons.util.ModConstants" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.util\.ModConstants|com.petassegang.addons.core.ModConstants|g'
+grep -rl "import com.gtgpuke.gtgsbackrooms.util.ModConstants" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.util\.ModConstants|com.gtgpuke.gtgsbackrooms.core.ModConstants|g'
 ```
 
 **Note Windows** : si tu es sous Windows sans `sed`, utilise PowerShell :
 ```powershell
 Get-ChildItem -Path src -Recurse -Filter *.java |
   ForEach-Object {
-    (Get-Content $_.FullName) -replace 'com\.petassegang\.addons\.util\.ModConstants', 'com.petassegang.addons.core.ModConstants' |
+    (Get-Content $_.FullName) -replace 'com\.gtgpuke\.gtgsbackrooms\.util\.ModConstants', 'com.gtgpuke.gtgsbackrooms.core.ModConstants' |
     Set-Content $_.FullName
   }
 ```
@@ -325,36 +325,36 @@ All imports updated. Build and tests green.
 
 ```bash
 # Déplacements
-git mv src/main/java/com/petassegang/addons/item/GangBadgeItem.java \
-       src/main/java/com/petassegang/addons/feature/gang/item/gang_badge/GangBadgeItem.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/item/GangBadgeItem.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/feature/gang/item/gang_badge/GangBadgeItem.java
 
-git mv src/main/java/com/petassegang/addons/network/packet/GangBadgeActivatePayload.java \
-       src/main/java/com/petassegang/addons/feature/gang/network/c2s/GangBadgeActivatePayload.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/network/packet/GangBadgeActivatePayload.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/feature/gang/network/c2s/GangBadgeActivatePayload.java
 
-git mv src/main/java/com/petassegang/addons/client/handler/GangBadgeClientHandler.java \
-       src/main/java/com/petassegang/addons/feature/gang/client/GangBadgeClientHandler.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/client/handler/GangBadgeClientHandler.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/feature/gang/client/GangBadgeClientHandler.java
 ```
 
 **Mettre à jour les `package` dans chaque fichier déplacé** :
 
-- `GangBadgeItem.java` → `package com.petassegang.addons.feature.gang.item.gang_badge;`
-- `GangBadgeActivatePayload.java` → `package com.petassegang.addons.feature.gang.network.c2s;`
-- `GangBadgeClientHandler.java` → `package com.petassegang.addons.feature.gang.client;`
+- `GangBadgeItem.java` → `package com.gtgpuke.gtgsbackrooms.feature.gang.item.gang_badge;`
+- `GangBadgeActivatePayload.java` → `package com.gtgpuke.gtgsbackrooms.feature.gang.network.c2s;`
+- `GangBadgeClientHandler.java` → `package com.gtgpuke.gtgsbackrooms.feature.gang.client;`
 
 **Mettre à jour les imports** dans tous les fichiers qui utilisent ces 3 classes :
 
 ```bash
 # GangBadgeItem
-grep -rl "com.petassegang.addons.item.GangBadgeItem" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.item\.GangBadgeItem|com.petassegang.addons.feature.gang.item.gang_badge.GangBadgeItem|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.item.GangBadgeItem" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.item\.GangBadgeItem|com.gtgpuke.gtgsbackrooms.feature.gang.item.gang_badge.GangBadgeItem|g'
 
 # GangBadgeActivatePayload
-grep -rl "com.petassegang.addons.network.packet.GangBadgeActivatePayload" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.network\.packet\.GangBadgeActivatePayload|com.petassegang.addons.feature.gang.network.c2s.GangBadgeActivatePayload|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.network.packet.GangBadgeActivatePayload" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.network\.packet\.GangBadgeActivatePayload|com.gtgpuke.gtgsbackrooms.feature.gang.network.c2s.GangBadgeActivatePayload|g'
 
 # GangBadgeClientHandler
-grep -rl "com.petassegang.addons.client.handler.GangBadgeClientHandler" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.client\.handler\.GangBadgeClientHandler|com.petassegang.addons.feature.gang.client.GangBadgeClientHandler|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.client.handler.GangBadgeClientHandler" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.client\.handler\.GangBadgeClientHandler|com.gtgpuke.gtgsbackrooms.feature.gang.client.GangBadgeClientHandler|g'
 ```
 
 **Vérification critique** :
@@ -394,19 +394,19 @@ No GangFeature.java entry point yet (Phase 1 dev).
 **Actions** :
 
 ```bash
-git mv src/main/java/com/petassegang/addons/item/CursedSnackItem.java \
-       src/main/java/com/petassegang/addons/feature/cursed/item/cursed_snack/CursedSnackItem.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/item/CursedSnackItem.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/feature/cursed/item/cursed_snack/CursedSnackItem.java
 ```
 
 **Modifier le `package`** dans le fichier déplacé :
 ```java
-package com.petassegang.addons.feature.cursed.item.cursed_snack;
+package com.gtgpuke.gtgsbackrooms.feature.cursed.item.cursed_snack;
 ```
 
 **Mettre à jour les imports** :
 ```bash
-grep -rl "com.petassegang.addons.item.CursedSnackItem" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.item\.CursedSnackItem|com.petassegang.addons.feature.cursed.item.cursed_snack.CursedSnackItem|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.item.CursedSnackItem" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.item\.CursedSnackItem|com.gtgpuke.gtgsbackrooms.feature.cursed.item.cursed_snack.CursedSnackItem|g'
 ```
 
 **Note** : le repo actuel n'a pas de `CursedLogBlock` séparé d'après le README. Si l'arbre maudit existe ailleurs (ex: dans les ressources ou via tags), aucun déplacement Java supplémentaire n'est nécessaire ici. Les blocs vanilla utilisés (logs réskinnés via texture pack ou similaire) ne déplacent rien côté Java.
@@ -457,29 +457,29 @@ All references updated. Build, tests, and in-game test green.
 
 ```bash
 # Block
-git mv src/main/java/com/petassegang/addons/block/LevelZeroWallpaperBlock.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/block/wallpaper/Level0WallpaperBlock.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/block/LevelZeroWallpaperBlock.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/block/wallpaper/Level0WallpaperBlock.java
 
 # BlockEntity
-git mv src/main/java/com/petassegang/addons/block/entity/LevelZeroWallpaperBlockEntity.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/block/wallpaper/Level0WallpaperBlockEntity.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/block/entity/LevelZeroWallpaperBlockEntity.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/block/wallpaper/Level0WallpaperBlockEntity.java
 
 # Client models
-git mv src/main/java/com/petassegang/addons/client/model/LevelZeroWallpaperBlockStateModel.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/block/wallpaper/Level0WallpaperBlockStateModel.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/client/model/LevelZeroWallpaperBlockStateModel.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/block/wallpaper/Level0WallpaperBlockStateModel.java
 
-git mv src/main/java/com/petassegang/addons/client/model/LevelZeroWallpaperBakedModel.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/block/wallpaper/Level0WallpaperBakedModel.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/client/model/LevelZeroWallpaperBakedModel.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/block/wallpaper/Level0WallpaperBakedModel.java
 
-git mv src/main/java/com/petassegang/addons/client/model/LevelZeroWallpaperModelHandler.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/block/wallpaper/Level0WallpaperModelHandler.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/client/model/LevelZeroWallpaperModelHandler.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/block/wallpaper/Level0WallpaperModelHandler.java
 ```
 
 **Modifier dans chaque fichier déplacé** :
 
 1. Changer le `package` :
    ```java
-   package com.petassegang.addons.backrooms.level.level0.block.wallpaper;
+   package com.gtgpuke.gtgsbackrooms.backrooms.level.level0.block.wallpaper;
    ```
 
 2. Renommer la **classe** : `LevelZeroWallpaperXxx` → `Level0WallpaperXxx`
@@ -488,20 +488,20 @@ git mv src/main/java/com/petassegang/addons/client/model/LevelZeroWallpaperModel
 
 ```bash
 # Renommage classes (ordre important : faire l'imports d'abord, puis les références)
-grep -rl "com.petassegang.addons.block.LevelZeroWallpaperBlock" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.block\.LevelZeroWallpaperBlock|com.petassegang.addons.backrooms.level.level0.block.wallpaper.Level0WallpaperBlock|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.block.LevelZeroWallpaperBlock" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.block\.LevelZeroWallpaperBlock|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.block.wallpaper.Level0WallpaperBlock|g'
 
-grep -rl "com.petassegang.addons.block.entity.LevelZeroWallpaperBlockEntity" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.block\.entity\.LevelZeroWallpaperBlockEntity|com.petassegang.addons.backrooms.level.level0.block.wallpaper.Level0WallpaperBlockEntity|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.block.entity.LevelZeroWallpaperBlockEntity" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.block\.entity\.LevelZeroWallpaperBlockEntity|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.block.wallpaper.Level0WallpaperBlockEntity|g'
 
-grep -rl "com.petassegang.addons.client.model.LevelZeroWallpaperBlockStateModel" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.client\.model\.LevelZeroWallpaperBlockStateModel|com.petassegang.addons.backrooms.level.level0.block.wallpaper.Level0WallpaperBlockStateModel|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.client.model.LevelZeroWallpaperBlockStateModel" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.client\.model\.LevelZeroWallpaperBlockStateModel|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.block.wallpaper.Level0WallpaperBlockStateModel|g'
 
-grep -rl "com.petassegang.addons.client.model.LevelZeroWallpaperBakedModel" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.client\.model\.LevelZeroWallpaperBakedModel|com.petassegang.addons.backrooms.level.level0.block.wallpaper.Level0WallpaperBakedModel|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.client.model.LevelZeroWallpaperBakedModel" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.client\.model\.LevelZeroWallpaperBakedModel|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.block.wallpaper.Level0WallpaperBakedModel|g'
 
-grep -rl "com.petassegang.addons.client.model.LevelZeroWallpaperModelHandler" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.client\.model\.LevelZeroWallpaperModelHandler|com.petassegang.addons.backrooms.level.level0.block.wallpaper.Level0WallpaperModelHandler|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.client.model.LevelZeroWallpaperModelHandler" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.client\.model\.LevelZeroWallpaperModelHandler|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.block.wallpaper.Level0WallpaperModelHandler|g'
 
 # Renommage des références au nom de classe (LevelZero -> Level0 pour les classes wallpaper)
 grep -rl "LevelZeroWallpaperBlock" src/ | xargs sed -i 's|LevelZeroWallpaperBlock|Level0WallpaperBlock|g'
@@ -521,7 +521,7 @@ grep -rl "LevelZeroWallpaperModelHandler" src/ | xargs sed -i 's|LevelZeroWallpa
 ```
 
 **Test in-game obligatoire** :
-1. Téléporter dans la dimension Level 0 (`/execute in petasse_gang_additions:level_0 ...`)
+1. Téléporter dans la dimension Level 0 (`/execute in gtgs_backrooms:level_0 ...`)
 2. Vérifier que les murs wallpaper s'affichent correctement (rendu adaptatif par face exposée)
 3. Vérifier qu'aucun warning ne sort dans les logs concernant des resources manquantes
 4. Lancer `./gradlew benchmarkLevelZeroGeneration` — vérifier que le temps de génération n'a pas changé significativement
@@ -558,27 +558,27 @@ In-game test: rendering OK, benchmark stable.
 
 ```bash
 # ChunkGenerator
-git mv src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroChunkGenerator.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/generation/Level0ChunkGenerator.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/world/backrooms/level0/LevelZeroChunkGenerator.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/generation/Level0ChunkGenerator.java
 
 # Layout
-git mv src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroLayout.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/generation/layout/Level0Layout.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/world/backrooms/level0/LevelZeroLayout.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/generation/layout/Level0Layout.java
 
 # Biome
-git mv src/main/java/com/petassegang/addons/world/backrooms/level0/LevelZeroSurfaceBiome.java \
-       src/main/java/com/petassegang/addons/backrooms/level/level0/biome/Level0SurfaceBiome.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/world/backrooms/level0/LevelZeroSurfaceBiome.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level/level0/biome/Level0SurfaceBiome.java
 
 # BackroomsConstants
-git mv src/main/java/com/petassegang/addons/world/backrooms/BackroomsConstants.java \
-       src/main/java/com/petassegang/addons/backrooms/BackroomsConstants.java
+git mv src/main/java/com/gtgpuke/gtgsbackrooms/world/backrooms/BackroomsConstants.java \
+       src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/BackroomsConstants.java
 ```
 
 **Modifier les `package`** :
-- `Level0ChunkGenerator` → `package com.petassegang.addons.backrooms.level.level0.generation;`
-- `Level0Layout` → `package com.petassegang.addons.backrooms.level.level0.generation.layout;`
-- `Level0SurfaceBiome` → `package com.petassegang.addons.backrooms.level.level0.biome;`
-- `BackroomsConstants` → `package com.petassegang.addons.backrooms;`
+- `Level0ChunkGenerator` → `package com.gtgpuke.gtgsbackrooms.backrooms.level.level0.generation;`
+- `Level0Layout` → `package com.gtgpuke.gtgsbackrooms.backrooms.level.level0.generation.layout;`
+- `Level0SurfaceBiome` → `package com.gtgpuke.gtgsbackrooms.backrooms.level.level0.biome;`
+- `BackroomsConstants` → `package com.gtgpuke.gtgsbackrooms.backrooms;`
 
 **Renommer classes** : `LevelZero*` → `Level0*`
 
@@ -586,17 +586,17 @@ git mv src/main/java/com/petassegang/addons/world/backrooms/BackroomsConstants.j
 
 ```bash
 # Imports
-grep -rl "com.petassegang.addons.world.backrooms.level0.LevelZeroChunkGenerator" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.world\.backrooms\.level0\.LevelZeroChunkGenerator|com.petassegang.addons.backrooms.level.level0.generation.Level0ChunkGenerator|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.world.backrooms.level0.LevelZeroChunkGenerator" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.world\.backrooms\.level0\.LevelZeroChunkGenerator|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.generation.Level0ChunkGenerator|g'
 
-grep -rl "com.petassegang.addons.world.backrooms.level0.LevelZeroLayout" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.world\.backrooms\.level0\.LevelZeroLayout|com.petassegang.addons.backrooms.level.level0.generation.layout.Level0Layout|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.world.backrooms.level0.LevelZeroLayout" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.world\.backrooms\.level0\.LevelZeroLayout|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.generation.layout.Level0Layout|g'
 
-grep -rl "com.petassegang.addons.world.backrooms.level0.LevelZeroSurfaceBiome" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.world\.backrooms\.level0\.LevelZeroSurfaceBiome|com.petassegang.addons.backrooms.level.level0.biome.Level0SurfaceBiome|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.world.backrooms.level0.LevelZeroSurfaceBiome" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.world\.backrooms\.level0\.LevelZeroSurfaceBiome|com.gtgpuke.gtgsbackrooms.backrooms.level.level0.biome.Level0SurfaceBiome|g'
 
-grep -rl "com.petassegang.addons.world.backrooms.BackroomsConstants" src/ \
-  | xargs sed -i 's|com\.petassegang\.addons\.world\.backrooms\.BackroomsConstants|com.petassegang.addons.backrooms.BackroomsConstants|g'
+grep -rl "com.gtgpuke.gtgsbackrooms.world.backrooms.BackroomsConstants" src/ \
+  | xargs sed -i 's|com\.gtgpuke\.gtgsbackrooms\.world\.backrooms\.BackroomsConstants|com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConstants|g'
 
 # Noms de classes
 grep -rl "LevelZeroChunkGenerator" src/ | xargs sed -i 's|LevelZeroChunkGenerator|Level0ChunkGenerator|g'
@@ -633,26 +633,26 @@ benchmarkLevelZeroGeneration: stable.
 **Objectif** : supprimer les dossiers source qui sont désormais vides après les déplacements.
 
 **Anciens dossiers maintenant vides** (à vérifier avant suppression) :
-- `src/main/java/com/petassegang/addons/util/` (ModConstants déplacé en commit 2)
-- `src/main/java/com/petassegang/addons/item/` (les 2 items déplacés en commits 3-4)
-- `src/main/java/com/petassegang/addons/block/entity/`
-- `src/main/java/com/petassegang/addons/block/`
-- `src/main/java/com/petassegang/addons/network/packet/`
-- `src/main/java/com/petassegang/addons/client/handler/`
-- `src/main/java/com/petassegang/addons/client/model/`
-- `src/main/java/com/petassegang/addons/client/` (si vide après les sous-dossiers)
-- `src/main/java/com/petassegang/addons/world/backrooms/level0/`
-- `src/main/java/com/petassegang/addons/world/backrooms/`
-- `src/main/java/com/petassegang/addons/world/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/util/` (ModConstants déplacé en commit 2)
+- `src/main/java/com/gtgpuke/gtgsbackrooms/item/` (les 2 items déplacés en commits 3-4)
+- `src/main/java/com/gtgpuke/gtgsbackrooms/block/entity/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/block/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/network/packet/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/client/handler/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/client/model/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/client/` (si vide après les sous-dossiers)
+- `src/main/java/com/gtgpuke/gtgsbackrooms/world/backrooms/level0/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/world/backrooms/`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/world/`
 
 **Actions** :
 
 ```bash
 # Lister tous les dossiers vides
-find src/main/java/com/petassegang/addons -type d -empty
+find src/main/java/com/gtgpuke/gtgsbackrooms -type d -empty
 
 # Si la liste correspond à ce qu'on attend, les supprimer
-find src/main/java/com/petassegang/addons -type d -empty -delete
+find src/main/java/com/gtgpuke/gtgsbackrooms -type d -empty -delete
 ```
 
 **Note** : `network/` n'est **pas** vide — il contient toujours `ModNetworking.java`. Ce fichier sert de hub global, on le laisse là.
@@ -688,9 +688,9 @@ Veil/portal/lifecycle packages remain empty (filled in later phases).
 À la fin des 8 commits, l'état du repo est :
 
 ```
-src/main/java/com/petassegang/addons/
-├── PeTaSsEgAnGAdditionsMod.java
-├── PeTaSsEgAnGAdditionsClientMod.java
+src/main/java/com/gtgpuke/gtgsbackrooms/
+├── GtgsBackroomsMod.java
+├── GtgsBackroomsClientMod.java
 │
 ├── core/
 │   └── ModConstants.java

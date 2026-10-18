@@ -1,4 +1,7 @@
-# Contribuer — PeTaSsE_gAnG_Additions
+# Contribuer — GTG's Backrooms
+
+Le projet est sous licence propriétaire, tous droits réservés (`LICENSE`) : une contribution extérieure n'est acceptée
+qu'avec un accord écrit de l'auteur sur les droits qui s'y attachent.
 
 ## Workflow Git
 
@@ -39,7 +42,7 @@ Le détail pas à pas est dans `docs/prompt/BEFOREPUSH.md`.
 |-------|--------|
 | Encodage | UTF-8 ; sources Java en ASCII (pas d'accents dans le code ni les commentaires) |
 | Indentation | 4 espaces, lignes ≤ 130 caractères |
-| Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang`, aucun wildcard |
+| Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke`, aucun wildcard |
 | Javadoc | classes publiques et méthodes non triviales, en français |
 | Commentaires et logs | français, majuscule initiale, point final, via `ModConstants.LOGGER` |
 | Allocation | aucune dans les méthodes tick/render ; noms de sections perf en constantes |

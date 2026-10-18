@@ -1,0 +1,7 @@
+{
+  "type": "gtgs_backrooms:backrooms_level_0_type",
+  "generator": {
+    "type": "gtgs_backrooms:backrooms_level_zero",
+    "biome": "gtgs_backrooms:backrooms_level_0"
+  }
+}

@@ -1,4 +1,4 @@
-# Troubleshooting — PeTaSsE_gAnG_Additions
+# Troubleshooting — GTG's Backrooms
 
 ## Build
 
@@ -31,7 +31,7 @@ Cas connu : `below_trunk_provider` n'existe pas en 1.21.1, utiliser `dirt_provid
 JAR dans `mods/`, Fabric Loader ≥ 0.16.9 et Fabric API présents, Java 21.
 
 ### Texture violette sur un item
-Modèle `assets/petasse_gang_additions/models/item/<id>.json` manquant ou chemin de texture incorrect.
+Modèle `assets/gtgs_backrooms/models/item/<id>.json` manquant ou chemin de texture incorrect.
 En 1.21.1 le dossier `assets/<ns>/items/` **n'est pas lu** (format 1.21.4+). `ModRegistriesTest` échoue si un modèle manque.
 
 ### Les blocs `level_zero_baseboard` de mon monde ont disparu
@@ -39,7 +39,7 @@ Le bloc plinthe autonome a été retiré en 0.8.0 (il était invisible et sans c
 sont rendues en overlay et ne sont pas concernées.
 
 ### Le bloc portail ne fait rien
-La feature est coupée par `-Dpetassegang.portal.enablePortalFeature=false` (ou `-PportalFeature=false` en dev) :
+La feature est coupée par `-Dgtgsbackrooms.portal.enablePortalFeature=false` (ou `-PportalFeature=false` en dev) :
 le bloc reste inerte. Sinon, il n'a pas encore trouvé de destination : hors du Level 0 il faut que la dimension
 `backrooms_level_0` existe (datapack du mod chargé) ; il réessaie toutes les 5 secondes. Le bloc ne se pose pas : son
 cadre, à la taille réglée, traverserait un bloc. Il ne se casse pas : il ne se vise qu'accroupi.
@@ -98,7 +98,7 @@ et chaque arrivée retombe dans le cadre de l'autre. Décaler ou casser l'un des
 Elles n'arrivent qu'avec la fenêtre de chunks synchronisée (7 x 7 chunks autour de l'arrivée) : hors fenêtre, rien.
 `-PportalDebugRendering=true` affiche par portail le nombre d'entités du monde distant. Si elles apparaissent mais
 restent figées, le tick des mondes distants (`RemoteWorldRegistry.tickRemoteWorlds`) n'est plus appelé depuis
-`PeTaSsEgAnGAdditionsClientMod`.
+`GtgsBackroomsClientMod`.
 
 ### Des portails orphelins traînent dans le Level 0
 Ils se retirent seuls dès que le chunk de leur bloc est chargé et que le bloc n'y est plus (les portails d'une

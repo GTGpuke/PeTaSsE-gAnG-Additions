@@ -1,0 +1,8 @@
+{
+  "variants": {
+    "facing=north": { "model": "gtgs_backrooms:block/backrooms_portal" },
+    "facing=south": { "model": "gtgs_backrooms:block/backrooms_portal" },
+    "facing=east": { "model": "gtgs_backrooms:block/backrooms_portal" },
+    "facing=west": { "model": "gtgs_backrooms:block/backrooms_portal" }
+  }
+}

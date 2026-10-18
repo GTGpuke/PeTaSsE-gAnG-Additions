@@ -1,4 +1,4 @@
-# ARCHITECTURE.md — PeTaSsE_gAnG_Additions
+# ARCHITECTURE.md — GTG's Backrooms
 
 > **Note (refonte 0.8.0, octobre 2026)** : ce document est la **spec cible** des phases portail et shaders.
 > L'arborescence réellement en place est décrite dans `docs/ARCHITECTURE.md` ; les dossiers vides qui
@@ -73,9 +73,9 @@ Tout code généré par une IA agentique **doit** respecter ce document. En cas 
 
 | # | Décision | Justification |
 |---|----------|---------------|
-| D1 | Mod ID = `petasse_gang_additions` | Stabilité — ne change jamais |
-| D2 | Package racine = `com.petassegang.addons` | Convention Java standard |
-| D3 | Backrooms est une feature dans `com.petassegang.addons.backrooms` | Pas de mod séparé |
+| D1 | Mod ID = `gtgs_backrooms` | Stabilité — ne change jamais |
+| D2 | Package racine = `com.gtgpuke.gtgsbackrooms` | Convention Java standard |
+| D3 | Backrooms est une feature dans `com.gtgpuke.gtgsbackrooms.backrooms` | Pas de mod séparé |
 | D4 | Approche portail = **illusion** (pas non-euclidienne) | Spec V4.3 §2 |
 | D5 | Pattern Bridge strict pour Veil/Iris | Spec V4.3 §10, §25 |
 | D6 | Split client/common pour les sous-systèmes portail | V2-multi-joueur ready |
@@ -89,10 +89,10 @@ Tout code généré par une IA agentique **doit** respecter ce document. En cas 
 ## §3. Arborescence canonique
 
 ```
-src/main/java/com/petassegang/addons/
+src/main/java/com/gtgpuke/gtgsbackrooms/
 │
-├── PeTaSsEgAnGAdditionsMod.java                # ModInitializer
-├── PeTaSsEgAnGAdditionsClientMod.java          # ClientModInitializer
+├── GtgsBackroomsMod.java                # ModInitializer
+├── GtgsBackroomsClientMod.java          # ClientModInitializer
 │
 ├── core/
 │   ├── ModConstants.java
@@ -476,7 +476,7 @@ src/main/java/com/petassegang/addons/
 ### §4.1 `Lifecycle` (D7)
 
 ```java
-package com.petassegang.addons.core.lifecycle;
+package com.gtgpuke.gtgsbackrooms.core.lifecycle;
 
 /**
  * Implémenté par toute classe possédant des ressources allouées (framebuffers,
@@ -510,7 +510,7 @@ public interface Lifecycle {
 ### §4.2 `PortalSubsystem` (D8)
 
 ```java
-package com.petassegang.addons.backrooms.portal;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal;
 
 /**
  * Tout sous-système portail implémente cette interface.
@@ -534,7 +534,7 @@ public interface PortalSubsystem {
 ### §4.3 `PortalContext`
 
 ```java
-package com.petassegang.addons.backrooms.portal;
+package com.gtgpuke.gtgsbackrooms.backrooms.portal;
 
 /**
  * Contexte unique passé à tous les PortalSubsystem.tick().
@@ -555,7 +555,7 @@ public record PortalContext(
 ### §4.4 `TickPhase`
 
 ```java
-package com.petassegang.addons.core.tick;
+package com.gtgpuke.gtgsbackrooms.core.tick;
 
 public enum TickPhase {
     PRE_TICK,        // avant logique gameplay
@@ -571,7 +571,7 @@ public enum TickPhase {
 ### §4.5 `Bridge` + `BridgeHealthMonitor`
 
 ```java
-package com.petassegang.addons.backrooms.bridge;
+package com.gtgpuke.gtgsbackrooms.backrooms.bridge;
 
 public interface Bridge {
     String getId();
@@ -709,7 +709,7 @@ Pourquoi : viole règle d'or n°1.
 
 ```java
 // ✅ CORRECT
-import com.petassegang.addons.backrooms.bridge.VeilFramebufferBridge;
+import com.gtgpuke.gtgsbackrooms.backrooms.bridge.VeilFramebufferBridge;
 
 public class PortalFramebuffer {
     private final VeilFramebufferBridge bridge;
@@ -866,9 +866,9 @@ Si une décision de design viole une de ces lois, l'IA **doit** flagger la viola
 
 ### §9.4 Identifiers Minecraft
 
-- Tous les `Identifier` du mod : namespace `petasse_gang_additions`
+- Tous les `Identifier` du mod : namespace `gtgs_backrooms`
 - Paths : `snake_case`, hiérarchie miroir du package Java
-- Exemple : `Level0WallpaperBlock` → `Identifier.of("petasse_gang_additions", "backrooms/level0/wallpaper")`
+- Exemple : `Level0WallpaperBlock` → `Identifier.of("gtgs_backrooms", "backrooms/level0/wallpaper")`
 
 ### §9.5 Marqueurs de commentaires
 
@@ -896,7 +896,7 @@ Si une décision de design viole une de ces lois, l'IA **doit** flagger la viola
 | Pipeline post-process | | ✅ `assets/.../veil/pipelines/` | hot-reload |
 | RoomGraph topologie | ✅ | | ✅ build runtime |
 | RedirectRules | ✅ classes | | ✅ |
-| Configuration utilisateur | | ✅ `config/petasse_gang_additions.json` | ✅ reload |
+| Configuration utilisateur | | ✅ `config/gtgs_backrooms.json` | ✅ reload |
 | PerformancePresets | ✅ enum | | ✅ |
 
 **Règle** : si listé "JSON statique", la version Java est **générée par datagen** uniquement. Pas d'édition manuelle des sorties.
@@ -1110,7 +1110,7 @@ public void teleport(...) { ... }
 
 ### AIP-5 : L'invention de méthode utilitaire
 
-Avant de créer un helper dans `util/`, l'IA vérifie qu'il n'existe pas déjà (`grep -r "<methodName>" src/main/java/com/petassegang/addons/util/`). Pas de duplication.
+Avant de créer un helper dans `util/`, l'IA vérifie qu'il n'existe pas déjà (`grep -r "<methodName>" src/main/java/com/gtgpuke/gtgsbackrooms/util/`). Pas de duplication.
 
 ### AIP-6 : L'extension hors scope
 
@@ -1166,7 +1166,7 @@ public record FramebufferHandle(int id, int width, int height) {}
 - [ ] Pas de `// TODO` nu
 - [ ] Tous les nouveaux fichiers ont une javadoc de classe
 - [ ] Nommage respecté (§9)
-- [ ] Identifiers utilisent `petasse_gang_additions` comme namespace
+- [ ] Identifiers utilisent `gtgs_backrooms` comme namespace
 
 ### Lifecycle
 
@@ -1195,7 +1195,7 @@ public record FramebufferHandle(int id, int width, int height) {}
 ### §18.1 Prompt universel
 
 ```
-Contexte : projet Minecraft Fabric "PétasseGang Addons" — mod ambitieux avec
+Contexte : projet Minecraft Fabric "GTG's Backrooms" — mod ambitieux avec
 intégration Veil pour shaders custom et portails illusionnistes (V4.3).
 
 AVANT toute action de code, lis ces 3 fichiers dans cet ordre :
@@ -1305,7 +1305,7 @@ PortalSubsystem (§4.2).
 ```
 AUDIT du codebase — pas de génération de code.
 
-Parcours tout src/main/java/com/petassegang/addons/ et liste les violations
+Parcours tout src/main/java/com/gtgpuke/gtgsbackrooms/ et liste les violations
 de la checklist §17.
 
 Format de sortie :

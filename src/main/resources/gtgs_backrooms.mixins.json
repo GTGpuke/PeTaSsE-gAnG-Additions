@@ -1,0 +1,49 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.gtgpuke.gtgsbackrooms.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "client.MixinWorldRenderer",
+    "client.MixinGameRenderer",
+    "client.MixinClientPlayNetworkHandler",
+    "client.MixinMinecraftClient",
+    "client.MixinFramebuffer",
+    "client.MixinShaderStage",
+    "client.MixinShaderProgram",
+    "client.MixinClientWorld",
+    "client.WorldRendererAccessor",
+    "client.CameraAccessor",
+    "client.MinecraftClientAccessor",
+    "client.LightmapTextureManagerAccessor",
+    "client.ClientPlayNetworkHandlerAccessor",
+    "client.FrustumAccessor",
+    "client.BuiltChunkStorageAccessor",
+    "client.ClientWorldAccessor",
+    "client.ParticleManagerAccessor",
+    "client.LimbAnimatorAccessor",
+    "client.BackgroundRendererAccessor"
+  ],
+  "mixins": [
+    "MixinServerChunkManager",
+    "MixinChunkDataSender",
+    "EntityAccessor",
+    "EntityTrackerAccessor",
+    "EntityTrackerEntryAccessor",
+    "ServerChunkLoadingManagerAccessor",
+    "MixinPlayerManager",
+    "MixinServerWorld",
+    "ActiveTargetGoalAccessor",
+    "MixinActiveTargetGoal",
+    "MixinMobEntity",
+    "MixinZombieAttackGoal",
+    "MixinEntity",
+    "MixinWorld",
+    "WorldAccessor",
+    "ChunkLightProviderAccessor",
+    "MixinChunkBlockLightProvider"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

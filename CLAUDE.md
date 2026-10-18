@@ -1,4 +1,4 @@
-# CLAUDE.md — PeTaSsE_gAnG_Additions
+# CLAUDE.md — GTG's Backrooms
 
 > Lu automatiquement à chaque session. Règles obligatoires du projet.
 > Onboarding complet : `docs/prompt/NOKNOWLEDGE.md` — Audit pré-push : `docs/prompt/BEFOREPUSH.md` — Vérification finale avant commit : `docs/prompt/FINALCHECK.md`
@@ -7,7 +7,7 @@
 ## Stack
 
 Minecraft **1.21.1** / Yarn `1.21.1+build.3` / Fabric Loader **0.19.5** / Fabric API **0.116.17** / Fabric Loom **1.17.21** / Gradle **9.8.1** (wrapper) / Java **21** (toolchain et JVM Gradle)
-`mod_id` : `petasse_gang_additions` — package racine : `com.petassegang.addons`
+`mod_id` : `gtgs_backrooms` — package racine : `com.gtgpuke.gtgsbackrooms`
 
 ## Commandes
 
@@ -34,17 +34,19 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 - `backrooms/portal/` : portails (bloc portail double face et ses réglages, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
 - `perf/` : moniteur de performance opt-in.
 - `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre).
-- `src/gametest/` : tests en jeu, mod séparé `petasse_gang_additions_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
+- `src/gametest/` : tests en jeu, mod séparé `gtgs_backrooms_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
 
 ## Règles de code
 
 - Commentaires, logs, messages d'erreur : **en français**, majuscule initiale, point final. Pas d'accents dans le code (sources ASCII).
 - Contenu visible en jeu : `Text.translatable()` + clés dans `en_us.json` **et** `fr_fr.json` (test `ModRegistriesTest` le vérifie).
-- Imports : `java` → bibliothèques tierces (`com.mojang`, `com.llamalad7` (MixinExtras), `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang`, aucun wildcard.
+- Imports : `java` → bibliothèques tierces (`com.mojang`, `com.llamalad7` (MixinExtras), `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke`, aucun wildcard.
 - Logs via `ModConstants.LOGGER` uniquement ; aucun `System.out` hors benchmark.
 - Aucune allocation dans les méthodes tick/render ; pas de concaténation de chaînes dans les chemins chauds (y compris les noms de sections perf).
 - Pas de couche d'abstraction sans deuxième implémentation réelle : pas d'interface/stage/builder spéculatif.
 - Pas de dossier vide ni de `.gitkeep`, pas de `package-info.java` d'une ligne.
+- Licence propriétaire, tous droits réservés (`LICENSE`, copiée dans les JAR) : aucun code ni aucune ressource repris
+  d'un projet tiers, quelle que soit sa licence.
 
 ## Génération du Level 0 : règle d'or
 
@@ -71,7 +73,7 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - Tests en jeu : le serveur GameTest n'a ni Level 0 ni client ; le Nether sert de dimension distante, les joueurs sont connectés
   par `GameTestPlayers` (vrai `onPlayerConnect` sur canal en mémoire, `setOnGround(true)` sinon le minage est cinq fois plus lent),
   les payloads client s'injectent par `onCustomPayload`, et les tests qui posent quoi que ce soit utilisent l'arène
-  `petasse_gang_additions_gametest:test_arena` (24 blocs) : la structure vide de Fabric fait un bloc et les voisins se marchent dessus.
+  `gtgs_backrooms_gametest:test_arena` (24 blocs) : la structure vide de Fabric fait un bloc et les voisins se marchent dessus.
   Le dossier de run `build/run/gameTest` n'est vidé que par `clean` (un build complet repart d'un monde neuf) et le serveur de test tique sans attendre : générer
   l'arrivée d'avance (`GameTestServerWorlds.pregenerate`) et guetter les chunks du Nether (`PortalViewTracker.watchedChunkCount() > 0`) plutôt que compter les ticks. Un bateau embarque de lui-même les créatures qui le touchent.
   Un joueur simulé ne suit une entité vanilla qu'une fois ses chunks reçus (`GameTestPlayers.tick`) et sa position

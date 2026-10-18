@@ -57,7 +57,7 @@ Les actions suivantes sont **pré-autorisées** et peuvent être exécutées san
 
 10. Structure cible à proposer (puis valider avant exécution) :
     ```
-    fr.petassegang.addons/
+    fr.gtgsbackrooms.addons/
       ├── feature/<nom_feature>/   ← une feature complète et autonome
       ├── core/                    ← mécaniques transverses, utilitaires métier
       ├── registry/                ← centralisation des enregistrements

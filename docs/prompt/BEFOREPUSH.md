@@ -76,7 +76,7 @@ git status --short
 
 ```text
 ╔══════════════════════════════════════════════╗
-║  RAPPORT PRÉ-PUSH — PeTaSsE_gAnG_Additions   ║
+║  RAPPORT PRÉ-PUSH — GTG's Backrooms          ║
 ╠══════════════════════════════════════════════╣
 ║  Build        : ✅/❌  (warnings : 0)        ║
 ║  Tests        : ✅/❌  (X tests, 0 échec)    ║

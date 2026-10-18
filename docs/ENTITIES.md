@@ -1,4 +1,4 @@
-# Entités — PeTaSsE_gAnG_Additions
+# Entités — GTG's Backrooms
 
 ## Portail Backrooms (`backrooms_portal`)
 

@@ -19,7 +19,7 @@ de mémoire.
   mod. Les noms à chercher sont dans la mémoire de l'assistant (« Pas d'autre mod ») ; ils ne s'écrivent pas dans le
   dépôt, pas même ici.
 - Client de développement :
-  - ne rien lancer si un client de Pierre tourne déjà ;
+  - ne rien lancer si un client de GTGpuke tourne déjà ;
   - les scripts ne visent et n'arrêtent que le PID qu'ils ont lancé, et aucun autre processus n'est tué ;
   - les touches sont postées à la fenêtre du banc (PostMessage), jamais au premier plan ;
   - `run/options.txt` est remis tel qu'il était, et les captures F2 sont déplacées hors de `run/screenshots`.
@@ -47,7 +47,7 @@ de mémoire.
       et Javadoc sur chaque type public (Checkstyle le vérifie).
 - [ ] Tout texte visible en jeu passe par `Text.translatable()`, avec sa clé dans `en_us.json` **et** `fr_fr.json`.
 - [ ] Imports : `java`, puis tiers (`com.mojang`, `com.llamalad7`, `org.*`), puis `net.minecraft`, `net.fabricmc`,
-      `com.petassegang`. Aucun import en `*`.
+      `com.gtgpuke`. Aucun import en `*`.
 - [ ] Logs uniquement via `ModConstants.LOGGER` ; aucun `System.out` hors benchmark.
 - [ ] Aucun TODO ni FIXME, aucun dossier vide, aucun `.gitkeep`, aucun `package-info.java` d'une ligne.
 - [ ] Aucun import `net.minecraft.client` dans le code commun (hors `client/` et `mixin/client/`).
@@ -178,12 +178,12 @@ grep -rn "import net.minecraft.client" src/main/java --include=*.java | grep -v 
 grep -rniE "<noms de la mémoire « Pas d'autre mod »>" src docs CLAUDE.md README.md
 find src -type d -empty; find src -name ".gitkeep"
 ```
-- [ ] Toutes ces commandes ne renvoient rien. Exception : les specs de Pierre (`BACKROOMS_CONTENT_RULES.md`,
+- [ ] Toutes ces commandes ne renvoient rien. Exception : les specs de GTGpuke (`BACKROOMS_CONTENT_RULES.md`,
       `DEPENDENCIES.md`, `INDEX.md`, `docs/backrooms/**`), qui citent d'autres mods et ne se touchent pas.
 
 ## 5. Vérification en jeu (dès qu'un mixin, du code client ou le rendu est touché)
 
-- [ ] Vérifier qu'aucun client de Pierre ne tourne.
+- [ ] Vérifier qu'aucun client de GTGpuke ne tourne.
 - [ ] Le client démarre jusqu'à l'écran titre, sans crash ni erreur de mixin. Le build vert ne suffit pas : les tests en
       jeu ne chargent jamais les classes client.
 - [ ] Une scène de banc (monde « Portal Lab ») par changement client :
@@ -233,7 +233,7 @@ find src -type d -empty; find src -name ".gitkeep"
 
 ```text
 ╔══════════════════════════════════════════════════════╗
-║  VÉRIFICATION FINALE — PeTaSsE_gAnG_Additions        ║
+║  VÉRIFICATION FINALE — GTG's Backrooms               ║
 ╠══════════════════════════════════════════════════════╣
 ║  Build          : ✅/❌  (warnings : 0)              ║
 ║  Tests unitaires: ✅/❌  (N tests, 0 échec)          ║
@@ -255,4 +255,4 @@ Puis, en quelques lignes chacun :
 2. **Preuves** : les commandes lancées et les lignes clés de leur sortie.
 3. **Vérifié en jeu** : les scènes et ce qu'elles ont montré.
 4. **Non vérifié ou limites** : ce qui n'a pas pu être prouvé, sans l'enjoliver.
-5. **À décider par Pierre** : les points qui lui reviennent (specs, comportements, suppressions).
+5. **À décider par GTGpuke** : les points qui lui reviennent (specs, comportements, suppressions).

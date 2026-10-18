@@ -249,7 +249,7 @@ backrooms/shader/                                  # Pilier 2 — couche Java MI
 ### Ressources Veil natives
 
 ```
-src/main/resources/assets/petasse_gang_additions/
+src/main/resources/assets/gtgs_backrooms/
 │
 └── pinwheel/                                      # ← Veil convention
     │
@@ -301,7 +301,7 @@ src/main/resources/assets/petasse_gang_additions/
 ### Configuration
 
 ```
-src/main/resources/data/petasse_gang_additions/
+src/main/resources/data/gtgs_backrooms/
 │
 ├── shader_profiles/                                # Mappe profil utilisateur → pipelines Veil
 │   ├── ultra.json                                  # Voir §8
@@ -427,7 +427,7 @@ Cette section liste **chaque capacité Veil exploitée**, avec son usage exact d
 
 **Usage projet** :
 - `#veil:buffer veil:camera VeilCamera` pour les passes screen-space qui ont besoin de matrices vue/projection
-- 1 UBO custom `petasse_gang_additions:backrooms_state` enregistré côté Java contenant `sanity`, `portalProximity`, `transitionProgress`, `zoneAmbientColor` — un seul update GPU par frame plutôt que N uniforms scalaires
+- 1 UBO custom `gtgs_backrooms:backrooms_state` enregistré côté Java contenant `sanity`, `portalProximity`, `transitionProgress`, `zoneAmbientColor` — un seul update GPU par frame plutôt que N uniforms scalaires
 
 **Bénéfice perf** : un UBO update = 1 appel GL. N uniforms = N appels.
 
@@ -533,9 +533,9 @@ Trois profils. Pas quatre, pas deux. Pas de "Off".
 `shader_profiles/ultra.json` :
 ```json
 {
-  "id": "petasse_gang_additions:ultra",
+  "id": "gtgs_backrooms:ultra",
   "displayName": "Ultra",
-  "veilPipelinePrefix": "petasse_gang_additions:backrooms_ultra_",
+  "veilPipelinePrefix": "gtgs_backrooms:backrooms_ultra_",
   "shaderDefinitions": [
     "BACKROOMS_PROFILE_ULTRA",
     "BACKROOMS_DYNAMIC_LIGHT_COLOR",
@@ -543,17 +543,17 @@ Trois profils. Pas quatre, pas deux. Pas de "Off".
   ],
   "frameBudgetMs": 8.0,
   "enabledEffects": [
-    "petasse_gang_additions:color_grading",
-    "petasse_gang_additions:tonemap",
-    "petasse_gang_additions:vignette",
-    "petasse_gang_additions:film_grain",
-    "petasse_gang_additions:chromatic_aberration",
-    "petasse_gang_additions:flicker_lighting",
-    "petasse_gang_additions:emissive_halo",
-    "petasse_gang_additions:bloom",
-    "petasse_gang_additions:screenspace_warp",
-    "petasse_gang_additions:hallucination_overlay",
-    "petasse_gang_additions:peripheral_blur"
+    "gtgs_backrooms:color_grading",
+    "gtgs_backrooms:tonemap",
+    "gtgs_backrooms:vignette",
+    "gtgs_backrooms:film_grain",
+    "gtgs_backrooms:chromatic_aberration",
+    "gtgs_backrooms:flicker_lighting",
+    "gtgs_backrooms:emissive_halo",
+    "gtgs_backrooms:bloom",
+    "gtgs_backrooms:screenspace_warp",
+    "gtgs_backrooms:hallucination_overlay",
+    "gtgs_backrooms:peripheral_blur"
   ]
 }
 ```
@@ -575,21 +575,21 @@ Un `LevelShaderProfile` définit la baseline + les overrides + les effets exclus
 `level_shaders/level0.json` :
 ```json
 {
-  "id": "petasse_gang_additions:level0",
+  "id": "gtgs_backrooms:level0",
   "displayName": "Level 0",
   "shaderDefinitions": ["BACKROOMS_LEVEL_0"],
-  "gradingLut": "petasse_gang_additions:level/level0/grading_lut",
+  "gradingLut": "gtgs_backrooms:level/level0/grading_lut",
   "ambientColor": [1.0, 0.92, 0.55],
   "effectOverrides": {
-    "petasse_gang_additions:vignette": {
+    "gtgs_backrooms:vignette": {
       "intensity": 0.4,
       "smoothness": 0.6
     },
-    "petasse_gang_additions:flicker_lighting": {
+    "gtgs_backrooms:flicker_lighting": {
       "frequency": 1.5,
       "amplitude": 0.15
     },
-    "petasse_gang_additions:film_grain": {
+    "gtgs_backrooms:film_grain": {
       "intensity": 0.08
     }
   },
@@ -683,15 +683,15 @@ En cas de conflit entre composants, la priorité est :
     "halo_blurred": { "format": "R11F_G11F_B10F", "width": "q.screen_width / 2", "height": "q.screen_height / 2" }
   },
   "stages": [
-    { "type": "veil:blit", "shader": "petasse_gang_additions:tonemap_aces", "in": "minecraft:main", "out": "veil:post" },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:color_grading", "in": "veil:post", "out": "veil:post", "clear": false },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:emissive_halo_extract", "in": "veil:post", "out": "halo_extracted" },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:emissive_halo_blur", "in": "halo_extracted", "out": "halo_blurred" },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:emissive_halo_composite", "in": "halo_blurred", "out": "veil:post", "clear": false },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:flicker_lighting", "in": "veil:post", "out": "veil:post" },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:chromatic_aberration", "in": "veil:post", "out": "veil:post" },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:vignette", "in": "veil:post", "out": "veil:post" },
-    { "type": "veil:blit", "shader": "petasse_gang_additions:film_grain", "in": "veil:post", "out": "veil:post" }
+    { "type": "veil:blit", "shader": "gtgs_backrooms:tonemap_aces", "in": "minecraft:main", "out": "veil:post" },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:color_grading", "in": "veil:post", "out": "veil:post", "clear": false },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:emissive_halo_extract", "in": "veil:post", "out": "halo_extracted" },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:emissive_halo_blur", "in": "halo_extracted", "out": "halo_blurred" },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:emissive_halo_composite", "in": "halo_blurred", "out": "veil:post", "clear": false },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:flicker_lighting", "in": "veil:post", "out": "veil:post" },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:chromatic_aberration", "in": "veil:post", "out": "veil:post" },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:vignette", "in": "veil:post", "out": "veil:post" },
+    { "type": "veil:blit", "shader": "gtgs_backrooms:film_grain", "in": "veil:post", "out": "veil:post" }
   ]
 }
 ```
@@ -768,7 +768,7 @@ Si un `UniformProvider` lance une exception lors du calcul :
 - Précision : `precision highp float;` `precision mediump int;`
 - Pas de `gl_FragColor` → toujours `out vec4 fragColor`
 - Pas de `texture2D()` → toujours `texture()`
-- Includes via convention Veil : `#include petasse_gang_additions:noise` (mappe à `assets/.../pinwheel/shaders/include/noise.glsl`)
+- Includes via convention Veil : `#include gtgs_backrooms:noise` (mappe à `assets/.../pinwheel/shaders/include/noise.glsl`)
 - Includes Veil natifs disponibles : `#include veil:fog`, `#include veil:space_helper`, `#include veil:light`
 - Imports d'UBO : `#veil:buffer veil:camera VeilCamera`
 - 4 espaces, fonctions camelCase, constantes UPPER_SNAKE
@@ -1025,7 +1025,7 @@ Activés sélectivement. Tous ont un schema strict côté `shader_effects/<id>.s
 
 **En production** : aucun hot-reload. Veil compile au boot et garde les programmes.
 
-**En mode dev** (`fabric.development=true` ou flag `-Dpetasse.dev=true`) :
+**En mode dev** (`fabric.development=true` ou flag `-Dgtgsbackrooms.dev=true`) :
 - Veil hot-reload natif des shaders (déclencheur : F3+T MC, ou modification fichier détectée par Veil — Veil le supporte nativement)
 - Hot-reload de nos JSON profiles/levels via `WatchService` Java NIO côté nous
 

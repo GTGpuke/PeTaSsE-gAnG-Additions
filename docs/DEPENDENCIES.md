@@ -1,4 +1,4 @@
-# Dépendances — PeTaSsE_gAnG_Additions
+# Dépendances — GTG's Backrooms
 
 Ce document centralise les dépendances externes du projet Backrooms,
 leur rôle, leur mode d'inclusion, leur état actuel et les points de vigilance avant activation.

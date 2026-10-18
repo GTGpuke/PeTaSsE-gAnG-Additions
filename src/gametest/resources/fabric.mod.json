@@ -1,24 +1,24 @@
 {
   "schemaVersion": 1,
-  "id": "petasse_gang_additions_gametest",
+  "id": "gtgs_backrooms_gametest",
   "version": "1.0.0",
-  "name": "PeTaSsE_gAnG_Additions - tests en jeu",
+  "name": "GTG's Backrooms - tests en jeu",
   "description": "Tests en jeu du mod, charges uniquement par ./gradlew runGameTest ; jamais dans le JAR du mod.",
   "environment": "*",
   "entrypoints": {
     "fabric-gametest": [
-      "com.petassegang.addons.gametest.backrooms.level0.LevelZeroGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.BackroomsPortalBlockGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.PortalLightGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.PortalGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.PortalSyncGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.PortalInteractionGameTests",
-      "com.petassegang.addons.gametest.backrooms.portal.PortalPropagationGameTests",
-      "com.petassegang.addons.gametest.feature.ItemGameTests"
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.level0.LevelZeroGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.BackroomsPortalBlockGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalLightGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalSyncGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalInteractionGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalPropagationGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.feature.ItemGameTests"
     ]
   },
   "depends": {
-    "petasse_gang_additions": "*",
+    "gtgs_backrooms": "*",
     "fabric-gametest-api-v1": "*"
   }
 }

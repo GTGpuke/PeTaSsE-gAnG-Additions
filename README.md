@@ -1,13 +1,13 @@
-# PeTaSsE_gAnG_Additions
+# GTG's Backrooms
 
-Mod de contenu custom pour le serveur Minecraft PetasseGang.
+Mod Fabric qui ouvre les Backrooms dans Minecraft : le Level 0 et des portails sans écran de chargement.
 
-[![CI](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/ci.yml/badge.svg)](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/ci.yml)
-[![Release](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/release.yml/badge.svg)](https://github.com/GTGpuke/PeTaSsE-gAnG-Additions/actions/workflows/release.yml)
+[![CI](https://github.com/GTGpuke/GTGs-Backrooms/actions/workflows/ci.yml/badge.svg)](https://github.com/GTGpuke/GTGs-Backrooms/actions/workflows/ci.yml)
+[![Release](https://github.com/GTGpuke/GTGs-Backrooms/actions/workflows/release.yml/badge.svg)](https://github.com/GTGpuke/GTGs-Backrooms/actions/workflows/release.yml)
 ![MC](https://img.shields.io/badge/Minecraft-1.21.1-brightgreen)
 ![Fabric](https://img.shields.io/badge/Fabric%20Loader-0.19.5-blue)
 ![Java](https://img.shields.io/badge/Java-21-orange)
-![License](https://img.shields.io/badge/License-MIT-blue)
+![License](https://img.shields.io/badge/License-All%20Rights%20Reserved-red)
 
 ---
 
@@ -16,8 +16,8 @@ Mod de contenu custom pour le serveur Minecraft PetasseGang.
 Prérequis : Java 21 et Git. Gradle est fourni par le wrapper.
 
 ```bash
-git clone https://github.com/GTGpuke/PeTaSsE-gAnG-Additions.git
-cd PeTaSsE-gAnG-Additions
+git clone https://github.com/GTGpuke/GTGs-Backrooms.git
+cd GTGs-Backrooms
 ./gradlew runClient      # client de dev
 ./gradlew test           # tests unitaires + couverture JaCoCo
 ./gradlew build          # JAR dans build/libs/ (après Checkstyle, tests, tests en jeu, couverture, contrôle du JAR)
@@ -31,7 +31,7 @@ Détails d'installation : [docs/SETUP.md](docs/SETUP.md).
 
 | Feature | Description |
 |---------|-------------|
-| **Backrooms Level 0** | Dimension `petasse_gang_additions:backrooms_level_0` : cinq layers de labyrinthe empilés, générés de façon déterministe par chunk (mini-labyrinthes superposés + salles tamponnées), moquette, papier peint adaptatif, néons en quinconce, deux biomes cosmétiques, plinthes et petits éléments muraux rendus côté client. |
+| **Backrooms Level 0** | Dimension `gtgs_backrooms:backrooms_level_0` : cinq layers de labyrinthe empilés, générés de façon déterministe par chunk (mini-labyrinthes superposés + salles tamponnées), moquette, papier peint adaptatif, néons en quinconce, deux biomes cosmétiques, plinthes et petits éléments muraux rendus côté client. |
 | **Gang Badge** | Item EPIC unique par pile ; clic droit = miaulement + animation de totem. |
 | **Casse-croûte Maudit** | Nourriture toujours mangeable qui retire 2 points de faim. |
 | **Arbre Maudit** | Tronc, feuilles, pousse (arbre custom), planches. |
@@ -40,19 +40,19 @@ Détails d'installation : [docs/SETUP.md](docs/SETUP.md).
 Accès au Level 0 en jeu :
 
 ```mcfunction
-/execute in petasse_gang_additions:backrooms_level_0 run teleport @s 1 1 1
+/execute in gtgs_backrooms:backrooms_level_0 run teleport @s 1 1 1
 ```
 
-ou, en jeu, poser un **Portail des Backrooms** (onglet *PetasseGang - Portails*) et le traverser.
+ou, en jeu, poser un **Portail des Backrooms** (onglet *GTG's Backrooms - Portails*) et le traverser.
 
 ---
 
 ## Structure du projet
 
 ```text
-src/main/java/com/petassegang/addons/
-├── PeTaSsEgAnGAdditionsMod.java          ← point d'entrée commun
-├── PeTaSsEgAnGAdditionsClientMod.java    ← point d'entrée client
+src/main/java/com/gtgpuke/gtgsbackrooms/
+├── GtgsBackroomsMod.java          ← point d'entrée commun
+├── GtgsBackroomsClientMod.java    ← point d'entrée client
 ├── core/ModConstants.java                ← MOD_ID, LOGGER
 ├── config/ModConfig.java                 ← options lues en -D (toggles debug, portails)
 ├── init/                                 ← ModBlocks, ModItems, ModBlockEntities, ModEntities, ModDataComponents, ModChunkGenerators, ModCreativeTab, ModNetworking
@@ -100,4 +100,6 @@ Dernier audit complet du projet : [docs/AUDIT.md](docs/AUDIT.md).
 
 ## Licence
 
-MIT — voir [LICENSE](LICENSE).
+Tous droits réservés — © 2025-2026 GTGpuke. Licence propriétaire : jouer avec un JAR publié par l'auteur est
+permis ; copier, modifier ou redistribuer le code ou les ressources demande son accord écrit. Conditions complètes :
+[LICENSE](LICENSE).

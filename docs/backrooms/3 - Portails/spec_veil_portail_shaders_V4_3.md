@@ -300,7 +300,7 @@ Quand un sous-système échoue ou surcharge, le mod **dégrade gracieusement** a
 ```
 backrooms-mod/
 │
-├── src/main/java/com/petassegang/addons/backrooms/
+├── src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/
 │   │
 │   ├── config/                       ← PILIER 1 : Configuration
 │   │   ├── BackroomsConfig.java
@@ -2221,7 +2221,7 @@ dependencies {
 
 ## 25. Conventions de code
 
-- **Package racine** : `com.petassegang.addons`
+- **Package racine** : `com.gtgpuke.gtgsbackrooms`
 - **Nommage** : PascalCase classes, camelCase méthodes/champs, SCREAMING_SNAKE constantes
 - **Javadoc** : obligatoire sur toutes les classes et méthodes publiques
 - **Logs** : SLF4J via `LoggerFactory.getLogger(ClassName.class)`

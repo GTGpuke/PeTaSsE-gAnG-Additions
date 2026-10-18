@@ -1,8 +1,0 @@
-{
-  "variants": {
-    "facing=north": { "model": "petasse_gang_additions:block/backrooms_portal" },
-    "facing=south": { "model": "petasse_gang_additions:block/backrooms_portal" },
-    "facing=east": { "model": "petasse_gang_additions:block/backrooms_portal" },
-    "facing=west": { "model": "petasse_gang_additions:block/backrooms_portal" }
-  }
-}

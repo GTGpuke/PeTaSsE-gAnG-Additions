@@ -65,8 +65,8 @@ jobs:
             echo "Le tag v$VERSION ne correspond pas a mod_version=$GRADLE_VERSION."
             exit 1
           fi
-          test -f "build/libs/petasse_gang_additions-${VERSION}.jar"
-          test -f "build/libs/petasse_gang_additions-${VERSION}-sources.jar"
+          test -f "build/libs/gtgs_backrooms-${VERSION}.jar"
+          test -f "build/libs/gtgs_backrooms-${VERSION}-sources.jar"
 
       - name: Extraire les notes de version
         run: |
@@ -81,11 +81,11 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.tag.outputs.name }}
-          name: "PeTaSsE_gAnG_Additions v${{ steps.version.outputs.VERSION }}"
+          name: "GTG's Backrooms v${{ steps.version.outputs.VERSION }}"
           body_path: release_notes.md
           files: |
-            build/libs/petasse_gang_additions-${{ steps.version.outputs.VERSION }}.jar
-            build/libs/petasse_gang_additions-${{ steps.version.outputs.VERSION }}-sources.jar
+            build/libs/gtgs_backrooms-${{ steps.version.outputs.VERSION }}.jar
+            build/libs/gtgs_backrooms-${{ steps.version.outputs.VERSION }}-sources.jar
           draft: false
           prerelease: ${{ contains(steps.tag.outputs.name, '-') }}
         env:

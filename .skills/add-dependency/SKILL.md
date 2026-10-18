@@ -1,6 +1,6 @@
 ---
 name: add-dependency
-description: "Ajouter une dépendance externe, une librairie, un mod API, ou un framework au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Utilise ce skill dès qu'on veut intégrer une librairie Java, un mod API (REI, GeckoLib, Patchouli, etc.), ou toute dépendance Maven/Modrinth. Déclenche pour 'ajoute une lib', 'ajoute une dépendance', 'intègre REI', 'ajoute GeckoLib', 'librairie', 'dépendance', 'API', 'framework', 'intégration', 'import externe', 'dependency'."
+description: "Ajouter une dépendance externe, une librairie, un mod API, ou un framework au mod GTG's Backrooms (Fabric 1.21.1). Utilise ce skill dès qu'on veut intégrer une librairie Java, un mod API (REI, GeckoLib, Patchouli, etc.), ou toute dépendance Maven/Modrinth. Déclenche pour 'ajoute une lib', 'ajoute une dépendance', 'intègre REI', 'ajoute GeckoLib', 'librairie', 'dépendance', 'API', 'framework', 'intégration', 'import externe', 'dependency'."
 ---
 
 # Skill — Ajouter une Dépendance Externe (Fabric 1.21.1)
@@ -135,13 +135,13 @@ Pour une dépendance optionnelle, utiliser `"recommends"` ou `"suggests"` à la 
 Si la dépendance est optionnelle (`"suggests"`), isoler l'intégration :
 
 ```
-src/main/java/com/petassegang/addons/compat/
+src/main/java/com/gtgpuke/gtgsbackrooms/compat/
 └── rei/
     └── REICompat.java
 ```
 
 ```java
-package com.petassegang.addons.compat.rei;
+package com.gtgpuke.gtgsbackrooms.compat.rei;
 
 public final class REICompat {
     public static void register() {
@@ -151,7 +151,7 @@ public final class REICompat {
 }
 ```
 
-Dans `PeTaSsEgAnGAdditionsMod.onInitialize()` :
+Dans `GtgsBackroomsMod.onInitialize()` :
 
 ```java
 import net.fabricmc.loader.api.FabricLoader;

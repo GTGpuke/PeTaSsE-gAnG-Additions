@@ -1,13 +1,13 @@
-# Dimensions — PeTaSsE_gAnG_Additions
+# Dimensions — GTG's Backrooms
 
-## Backrooms — Level 0 (`petasse_gang_additions:backrooms_level_0`)
+## Backrooms — Level 0 (`gtgs_backrooms:backrooms_level_0`)
 
 | Propriété | Valeur |
 |-----------|--------|
 | Type de dimension | `backrooms_level_0_type` : `min_y` 0, `height` 64, sans ciel, plafond, lumière ambiante 0, heure fixe |
-| Biome | `petasse_gang_additions:backrooms_level_0` (vide, aucun spawn) |
-| Générateur | `petasse_gang_additions:backrooms_level_zero` → `LevelZeroChunkGenerator` |
-| Accès | **Portail des Backrooms** (onglet créatif *PetasseGang - Portails*) : posé dans le monde normal, il ouvre un portail double face vers le layer 0 ; posé dans le Level 0, il ramène à la surface. Voir [PORTALS.md](PORTALS.md). |
+| Biome | `gtgs_backrooms:backrooms_level_0` (vide, aucun spawn) |
+| Générateur | `gtgs_backrooms:backrooms_level_zero` → `LevelZeroChunkGenerator` |
+| Accès | **Portail des Backrooms** (onglet créatif *GTG's Backrooms - Portails*) : posé dans le monde normal, il ouvre un portail double face vers le layer 0 ; posé dans le Level 0, il ramène à la surface. Voir [PORTALS.md](PORTALS.md). |
 
 ### Géographie verticale
 
@@ -37,15 +37,15 @@ Détails : [ARCHITECTURE.md](ARCHITECTURE.md), spec cible : `backrooms/backrooms
 ### Accès
 
 ```mcfunction
-/execute in petasse_gang_additions:backrooms_level_0 run teleport @s 1 1 1
+/execute in gtgs_backrooms:backrooms_level_0 run teleport @s 1 1 1
 ```
 
 Le point (1, 1, 1) est le centre de la cellule d'origine du layer 0, toujours ouvert.
 
 ### Fichiers
 
-- `data/petasse_gang_additions/dimension/backrooms_level_0.json`
-- `data/petasse_gang_additions/dimension_type/backrooms_level_0_type.json`
-- `data/petasse_gang_additions/worldgen/biome/backrooms_level_0.json`
-- `src/main/java/com/petassegang/addons/backrooms/level0/generation/`
-- Test en jeu : `src/gametest/java/com/petassegang/addons/gametest/backrooms/level0/LevelZeroGameTests.java` (`./gradlew runGameTest`)
+- `data/gtgs_backrooms/dimension/backrooms_level_0.json`
+- `data/gtgs_backrooms/dimension_type/backrooms_level_0_type.json`
+- `data/gtgs_backrooms/worldgen/biome/backrooms_level_0.json`
+- `src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level0/generation/`
+- Test en jeu : `src/gametest/java/com/gtgpuke/gtgsbackrooms/gametest/backrooms/level0/LevelZeroGameTests.java` (`./gradlew runGameTest`)

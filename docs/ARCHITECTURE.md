@@ -1,4 +1,4 @@
-# Architecture — PeTaSsE_gAnG_Additions
+# Architecture — GTG's Backrooms
 
 ## Stack technique
 
@@ -20,10 +20,10 @@ Aucune dépendance runtime externe en dehors de Fabric API. Le cache de secteurs
 ## Arborescence des packages
 
 ```text
-com.petassegang.addons/
+com.gtgpuke.gtgsbackrooms/
 |
-|-- PeTaSsEgAnGAdditionsMod.java        <- ModInitializer : registerContent() + hooks serveur + flag portail
-|-- PeTaSsEgAnGAdditionsClientMod.java  <- ClientModInitializer : payloads (badge, chunks distants), modèle adaptatif, renderer portail
+|-- GtgsBackroomsMod.java        <- ModInitializer : registerContent() + hooks serveur + flag portail
+|-- GtgsBackroomsClientMod.java  <- ClientModInitializer : payloads (badge, chunks distants), modèle adaptatif, renderer portail
 |
 |-- core/ModConstants.java              <- MOD_ID, MOD_NAME, LOGGER
 |-- config/ModConfig.java               <- options lues au démarrage via -D (debug, portails)
@@ -64,9 +64,9 @@ com.petassegang.addons/
 `-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière, météo) + client/ (rendu des portails)
 ```
 
-Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/petassegang/addons/gametest/`, rangé par
+Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/gtgpuke/gtgsbackrooms/gametest/`, rangé par
 domaine comme le code (`support/`, `backrooms/level0/`, `backrooms/portal/`, `feature/`) : un mod
-`petasse_gang_additions_gametest` chargé par `runGameTest` seulement, jamais dans le JAR (`verifyJarContents` le vérifie).
+`gtgs_backrooms_gametest` chargé par `runGameTest` seulement, jamais dans le JAR (`verifyJarContents` le vérifie).
 
 ---
 
@@ -160,9 +160,9 @@ Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout (bloc inerte, mi
 | Méthode / variable | camelCase | `wallpaperFaceMask` |
 | Constante | UPPER_SNAKE_CASE | `REGION_MARGIN_CELLS` |
 | Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
-| Clé de langue | `block.<mod_id>.<id>` (reprise par l'item du bloc), `item.<mod_id>.<id>` pour un item sans bloc | `block.petasse_gang_additions.cursed_log` |
+| Clé de langue | `block.<mod_id>.<id>` (reprise par l'item du bloc), `item.<mod_id>.<id>` pour un item sans bloc | `block.gtgs_backrooms.cursed_log` |
 | Commentaires et logs | français, majuscule, point final, ASCII | `// Le cache evince les plus anciens.` |
-| Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.petassegang` | — |
+| Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke` | — |
 
 Pas de couche d'indirection sans second usage réel : une classe = une responsabilité lisible,
 pas de stage/builder/façade spéculatifs.

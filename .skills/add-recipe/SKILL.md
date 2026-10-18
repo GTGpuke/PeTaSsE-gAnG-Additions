@@ -1,6 +1,6 @@
 ---
 name: add-recipe
-description: "Ajouter une recette au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1). Déclenche pour 'recette', 'craft', 'fabriquer', 'fondre', 'cuisiner', 'table de craft', 'fourneau', 'smithing', 'recipe'."
+description: "Ajouter une recette au mod GTG's Backrooms (Fabric 1.21.1). Déclenche pour 'recette', 'craft', 'fabriquer', 'fondre', 'cuisiner', 'table de craft', 'fourneau', 'smithing', 'recipe'."
 ---
 
 # Skill — Ajouter une Recette (Fabric 1.21.1)
@@ -31,7 +31,7 @@ description: "Ajouter une recette au mod PeTaSsE_gAnG_Additions (Fabric 1.21.1).
 ## Emplacement des fichiers
 
 ```
-data/petasse_gang_additions/recipe/
+data/gtgs_backrooms/recipe/
 └── my_item.json
 ```
 
@@ -60,7 +60,7 @@ data/petasse_gang_additions/recipe/
     "C": { "item": "minecraft:nether_star" }
   },
   "result": {
-    "id": "petasse_gang_additions:my_item",
+    "id": "gtgs_backrooms:my_item",
     "count": 1
   }
 }
@@ -78,7 +78,7 @@ data/petasse_gang_additions/recipe/
     { "item": "minecraft:diamond" }
   ],
   "result": {
-    "id": "petasse_gang_additions:my_item",
+    "id": "gtgs_backrooms:my_item",
     "count": 1
   }
 }
@@ -90,8 +90,8 @@ data/petasse_gang_additions/recipe/
 {
   "type": "minecraft:smelting",
   "category": "misc",
-  "ingredient": { "item": "petasse_gang_additions:raw_gangite" },
-  "result": { "id": "petasse_gang_additions:gangite_ingot" },
+  "ingredient": { "item": "gtgs_backrooms:raw_gangite" },
+  "result": { "id": "gtgs_backrooms:gangite_ingot" },
   "experience": 1.0,
   "cookingtime": 200
 }
@@ -103,8 +103,8 @@ data/petasse_gang_additions/recipe/
 {
   "type": "minecraft:blasting",
   "category": "misc",
-  "ingredient": { "item": "petasse_gang_additions:gangite_ore" },
-  "result": { "id": "petasse_gang_additions:gangite_ingot" },
+  "ingredient": { "item": "gtgs_backrooms:gangite_ore" },
+  "result": { "id": "gtgs_backrooms:gangite_ingot" },
   "experience": 0.7,
   "cookingtime": 100
 }
@@ -115,8 +115,8 @@ data/petasse_gang_additions/recipe/
 ```json
 {
   "type": "minecraft:stonecutting",
-  "ingredient": { "item": "petasse_gang_additions:my_block" },
-  "result": { "id": "petasse_gang_additions:my_slab" },
+  "ingredient": { "item": "gtgs_backrooms:my_block" },
+  "result": { "id": "gtgs_backrooms:my_slab" },
   "count": 2
 }
 ```
@@ -125,10 +125,10 @@ data/petasse_gang_additions/recipe/
 
 ## Checklist finale
 
-- [ ] Fichier JSON créé dans `data/petasse_gang_additions/recipe/` (singulier)
+- [ ] Fichier JSON créé dans `data/gtgs_backrooms/recipe/` (singulier)
 - [ ] Champ `"result"` utilise `"id"` (pas `"item"`) — format MC 1.21.1
 - [ ] Ingrédients corrects (vérifier les item IDs)
 - [ ] Résultat correct (vérifier l'item ID)
-- [ ] Testé en jeu : `/recipe give @p petasse_gang_additions:my_item`
+- [ ] Testé en jeu : `/recipe give @p gtgs_backrooms:my_item`
 - [ ] `docs/ITEMS.md` mis à jour (mentionner la recette)
 - [ ] `docs/CHANGELOG.md` mis à jour
