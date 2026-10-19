@@ -10,6 +10,8 @@ import org.joml.Matrix4fStack;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20;
+import org.lwjgl.opengl.GL30;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -17,6 +19,7 @@ import net.minecraft.client.render.DiffuseLighting;
 import net.minecraft.client.render.FogShape;
 import net.minecraft.client.render.Frustum;
 import net.minecraft.client.render.LightmapTextureManager;
+import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
@@ -37,6 +40,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.StraddlingEntityR
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.PortalRelevance;
+import com.gtgpuke.gtgsbackrooms.compat.iris.IrisCompat;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import com.gtgpuke.gtgsbackrooms.mixin.client.BackgroundRendererAccessor;
@@ -64,6 +68,9 @@ import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
  * ({@link ThirdPersonPortal}), l'image entiere est la vue de l'autre cote, depuis l'image de la camera : tout l'ecran
  * passe au niveau 1, la vue s'y dessine avec ses portails imbriques, et le reste du rendu du monde du joueur est refuse
  * par le stencil jusqu'a la fin de l'image.
+ *
+ * <p>Sous un pack de shaders ({@code IrisCompat}), rien de tout cela au milieu du rendu : les vues se dessinent apres
+ * l'image du monde, chacune par le rendu complet de son renderer ({@link ShaderPackPortalRenderer}).
  */
 public final class PortalStencilRenderer {
 
@@ -88,6 +95,8 @@ public final class PortalStencilRenderer {
     private static final String PERF_RENDER = "client.portal.render";
 
     private static final List<BackroomsPortalEntity> VISIBLE = new ArrayList<>();
+    /** Portails imbriques visibles dans la vue en cours, reutilises d'une image a l'autre. */
+    private static final List<BackroomsPortalEntity> NESTED = new ArrayList<>();
     private static final Matrix4f REMOTE_POSITION = new Matrix4f();
     private static final Matrix4f NESTED_POSITION = new Matrix4f();
     /** Projection et vue d'un cadre, et un sommet transforme, pour son rectangle d'ecran. */
@@ -119,7 +128,9 @@ public final class PortalStencilRenderer {
     }
 
     /**
-     * Point d'entree appele par le mixin de {@code WorldRenderer.render}.
+     * Point d'entree appele par le mixin de {@code WorldRenderer.render}, avant la couche translucide. Sous un pack de
+     * shaders, seulement les moities d'entities a cheval : les vues se dessinent apres l'image du monde
+     * ({@link #renderAfterWorld}).
      *
      * @param camera camera du joueur
      * @param positionMatrix matrice de vue du rendu monde
@@ -134,8 +145,42 @@ public final class PortalStencilRenderer {
             Matrix4f projectionMatrix,
             LightmapTextureManager lightmap,
             float tickDelta) {
+        if (IrisCompat.shaderPackInUse()) {
+            // Les vues se dessinent apres l'image ; les moities d'entities a cheval, elles, ici, dans le pipeline du pack.
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (ready(client)) {
+                StraddlingEntityRenderer.renderMainWorldParts(client, camera, positionMatrix, projectionMatrix, tickDelta);
+            }
+            return;
+        }
         try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_RENDER)) {
             renderPortals(camera, positionMatrix, projectionMatrix, lightmap, tickDelta);
+        }
+    }
+
+    /**
+     * Point d'entree appele par le mixin en fin de {@code WorldRenderer.render} : sous un pack de shaders, les vues se
+     * dessinent ici, apres l'image du monde du joueur que le mod de shaders vient de composer
+     * ({@link ShaderPackPortalRenderer}). Les masques d'ecriture sont d'abord rendus, a chaque image : la passe finale du
+     * pack coupe l'ecriture de la profondeur. Le mixin ne l'appelle pas pendant le rendu complet d'une vue, qui repasse par la.
+     */
+    @SuppressWarnings("try")
+    public static void renderAfterWorld(
+            RenderTickCounter tickCounter,
+            Camera camera,
+            LightmapTextureManager lightmap,
+            Matrix4f positionMatrix,
+            Matrix4f projectionMatrix) {
+        if (!IrisCompat.shaderPackInUse()) {
+            return;
+        }
+        // La passe finale du pack laisse l'ecriture de la profondeur coupee. Une vue dessinee la rendait ; sans vue, rien :
+        // l'effacement de l'image suivante ne remettait plus la profondeur au plan lointain, et le pack prenait des pans
+        // entiers du monde pour du ciel (noirs dans une dimension sans ciel).
+        RenderSystem.depthMask(true);
+        RenderSystem.colorMask(true, true, true, true);
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_RENDER)) {
+            renderPortalsAfterWorld(tickCounter, camera, lightmap, positionMatrix, projectionMatrix);
         }
     }
 
@@ -146,14 +191,10 @@ public final class PortalStencilRenderer {
             LightmapTextureManager lightmap,
             float tickDelta) {
         PortalSightReporter.beginFrame();
-        if (!ModConfig.ENABLE_PORTAL_FEATURE || !PortalRenderState.canRenderPortals()) {
-            return;
-        }
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client.world == null || client.player == null) {
+        if (!ready(client)) {
             return;
         }
-        RemoteWorldRegistry.syncWithMainWorld(client.world);
         if (ClientPortalIndex.allPortals(client.world).isEmpty()) {
             // Aucun portail dans ce monde, mais une entity arrivee par un portail aller simple s'y dessine encore en
             // parties : vanilla ne la dessine pas.
@@ -162,17 +203,11 @@ public final class PortalStencilRenderer {
             }
             return;
         }
-        BackroomsPortalEntity behind = camera.isThirdPerson() ? portalBehindCamera(client.world, camera, tickDelta) : null;
-        if (behind != null) {
-            PortalSightReporter.noteLookedThrough(behind);
-        } else {
-            collectVisiblePortals(client.world, camera, positionMatrix, projectionMatrix);
-            PortalSightReporter.noteDrawn(VISIBLE);
-            if (VISIBLE.isEmpty()) {
-                // Aucun cadre a l'ecran, mais une entity peut etre coupee par un portail vu de cote : vanilla ne la dessine pas.
-                StraddlingEntityRenderer.renderMainWorldParts(client, camera, positionMatrix, projectionMatrix, tickDelta);
-                return;
-            }
+        BackroomsPortalEntity behind = collect(client, camera, positionMatrix, projectionMatrix, tickDelta);
+        if (behind == null && VISIBLE.isEmpty()) {
+            // Aucun cadre a l'ecran, mais une entity peut etre coupee par un portail vu de cote : vanilla ne la dessine pas.
+            StraddlingEntityRenderer.renderMainWorldParts(client, camera, positionMatrix, projectionMatrix, tickDelta);
+            return;
         }
         PortalRenderState.beginFrame();
         // Vanilla a empile sa matrice de vue pour ses entities : les zones et les vues portent chacune la leur.
@@ -192,6 +227,73 @@ public final class PortalStencilRenderer {
             PortalRenderState.endFrame();
             VISIBLE.clear();
         }
+    }
+
+    /**
+     * Sous un pack de shaders : les memes portails, dessines par {@link ShaderPackPortalRenderer} apres l'image du monde.
+     * Les moities d'entities a cheval se sont dessinees au milieu du rendu du monde ({@link #renderAllVisiblePortals}).
+     */
+    private static void renderPortalsAfterWorld(
+            RenderTickCounter tickCounter,
+            Camera camera,
+            LightmapTextureManager lightmap,
+            Matrix4f positionMatrix,
+            Matrix4f projectionMatrix) {
+        PortalSightReporter.beginFrame();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (!ready(client) || ClientPortalIndex.allPortals(client.world).isEmpty()) {
+            return;
+        }
+        BackroomsPortalEntity behind = collect(client, camera, positionMatrix, projectionMatrix, tickCounter.getTickDelta(false));
+        if (behind == null && VISIBLE.isEmpty()) {
+            return;
+        }
+        PortalRenderState.beginFrame();
+        saveMainFog();
+        Matrix4fStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.identity();
+        RenderSystem.applyModelViewMatrix();
+        try {
+            if (behind != null) {
+                RemoteWorld view = RemoteWorldRegistry.viewOf(behind.destinationDim());
+                ShaderPackPortalRenderer.renderCovering(client, behind, view, behindCameraPos(view, behind, camera.getFocusedEntity()),
+                        PortalViewTransform.remoteLook(behind, camera.getYaw(), camera.getPitch()), tickCounter, camera, lightmap, projectionMatrix);
+            } else {
+                ShaderPackPortalRenderer.render(client, VISIBLE, tickCounter, camera, lightmap, positionMatrix, projectionMatrix);
+            }
+        } finally {
+            modelView.popMatrix();
+            RenderSystem.applyModelViewMatrix();
+            restoreMainState(client);
+            PortalRenderState.endFrame();
+            VISIBLE.clear();
+        }
+    }
+
+    /** {@code true} si les portails peuvent se dessiner dans cette image ; les mondes distants sont alors alignes sur le monde du joueur. */
+    private static boolean ready(MinecraftClient client) {
+        if (!ModConfig.ENABLE_PORTAL_FEATURE || !PortalRenderState.canRenderPortals() || client.world == null || client.player == null) {
+            return false;
+        }
+        RemoteWorldRegistry.syncWithMainWorld(client.world);
+        return true;
+    }
+
+    /**
+     * Portail derriere lequel la camera est passee a la troisieme personne, rapporte comme regarde a travers ; sinon
+     * {@code null}, et les portails visibles, rapportes comme dessines, sont dans {@link #VISIBLE} (peut-etre vide).
+     */
+    private static @Nullable BackroomsPortalEntity collect(
+            MinecraftClient client, Camera camera, Matrix4f positionMatrix, Matrix4f projectionMatrix, float tickDelta) {
+        BackroomsPortalEntity behind = camera.isThirdPerson() ? portalBehindCamera(client.world, camera, tickDelta) : null;
+        if (behind != null) {
+            PortalSightReporter.noteLookedThrough(behind);
+        } else {
+            collectVisiblePortals(client.world, camera, positionMatrix, projectionMatrix);
+            PortalSightReporter.noteDrawn(VISIBLE);
+        }
+        return behind;
     }
 
     /** Fin du rendu du monde du joueur : si la vue couvrait l'ecran, le stencil laisse de nouveau tout passer (main, interface). */
@@ -244,9 +346,18 @@ public final class PortalStencilRenderer {
     }
 
     /**
-     * L'image entiere vue de l'autre cote : la camera passe le portail au point ou son segment le traverse et recule de
-     * la distance qui lui reste, arretee par les blocs de l'autre monde comme vanilla l'arrete par ceux du sien.
+     * Camera de la vue derriere le portail franchi a la troisieme personne : elle passe le portail au point ou son
+     * segment le traverse et recule de la distance qui lui reste, arretee par les blocs de l'autre monde comme vanilla
+     * l'arrete par ceux du sien.
      */
+    private static Vec3d behindCameraPos(RemoteWorld view, BackroomsPortalEntity portal, Entity focused) {
+        double fraction = ThirdPersonPortal.crossingFraction(portal, behindEye, behindWanted);
+        Vec3d start = portal.toDestination(behindEye.lerp(behindWanted, fraction));
+        Vec3d end = portal.toDestination(behindWanted);
+        return clipToSpace(view.world(), focused, start, end);
+    }
+
+    /** L'image entiere vue de l'autre cote, depuis la camera passee derriere le portail ({@link #behindCameraPos}). */
     private static void renderFromBehind(
             MinecraftClient client,
             BackroomsPortalEntity portal,
@@ -255,13 +366,7 @@ public final class PortalStencilRenderer {
             LightmapTextureManager lightmap,
             float tickDelta) {
         RemoteWorld view = RemoteWorldRegistry.viewOf(portal.destinationDim());
-        Entity focused = camera.getFocusedEntity();
-        Vec3d eye = behindEye;
-        Vec3d wanted = behindWanted;
-        double fraction = ThirdPersonPortal.crossingFraction(portal, eye, wanted);
-        Vec3d start = portal.toDestination(eye.lerp(wanted, fraction));
-        Vec3d end = portal.toDestination(wanted);
-        Vec3d remoteCameraPos = clipToSpace(view.world(), focused, start, end);
+        Vec3d remoteCameraPos = behindCameraPos(view, portal, camera.getFocusedEntity());
         Vec2f remoteLook = PortalViewTransform.remoteLook(portal, camera.getYaw(), camera.getPitch());
         Camera remoteCamera = PortalRenderState.remoteCamera();
         aimCamera(remoteCamera, remoteCameraPos, remoteLook, REMOTE_POSITION);
@@ -621,33 +726,15 @@ public final class PortalStencilRenderer {
             Matrix4f projectionMatrix,
             LightmapTextureManager lightmap,
             float tickDelta) {
-        ((FrustumAccessor) NESTED_FRUSTUM).backrooms$init(REMOTE_POSITION, projectionMatrix);
-        NESTED_FRUSTUM.setPosition(remoteCameraPos.x, remoteCameraPos.y, remoteCameraPos.z);
+        collectNested(NESTED, outer, view, remoteCameraPos, remoteLook, REMOTE_POSITION, projectionMatrix);
         if (outer != null) {
             PortalFacing arrival = outer.facingDestination();
-            NESTED_CONE.set(remoteCameraPos, outer.destinationPos(), arrival.axisW, arrival.axisH, arrival.normal,
-                    outer.width() / 2.0, outer.height() / 2.0);
             PortalClipping.push(arrival.normal, outer.destinationPos(), remoteCameraPos, REMOTE_POSITION);
-        } else {
-            NESTED_CONE.unbounded();
         }
-        double renderDistance = Math.max(1, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
-        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(view.world());
         int level = WORLD_LEVEL + 1;
         try {
-            for (int i = 0; i < portals.size(); i++) {
-                BackroomsPortalEntity inner = portals.get(i);
-                // Les faces du portail d'arrivee lui-meme sont dans le plan de decoupe : celle qui regarde la camera de la
-                // vue (la face arriere d'un portail double face) recouvrirait toute la vue par l'autre cote.
-                if (outer != null && inner.centeredAt(outer.destinationPos())) {
-                    continue;
-                }
-                if (!inner.visible() || inner.signedDistance(remoteCameraPos) <= 0.0
-                        || !PortalRelevance.isRelevant(remoteCameraPos, remoteLook.y, remoteLook.x, inner.getPos(), renderDistance)
-                        || !NESTED_FRUSTUM.isVisible(inner.detectionBox())
-                        || !NESTED_CONE.intersects(inner.detectionBox())) {
-                    continue;
-                }
+            for (int i = 0; i < NESTED.size(); i++) {
+                BackroomsPortalEntity inner = NESTED.get(i);
                 markArea(inner, remoteCameraPos, REMOTE_POSITION, level);
                 try {
                     renderNestedPortal(client, inner, camera, remoteCameraPos, remoteLook, projectionMatrix, lightmap, tickDelta);
@@ -656,9 +743,54 @@ public final class PortalStencilRenderer {
                 }
             }
         } finally {
+            NESTED.clear();
             if (outer != null) {
                 PortalClipping.pop();
             }
+        }
+    }
+
+    /**
+     * Portails de la vue visibles depuis sa camera, dans {@code out} (vide d'abord) : visibles, de face, a portee, dans
+     * le frustum de la vue et dans le volume visible a travers son cadre. Sans portail exterieur ({@code outer} nul),
+     * la vue couvre l'ecran : tous les portails qu'y voit sa camera comptent.
+     *
+     * @param remotePosition matrice de vue de la camera de la vue
+     */
+    static void collectNested(
+            List<BackroomsPortalEntity> out,
+            @Nullable BackroomsPortalEntity outer,
+            RemoteWorld view,
+            Vec3d remoteCameraPos,
+            Vec2f remoteLook,
+            Matrix4f remotePosition,
+            Matrix4f projectionMatrix) {
+        out.clear();
+        ((FrustumAccessor) NESTED_FRUSTUM).backrooms$init(remotePosition, projectionMatrix);
+        NESTED_FRUSTUM.setPosition(remoteCameraPos.x, remoteCameraPos.y, remoteCameraPos.z);
+        if (outer != null) {
+            PortalFacing arrival = outer.facingDestination();
+            NESTED_CONE.set(remoteCameraPos, outer.destinationPos(), arrival.axisW, arrival.axisH, arrival.normal,
+                    outer.width() / 2.0, outer.height() / 2.0);
+        } else {
+            NESTED_CONE.unbounded();
+        }
+        double renderDistance = Math.max(1, ModConfig.PORTAL_RENDER_DISTANCE_BLOCKS);
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(view.world());
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity inner = portals.get(i);
+            // Les faces du portail d'arrivee lui-meme sont dans le plan de decoupe : celle qui regarde la camera de la
+            // vue (la face arriere d'un portail double face) recouvrirait toute la vue par l'autre cote.
+            if (outer != null && inner.centeredAt(outer.destinationPos())) {
+                continue;
+            }
+            if (!inner.visible() || inner.signedDistance(remoteCameraPos) <= 0.0
+                    || !PortalRelevance.isRelevant(remoteCameraPos, remoteLook.y, remoteLook.x, inner.getPos(), renderDistance)
+                    || !NESTED_FRUSTUM.isVisible(inner.detectionBox())
+                    || !NESTED_CONE.intersects(inner.detectionBox())) {
+                continue;
+            }
+            out.add(inner);
         }
     }
 
@@ -695,14 +827,14 @@ public final class PortalStencilRenderer {
     }
 
     /** Oriente une camera de vue et en derive la matrice de vue. */
-    private static void aimCamera(Camera viewCamera, Vec3d position, Vec2f look, Matrix4f positionMatrix) {
+    static void aimCamera(Camera viewCamera, Vec3d position, Vec2f look, Matrix4f positionMatrix) {
         ((CameraAccessor) viewCamera).backrooms$setPos(position);
         ((CameraAccessor) viewCamera).backrooms$setRotation(look.x, look.y);
         PortalViewTransform.positionMatrix(viewCamera, positionMatrix);
     }
 
     /** {@code true} si la vue possede le chunk du point d'arrivee ; sinon elle ne montrerait que du ciel. */
-    private static boolean hasChunkAt(RemoteWorld view, Vec3d position) {
+    static boolean hasChunkAt(RemoteWorld view, Vec3d position) {
         return view.world().getChunkManager().isChunkLoaded(
                 ChunkSectionPos.getSectionCoord(position.x), ChunkSectionPos.getSectionCoord(position.z));
     }
@@ -785,6 +917,13 @@ public final class PortalStencilRenderer {
             return;
         }
         nextDebugLogMillis = now + DEBUG_LOG_INTERVAL_MILLIS;
+        // Etat GL au moment des portails : ou le monde se dessine (un autre mod peut l'avoir detourne), avec quel stencil.
+        float[] fog = RenderSystem.getShaderFogColor();
+        ModConstants.LOGGER.info("[Portal] Framebuffer lie {} (client {}), attachement stencil {}, profondeur {}, programme {}, brouillard {}/{}/{}.",
+                GL11.glGetInteger(GL30.GL_DRAW_FRAMEBUFFER_BINDING), client.getFramebuffer().fbo,
+                GL30.glGetFramebufferAttachmentParameteri(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_STENCIL_ATTACHMENT, GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE),
+                GL30.glGetFramebufferAttachmentParameteri(GL30.GL_DRAW_FRAMEBUFFER, GL30.GL_DEPTH_ATTACHMENT, GL30.GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE),
+                GL11.glGetInteger(GL20.GL_CURRENT_PROGRAM), fog[0], fog[1], fog[2]);
         for (int i = 0; i < VISIBLE.size(); i++) {
             BackroomsPortalEntity portal = VISIBLE.get(i);
             RemoteWorld view = RemoteWorldRegistry.viewOf(portal.destinationDim());

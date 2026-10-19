@@ -60,6 +60,7 @@ com.gtgpuke.gtgsbackrooms/
 |   |                    LevelZeroWallProps, LevelZeroDebugPalette
 |   `-- portal/                          <- portails : entity, block, transition, sync, interaction, propagation, light, client, debug (voir §Portails)
 |
+|-- compat/iris/                        <- compatibilité avec le mod de shaders Iris (seul mod nommé) : son API publique dit si un pack est actif
 |-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
 `-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière, météo) + client/ (rendu des portails)
 ```

@@ -148,7 +148,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   vue puis rend à sa zone sa vraie profondeur et le niveau courant ; plus de valeur par portail ni de bit d'imbrication.
 - Découpe des vues de portail par les shaders : chaque vertex shader vanilla reçoit au chargement
   un uniforme `backrooms_ClipPlane` et écrit `gl_ClipDistance[0]` ; pendant une vue, le plan du portail d'arrivée coupe
-  terrain, entités, ciel et nuages avec la projection du joueur. Plus de projection à plan proche oblique (précision de
+  terrain, entités, ciel et nuages avec la projection du joueur. Plus de projection à plan proche oblique pour le rendu vanilla (précision de
   profondeur dégradée aux angles rasants, repli sans découpe au ras du plan).
 - Culling des vues par le volume visible à travers le cadre (pyramide caméra → arêtes du cadre d'arrivée) : sections,
   entités et portails imbriqués hors de ce volume ne sont plus dessinés.
@@ -161,6 +161,52 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- **Dimension noire sous un pack de shaders** : après une traversée, dès que le portail sortait de l'écran, des
+  pans entiers du monde (toute la dimension dans le Level 0) passaient au noir, ou au brouillard sous un ciel. La
+  passe finale du pack laisse l'écriture de la profondeur coupée ; une vue dessinée la rétablissait, mais sans vue à
+  l'écran l'image suivante n'effaçait plus sa profondeur et le pack prenait ce qu'il restait pour du ciel. Les masques
+  d'écriture sont maintenant rétablis à la fin de chaque image sous pack (`PortalStencilRenderer.renderAfterWorld`).
+- **Couleurs de l'autre dimension sous un pack de shaders** : après une traversée, les entités, le joueur et sa main
+  restaient éclairés comme dans la dimension quittée (vu de l'End vers le monde normal), et une vue dessinait ses
+  entités et son ciel avec les programmes de la dimension du joueur. Le pack tient un pipeline par dimension et en
+  nomme les programmes pareil d'un pipeline à l'autre ; vanilla redonne à tout programme un étage déjà compilé sous le
+  même nom : le pipeline créé pour une vue, pendant que celui du joueur vivait encore, recevait les 71 programmes
+  compilés pour l'autre dimension. Un étage n'est plus redonné qu'aux programmes chargés par la même fabrique de
+  ressources que lui (`MixinShaderProgram`, `ShaderStageOrigin`) ; un rechargement vanilla en partage une pour tous
+  ses programmes et garde son partage.
+- **Nuages des vues avec un mod de terrain** : un mod de rendu qui remplace les nuages les dessine depuis la caméra du
+  joueur, pas depuis la position que la vue lui passe : dans une vue, les nuages se plaçaient par rapport au joueur,
+  dans l'autre monde (trop bas, ou vus de l'autre côté de leur couche quand l'arrivée est au-dessus d'eux). La caméra
+  du joueur prend la position et le monde de la vue le temps du dessin des nuages (`RemoteViewRenderer.renderClouds`).
+- **Nuages qui sautent à la traversée** : chaque renderer de vue tenait sa propre horloge, qui place les nuages ; devenu
+  celui du joueur à la traversée, il les montrait ailleurs. Les horloges des vues restent à l'heure de celle du joueur
+  (`RemoteWorld.tickClock`).
+- **Animaux qui sautent à la traversée** : après une traversée, le serveur renvoie sous le même identifiant les entités
+  que le joueur voyait déjà par le portail, et vanilla remplace leur copie par une neuve (membres au repos, âge à zéro,
+  une image en glissant depuis l'origine du monde). La reprise de l'état visible ne jouait que pendant une fenêtre de
+  bascule, parfois refermée avant leur arrivée ; elle joue maintenant à chaque remplacement au même identifiant
+  (`EntityHandover.replaceSameCopy`).
+- **Ciel délavé et nuages absents dans les vues sous un pack de shaders** : la projection à plan proche oblique incline
+  son plan lointain, et le pack, qui reconstruit ciel, nuages et brouillard depuis la profondeur par la projection
+  inverse, faisait repartir derrière la caméra une partie des rayons du ciel. Elle ne sert plus que lorsqu'un bloc ou
+  une entité se trouve entre la caméra de la vue et le plan d'arrivée (`ViewCone.intersectsBeforeFrame`) ; sinon la
+  projection du joueur donne la même image, que le pack dessine comme son propre monde. Même règle pour un mod qui
+  dessine le terrain sans pack.
+- **Blocs transparents opaques après avoir coupé un pack de shaders** : couper (ou activer) un pack recharge le
+  renderer du joueur, et seulement lui ; ceux des vues gardaient leurs sections construites pour l'état d'avant
+  (feuilles et verre aux pixels transparents remplis de couleur, dans la vue puis dans le monde rejoint par le portail,
+  jusqu'à un rechargement des ressources). Les renderers des vues se rechargent maintenant avec celui du joueur
+  (`MixinWorldRenderer`, `RemoteWorldRegistry.reloadViewRenderers`), tampons GL différés comme à leur création.
+- **Éclair noir ou blanc à la traversée d'un portail à sortie fugace** : le retour d'une sortie fugace perdue de vue
+  n'est reposé par le serveur qu'à l'annonce du passage par l'entrée, alors que le client a déjà basculé : le temps d'un
+  aller-retour réseau, le monde d'arrivée n'avait pas de retour chez le joueur, qui voyait en se retournant ce qu'il y a
+  derrière le cadre (mur ou vide en noir, ciel en blanc). Au passage prédit d'une telle entrée, le client pose à
+  l'arrivée un retour prédit pour chaque face, à la place exacte du vrai et fermé à la traversée, qui s'efface à
+  l'arrivée du vrai (`ClientPortalIndex.predict`, `ClientPortalCrossing`) ; jamais pour un aller simple.
+- **Blocs au bord d'une vue** : un bloc changé dans un chunk chargé mais pas encore actif n'arrivait jamais dans la
+  vue d'un portail (vanilla ne prévient ses écouteurs que dans un chunk actif). Regardé de loin, le ticket de l'arrivée
+  a le rayon de la fenêtre synchronisée : son anneau extérieur restait figé ; et près de l'arrivée, un bloc changé
+  pendant le chargement se perdait. Le changement est maintenant relayé (`MixinWorld`), test en jeu à l'appui.
 - **Mods de rendu** : un mod qui réécrit `WorldRenderer.setupTerrain` (pipeline de terrain remplacé) faisait refuser
   notre mixin et planter le jeu au lancement (une injection dans une méthode réécrite est refusée, quel que soit
   `require`). Une vue de portail prépare maintenant son terrain elle-même (grille, chunk builder, graphe de culling
@@ -168,7 +214,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   `setupTerrain`, plus de substitution, et les évènements de rendu du monde de Fabric ne sont plus déclenchés pour une
   vue avec un contexte vide (un mod qui y lisait la projection coupait le rendu distant dès la première vue). Le mixin
   de `WorldRenderer` passe en priorité 1001 : son injection dans `scheduleChunkRender`, que ces mods réécrivent aussi,
-  s'applique à leur version. Ce que ces mods donnent avec les portails est dans `docs/PORTALS.md` (Limites connues).
+  s'applique à leur version. La lumière d'un chunk distant passe par le `readLightData` du gestionnaire de paquets, comme
+  celle d'un chunk vanilla : un tel mod ne construisait jamais les sections des chunks reçus par les portails (vues noires,
+  sections proches manquantes après une traversée). Quand il dessine le terrain, une vue lui laisse choisir ses sections et
+  se dessine sous une projection à plan proche oblique (`ObliqueProjection`), ses shaders ignorant la découpe des nôtres.
+  Un mod de shaders pose en tête de `WorldRenderer.render` un état par renderer qu'attendent ensuite `renderSky` et
+  `renderLayer`, et le défait à chaque retour de `render` : un renderer de vue n'y passait jamais et la première vue
+  échouait chez lui (rendu distant coupé). Avant de dessiner, un renderer de vue passe maintenant par `render` et s'y
+  arrête à la première instruction vanilla (`ViewRenderStart`, `MixinWorldRenderStart`) : sans pack actif, les vues
+  sont celles de vanilla. Avec un pack actif, les vues ressortaient noires : elles se dessinent maintenant après
+  l'image du monde, chacune par un rendu complet de son renderer dans le pipeline du pack, sous le stencil de son
+  cadre, l'image du joueur remise autour (`ShaderPackPortalRenderer`, module `compat/iris` qui lit l'API publique
+  du mod de shaders Iris, seul mod nommé dans le code). Terrain, entités, ciel, nuages, météo et ombres de l'autre
+  monde y sont éclairés par le pack, avec un niveau de portails imbriqués. Les entités à cheval sur un portail s'y
+  dessinent en deux moitiés : les shaders du pack ignorant la distance de découpe, chaque moitié est rognée au plan sur
+  le processeur (`ClippedVertexConsumers`). Un cadre derrière l'eau ou le verre n'est pas dessiné (`docs/PORTALS.md`,
+  Limites connues).
 - **Multijoueur et réseau** :
   - un bloc changé dans un chunk que le client tenait déjà au moment d'une traversée (un autre joueur, l'eau, la
     redstone) restait faux chez lui jusqu'au déchargement du chunk : vanilla ne relaie rien à un chunk qu'il compte

@@ -7,10 +7,12 @@ import it.unimi.dsi.fastutil.longs.Long2ObjectMap;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Mutable;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
 
 import net.minecraft.block.entity.BlockEntity;
+import net.minecraft.client.render.BufferBuilderStorage;
 import net.minecraft.client.render.BuiltChunkStorage;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.ChunkRenderingDataPreparer;
@@ -29,6 +31,14 @@ import net.minecraft.entity.player.BlockBreakingInfo;
  */
 @Mixin(WorldRenderer.class)
 public interface WorldRendererAccessor {
+
+    /**
+     * Prepare les sections a dessiner pour une camera : la version qu'un autre mod a mise a la place de celle de vanilla
+     * quand il dessine le terrain ({@code RemoteViewRenderer.setupForeignTerrain}) ; vanilla, elle centre sa grille sur
+     * le joueur et les vues ne l'appellent pas.
+     */
+    @Invoker("setupTerrain")
+    void backrooms$setupTerrain(Camera camera, Frustum frustum, boolean hasForcedFrustum, boolean spectator);
 
     /** Programme la construction des sections retenues. */
     @Invoker("updateChunks")
@@ -131,6 +141,13 @@ public interface WorldRendererAccessor {
     @Accessor("lastCameraYaw")
     void backrooms$setLastCameraYaw(double yaw);
 
+    /** Horloge du renderer, en ticks : elle place les nuages et anime la pluie et la neige. */
+    @Accessor("ticks")
+    int backrooms$getTicks();
+
+    @Accessor("ticks")
+    void backrooms$setTicks(int ticks);
+
     /** Block entities rendues sans culling de section (grands modeles) ; a parcourir sous {@code synchronized}. */
     @Accessor("noCullingBlockEntities")
     Set<BlockEntity> backrooms$getNoCullingBlockEntities();
@@ -138,4 +155,11 @@ public interface WorldRendererAccessor {
     /** Fissures de minage en cours, par bloc. */
     @Accessor("blockBreakingProgressions")
     Long2ObjectMap<SortedSet<BlockBreakingInfo>> backrooms$getBlockBreakingProgressions();
+
+    @Accessor("bufferBuilders")
+    BufferBuilderStorage backrooms$getBufferBuilders();
+
+    @Mutable
+    @Accessor("bufferBuilders")
+    void backrooms$setBufferBuilders(BufferBuilderStorage bufferBuilders);
 }

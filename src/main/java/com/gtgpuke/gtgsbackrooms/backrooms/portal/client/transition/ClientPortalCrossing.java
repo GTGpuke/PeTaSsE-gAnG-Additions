@@ -13,6 +13,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec2f;
@@ -21,6 +22,9 @@ import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlockEntity;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalArea;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalSettings;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.PortalSightReporter;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorld;
@@ -60,6 +64,10 @@ public final class ClientPortalCrossing {
     private static final int SERVER_ANSWER_TIMEOUT_TICKS = 60;
     /** Duree maximale pendant laquelle les dechargements vanilla de l'ancien monde sont ignores. */
     private static final int UNLOAD_WINDOW_TICKS = 40;
+    /** Duree pendant laquelle un retour predit attend le vrai : bien plus qu'un aller-retour reseau. */
+    private static final int PREDICTED_RETURN_TICKS = 40;
+    /** Hauteur, dans le bloc ancre, du point qui designe ce bloc : son milieu. */
+    private static final double BLOCK_MIDDLE = 0.5;
     /** Ecart au-dela duquel la sortie confirmee par le serveur differe vraiment de celle predite (il a pu relever le joueur d'un sol irregulier). */
     private static final double CONFIRMATION_TOLERANCE_SQUARED = 0.3 * 0.3;
 
@@ -216,6 +224,7 @@ public final class ClientPortalCrossing {
 
         // Le serveur doit recevoir l'annonce avant le prochain paquet de deplacement.
         ClientPlayNetworking.send(new PortalCrossPayload(portal.getUuid(), feet, velocity, yaw, pitch));
+        predictFleetingReturns(world, sameDimension ? world : remote.world(), portal);
         predictedExit = exit;
         awaitingServerTicks = SERVER_ANSWER_TIMEOUT_TICKS;
         lastCrossingAge = player.age;
@@ -228,6 +237,66 @@ public final class ClientPortalCrossing {
         }
         continueInterpolation(player, lastTick);
         hasLastFeet = false;
+    }
+
+    /**
+     * Sortie fugace perdue de vue : le bloc portail ne repose ses retours qu'a l'annonce de ce passage, que le client a deja
+     * fait. Chaque face de l'entree passee qui n'a pas son retour a l'arrivee en recoit un predit, a la place exacte du vrai
+     * et ferme a la traversee, le temps que le vrai arrive : le joueur qui se retourne voit le portail, et non ce qu'il y a
+     * derriere le cadre d'arrivee (un eclair noir ou blanc, le temps d'un aller-retour reseau). Jamais pour un aller simple,
+     * qui n'a pas de retour.
+     */
+    private static void predictFleetingReturns(ClientWorld departure, ClientWorld arrival, BackroomsPortalEntity crossed) {
+        if (!fleetingEntry(departure, crossed)) {
+            return;
+        }
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.allPortals(departure);
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity entry = portals.get(i);
+            if (!entry.centeredAt(crossed.getPos()) || !entry.destinationDim().equals(crossed.destinationDim()) || hasReturn(arrival, entry)) {
+                continue;
+            }
+            ClientPortalIndex.predict(arrival, BackroomsPortalEntity.builder(arrival)
+                    .position(entry.destinationPos())
+                    .facingSource(entry.facingDestination())
+                    .facingDestination(entry.facingSource())
+                    .destinationDim(departure.getRegistryKey())
+                    .destinationPos(entry.getPos())
+                    .size(entry.width(), entry.height())
+                    .transmitsLight(entry.transmitsLight())
+                    .fleeting(true)
+                    .teleportable(false)
+                    .build(), PREDICTED_RETURN_TICKS);
+        }
+    }
+
+    /**
+     * {@code true} si l'entree passee est celle d'un bloc portail a sortie fugace : ses reglages arrivent avec son chunk. Le
+     * bloc est au pied du cadre ; pour une largeur paire, sa colonne depend de la face, d'ou les deux orientations.
+     */
+    private static boolean fleetingEntry(ClientWorld departure, BackroomsPortalEntity crossed) {
+        PortalSettings size = new PortalSettings(Math.round(crossed.width()), Math.round(crossed.height()), true);
+        PortalFacing facing = crossed.facingSource();
+        for (int side = 0; side < 2; side++) {
+            Vec3d floor = PortalArea.floor(crossed.getPos(), facing, size);
+            if (departure.getBlockEntity(BlockPos.ofFloored(floor.x, floor.y + BLOCK_MIDDLE, floor.z)) instanceof BackroomsPortalBlockEntity block) {
+                return block.settings().fleetingExit() && !block.settings().oneWay();
+            }
+            facing = facing.opposite();
+        }
+        return false;
+    }
+
+    /** {@code true} si le monde d'arrivee a deja le retour de cette entree : a son centre d'arrivee, dans son orientation. */
+    private static boolean hasReturn(ClientWorld arrival, BackroomsPortalEntity entry) {
+        List<BackroomsPortalEntity> portals = ClientPortalIndex.allPortals(arrival);
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity portal = portals.get(i);
+            if (portal.centeredAt(entry.destinationPos()) && portal.facingSource() == entry.facingDestination()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

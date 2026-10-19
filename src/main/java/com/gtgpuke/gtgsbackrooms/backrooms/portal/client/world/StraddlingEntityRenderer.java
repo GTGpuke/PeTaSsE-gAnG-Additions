@@ -29,8 +29,10 @@ import net.minecraft.world.World;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalClipping;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderPackPortalRenderer;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.compat.iris.IrisCompat;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
 import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
@@ -52,6 +54,10 @@ import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
  *
  * <p>Une vue de portail n'a qu'un plan de decoupe : une entity coupee par un autre portail que celui de la vue s'y dessine
  * entiere.
+ *
+ * <p>Sous un pack de shaders, qui ignore la distance de decoupe, chaque moitie est rognee au plan sur le processeur
+ * ({@link ClippedVertexConsumers}) ; dans le rendu complet d'une vue a travers un cadre, la projection a plan proche
+ * oblique de la vue coupe deja au plan d'arrivee.
  */
 public final class StraddlingEntityRenderer {
 
@@ -80,6 +86,8 @@ public final class StraddlingEntityRenderer {
     private static final List<Entity> FOUND = new ArrayList<>();
     private static final MatrixStack MATRICES = new MatrixStack();
     private static final VertexConsumerProvider.Immediate BUFFERS = VertexConsumerProvider.immediate(new BufferAllocator(262_144));
+    /** Les memes tampons, rognes au plan sur le processeur : pour les shaders d'un pack, qui ignorent la distance de decoupe. */
+    private static final ClippedVertexConsumers CLIPPED = new ClippedVertexConsumers(BUFFERS);
     /** Section du moniteur de performance : les moities dessinees dans le monde du joueur, a chaque image. */
     private static final String PERF_PARTS = "client.portal.straddling";
     /** Pendant les dessins de ce rendu : vanilla ne doit pas refuser les entities qu'il dessine lui-meme. */
@@ -115,11 +123,13 @@ public final class StraddlingEntityRenderer {
     }
 
     /**
-     * {@code true} si vanilla ne doit pas dessiner cette entity dans le monde du joueur : ce rendu la dessine coupee.
-     * Seulement quand les portails se dessinent, et jamais pendant les dessins de ce rendu.
+     * {@code true} si vanilla ne doit pas dessiner cette entity : ce rendu la dessine coupee. Dans le monde du joueur
+     * quand les portails se dessinent, et dans le rendu complet d'une vue qui couvre l'ecran sous un pack de shaders ;
+     * jamais pendant les dessins de ce rendu.
      */
     public static boolean skipsVanillaDraw(Entity entity, double cameraX, double cameraY, double cameraZ, float tickDelta) {
-        return !drawingParts && ModConfig.ENABLE_PORTAL_FEATURE && PortalRenderState.canRenderPortals()
+        return !drawingParts && ModConfig.ENABLE_PORTAL_FEATURE
+                && (PortalRenderState.canRenderPortals() || ShaderPackPortalRenderer.coversScreen())
                 && drawnInParts(entity, cameraX, cameraY, cameraZ, tickDelta);
     }
 
@@ -360,6 +370,37 @@ public final class StraddlingEntityRenderer {
     }
 
     /**
+     * Sous un pack de shaders, pendant le rendu complet d'une vue : a travers un cadre, la partie passee de ce qui entre
+     * par ce cadre (la projection a plan proche oblique de la vue coupe au plan d'arrivee) ; dans une vue qui couvre
+     * l'ecran, les entities coupees de son monde, rognees a leur plan.
+     *
+     * @param client client, son renderer etant celui de la vue
+     * @param portal portail dont c'est la vue, {@code null} si elle couvre l'ecran
+     * @param frameCameraPos camera qui regarde le cadre, dans le monde du portail ; {@code null} si la vue couvre l'ecran
+     * @param hidden entity de la camera du joueur a la premiere personne, jamais dessinee
+     * @param world monde de la vue
+     * @param cameraPos camera de la vue
+     * @param positionMatrix matrice de vue de la camera de la vue
+     * @param tickDelta fraction de tick de l'image
+     */
+    public static void renderPackViewParts(
+            MinecraftClient client,
+            @Nullable BackroomsPortalEntity portal,
+            @Nullable Vec3d frameCameraPos,
+            @Nullable Entity hidden,
+            World world,
+            Vec3d cameraPos,
+            Matrix4f positionMatrix,
+            float tickDelta) {
+        if (portal != null && frameCameraPos != null) {
+            renderEnteringParts(client, (WorldRendererAccessor) client.worldRenderer, portal, frameCameraPos, hidden, tickDelta, BUFFERS);
+            BUFFERS.draw();
+        } else {
+            renderWorldParts(client, world, cameraPos, positionMatrix, tickDelta);
+        }
+    }
+
+    /**
      * Dans la vue d'un portail : la partie passee de ce qui est coupe par son cadre d'entree, transposee ; et ce qui est
      * arrive par le portail dont celui-ci est le retour, la partie pas encore sortie. La decoupe de la vue est active.
      *
@@ -367,6 +408,7 @@ public final class StraddlingEntityRenderer {
      * @param accessor renderer de la vue, pour dessiner une entity comme vanilla
      * @param portal portail dont c'est la vue
      * @param frameCameraPos camera qui regarde le cadre, dans le monde du portail
+     * @param hidden entity de la camera du joueur a la premiere personne, jamais dessinee
      * @param tickDelta fraction de tick de l'image
      * @param consumers tampons de la vue
      */
@@ -375,10 +417,10 @@ public final class StraddlingEntityRenderer {
             WorldRendererAccessor accessor,
             BackroomsPortalEntity portal,
             Vec3d frameCameraPos,
+            @Nullable Entity hidden,
             float tickDelta,
             VertexConsumerProvider consumers) {
         World world = portal.getWorld();
-        Entity hidden = client.gameRenderer.getCamera().isThirdPerson() ? null : client.getCameraEntity();
         Quaternionf rotation = ROTATIONS[portal.facingSource().ordinal()][portal.facingDestination().ordinal()];
         EntityRenderDispatcher dispatcher = client.getEntityRenderDispatcher();
         dispatcher.setRenderShadows(false);
@@ -423,6 +465,13 @@ public final class StraddlingEntityRenderer {
             Vec3d cameraPos,
             Matrix4f positionMatrix,
             float tickDelta) {
+        if (IrisCompat.shaderPackInUse()) {
+            // Les shaders du pack ignorent la distance de decoupe : les sommets sont rognes au plan avant d'etre ecrits.
+            CLIPPED.setPlane(planeNormal, planePoint, cameraPos);
+            renderTransposed(accessor, entity, imageCamera, rotation, tickDelta, CLIPPED);
+            BUFFERS.draw();
+            return;
+        }
         PortalClipping.push(planeNormal, planePoint, cameraPos, positionMatrix);
         try {
             renderTransposed(accessor, entity, imageCamera, rotation, tickDelta, BUFFERS);

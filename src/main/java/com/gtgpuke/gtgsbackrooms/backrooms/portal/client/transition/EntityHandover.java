@@ -168,6 +168,22 @@ public final class EntityHandover {
     }
 
     /**
+     * Le serveur renvoie une entity sous le meme identifiant alors que sa copie est encore la : apres une traversee du
+     * joueur, son suivi vanilla recommence pour les entities qu'il voyait deja par le portail. Vanilla retire l'ancienne
+     * copie avant d'ajouter la nouvelle ; celle-ci en reprend l'etat visible, sans quoi elle repart les membres au repos,
+     * l'age a zero, et s'affiche un tick en glissant depuis l'origine du monde.
+     *
+     * @param world monde client ou la copie arrive
+     * @param previous copie deja presente sous le meme identifiant
+     */
+    public static void replaceSameCopy(ClientWorld world, Entity previous) {
+        if (previous == MinecraftClient.getInstance().player || previous instanceof BackroomsPortalEntity) {
+            return;
+        }
+        DEPARTURES.put(previous.getUuid(), new Departure(previous, world, null, ticks + MAX_DELAY_TICKS));
+    }
+
+    /**
      * Destructions recues pour un monde client. Une entity vivante detruite en franchissant un portail ouvert vers une
      * dimension que le client tient reste affichee jusqu'a l'arrivee de sa copie de l'autre cote, au plus quelques ticks :
      * la copie arrive par une autre voie, souvent un tick plus tard, et l'entity disparaitrait entre-temps. Toute autre

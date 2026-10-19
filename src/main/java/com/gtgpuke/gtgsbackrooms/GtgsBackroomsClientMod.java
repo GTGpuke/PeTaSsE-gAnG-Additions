@@ -12,12 +12,14 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteActio
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteTargeting;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.ClientPortalCrossing;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderPackPortalRenderer;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewLightmaps;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalLight;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.PortalSightReporter;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteSyncReceiver;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
+import com.gtgpuke.gtgsbackrooms.compat.iris.IrisCompat;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import com.gtgpuke.gtgsbackrooms.feature.gang.GangBadgeActivatePayload;
 import com.gtgpuke.gtgsbackrooms.feature.gang.client.GangBadgeClientHandler;
@@ -45,12 +47,16 @@ public class GtgsBackroomsClientMod implements ClientModInitializer {
         ClientPortalIndex.init();
         ClientPortalCrossing.init();
         EntityHandover.init();
+        if (IrisCompat.isLoaded()) {
+            ModConstants.LOGGER.info("[Portal] Mod de shaders present : avec un pack actif, les vues de portail se dessinent apres l'image du monde.");
+        }
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.world == null) {
                 endPortalSession();
                 return;
             }
             ClientPortalCrossing.onClientTick();
+            ClientPortalIndex.tick();
             RemoteActions.onClientTick();
             RemoteWorldRegistry.tickRemoteWorlds(client);
             ViewLightmaps.onClientTick();
@@ -75,5 +81,6 @@ public class GtgsBackroomsClientMod implements ClientModInitializer {
         RemoteWorldRegistry.syncWithMainWorld(null);
         ClientPortalIndex.clear();
         ViewLightmaps.clear();
+        ShaderPackPortalRenderer.release();
     }
 }

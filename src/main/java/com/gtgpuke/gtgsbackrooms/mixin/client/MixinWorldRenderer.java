@@ -1,5 +1,7 @@
 package com.gtgpuke.gtgsbackrooms.mixin.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.spongepowered.asm.mixin.Final;
@@ -26,13 +28,17 @@ import net.minecraft.util.math.Vec3d;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalStencilRenderer;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderPackPortalRenderer;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewRenderStart;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorld;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.StraddlingEntityRenderer;
+import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 
 /**
  * Points d'accroche du rendu monde pour les portails : dessin des portails avant la couche translucide et fin de l'image
- * sous une vue qui couvre l'ecran, ciel d'une vue rapporte a sa camera, particules des mondes distants confiees a leur
+ * sous une vue qui couvre l'ecran, vues dessinees apres l'image sous un pack de shaders (effacement de l'ecran epargne
+ * au rendu complet d'une vue), ciel d'une vue rapporte a sa camera, particules des mondes distants confiees a leur
  * propre contenu, entities a cheval sur un portail laissees a leur dessin en deux moities, et reconstructions de
  * sections repercutees sur la vue secondaire de leur monde. Rien dans {@code setupTerrain} ni {@code renderLayer}, que
  * les mods de rendu reecrivent : une injection dans une methode reecrite par un mixin de priorite superieure ou egale
@@ -52,7 +58,10 @@ public abstract class MixinWorldRenderer {
     /**
      * Les portails se dessinent apres les blocs opaques, les entities et les block entities, et avant tout ce qui est
      * translucide : l'eau, le verre teinte, les parties translucides des entities, les particules,
-     * les nuages et la pluie du monde du joueur se fondent ensuite par-dessus la vue, au lieu d'en cacher le cadre.
+     * les nuages et la pluie du monde du joueur se fondent ensuite par-dessus la vue, au lieu d'en cacher le cadre. Les
+     * parametres du rendu du joueur sont gardes le temps des portails pour le debut de rendu a blanc des renderers de
+     * vue ({@link ViewRenderStart}). Pendant le rendu complet d'une vue sous un pack de shaders, seulement ses moities
+     * d'entities a cheval sur un portail.
      */
     @Inject(method = "render", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/render/TexturedRenderLayers;getEntityTranslucentCull()Lnet/minecraft/client/render/RenderLayer;"))
@@ -65,15 +74,53 @@ public abstract class MixinWorldRenderer {
             Matrix4f positionMatrix,
             Matrix4f projectionMatrix,
             CallbackInfo ci) {
+        if (PortalRenderState.isRendering()) {
+            ShaderPackPortalRenderer.renderViewParts(tickCounter.getTickDelta(false));
+            return;
+        }
         PortalRenderState.setBlockOutlineAllowed(renderBlockOutline);
-        PortalStencilRenderer.renderAllVisiblePortals(camera, positionMatrix, projectionMatrix, lightmapTextureManager,
-                tickCounter.getTickDelta(false));
+        // Les renderers de vue repassent par la tete de cette methode avant de dessiner, avec ces parametres-ci.
+        ViewRenderStart.beginFrame(tickCounter, camera, gameRenderer, lightmapTextureManager, positionMatrix, projectionMatrix);
+        try {
+            PortalStencilRenderer.renderAllVisiblePortals(camera, positionMatrix, projectionMatrix, lightmapTextureManager,
+                    tickCounter.getTickDelta(false));
+        } finally {
+            ViewRenderStart.endFrame();
+        }
     }
 
-    /** Fin du rendu du monde : le stencil qui refusait la suite, sous une vue couvrant l'ecran, est rendu. */
+    /**
+     * Fin du rendu du monde : le stencil qui refusait la suite, sous une vue couvrant l'ecran, est rendu ; et sous un pack
+     * de shaders, les vues se dessinent ici, apres l'image du monde que le mod de shaders vient de composer (son
+     * injection en fin de methode, appliquee avant celle-ci, a deja tourne). Rien a la fin du rendu complet d'une vue.
+     */
     @Inject(method = "render", at = @At("TAIL"))
-    private void backrooms$endPortals(CallbackInfo ci) {
+    private void backrooms$endPortals(
+            RenderTickCounter tickCounter,
+            boolean renderBlockOutline,
+            Camera camera,
+            GameRenderer gameRenderer,
+            LightmapTextureManager lightmapTextureManager,
+            Matrix4f positionMatrix,
+            Matrix4f projectionMatrix,
+            CallbackInfo ci) {
+        if (PortalRenderState.isRendering()) {
+            return;
+        }
         PortalStencilRenderer.endWorldRender();
+        PortalStencilRenderer.renderAfterWorld(tickCounter, camera, lightmapTextureManager, positionMatrix, projectionMatrix);
+    }
+
+    /**
+     * Sous un pack de shaders, une vue limitee a un cadre est un rendu complet de son renderer, apres l'image du monde du
+     * joueur deja a l'ecran : l'effacement de l'ecran en tete de ce rendu l'emporterait. La zone du cadre est deja au
+     * plan lointain.
+     */
+    @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/systems/RenderSystem;clear(IZ)V"))
+    private void backrooms$keepWorldImageUnderShaderView(int mask, boolean getError, Operation<Void> original) {
+        if (!ShaderPackPortalRenderer.skipsWorldClear()) {
+            original.call(mask, getError);
+        }
     }
 
     /**
@@ -132,6 +179,19 @@ public abstract class MixinWorldRenderer {
      * renderer designe la vue, pas celui de {@code MinecraftClient}, substitue pendant le rendu des portails : les mises
      * a jour de lumiere faites pendant une vue sont relayees elles aussi.
      */
+    /**
+     * Le renderer du joueur se recharge (pack de shaders active ou coupe, mode graphique, F3+A) : ceux des vues aussi. Leurs
+     * sections gardaient sinon le format de sommets et les couches d'avant jusqu'au prochain rechargement des ressources (un
+     * pack coupe laissait des feuilles et du verre opaques dans les vues, puis dans le monde rejoint par un portail). Pas
+     * pendant le rendu des portails, ou le renderer du client est celui d'une vue.
+     */
+    @Inject(method = "reload()V", at = @At("TAIL"))
+    private void backrooms$reloadViews(CallbackInfo ci) {
+        if (ModConfig.ENABLE_PORTAL_FEATURE && (Object) this == this.client.worldRenderer && !PortalRenderState.isRendering()) {
+            RemoteWorldRegistry.reloadViewRenderers((WorldRenderer) (Object) this);
+        }
+    }
+
     @Inject(method = "scheduleChunkRender", at = @At("HEAD"))
     private void backrooms$mirrorChunkRender(int x, int y, int z, boolean important, CallbackInfo ci) {
         RemoteWorldRegistry.onChunkRenderScheduled((WorldRenderer) (Object) this, this.world, x, y, z, important);

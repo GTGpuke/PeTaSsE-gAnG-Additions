@@ -18,6 +18,8 @@ public final class ViewCone {
     private static final int PLANES = CORNERS + 1;
     /** En deca de cette distance au plan, la camera est consideree dans le plan du cadre. */
     private static final double MIN_APEX_DISTANCE = 1.0e-3;
+    /** Composante au-dela de laquelle une normale unitaire suit un axe (les autres sont alors nulles). */
+    private static final double AXIS = 0.5;
 
     private final double[] normalX = new double[PLANES];
     private final double[] normalY = new double[PLANES];
@@ -27,6 +29,8 @@ public final class ViewCone {
     private final double[] cornerY = new double[CORNERS];
     private final double[] cornerZ = new double[CORNERS];
     private int planeCount;
+    /** Camera du cote coupe du plan du cadre, a l'oppose du contenu : il y a un volume entre elle et le cadre. */
+    private boolean apexBeforeFrame;
 
     /**
      * Definit le volume.
@@ -43,6 +47,7 @@ public final class ViewCone {
         // Plan du cadre : on garde le cote du contenu.
         setPlane(0, normal.x, normal.y, normal.z, center.x, center.y, center.z);
         double apexDistance = normal.x * (apex.x - center.x) + normal.y * (apex.y - center.y) + normal.z * (apex.z - center.z);
+        this.apexBeforeFrame = apexDistance < 0.0;
         if (Math.abs(apexDistance) < MIN_APEX_DISTANCE) {
             this.planeCount = 1;
             return;
@@ -99,6 +104,45 @@ public final class ViewCone {
                     + ny * (ny > 0.0 ? box.maxY : box.minY)
                     + nz * (nz > 0.0 ? box.maxZ : box.minZ)
                     + this.offset[i];
+            if (farthest < 0.0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * {@code true} si la boite touche la partie de la pyramide en deca du cadre, entre la camera et son plan : ce qu'une
+     * vue dessinee sans coupe au plan d'arrivee montrerait par-dessus son contenu. Toujours faux sans un tel volume (camera
+     * du cote du contenu ou dans le plan, volume sans limite). La boite est d'abord coupee au plan du cadre, cote camera,
+     * quand la normale suit un axe (celle de tout cadre de portail) : un mur ou un sol a cheval sur le plan, qui borde le
+     * cadre sans entrer dans la pyramide, n'y touche pas ; puis meme test conservateur que {@link #intersects}, le plan du
+     * cadre retourne. Coordonnees en primitifs : le test parcourt des blocs entiers, sans allocation.
+     */
+    public boolean intersectsBeforeFrame(double minX, double minY, double minZ, double maxX, double maxY, double maxZ) {
+        if (this.planeCount != PLANES || !this.apexBeforeFrame) {
+            return false;
+        }
+        // Cote camera du plan du cadre : normale . p <= limite.
+        double limit = -this.offset[0];
+        double lowX = this.normalX[0] < -AXIS ? Math.max(minX, -limit) : minX;
+        double highX = this.normalX[0] > AXIS ? Math.min(maxX, limit) : maxX;
+        double lowY = this.normalY[0] < -AXIS ? Math.max(minY, -limit) : minY;
+        double highY = this.normalY[0] > AXIS ? Math.min(maxY, limit) : maxY;
+        double lowZ = this.normalZ[0] < -AXIS ? Math.max(minZ, -limit) : minZ;
+        double highZ = this.normalZ[0] > AXIS ? Math.min(maxZ, limit) : maxZ;
+        if (lowX > highX || lowY > highY || lowZ > highZ) {
+            return false;
+        }
+        for (int i = 0; i < PLANES; i++) {
+            double sign = i == 0 ? -1.0 : 1.0;
+            double nx = sign * this.normalX[i];
+            double ny = sign * this.normalY[i];
+            double nz = sign * this.normalZ[i];
+            double farthest = nx * (nx > 0.0 ? highX : lowX)
+                    + ny * (ny > 0.0 ? highY : lowY)
+                    + nz * (nz > 0.0 ? highZ : lowZ)
+                    + sign * this.offset[i];
             if (farthest < 0.0) {
                 return false;
             }

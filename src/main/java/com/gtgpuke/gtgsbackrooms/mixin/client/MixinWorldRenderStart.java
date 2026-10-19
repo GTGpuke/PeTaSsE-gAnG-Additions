@@ -1,0 +1,36 @@
+package com.gtgpuke.gtgsbackrooms.mixin.client;
+
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+import net.minecraft.client.render.WorldRenderer;
+
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewRenderStart;
+import com.gtgpuke.gtgsbackrooms.compat.iris.IrisCompat;
+
+/**
+ * Arrete {@code WorldRenderer.render} a sa premiere instruction pendant un debut de rendu a blanc d'un renderer de vue
+ * ({@link ViewRenderStart}). Le point d'arret est la premiere instruction vanilla, pas la tete de la methode : les
+ * handlers que d'autres mods inserent en tete ont donc tous tourne (quelle que soit leur priorite) quand celui-ci rend
+ * la main. Priorite au-dessus de celle par defaut : applique apres ces mods, le retour anticipe qu'il ajoute n'est pas
+ * vu par leurs injections en fin de methode ({@code @At("RETURN")}), qui defont ce que la tete a pose.
+ *
+ * <p>Au meme point, pour le rendu du monde du joueur, le pack de shaders actif est releve pour l'image
+ * ({@link IrisCompat#refresh}) : le mod de shaders vient d'y preparer son pipeline, son API repond faux avant.
+ */
+@Mixin(value = WorldRenderer.class, priority = 1100)
+public abstract class MixinWorldRenderStart {
+
+    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/world/ClientWorld;getTickManager()Lnet/minecraft/world/tick/TickManager;",
+            ordinal = 0), cancellable = true)
+    private void backrooms$firstInstruction(CallbackInfo ci) {
+        if (ViewRenderStart.isStarting()) {
+            ci.cancel();
+        } else if (!PortalRenderState.isRendering()) {
+            IrisCompat.refresh();
+        }
+    }
+}

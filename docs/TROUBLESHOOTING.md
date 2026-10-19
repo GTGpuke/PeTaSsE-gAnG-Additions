@@ -109,7 +109,7 @@ ancienne porte des Backrooms aussi). En dev :
 Prendre une pile d'exécution du client avant de le tuer : `jps -l` donne le PID de la ligne `devlaunchinjector`,
 puis `jstack <PID> > dump.txt`. Le thread `Render thread` dit où ça boucle. Pendant le développement de 0.9.0 un
 tel gel venait de `Frustum.coverBoxAroundSetPosition` nourri avec une projection oblique ; les vues de portail
-n'utilisent plus que la projection du joueur (voir `docs/PORTALS.md`).
+ne donnent jamais de projection oblique au `Frustum` ; `ObliqueProjection` ne sert qu'au dessin (voir `docs/PORTALS.md`).
 
 ---
 

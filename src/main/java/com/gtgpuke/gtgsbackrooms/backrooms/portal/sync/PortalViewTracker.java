@@ -153,7 +153,8 @@ public final class PortalViewTracker {
     }
 
     /**
-     * Signale un changement de bloc serveur ; appele par le mixin de {@code ServerChunkManager}.
+     * Signale un changement de bloc serveur ; appele par les mixins de {@code ServerChunkManager} (chunk actif) et de
+     * {@code World} (chunk seulement charge, ou vanilla ne previent aucun ecouteur).
      * Sans joueur regardant un chunk distant ni passe a l'instant, le cout est deux tests.
      *
      * <p>Un chunk tenu par un client apres une traversee, et qui change, n'est plus a jour chez lui : vanilla, qui compte

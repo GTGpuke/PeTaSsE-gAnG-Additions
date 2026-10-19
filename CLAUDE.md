@@ -33,6 +33,7 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 - `backrooms/level0/client/model/` : rendu adaptatif du mur (client uniquement).
 - `backrooms/portal/` : portails (bloc portail double face et ses réglages, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
 - `perf/` : moniteur de performance opt-in.
+- `compat/iris/` : compatibilité avec le mod de shaders Iris, seul mod nommé dans le code (exception accordée) : son API publique dit si un pack est actif, et les vues de portail se dessinent alors après l'image (`ShaderPackPortalRenderer`). Dépendance `modCompileOnly` depuis le maven Modrinth, jamais embarquée ni requise.
 - `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre).
 - `src/gametest/` : tests en jeu, mod séparé `gtgs_backrooms_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
 
@@ -65,7 +66,7 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - `DataTracker` n'a pas de handler `double` : une coordonnée précise se stocke en `LONG` (`Double.doubleToRawLongBits`), un `FLOAT` perd le centimètre loin de l'origine (le serveur GameTest tourne vers x = -1.4e7).
 - `World.getTopY` renvoie `getBottomY()` si le chunk n'est pas chargé : charger le chunk avant de lire une hauteur de surface.
 - `ChunkPos` n'a pas de `PACKET_CODEC` en 1.21.1 : `PacketCodecs.VAR_LONG.xmap(ChunkPos::new, ChunkPos::toLong)`.
-- `Frustum` exige une projection dont la sous-matrice 3x3 est orthogonale : `coverBoxAroundSetPosition` recule le frustum le long de la troisième ligne et boucle sans fin avec un plan proche oblique (gel du client). Les vues de portail n'utilisent aucune projection oblique : projection du joueur partout, le plan du portail d'arrivée se coupe par `gl_ClipDistance` dans les shaders (`ShaderClipInjector`, `PortalClipping`).
+- `Frustum` exige une projection dont la sous-matrice 3x3 est orthogonale : `coverBoxAroundSetPosition` recule le frustum le long de la troisième ligne et boucle sans fin avec un plan proche oblique (gel du client). Les vues de portail ne donnent jamais de projection oblique au `Frustum` : le culling garde la projection du joueur, et le dessin aussi, le plan du portail d'arrivée se coupant par `gl_ClipDistance` dans les shaders (`ShaderClipInjector`, `PortalClipping`), sauf quand un autre mod dessine le terrain ou sous un pack de shaders, où le dessin seul passe par `ObliqueProjection` (voir plus bas).
 - Le culling vanilla (`ChunkRenderingDataPreparer`) est asynchrone et tient un seul graphe par `WorldRenderer` : deux caméras sur un même renderer dans une image alternent des listes de sections incomplètes (flicker). Les vues de portail choisissent leurs sections elles-mêmes (`ViewSectionWalker`) et n'appellent `setupTerrain` qu'une fois par renderer et par image.
 - `Entity.setPos` prévient le gestionnaire d'entities : déplacer temporairement un joueur vers une zone non chargée de son monde le sort de sa section et de son suivi. Couper l'écouteur (`setChangeListener(EntityChangeListener.NONE)`) le temps de l'appel, puis le rétablir après avoir remis la position.
 - `ClientWorld.getEntities()` du monde principal est la seule liste que vanilla tique : un `ClientWorld` secondaire doit appeler lui-même `tickEntities()` ; ses sections ne tiquent qu'après `loadChunkFromPacket` (`resetChunkColor` → `startTicking`).
@@ -99,7 +100,63 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   avec un contexte préparé par le seul `render` du joueur : appeler `setupTerrain` sur un renderer de vue les tire à
   vide (NPE chez un mod qui lit la projection). Une vue place sa grille et fait avancer le graphe de culling elle-même
   (`RemoteViewRenderer.placeTerrain`). Pour essayer un mod tiers en dev : son JAR dans `run/mods` (Loader le remappe),
-  jamais dans le dépôt.
+  jamais dans le dépôt ; un mod dont les mixins ne tiennent pas en dev Yarn se teste en production (voir la mémoire).
+- Chunks distants et mods de rendu : un mod de rendu ne construit une section qu'après la lumière de son chunk passée par
+  `ClientPlayNetworkHandler.readLightData` ; un chunk dont la lumière est appliquée à la main n'existe pas pour lui (vue
+  noire, sections proches manquantes après une traversée). `RemoteWorld.loadChunk` passe par cette méthode, le monde du
+  gestionnaire basculé le temps de l'appel. Un tel mod crée la grille vanilla avec une distance de vue nulle
+  (`BuiltChunkStorage.getViewDistance() == 0`, la distance du renderer restant celle des options) : c'est le signe qu'il
+  dessine le terrain (`RemoteViewRenderer.foreignTerrain`) ; ses shaders ignorent `gl_ClipDistance`, la vue coupe alors
+  par une projection à plan proche oblique (`ObliqueProjection`), pour tout ce qu'elle dessine (une seule échelle de
+  profondeur). Un mod de shaders pose en tête de `WorldRenderer.render` un état *par renderer* (son pipeline),
+  l'attend dans `renderSky`/`renderLayer` et le défait à chaque `return` de `render` : un renderer de vue doit passer
+  par `render` avant de dessiner (`ViewRenderStart`), arrêté à la première instruction vanilla par
+  `MixinWorldRenderStart` (priorité 1100 : appliqué après ces mods, son `return` ajouté n'est pas vu par leurs
+  injections `@At("RETURN")` ; un arrêt en `HEAD` ou une priorité plus basse les laisse défaire l'état posé).
+- Pack de shaders (Iris) : passes différées, puis passe finale écrite dans la texture de couleur de l'écran par un
+  framebuffer à lui, sans profondeur ni stencil (copie directe sans programme `final`) : une vue dessinée au milieu de
+  `render` n'est qu'une surface de plus, et rien de ce qu'écrit sa passe finale ne respecte le stencil. Les vues se
+  dessinent après l'image (`PortalStencilRenderer.renderAfterWorld`, injection `TAIL` appliquée après son
+  `@At("RETURN")`), chacune par le rendu complet de son renderer : il tient un pipeline par dimension (`client.world`
+  lu en tête de `render`), lit la position de la caméra du joueur (`gameRenderer.getCamera()`) pour ses shaders,
+  n'efface que ses tampons de couleur (la profondeur vient du `RenderSystem.clear` vanilla, épargné pendant une vue par
+  `@WrapOperation`), ne dessine pas la main d'une caméra détachée, et ses framebuffers de géométrie attachent la texture
+  profondeur-stencil de l'écran. L'image du joueur est remise autour du cadre depuis une copie (`glCopyTexSubImage2D`),
+  stencil `NOTEQUAL`. Rendu complet d'un renderer de vue (`WorldRenderer.render` appelé par le mod) : il empile
+  lui-même sa matrice de vue sur la pile de `RenderSystem` (la laisser à l'identité, sinon les entités tournent
+  deux fois et disparaissent), il lit son frustum dans un champ posé avant lui par `setupFrustum` (sinon NPE chez
+  un mod de terrain), et sous un pack le mod de shaders groupe les entités dans les tampons du client
+  (`client.getBufferBuilders()`) et ne vide que ceux-là (le renderer de vue les emprunte le temps du rendu), lit la
+  luminosité ambiante à `client.cameraEntity` dans `client.world` (le portail d'arrivée tient ce rôle), et sa passe
+  finale laisse `depthMask(false)` : remettre les masques avant le rendu, sans quoi l'effacement n'efface rien et la
+  profondeur de l'image du joueur masque la vue ; et les remettre en fin d'image même sans vue dessinée, sinon
+  l'effacement de l'image suivante n'efface pas la profondeur (après une traversée : monde noir ou noyé de brouillard). Son API (`isShaderPackInUse`) répond faux tant que la tête de `render`
+  n'a pas préparé le pipeline de l'image (première image après une connexion ou un rechargement de pack) : le pack se
+  relève à la première instruction vanilla du `render` du joueur (`MixinWorldRenderStart`). Le rendu complet d'une vue
+  repasse par les injections du mod dans `render` (muettes pendant `PortalRenderState.isRendering()`) et déclenche
+  `WorldRenderEvents.END` de Fabric (le moniteur de perf ne le compte pas comme une image). Les shaders du pack ignorent
+  `gl_ClipDistance` : une entité à cheval sur un portail est rognée au plan sur le processeur (`ClippedVertexConsumers`),
+  et un mod de terrain peut écrire une fois dans le journal qu'un tel tampon n'a pas son chemin d'écriture rapide (il
+  repasse par celui de vanilla). Iris tient un pipeline par identifiant de dimension (`PipelineManager.preparePipeline`, fabrique
+  `Iris.createPipeline`) et remet ses compteurs d'animation à zéro à chaque création ; un pipeline à part pour une vue du
+  monde du joueur, sous une autre clé, a été essayé puis retiré : avec une entité à cheval, cette vue perdait du terrain.
+  Il nomme pareil les programmes de chacun de ses pipelines, et `ShaderProgram.loadShader` redonne tout étage déjà
+  compilé sous le même nom (`ShaderStage.Type.getLoadedShaders()`, cache statique) : seul, Iris n'a jamais deux pipelines
+  vivants ; une vue ou une traversée en fait vivre deux, et le second recevait les étages du premier (entités et main
+  éclairées comme dans l'autre dimension). `MixinShaderProgram` ne redonne un étage qu'à la fabrique qui l'a chargé.
+  Projection à plan proche oblique et pack : son plan lointain est incliné, et pour une partie des pixels de ciel
+  (profondeur 1) la projection inverse rend un point derrière la caméra ; le pack y calcule ciel et nuages à l'envers
+  (vue délavée, sans nuages). Aucune échelle du plan ne règle tous les rayons : l'oblique ne sert que s'il y a un bloc
+  ou une entité entre la caméra de la vue et le plan d'arrivée (`RemoteViewRenderer.arrivalObstructed`).
+  Nuages d'un mod de rendu : il les dessine depuis `gameRenderer.getCamera()`, pas depuis la position reçue par
+  `renderClouds` ; la caméra du joueur prend celle de la vue le temps du dessin. Chaque `WorldRenderer` tient son
+  horloge (`ticks`, qui place les nuages) : celles des vues suivent celle du joueur, sinon les nuages sautent à la
+  traversée. Couper ou activer un pack (comme F3+A ou le mode graphique) ne recharge que le renderer du joueur
+  (`WorldRenderer.reload()`) : ceux des vues suivent (`MixinWorldRenderer`), sinon leurs sections gardent le format de
+  sommets d'avant (feuilles et verre opaques).
+- Sortie fugace et traversée prédite : le serveur supprime le retour d'une sortie fugace perdue de vue et ne le repose
+  qu'à l'annonce du passage par l'entrée, après la bascule du client ; un retour prédit (`ClientPortalIndex.predict`)
+  tient sa place chez le client, sinon le joueur qui se retourne voit ce qu'il y a derrière le cadre.
 - Rendu au milieu de `WorldRenderer.render` (les portails passent avant la couche translucide) : les couches de terrain et
   d'entités vanilla supposent l'élimination des faces arrière active, `RenderPhase.ENABLE_CULLING` ne l'active pas ; un
   `disableCull` laissé actif fait dessiner les deux faces de l'eau et du verre (opacité doublée). Ne couper le culling
@@ -139,6 +196,10 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   sortie fugace. La traversée d'un portail ne passe pas
   par `teleportTo` : l'événement Fabric `AFTER_PLAYER_CHANGE_WORLD` ne signale que les changements de monde vanilla
   (`AFTER_RESPAWN` une réapparition), et `ENTITY_UNLOAD` part juste avant que vanilla ne retire le suivi d'une entité.
+- Changements de blocs : `World.setBlockState` ne prévient ses écouteurs (`updateListeners`, donc `markForUpdate`)
+  que dans un chunk actif (`getLevelType().isAfter(BLOCK_TICKING)`) ; vanilla n'envoie à ses joueurs que des chunks
+  actifs. Un ticket de rayon r n'active que les chunks à moins de r : une vue reçoit aussi l'anneau seulement chargé,
+  dont les changements passent par `MixinWorld`.
 - Envoi des chunks : tant qu'un chunk attend son tour dans le `ChunkDataSender` d'un joueur, vanilla ne lui envoie aucun
   changement de bloc (`isTracked` exclut `isInNextBatch`), comptant l'envoyer entier : un chunk qu'on lui épargne (tenu
   après une traversée, `MixinChunkDataSender`) et qui change doit partir quand même.
@@ -160,6 +221,10 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
   type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
   fautif passe inaperçu).
+- Tests en jeu : un changement de bloc de l'autre côté n'est relayé (`RemoteBlockUpdatePayload`) que dans un chunk déjà
+  envoyé au joueur (`PortalViewTracker.onBlockChanged`) ; un test qui change un bloc attend d'abord le `RemoteChunkPayload`
+  de son chunk, pas seulement l'annonce de la dimension (envoyée avec le premier chunk prêt) : sur le monde neuf d'un
+  `clean build`, le chunk du bloc part quelques ticks plus tard et le bloc changé arrive dans le chunk entier, sans relais.
 - Tests en jeu : `PlayerManager.respawnPlayer` appelé directement ne met pas à jour `networkHandler.player` (vanilla le
   fait à la demande de respawn) ; sans cela, la déconnexion retire l'ancien joueur et le nouveau reste dans le monde,
   compté parmi les joueurs des tests suivants.

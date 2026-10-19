@@ -12,6 +12,7 @@ import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jetbrains.annotations.Nullable;
 import org.joml.Matrix4f;
 import org.joml.Matrix4fStack;
+import org.joml.Vector4f;
 import org.lwjgl.opengl.GL11;
 
 import net.minecraft.block.BlockState;
@@ -20,6 +21,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.render.BackgroundRenderer;
+import net.minecraft.client.render.BufferBuilderStorage;
 import net.minecraft.client.render.BuiltChunkStorage;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.ChunkRenderingDataPreparer;
@@ -28,6 +30,7 @@ import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
 import net.minecraft.client.render.OverlayVertexConsumer;
 import net.minecraft.client.render.RenderLayer;
+import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
@@ -42,16 +45,24 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.player.BlockBreakingInfo;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.ChunkSectionPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.BlockView;
 
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlock;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteTargeting;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ObliqueProjection;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalClipping;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalStencilRenderer;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalViewTransform;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewCone;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewRenderStart;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.mixin.client.CameraAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.FrustumAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
 import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
@@ -66,6 +77,9 @@ import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
  * derriere lui par les shaders ({@link PortalClipping}). Les sections a dessiner sont choisies par un parcours
  * synchrone propre a la vue ({@link ViewSectionWalker}), limite au volume visible a travers le cadre
  * ({@link ViewCone}) ; la grille de sections du renderer est ancree sur l'arrivee du portail, pas sur la camera.
+ *
+ * <p>Sous un pack de shaders, la vue est au contraire un rendu complet de son renderer ({@link #renderWhole}), que le
+ * mod de shaders dessine en entier dans son pipeline.
  */
 public final class RemoteViewRenderer {
 
@@ -98,10 +112,23 @@ public final class RemoteViewRenderer {
     private static final VertexConsumerProvider.Immediate ENTITY_BUFFERS = VertexConsumerProvider.immediate(new BufferAllocator(786_432));
     private static final VertexConsumerProvider.Immediate EFFECT_BUFFERS = VertexConsumerProvider.immediate(new BufferAllocator(1536));
     private static final Matrix4f IDENTITY = new Matrix4f();
+    /**
+     * Plan d'arrivee en espace camera et projection a plan proche oblique d'une vue dont le terrain est dessine par un
+     * autre mod ({@link ObliqueProjection}) ; reutilises, thread de rendu seulement.
+     */
+    private static final Vector4f ARRIVAL_PLANE = new Vector4f();
+    private static final Matrix4f OBLIQUE = new Matrix4f();
+    /** Bloc examine entre la camera d'une vue et son cadre d'arrivee, reutilise : thread de rendu seulement. */
+    private static final BlockPos.Mutable SCAN_POS = new BlockPos.Mutable();
+    /** Retrait de chaque bloc examine : un bloc qui borde le cadre le touche sans y entrer. */
+    private static final double BLOCK_INSET = 1.0e-4;
+    /** Au-dela de ce nombre de blocs a examiner, le volume entre la camera et le cadre est tenu pour occupe. */
+    private static final long MAX_OBSTRUCTION_SCAN = 32_768L;
     /** Sections du moniteur de performance : une vue entiere, son terrain (grille et parcours des sections), ses entities. */
     private static final String PERF_VIEW = "client.portal.view";
     private static final String PERF_TERRAIN = "client.portal.terrain";
     private static final String PERF_ENTITIES = "client.portal.entities";
+    private static final String PERF_START = "client.portal.render_start";
 
     private final RemoteWorld owner;
     private final ClientWorld world;
@@ -109,6 +136,8 @@ public final class RemoteViewRenderer {
     /** Frustum du rendu, reutilise d'une image a l'autre : vanilla ne le reinitialise que par constructeur. */
     private final Frustum frustum = new Frustum(IDENTITY, IDENTITY);
     private final ViewCone cone = new ViewCone();
+    /** Pyramide de la camera de la vue au cadre d'arrivee, pour savoir s'il y a quelque chose a couper entre les deux. */
+    private final ViewCone clipVolume = new ViewCone();
     private final ViewSectionWalker sectionWalker = new ViewSectionWalker();
     /** Brouillard du ciel, passe au rendu du ciel : cree une fois, il lit la camera et l'instant poses avant chaque dessin. */
     private final Runnable skyFog = this::applySkyFog;
@@ -117,6 +146,8 @@ public final class RemoteViewRenderer {
     private float skyFogTickDelta;
     /** Image ou ce renderer a prepare son terrain pour la derniere fois : une seule fois par image, pour sa premiere vue. */
     private int terrainFrame = -1;
+    /** Image ou ce renderer a eu son debut de rendu a blanc pour la derniere fois ({@link #startRender}). */
+    private int startedFrame = -1;
     /** Portee de vue (blocs) et brouillard epais poses par {@link #prepareFog} pour le rendu qui suit. */
     private float viewDistance;
     private boolean thickFog;
@@ -189,6 +220,7 @@ public final class RemoteViewRenderer {
             LightmapTextureManager lightmap,
             float tickDelta) {
         boolean throughFrame = frameCameraPos != null;
+        startRender(PortalRenderState.frameIndex());
         PortalRenderState.setViewCameraPos(cameraPos);
         this.owner.markViewed(cameraPos);
         PortalFacing arrival = portal.facingDestination();
@@ -198,8 +230,17 @@ public final class RemoteViewRenderer {
         } else {
             this.cone.unbounded();
         }
+        // Terrain dessine par un autre mod : ses shaders ignorent la distance de decoupe, la projection coupe au plan.
+        WorldRendererAccessor accessor = (WorldRendererAccessor) this.renderer;
+        boolean foreign = foreignTerrain(accessor);
+        Matrix4f drawProjection = projection;
+        if (foreign && throughFrame && arrivalObstructed(portal, cameraPos)) {
+            PortalViewTransform.clipPlane(arrival.normal, portal.destinationPos(), cameraPos, positionMatrix, ARRIVAL_PLANE);
+            drawProjection = ObliqueProjection.apply(projection, ARRIVAL_PLANE, OBLIQUE);
+        }
         try {
-            renderView(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, lightmap, tickDelta);
+            renderView(client, accessor, foreign, camera, cameraPos, positionMatrix, projection, drawProjection, portal, frameCameraPos, lightmap,
+                    tickDelta);
         } finally {
             if (throughFrame) {
                 PortalClipping.pop();
@@ -208,13 +249,152 @@ public final class RemoteViewRenderer {
         }
     }
 
+    /**
+     * Dessine la vue par le rendu complet de son renderer ({@code WorldRenderer.render}), avec les parametres du rendu
+     * du joueur sauf la camera, sa matrice de vue et, a travers un cadre, la projection : un mod de shaders y deroule
+     * tout son pipeline pour le monde de la vue ({@code ShaderPackPortalRenderer}). Le monde et le renderer du client
+     * sont deja ceux de la vue ; l'appelant limite le dessin au cadre et remet l'image du joueur autour. Le terrain est
+     * celui que le renderer prepare lui-meme ({@code setupTerrain}) : ce chemin ne sert qu'avec un mod qui dessine le
+     * terrain, ce qu'un mod de shaders exige.
+     *
+     * @param portal portail dont c'est la vue, pour le plan d'arrivee de la projection a plan proche oblique ;
+     *               {@code null} quand la camera est passee de l'autre cote (troisieme personne) et voit tout
+     * @return la projection avec laquelle la vue a ete dessinee : celle du joueur, ou la projection oblique a travers un cadre
+     */
     @SuppressWarnings("try")
-    private void renderView(
+    public Matrix4f renderWhole(
             MinecraftClient client,
+            RenderTickCounter tickCounter,
             Camera camera,
             Vec3d cameraPos,
             Matrix4f positionMatrix,
             Matrix4f projection,
+            @Nullable BackroomsPortalEntity portal,
+            LightmapTextureManager lightmap) {
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_VIEW)) {
+            return renderWholeMeasured(client, tickCounter, camera, cameraPos, positionMatrix, projection, portal, lightmap);
+        }
+    }
+
+    private Matrix4f renderWholeMeasured(
+            MinecraftClient client,
+            RenderTickCounter tickCounter,
+            Camera camera,
+            Vec3d cameraPos,
+            Matrix4f positionMatrix,
+            Matrix4f projection,
+            @Nullable BackroomsPortalEntity portal,
+            LightmapTextureManager lightmap) {
+        PortalRenderState.setViewCameraPos(cameraPos);
+        this.owner.markViewed(cameraPos);
+        Matrix4f drawProjection = projection;
+        if (portal != null && arrivalObstructed(portal, cameraPos)) {
+            PortalFacing arrival = portal.facingDestination();
+            PortalViewTransform.clipPlane(arrival.normal, portal.destinationPos(), cameraPos, positionMatrix, ARRIVAL_PLANE);
+            drawProjection = ObliqueProjection.apply(projection, ARRIVAL_PLANE, OBLIQUE);
+        }
+        // Le rendu vanilla empile lui-meme sa matrice de vue sur la pile de RenderSystem (identite a son entree, comme
+        // GameRenderer la lui laisse) et lit sa projection dans RenderSystem.
+        Matrix4f previousProjection = RenderSystem.getProjectionMatrix();
+        VertexSorter sorter = RenderSystem.getVertexSorting();
+        Matrix4fStack modelView = RenderSystem.getModelViewStack();
+        modelView.pushMatrix();
+        modelView.identity();
+        RenderSystem.applyModelViewMatrix();
+        RenderSystem.setProjectionMatrix(drawProjection, VertexSorter.BY_DISTANCE);
+        RemoteParticles particles = this.owner.particles();
+        RemoteParticles previousParticles = particles != null ? particles.enter(client.particleManager) : null;
+        // Un mod de shaders groupe les dessins d'entities dans les tampons du client et ne vide que ceux-la en fin de
+        // rendu : ceux du renderer de la vue ne seraient jamais dessines. Les tampons du client sont libres a ce moment.
+        WorldRendererAccessor accessor = (WorldRendererAccessor) this.renderer;
+        BufferBuilderStorage ownBuffers = accessor.backrooms$getBufferBuilders();
+        accessor.backrooms$setBufferBuilders(client.getBufferBuilders());
+        try {
+            // Frustum que le renderer tient, pose avant render comme pour le joueur : projection du joueur, jamais l'oblique.
+            this.renderer.setupFrustum(cameraPos, positionMatrix, projection);
+            this.renderer.render(tickCounter, false, camera, client.gameRenderer, lightmap, positionMatrix, drawProjection);
+            return drawProjection;
+        } finally {
+            accessor.backrooms$setBufferBuilders(ownBuffers);
+            if (particles != null) {
+                particles.exit(client.particleManager, previousParticles);
+            }
+            RenderSystem.setProjectionMatrix(previousProjection, sorter);
+            modelView.popMatrix();
+            RenderSystem.applyModelViewMatrix();
+            PortalRenderState.setViewCameraPos(null);
+        }
+    }
+
+    /**
+     * {@code true} si quelque chose se dessinerait entre la camera de la vue et le plan d'arrivee, dans la pyramide qui
+     * s'appuie sur le cadre d'arrivee : un bloc (hors le bloc portail, invisible) ou une entity (hors le portail d'arrivee,
+     * pose sur le plan). Seul cela demande la projection a plan proche oblique ; sans rien a couper, la projection du
+     * joueur donne la meme image. Elle est preferee : le plan lointain de la projection oblique est incline, et un pack de
+     * shaders qui reconstruit ciel, nuages et brouillard depuis la profondeur par la projection inverse fait repartir
+     * derriere la camera une partie des rayons du ciel (ciel delave, nuages absents dans la vue). Chaque bloc est retreci
+     * d'un rien : un mur ou un sol qui borde le cadre ne compte pas. Un volume trop grand pour etre parcouru est tenu
+     * pour occupe.
+     */
+    private boolean arrivalObstructed(BackroomsPortalEntity portal, Vec3d cameraPos) {
+        PortalFacing arrival = portal.facingDestination();
+        Vec3d center = portal.destinationPos();
+        double halfWidth = portal.width() / 2.0;
+        double halfHeight = portal.height() / 2.0;
+        this.clipVolume.set(cameraPos, center, arrival.axisW, arrival.axisH, arrival.normal, halfWidth, halfHeight);
+        double spanX = Math.abs(arrival.axisW.x) * halfWidth + Math.abs(arrival.axisH.x) * halfHeight;
+        double spanY = Math.abs(arrival.axisW.y) * halfWidth + Math.abs(arrival.axisH.y) * halfHeight;
+        double spanZ = Math.abs(arrival.axisW.z) * halfWidth + Math.abs(arrival.axisH.z) * halfHeight;
+        int minX = MathHelper.floor(Math.min(cameraPos.x, center.x - spanX));
+        int minY = MathHelper.floor(Math.min(cameraPos.y, center.y - spanY));
+        int minZ = MathHelper.floor(Math.min(cameraPos.z, center.z - spanZ));
+        int maxX = MathHelper.floor(Math.max(cameraPos.x, center.x + spanX));
+        int maxY = MathHelper.floor(Math.max(cameraPos.y, center.y + spanY));
+        int maxZ = MathHelper.floor(Math.max(cameraPos.z, center.z + spanZ));
+        if ((long) (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1) > MAX_OBSTRUCTION_SCAN) {
+            return true;
+        }
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    if (this.clipVolume.intersectsBeforeFrame(x + BLOCK_INSET, y + BLOCK_INSET, z + BLOCK_INSET,
+                            x + 1 - BLOCK_INSET, y + 1 - BLOCK_INSET, z + 1 - BLOCK_INSET)) {
+                        BlockState state = this.world.getBlockState(SCAN_POS.set(x, y, z));
+                        if (!state.isAir() && !(state.getBlock() instanceof BackroomsPortalBlock)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        for (Entity entity : this.world.getEntities()) {
+            if (entity instanceof BackroomsPortalEntity other && other.centeredAt(center)) {
+                continue;
+            }
+            Box box = entity.getBoundingBox();
+            if (this.clipVolume.intersectsBeforeFrame(box.minX, box.minY, box.minZ, box.maxX, box.maxY, box.maxZ)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Dessine la vue. Le frustum de culling suit {@code projection}, celle du joueur ; les dessins suivent
+     * {@code drawProjection}, la meme sauf quand un autre mod dessine le terrain ({@code foreign}) : alors une projection
+     * a plan proche oblique coupe au plan d'arrivee ce que ses shaders ne couperaient pas, et tout ce qui se dessine dans
+     * la vue la partage, pour une seule echelle de profondeur.
+     */
+    @SuppressWarnings("try")
+    private void renderView(
+            MinecraftClient client,
+            WorldRendererAccessor accessor,
+            boolean foreign,
+            Camera camera,
+            Vec3d cameraPos,
+            Matrix4f positionMatrix,
+            Matrix4f projection,
+            Matrix4f drawProjection,
             BackroomsPortalEntity portal,
             @Nullable Vec3d frameCameraPos,
             LightmapTextureManager lightmap,
@@ -224,10 +404,13 @@ public final class RemoteViewRenderer {
         this.frustum.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
         // Comme vanilla, le frustum recule jusqu'a couvrir la cellule de la camera : les sections au bord ne clignotent pas.
         this.frustum.coverBoxAroundSetPosition(FRUSTUM_COVER_BOX);
-        WorldRendererAccessor accessor = (WorldRendererAccessor) this.renderer;
         try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_TERRAIN)) {
-            setupTerrain(client, accessor, camera, cameraPos, portal.destinationPos());
-            accessor.backrooms$updateChunks(camera);
+            if (foreign) {
+                setupForeignTerrain(accessor, camera);
+            } else {
+                setupTerrain(client, accessor, camera, cameraPos, portal.destinationPos());
+                accessor.backrooms$updateChunks(camera);
+            }
         }
         // Ciel de la vue avec son brouillard de ciel, puis brouillard du terrain, comme le rendu principal. Le dome du ciel se
         // dessine avec le shader courant : celui des positions, comme vanilla, et non le dernier pose par le remplissage du
@@ -235,7 +418,7 @@ public final class RemoteViewRenderer {
         RenderSystem.setShader(GameRenderer::getPositionProgram);
         this.skyFogCamera = camera;
         this.skyFogTickDelta = tickDelta;
-        this.renderer.renderSky(positionMatrix, projection, tickDelta, camera, this.thickFog, this.skyFog);
+        this.renderer.renderSky(positionMatrix, drawProjection, tickDelta, camera, this.thickFog, this.skyFog);
         BackgroundRenderer.applyFog(camera, BackgroundRenderer.FogType.FOG_TERRAIN, Math.max(this.viewDistance, 32.0f), this.thickFog, tickDelta);
         RenderSystem.enableDepthTest();
         RenderSystem.depthFunc(GL11.GL_LEQUAL);
@@ -245,18 +428,62 @@ public final class RemoteViewRenderer {
             if (layer == RenderLayer.getTranslucent()) {
                 // Meme ordre que vanilla : entities et block entities avant les couches translucides.
                 try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_ENTITIES)) {
-                    renderEntities(client, camera, cameraPos, positionMatrix, projection, portal, frameCameraPos, tickDelta);
+                    renderEntities(client, camera, cameraPos, positionMatrix, drawProjection, portal, frameCameraPos, tickDelta);
                 }
             }
-            accessor.backrooms$renderLayer(layer, cameraPos.x, cameraPos.y, cameraPos.z, positionMatrix, projection);
+            accessor.backrooms$renderLayer(layer, cameraPos.x, cameraPos.y, cameraPos.z, positionMatrix, drawProjection);
         }
-        // Meme ordre que vanilla : les particules apres les couches translucides, avant les nuages.
+        if (drawProjection == projection) {
+            renderAfterTranslucent(client, accessor, camera, cameraPos, positionMatrix, drawProjection, lightmap, tickDelta);
+        } else {
+            // Particules et meteo dessinent avec la projection de RenderSystem : celle de la vue le temps de leur dessin.
+            Matrix4f previousProjection = RenderSystem.getProjectionMatrix();
+            VertexSorter sorter = RenderSystem.getVertexSorting();
+            RenderSystem.setProjectionMatrix(drawProjection, VertexSorter.BY_DISTANCE);
+            try {
+                renderAfterTranslucent(client, accessor, camera, cameraPos, positionMatrix, drawProjection, lightmap, tickDelta);
+            } finally {
+                RenderSystem.setProjectionMatrix(previousProjection, sorter);
+            }
+        }
+    }
+
+    /** Meme ordre que vanilla : les particules apres les couches translucides, puis les nuages, puis la meteo. */
+    private void renderAfterTranslucent(
+            MinecraftClient client,
+            WorldRendererAccessor accessor,
+            Camera camera,
+            Vec3d cameraPos,
+            Matrix4f positionMatrix,
+            Matrix4f drawProjection,
+            LightmapTextureManager lightmap,
+            float tickDelta) {
         renderParticles(client, camera, positionMatrix, lightmap, tickDelta);
         if (client.options.getCloudRenderModeValue() != CloudRenderMode.OFF) {
-            this.renderer.renderClouds(MATRICES, positionMatrix, projection, tickDelta, cameraPos.x, cameraPos.y, cameraPos.z);
+            renderClouds(client, cameraPos, positionMatrix, drawProjection, tickDelta);
         }
-        // Meme ordre que vanilla : la meteo apres les nuages.
         renderWeather(accessor, cameraPos, positionMatrix, lightmap, tickDelta);
+    }
+
+    /**
+     * Nuages du monde de la vue depuis sa camera. Un mod de rendu peut les dessiner depuis la camera du joueur
+     * ({@code gameRenderer.getCamera()}) plutot que depuis la position recue : sans rien changer, les nuages de la vue se
+     * placeraient par rapport au joueur, dans l'autre monde (trop bas, ou vus de l'autre cote de leur couche). La camera
+     * du joueur prend la position et le monde de la vue le temps du dessin.
+     */
+    private void renderClouds(MinecraftClient client, Vec3d cameraPos, Matrix4f positionMatrix, Matrix4f drawProjection, float tickDelta) {
+        Camera mainCamera = client.gameRenderer.getCamera();
+        CameraAccessor mainAccessor = (CameraAccessor) mainCamera;
+        Vec3d mainPos = mainCamera.getPos();
+        BlockView mainArea = mainAccessor.backrooms$getArea();
+        mainAccessor.backrooms$setPos(cameraPos);
+        mainAccessor.backrooms$setArea(this.world);
+        try {
+            this.renderer.renderClouds(MATRICES, positionMatrix, drawProjection, tickDelta, cameraPos.x, cameraPos.y, cameraPos.z);
+        } finally {
+            mainAccessor.backrooms$setArea(mainArea);
+            mainAccessor.backrooms$setPos(mainPos);
+        }
     }
 
     /**
@@ -293,11 +520,6 @@ public final class RemoteViewRenderer {
      */
     private void setupTerrain(MinecraftClient client, WorldRendererAccessor accessor, Camera camera, Vec3d cameraPos, Vec3d anchor) {
         BuiltChunkStorage chunks = accessor.backrooms$getChunks();
-        if (chunks == null) {
-            // Un mod qui remplace le pipeline de terrain retire la grille vanilla : rien a parcourir. L'appelant coupe le
-            // rendu distant pour la session (cadres sombres) et le jeu continue.
-            throw new IllegalStateException("Le pipeline de terrain n'est pas celui de vanilla (grille de sections absente, un autre mod le remplace).");
-        }
         int frame = PortalRenderState.frameIndex();
         if (this.terrainFrame != frame) {
             this.terrainFrame = frame;
@@ -307,6 +529,51 @@ public final class RemoteViewRenderer {
         }
         this.sectionWalker.discover(chunks, this.world.getChunkManager(), camera.getBlockPos(), this.frustum, this.cone,
                 accessor.backrooms$getBuiltChunks());
+    }
+
+    /**
+     * Debut de rendu a blanc du renderer, une fois par image : il passe par la tete de {@code WorldRenderer.render}, ou
+     * des mods posent l'etat par renderer qu'attendent les methodes de rendu appelees ensuite, et s'y arrete
+     * ({@link ViewRenderStart}, {@code MixinWorldRenderStart}). Les parametres sont ceux du rendu du joueur.
+     */
+    @SuppressWarnings("try")
+    private void startRender(int frame) {
+        if (this.startedFrame == frame || !ViewRenderStart.hasFrame()) {
+            return;
+        }
+        this.startedFrame = frame;
+        ViewRenderStart.setStarting(true);
+        try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_START)) {
+            this.renderer.render(ViewRenderStart.tickCounter(), false, ViewRenderStart.camera(), ViewRenderStart.gameRenderer(),
+                    ViewRenderStart.lightmap(), ViewRenderStart.positionMatrix(), ViewRenderStart.projection());
+        } finally {
+            ViewRenderStart.setStarting(false);
+        }
+    }
+
+    /**
+     * Terrain dessine par un autre mod : son {@code setupTerrain} choisit ses sections pour cette camera, une fois par
+     * renderer et par image, et son {@code renderLayer} les dessine ensuite. La grille vanilla, absente ou sans portee,
+     * n'est pas touchee : la recharger parce que sa distance n'est pas celle des options (c'est lui qui l'impose) ferait
+     * tout reconstruire a chaque image. Les evenements de rendu du monde que Fabric declenche dans {@code setupTerrain}
+     * partent alors pour la vue, avec le contexte vide d'un renderer qui n'est pas celui du joueur.
+     */
+    private void setupForeignTerrain(WorldRendererAccessor accessor, Camera camera) {
+        int frame = PortalRenderState.frameIndex();
+        if (this.terrainFrame != frame) {
+            this.terrainFrame = frame;
+            // Comme un spectateur : pas d'occlusion depuis l'interieur d'un bloc plein si la camera y tombe.
+            accessor.backrooms$setupTerrain(camera, this.frustum, false, true);
+        }
+    }
+
+    /**
+     * {@code true} si un autre mod dessine le terrain de ce renderer : la grille vanilla est absente, ou sans portee (il
+     * la cree avec une distance de vue nulle pour qu'elle ne coute rien, la distance du renderer restant celle des options).
+     */
+    static boolean foreignTerrain(WorldRendererAccessor accessor) {
+        BuiltChunkStorage chunks = accessor.backrooms$getChunks();
+        return chunks == null || chunks.getViewDistance() <= 0;
     }
 
     /**
@@ -416,7 +683,8 @@ public final class RemoteViewRenderer {
             }
             if (frameCameraPos != null) {
                 // Ce qui entre dans le cadre de ce cote : la partie deja passee, ici, au-dela du plan d'arrivee.
-                StraddlingEntityRenderer.renderEnteringParts(client, accessor, portal, frameCameraPos, tickDelta, immediate);
+                Entity hidden = client.gameRenderer.getCamera().isThirdPerson() ? null : client.getCameraEntity();
+                StraddlingEntityRenderer.renderEnteringParts(client, accessor, portal, frameCameraPos, hidden, tickDelta, immediate);
             } else {
                 StraddlingEntityRenderer.renderWorldParts(client, this.world, cameraPos, positionMatrix, tickDelta);
             }

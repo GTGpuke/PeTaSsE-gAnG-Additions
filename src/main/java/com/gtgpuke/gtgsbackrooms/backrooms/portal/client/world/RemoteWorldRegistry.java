@@ -262,6 +262,28 @@ public final class RemoteWorldRegistry {
     }
 
     /**
+     * Le renderer du joueur vient de se recharger ({@code MixinWorldRenderer}) : ceux des vues, secondaires comprises, se
+     * rechargent a leur tour, pour que leurs sections suivent le meme format de sommets, les memes couches et les memes
+     * shaders de terrain.
+     *
+     * @param main renderer du joueur, deja recharge
+     */
+    public static void reloadViewRenderers(WorldRenderer main) {
+        for (int i = 0; i < WORLD_LIST.size(); i++) {
+            RemoteWorld remote = WORLD_LIST.get(i);
+            if (remote.renderer() != main) {
+                remote.reloadRenderer();
+            }
+        }
+        for (int i = 0; i < MIRRORS.size(); i++) {
+            RemoteWorld mirror = MIRRORS.get(i);
+            if (mirror.renderer() != main) {
+                mirror.reloadRenderer();
+            }
+        }
+    }
+
+    /**
      * Tick client : l'heure suit le monde principal, les entities s'interpolent et s'animent comme les siennes, et
      * l'horloge de chaque vue, secondaires comprises, avance comme celle du renderer du joueur.
      */
@@ -274,7 +296,7 @@ public final class RemoteWorldRegistry {
             // D'abord : apres un changement de monde vanilla, les vues de l'ancien monde partent avant de tiquer.
             syncWithMainWorld(client.world);
             for (int i = 0; i < MIRRORS.size(); i++) {
-                MIRRORS.get(i).tickClock();
+                MIRRORS.get(i).tickClock(client.worldRenderer);
             }
             for (int i = 0; i < WORLD_LIST.size(); i++) {
                 RemoteWorld remote = WORLD_LIST.get(i);

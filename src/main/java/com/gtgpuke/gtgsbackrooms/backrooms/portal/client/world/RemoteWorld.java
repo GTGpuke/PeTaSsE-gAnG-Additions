@@ -1,9 +1,7 @@
 package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world;
 
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.IdentityHashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,7 +62,6 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.Difficulty;
 import net.minecraft.world.LightType;
 import net.minecraft.world.World;
-import net.minecraft.world.chunk.ChunkNibbleArray;
 import net.minecraft.world.chunk.ChunkSection;
 import net.minecraft.world.chunk.WorldChunk;
 import net.minecraft.world.chunk.light.LightingProvider;
@@ -76,6 +73,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.LazyVertexBuffers;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.RemoteChunkWindow;
 import com.gtgpuke.gtgsbackrooms.mixin.client.CameraAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.ClientPlayNetworkHandlerAccessor;
+import com.gtgpuke.gtgsbackrooms.mixin.client.ClientWorldAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.WorldRendererAccessor;
 import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
 
@@ -229,6 +227,19 @@ public final class RemoteWorld {
         }
     }
 
+    /**
+     * Recharge le renderer de la vue, comme vanilla celui du joueur : grille et sections refaites au format de sommets, aux
+     * couches et aux shaders de terrain du moment. Tampons GL differes, comme a sa creation (voir {@link #newRenderer}).
+     */
+    void reloadRenderer() {
+        LazyVertexBuffers.setActive(true);
+        try {
+            this.renderer.reload();
+        } finally {
+            LazyVertexBuffers.setActive(false);
+        }
+    }
+
     /** Lie un renderer de vue a son monde : sa grille de sections se cree, tampons GL differes (voir {@link #newRenderer}). */
     private static void bindWorld(WorldRenderer renderer, ClientWorld world) {
         LazyVertexBuffers.setActive(true);
@@ -360,10 +371,19 @@ public final class RemoteWorld {
         if (chunk == null) {
             return;
         }
+        // La lumiere passe par le gestionnaire de paquets, comme celle d'un chunk vanilla : un mod qui suit l'arrivee des
+        // chunks par la (un mod de rendu ne construit une section qu'apres sa lumiere) voit les chunks distants comme les
+        // autres. Le gestionnaire lit son monde : le temps de l'appel, c'est celui-ci.
+        ClientPlayNetworkHandler handler = ((ClientWorldAccessor) this.world).backrooms$getNetworkHandler();
+        ClientPlayNetworkHandlerAccessor handlerAccessor = (ClientPlayNetworkHandlerAccessor) handler;
+        ClientWorld handlerWorld = handler.getWorld();
+        handlerAccessor.backrooms$setWorld(this.world);
+        try {
+            handlerAccessor.backrooms$readLightData(chunkX, chunkZ, lightData);
+        } finally {
+            handlerAccessor.backrooms$setWorld(handlerWorld);
+        }
         LightingProvider lighting = chunks.getLightingProvider();
-        applyLight(lighting, chunkX, chunkZ, LightType.SKY, lightData.getInitedSky(), lightData.getUninitedSky(), lightData.getSkyNibbles().iterator());
-        applyLight(lighting, chunkX, chunkZ, LightType.BLOCK, lightData.getInitedBlock(), lightData.getUninitedBlock(), lightData.getBlockNibbles().iterator());
-        lighting.setColumnEnabled(new ChunkPos(chunkX, chunkZ), true);
         ChunkSection[] sections = chunk.getSectionArray();
         for (int index = 0; index < sections.length; index++) {
             int sectionY = this.world.sectionIndexToCoord(index);
@@ -490,7 +510,7 @@ public final class RemoteWorld {
      * de cette vue (flammes, fumee, gouttes, sons du feu). Tout se passe dans le contenu de particules de ce monde.
      */
     public void tick(MinecraftClient client) {
-        tickClock();
+        tickClock(client.worldRenderer);
         RemoteParticles previous = this.particles.enter(client.particleManager);
         try {
             this.world.tickEntities();
@@ -510,10 +530,15 @@ public final class RemoteWorld {
 
     /**
      * Horloge du renderer de la vue, qui anime la pluie et la neige et oublie les vieilles fissures, comme celle du renderer
-     * du joueur : vanilla ne tique que celui-la. Seule a tiquer pour la vue secondaire.
+     * du joueur : vanilla ne tique que celui-la. Seule a tiquer pour la vue secondaire. Elle reste a l'heure de celle du
+     * renderer du joueur, deja tique a ce moment : les nuages, places selon elle, ne sautent pas quand ce renderer devient
+     * celui du joueur a la traversee.
+     *
+     * @param main renderer du joueur
      */
-    void tickClock() {
+    void tickClock(WorldRenderer main) {
         this.renderer.tick();
+        ((WorldRendererAccessor) this.renderer).backrooms$setTicks(((WorldRendererAccessor) main).backrooms$getTicks());
     }
 
     /**
@@ -572,23 +597,4 @@ public final class RemoteWorld {
         this.renderer.scheduleTerrainUpdate();
     }
 
-    private void applyLight(
-            LightingProvider lighting,
-            int chunkX,
-            int chunkZ,
-            LightType type,
-            BitSet inited,
-            BitSet uninited,
-            Iterator<byte[]> nibbles) {
-        for (int index = 0; index < lighting.getHeight(); index++) {
-            int sectionY = lighting.getBottomY() + index;
-            boolean hasData = inited.get(index);
-            if (!hasData && !uninited.get(index)) {
-                continue;
-            }
-            lighting.enqueueSectionData(type, ChunkSectionPos.from(chunkX, sectionY, chunkZ),
-                    hasData ? new ChunkNibbleArray(nibbles.next().clone()) : new ChunkNibbleArray());
-            this.world.scheduleBlockRenders(chunkX, sectionY, chunkZ);
-        }
-    }
 }

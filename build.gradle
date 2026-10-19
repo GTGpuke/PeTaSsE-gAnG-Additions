@@ -89,6 +89,12 @@ repositories {
         name = 'Fabric'
         url = 'https://maven.fabricmc.net/'
     }
+    // API du mod de shaders Iris (compat/iris), a la compilation seulement.
+    maven {
+        name = 'Modrinth'
+        url = 'https://api.modrinth.com/maven'
+        content { includeGroup 'maven.modrinth' }
+    }
 }
 
 dependencies {
@@ -96,6 +102,8 @@ dependencies {
     mappings "net.fabricmc:yarn:${yarn_mappings}:v2"
     modImplementation "net.fabricmc:fabric-loader:${loader_version}"
     modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    // Iris : son API publique (v0) dit si un pack de shaders est actif ; jamais embarque, jamais requis a l'execution.
+    modCompileOnly "maven.modrinth:iris:${iris_version}"
 
     testImplementation platform("org.junit:junit-bom:${junit_version}")
     testImplementation 'org.junit.jupiter:junit-jupiter'
@@ -118,8 +126,8 @@ test {
 }
 
 // Couverture : classes mesurees. Hors mesure : la colle OpenGL du client (un contexte GL est obligatoire, hors de
-// portee de JUnit comme du serveur GameTest), les mixins (tisses dans les classes vanilla) et les gametests eux-memes.
-// La logique client pure (transformation de vue, etat de rendu) reste mesuree.
+// portee de JUnit comme du serveur GameTest), les mixins (tisses dans les classes vanilla), la colle vers d'autres mods
+// (absents des tests) et les gametests eux-memes. La logique client pure (transformation de vue, etat de rendu) reste mesuree.
 def coverageExcludes = [
         'com/gtgpuke/gtgsbackrooms/GtgsBackroomsClientMod*',
         'com/gtgpuke/gtgsbackrooms/backrooms/level0/client/**',
@@ -128,6 +136,7 @@ def coverageExcludes = [
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/sound/FrameSoundPlayer*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/transition/**',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalStencilRenderer*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/ShaderPackPortalRenderer*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalClipping*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/FrameAreaRenderer*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/ViewLightmaps*',
@@ -135,6 +144,7 @@ def coverageExcludes = [
         'com/gtgpuke/gtgsbackrooms/feature/gang/client/**',
         'com/gtgpuke/gtgsbackrooms/perf/client/**',
         'com/gtgpuke/gtgsbackrooms/mixin/**',
+        'com/gtgpuke/gtgsbackrooms/compat/**',
 ]
 def coverageClassDirs = { files(sourceSets.main.output.classesDirs.collect { fileTree(dir: it, exclude: coverageExcludes) }) }
 def coverageExecutionData = fileTree(layout.buildDirectory.dir('jacoco')) { include 'test.exec', 'gametest.exec' }

@@ -20,7 +20,8 @@ import com.gtgpuke.gtgsbackrooms.config.ModConfig;
  * Sons des mondes vus a travers un portail : ils passent par le portail qui les rapproche du joueur au lieu de sonner
  * a leurs coordonnees brutes (voir {@link FrameSoundPlayer}). Tous les sons positionnes d'un monde client aboutissent
  * a la meme methode privee, ceux des paquets du serveur comme ceux des blocs (feu, lave) et des entities. Une entity
- * renvoyee sous un autre identifiant remplace sa copie perimee (voir {@link EntityHandover#replaceStaleCopy}).
+ * renvoyee alors que sa copie est encore la remplace cette copie et en reprend l'etat visible (voir
+ * {@link EntityHandover#replaceStaleCopy} et {@link EntityHandover#replaceSameCopy}).
  */
 @Mixin(ClientWorld.class)
 public abstract class MixinClientWorld {
@@ -28,15 +29,23 @@ public abstract class MixinClientWorld {
     @Shadow
     protected abstract EntityLookup<Entity> getEntityLookup();
 
-    /** Avant l'index des identifiants uniques de vanilla, qui refuserait la nouvelle copie d'une entity deja presente. */
+    /**
+     * Avant l'index des identifiants uniques de vanilla, qui refuserait la nouvelle copie d'une entity deja presente sous
+     * un autre identifiant, et avant le retrait par vanilla de celle presente sous le meme.
+     */
     @Inject(method = "addEntity", at = @At("HEAD"))
     private void backrooms$replaceStaleCopy(Entity entity, CallbackInfo ci) {
         if (!ModConfig.ENABLE_PORTAL_FEATURE) {
             return;
         }
-        Entity stale = this.getEntityLookup().get(entity.getUuid());
-        if (stale != null && stale.getId() != entity.getId()) {
-            EntityHandover.replaceStaleCopy((ClientWorld) (Object) this, stale);
+        Entity previous = this.getEntityLookup().get(entity.getUuid());
+        if (previous == null || previous == entity) {
+            return;
+        }
+        if (previous.getId() != entity.getId()) {
+            EntityHandover.replaceStaleCopy((ClientWorld) (Object) this, previous);
+        } else {
+            EntityHandover.replaceSameCopy((ClientWorld) (Object) this, previous);
         }
     }
 
