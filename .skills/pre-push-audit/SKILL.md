@@ -35,7 +35,6 @@ description: "Audit pré-push obligatoire avant tout commit final, push ou décl
 - Pour tout audit touchant `backrooms/level0/`, relire avant l'audit :
   - `docs/backrooms/backrooms-level0-roadmap.md`
   - `docs/backrooms/backrooms-level0-pipeline-v6.md`
-  - `docs/backrooms/to-check/TO CHECK.md`
 - Toute suppression ou réorganisation réellement effectuée pendant l'audit doit
   être journalisée dans `docs/CHANGELOG.md`.
 

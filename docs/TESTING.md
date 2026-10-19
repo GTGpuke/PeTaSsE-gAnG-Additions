@@ -41,6 +41,8 @@ La logique client pure reste mesurée et testée : `PortalViewTransform` (plan d
 (volume visible à travers le cadre), `ShaderClipInjector` (contre 54 des 55 vertex shaders vanilla du jar du jeu,
 `blit_screen` exclu), `PortalRenderState`, `ThirdPersonPortal` (recul de la caméra à travers le cadre), `PortalSound`
 (portée et volume du son à travers le cadre). Le rendu exclu se valide en jeu (`docs/PORTALS.md`, section Tests).
+La colle OpenAL du système audio à venir (`docs/GUIDE.md`, section 5.3) sera exemptée de la même façon, nominativement
+dans `coverageExcludes` ; sa logique (routage par source, filtres, paramètres de réverbération) reste mesurée.
 
 Les classes utilitaires (constructeur privé qui refuse l'appel) sont couvertes par `UtilityClassesTest`, qui les
 énumère ; une nouvelle classe utilitaire s'y ajoute. Les tests en jeu tournent avec un cooldown de traversée de trois

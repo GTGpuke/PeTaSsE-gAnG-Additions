@@ -22,10 +22,11 @@ Lis ces fichiers dans l'ordre avant de toucher au code.
 - `docs/ARCHITECTURE.md` — packages, pipeline de génération, rendu client, conventions.
 - `docs/TESTING.md` — familles de tests, `MinecraftTestBootstrap`, empreintes, GameTest, benchmark.
 
-## 5. Specs Backrooms (si tu touches à la génération ou aux portails)
-- `docs/backrooms/backrooms-level0-pipeline-v6.md` (spec cible) et `backrooms-level0-roadmap.md`.
-- `docs/PORTALS.md` pour le système de portails tel qu'implémenté (lecture obligatoire avant de toucher `backrooms/portal/`) ;
-  `docs/backrooms/1 - Arborescence/arborescence_v4.md` et `3 - Portails/*` pour les specs d'origine et les shaders.
+## 5. Guide et specs Backrooms
+- `docs/GUIDE.md` — guide de conception et de développement du projet (règles d'or, état réel, architecture cible du
+  rendu et de l'audio, feuille de route) : à lire au début de chaque session, il complète `CLAUDE.md`.
+- `docs/backrooms/backrooms-level0-pipeline-v6.md` (spec du générateur du Level 0) et `backrooms-level0-roadmap.md`.
+- `docs/PORTALS.md` pour le système de portails tel qu'implémenté (lecture obligatoire avant de toucher `backrooms/portal/`).
 
 ## Pièges à mémoriser
 

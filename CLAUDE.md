@@ -1,7 +1,7 @@
 # CLAUDE.md — GTG's Backrooms
 
 > Lu automatiquement à chaque session. Règles obligatoires du projet.
-> Onboarding complet : `docs/prompt/NOKNOWLEDGE.md` — Audit pré-push : `docs/prompt/BEFOREPUSH.md` — Vérification finale avant commit : `docs/prompt/FINALCHECK.md`
+> Guide du projet : `docs/GUIDE.md` (règles d'or, état réel, feuille de route) — Onboarding complet : `docs/prompt/NOKNOWLEDGE.md` — Audit pré-push : `docs/prompt/BEFOREPUSH.md` — Vérification finale avant commit : `docs/prompt/FINALCHECK.md`
 > Dernier audit complet : `docs/AUDIT.md`
 
 ## Stack
@@ -48,6 +48,35 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 - Pas de dossier vide ni de `.gitkeep`, pas de `package-info.java` d'une ligne.
 - Licence propriétaire, tous droits réservés (`LICENSE`, copiée dans les JAR) : aucun code ni aucune ressource repris
   d'un projet tiers, quelle que soit sa licence.
+
+## Guide et nouveaux systèmes (rendu, audio)
+
+- Lire `docs/GUIDE.md` au début de chaque session ; ses règles d'or (section 0) s'appliquent, et un écart entre le guide et
+  le code se consigne dans sa section 2.4 au lieu de forcer le code à suivre le guide.
+- Le système de portails (`backrooms/portal/`) est la base : l'étendre par des points d'accès (méthodes publiques,
+  évènements), pas par des couches d'abstraction, et ne pas en réécrire la logique. Toute refonte est proposée et validée
+  avant.
+- Un profil par monde (`WorldProfile`, donnée, pas interface) : aucun test sur la dimension du joueur pour décider d'un
+  comportement de rendu ou d'audio.
+- Le rendu avancé s'insère dans le stencil existant (`PortalStencilRenderer`) : G-buffer par injection de shaders (même
+  famille que `ShaderClipInjector`), passes limitées par le niveau de stencil. Sa direction reste ouverte tant que la
+  preuve de concept V1 n'a pas tranché la septième inconnue (`docs/GUIDE.md`, section 3.2 : l'injection n'atteint ni les
+  shaders du mod de terrain ni ceux d'un pack). Pas de framebuffer de vue séparé hors du chemin sous pack de shaders
+  (`ShaderPackPortalRenderer`).
+- L'audio étend `FrameSoundPlayer`, `PortalSound` et le relais serveur existants.
+- Sessions d'implémentation : aucun code source d'un autre mod dans le contexte ; les notes de conception
+  `docs/design/*.md` sont la seule source autorisée. Lire l'API d'un mod tiers n'est permis que pour écrire un module
+  `compat/`.
+- Si tu te souviens d'une implémentation existante d'une fonctionnalité, n'en reprends que le principe ; réécris à partir
+  de notre architecture (profils par monde, passes par niveau de stencil, routage par source).
+- Chaque fonctionnalité a une définition de « terminé » (`docs/GUIDE.md`, section 5) et n'est livrée qu'une fois vérifiée
+  en jeu et le build complet vert.
+- Nommage : vocabulaire du glossaire (`docs/GUIDE.md`, section 4.4) pour les concepts nouveaux ; les termes déjà en place
+  dans `portal/` sont conservés.
+- Colle OpenGL et OpenAL : minimale, isolée dans `*/client/`, nommée dans `docs/TESTING.md` ; tout le reste est couvert à
+  100 %.
+- Chaque système a son document : `docs/RENDERING.md`, `docs/AUDIO.md`, sur le modèle de `docs/PORTALS.md` (en jeu,
+  architecture, protocole, limites connues, tests).
 
 ## Génération du Level 0 : règle d'or
 

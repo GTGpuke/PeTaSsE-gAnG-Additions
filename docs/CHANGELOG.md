@@ -84,6 +84,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   Level 0 ou le Nether, qui n'en ont pas.
 
 ### Changed
+- **Guide du projet** : `docs/GUIDE.md` (règles d'or, état réel du dépôt, architecture cible du rendu et de l'audio,
+  méthode clean room, feuille de route par versions, cohabitation avec les packs de shaders, compatibilité, licence)
+  devient le document de référence, confronté au dépôt le 2026-10-20 (écarts consignés dans sa section 2.4). Il est
+  référencé depuis `CLAUDE.md`, `docs/INDEX.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md` et les prompts.
 - **Performance des portails** (passe complète, mesures dans `docs/PORTALS.md`) :
   - la lightmap d'un monde vu par un portail n'est plus recalculée deux fois par vue et par image (celle du monde vu,
     puis celle du joueur), mais une fois par tick client dans une texture propre à ce monde, comme vanilla la sienne
@@ -156,6 +160,10 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   ailleurs ne déchargeait plus rien (le journal montrait des chargements et déchargements du Level 0 toutes les deux secondes).
 
 ### Removed
+- **Anciennes specs** remplacées par `docs/GUIDE.md` : `docs/backrooms/1 - Arborescence`, `3 - Portails`,
+  `4 - Veil Shaders`, `to-check` et `docs/DEPENDENCIES.md`. Restent `docs/backrooms/backrooms-level0-pipeline-v6.md`,
+  `backrooms-level0-roadmap.md` et `level0-manual-structures-template.json` (générateur du Level 0, verrouillé) et
+  `docs/BACKROOMS_CONTENT_RULES.md` (direction artistique).
 - **Porte des Backrooms** (`backrooms_door`), en attendant de revenir sur la base du bloc portail : ses blocs
   disparaissent des mondes existants, et les portails qu'elle avait posés se retirent seuls, leur bloc propriétaire
   n'existant plus.

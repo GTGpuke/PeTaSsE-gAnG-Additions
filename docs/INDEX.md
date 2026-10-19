@@ -4,6 +4,7 @@
 
 | Fichier | Description |
 |---------|-------------|
+| [GUIDE.md](GUIDE.md) | Guide de conception et de développement : règles d'or, état réel, architecture cible du rendu et de l'audio, méthode clean room, feuille de route, cohabitation avec les packs de shaders, compatibilité, licence |
 | [AUDIT.md](AUDIT.md) | Audit complet d'octobre 2026 : constats, décisions, mesures de performance |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Packages, pipeline de génération, rendu client, cycle de vie, conventions |
 | [SETUP.md](SETUP.md) | Installation (Java 21, wrapper Gradle, VS Code), commandes |
@@ -15,12 +16,11 @@
 | [DIMENSIONS.md](DIMENSIONS.md) | Dimension Level 0 : géographie, génération, accès |
 | [ENTITIES.md](ENTITIES.md) | Entités (entity portail) |
 | [PORTALS.md](PORTALS.md) | Portails : porte, géométrie du passage, téléportation, synchronisation des chunks et des entités, rendu stencil et portails imbriqués, interaction à travers le cadre, limites |
-| [DEPENDENCIES.md](DEPENDENCIES.md) | Bibliothèques envisagées pour la suite des Backrooms (aucune active) |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Problèmes courants |
 | [CHANGELOG.md](CHANGELOG.md) | Journal des versions |
 | [BACKROOMS_CONTENT_RULES.md](BACKROOMS_CONTENT_RULES.md) | Règles de contenu et direction artistique des Backrooms |
-| `backrooms/` | Specs de conception : pipeline Level 0 v6, roadmap, arborescence v4, portails et shaders Veil |
-| `prompt/` | Prompts d'onboarding (`NOKNOWLEDGE.md`) et d'audit pré-push (`BEFOREPUSH.md`) pour les assistants IA |
+| `backrooms/` | Spec du générateur du Level 0 (pipeline v6), sa roadmap et le gabarit des structures manuelles |
+| `prompt/` | Prompts d'onboarding (`NOKNOWLEDGE.md`), d'audit pré-push (`BEFOREPUSH.md`) et de vérification finale (`FINALCHECK.md`) pour les assistants IA |
 
 ## Stack
 

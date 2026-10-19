@@ -13,8 +13,8 @@ de mémoire.
 - Ne jamais commiter ni pousser. À la fin : `git add -A`, c'est moi qui commite.
 - Ne jamais accepter l'EULA Mojang (donc jamais `runServer`).
 - Ne pas toucher à la génération du Level 0 sans demande explicite.
-- Ne pas modifier mes specs : `docs/BACKROOMS_CONTENT_RULES.md`, `docs/backrooms/**`, `DEPENDENCIES.md`, `INDEX.md`. Une
-  incohérence s'y signale, elle ne s'y corrige pas.
+- Ne pas modifier mes specs : `docs/BACKROOMS_CONTENT_RULES.md`, `docs/backrooms/**`, `INDEX.md`. Une
+  incohérence s'y signale, elle ne s'y corrige pas. `docs/GUIDE.md` se corrige, écart consigné (sa règle d'or 11).
 - Aucune mention d'un autre mod dans le code, les tests ou la doc, et aucun nom ou structure de code calqué sur un autre
   mod. Les noms à chercher sont dans la mémoire de l'assistant (« Pas d'autre mod ») ; ils ne s'écrivent pas dans le
   dépôt, pas même ici.
@@ -179,7 +179,7 @@ grep -rniE "<noms de la mémoire « Pas d'autre mod »>" src docs CLAUDE.md READ
 find src -type d -empty; find src -name ".gitkeep"
 ```
 - [ ] Toutes ces commandes ne renvoient rien. Exception : les specs de GTGpuke (`BACKROOMS_CONTENT_RULES.md`,
-      `DEPENDENCIES.md`, `INDEX.md`, `docs/backrooms/**`), qui citent d'autres mods et ne se touchent pas.
+      `INDEX.md`, `docs/backrooms/**`) et `docs/GUIDE.md` (section 8, compatibilité), qui citent d'autres mods.
 
 ## 5. Vérification en jeu (dès qu'un mixin, du code client ou le rendu est touché)
 

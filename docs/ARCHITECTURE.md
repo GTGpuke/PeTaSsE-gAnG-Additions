@@ -65,6 +65,11 @@ com.gtgpuke.gtgsbackrooms/
 `-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière, météo) + client/ (rendu des portails)
 ```
 
+Les systèmes de rendu et d'audio à venir (`backrooms/render/`, `backrooms/audio/`, modules `compat/` supplémentaires)
+s'insèrent selon `docs/GUIDE.md`, section 3.4 : ils consomment l'API de `portal/` (vues, transformations par le passage,
+mondes distants, bascule de monde), qui leur expose des points d'accès sans réécriture de sa logique. Aucun de ces
+paquets n'existe tant qu'il n'a pas de code : pas de dossier vide.
+
 Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/gtgpuke/gtgsbackrooms/gametest/`, rangé par
 domaine comme le code (`support/`, `backrooms/level0/`, `backrooms/portal/`, `feature/`) : un mod
 `gtgs_backrooms_gametest` chargé par `runGameTest` seulement, jamais dans le JAR (`verifyJarContents` le vérifie).

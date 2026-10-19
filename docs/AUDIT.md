@@ -33,7 +33,7 @@ avant/après, benchmark avant/après sur la même machine, suite de tests rééc
 | Aucune mesure de couverture. | JaCoCo (XML, CSV, HTML), code client et mixins exclus. |
 | Aucun test en jeu. | Fabric GameTest : `./gradlew runGameTest` charge la dimension et vérifie la pile des 5 layers. Ajouté à la CI et à la release. |
 | 13 blocs `if (project.hasProperty(...)) vmArg ...` dupliqués entre `runClient` et le benchmark. | Une map de propriétés, appliquée aux deux. |
-| Dépendances `suggests` geckolib/patchouli sans effet. | Retirées ; `docs/DEPENDENCIES.md` reste une étude. |
+| Dépendances `suggests` geckolib/patchouli sans effet. | Retirées ; l'étude `docs/DEPENDENCIES.md` a été retirée à son tour le 2026-10-20 (`docs/GUIDE.md` fait référence). |
 | `META-INF/mods.toml` (Forge), `atlases/blocks.json` (atlas jamais référencé), `assets/.../items/*.json` (format 1.21.4, ignoré en 1.21.1), dossiers `.github/java-upgrade` et `.github/modernize` d'un outil IDE, répertoires `com/ net/ org/` de `.class` à la racine. | Supprimés (les deux dossiers `.github/*` non versionnés et `tools/` n'ont pas pu être supprimés par l'agent : à faire à la main). |
 
 ### 2.2 Structure du code
