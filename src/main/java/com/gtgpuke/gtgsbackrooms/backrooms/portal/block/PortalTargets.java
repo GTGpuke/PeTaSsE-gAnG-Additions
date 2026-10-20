@@ -14,6 +14,7 @@ import net.minecraft.util.math.ChunkPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.Heightmap;
@@ -30,8 +31,10 @@ import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
  * Ciblage automatique d'un bloc portail : ou il mene, et dans quel sens on en sort.
  *
  * <p>Un portail pose hors du Level 0 mene au layer 0 du Level 0, pres des memes X/Z ; pose dans le Level 0, il ramene a
- * la surface du monde normal aux memes X/Z. Traverser ne fait pas tourner : la face de sortie regarde a l'oppose de celle
- * d'entree, et on continue dans la meme direction. Dans le Level 0, le cadre d'arrivee se pose dans la cellule ouverte la
+ * la surface du monde normal aux memes X/Z. Par defaut, traverser ne fait pas tourner : la face de sortie regarde a
+ * l'oppose de celle d'entree, et on continue dans la meme direction ; les reglages peuvent imposer un point cardinal de
+ * sortie, le sol ou le plafond ({@link PortalExit}) et tirer au sort les X/Z de l'arrivee dans un rayon autour de ceux du
+ * bloc. Un cadre d'arrivee couche se pose la ou toute son empreinte est libre. Dans le Level 0, le cadre d'arrivee se pose dans la cellule ouverte la
  * plus proche ou il tient sur toute sa largeur avec un bloc libre devant et derriere chaque colonne (le portail se
  * traverse par ses deux faces) ; faute de mieux, au centre de la cellule ouverte la plus proche, face a un bloc libre.
  */
@@ -68,7 +71,7 @@ public final class PortalTargets {
      * @return destination, ou {@code null} si la dimension cible est absente ou sans cellule ouverte
      */
     public static @Nullable Target resolve(ServerWorld world, BlockPos anchor, PortalFacing entryFacing, PortalSettings settings) {
-        return resolve(world.getServer(), world.getRegistryKey(), anchor, entryFacing, settings);
+        return resolve(world.getServer(), world.getRegistryKey(), anchor, entryFacing, settings, world.getRandom());
     }
 
     /**
@@ -79,7 +82,8 @@ public final class PortalTargets {
      * @param dimension dimension du bloc
      * @param anchor position du bloc
      * @param entryFacing orientation de sa face avant
-     * @param settings taille du cadre
+     * @param settings taille du cadre, sens de sortie et rayon de tirage au sort de l'arrivee
+     * @param random tirage des X/Z de l'arrivee, quand les reglages en veulent un
      * @return destination, ou {@code null} si la dimension cible est absente ou sans cellule ouverte
      */
     public static @Nullable Target resolve(
@@ -87,14 +91,17 @@ public final class PortalTargets {
             RegistryKey<World> dimension,
             BlockPos anchor,
             PortalFacing entryFacing,
-            PortalSettings settings) {
-        PortalFacing exitFacing = entryFacing.opposite();
+            PortalSettings settings,
+            Random random) {
+        PortalFacing exitFacing = settings.exit().arrivalFacing(entryFacing);
+        int x = anchor.getX() + scatter(random, settings.exitScatter());
+        int z = anchor.getZ() + scatter(random, settings.exitScatter());
         if (dimension.equals(BackroomsConstants.LEVEL_ZERO_WORLD)) {
             ServerWorld overworld = server.getOverworld();
             // World.getTopY renvoie le fond du monde si le chunk n'est pas charge : on le charge d'abord (une fois, a la pose).
-            overworld.getChunk(ChunkSectionPos.getSectionCoord(anchor.getX()), ChunkSectionPos.getSectionCoord(anchor.getZ()));
-            int surfaceY = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING, anchor.getX(), anchor.getZ());
-            Vec3d floor = new Vec3d(anchor.getX() + 0.5, floorHeight(overworld, anchor.getX(), surfaceY, anchor.getZ()), anchor.getZ() + 0.5);
+            overworld.getChunk(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
+            int surfaceY = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z);
+            Vec3d floor = new Vec3d(x + 0.5, floorHeight(overworld, x, surfaceY, z) + ceilingLift(exitFacing), z + 0.5);
             return new Target(World.OVERWORLD, PortalArea.center(floor, exitFacing, settings), exitFacing);
         }
         ServerWorld levelZero = server.getWorld(BackroomsConstants.LEVEL_ZERO_WORLD);
@@ -102,7 +109,20 @@ public final class PortalTargets {
             return null;
         }
         long layoutSeed = LevelZeroSeedResolver.resolveLayoutSeed(levelZero.getChunkManager().getNoiseConfig());
-        return levelZeroTarget(LevelZeroSeedResolver.resolveLayerSeed(layoutSeed, 0), anchor.getX(), anchor.getZ(), exitFacing, settings);
+        return levelZeroTarget(LevelZeroSeedResolver.resolveLayerSeed(layoutSeed, 0), x, z, exitFacing, settings);
+    }
+
+    /**
+     * Un cadre au plafond pose a la surface est releve de deux blocs : qui en sort pend sous son plan, les pieds encore
+     * au-dessus du sol. Rien pour les autres orientations.
+     */
+    static int ceilingLift(PortalFacing facing) {
+        return facing == PortalFacing.DOWN ? PortalArea.CLEARANCE_BEHIND : 0;
+    }
+
+    /** Ecart tire au sort dans [-rayon, rayon], en blocs ; nul sans rayon. */
+    static int scatter(Random random, int radius) {
+        return radius <= 0 ? 0 : random.nextBetween(-radius, radius);
     }
 
     /**
@@ -155,6 +175,8 @@ public final class PortalTargets {
             PortalSettings settings) {
         int cellX = LevelZeroCoords.worldToCell(worldX);
         int cellZ = LevelZeroCoords.worldToCell(worldZ);
+        // Un sens de sortie impose (point cardinal, sol, plafond) ne se tourne pas : le cadre se pose la ou il tient tel quel.
+        boolean imposed = settings.exit() != PortalExit.STRAIGHT;
         long fallback = Long.MIN_VALUE;
         for (int radius = 0; radius <= MAX_SEARCH_RADIUS_CELLS; radius++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -167,7 +189,14 @@ public final class PortalTargets {
                     if (walkable.applyAsInt(x, z) == 0) {
                         continue;
                     }
-                    PortalFacing facing = fittingFacing(walkable, x, z, preferredFacing, settings.width());
+                    PortalFacing facing;
+                    if (preferredFacing.direction.getAxis().isVertical()) {
+                        facing = fitsFlat(walkable, x, z, preferredFacing, settings) ? preferredFacing : null;
+                    } else if (imposed) {
+                        facing = fits(walkable, x, z, preferredFacing, settings.width()) ? preferredFacing : null;
+                    } else {
+                        facing = fittingFacing(walkable, x, z, preferredFacing, settings.width());
+                    }
                     if (facing != null) {
                         return target(x, z, facing, settings);
                     }
@@ -182,12 +211,28 @@ public final class PortalTargets {
         }
         int x = (int) (fallback >> 32);
         int z = (int) fallback;
-        return target(x, z, exitFacing(walkable, x, z, preferredFacing), settings);
+        return target(x, z, imposed ? preferredFacing : exitFacing(walkable, x, z, preferredFacing), settings);
     }
 
+    /** Cadre debout ou au sol : ancre au sol du layer 0 ; cadre au plafond : ancre dans la derniere rangee d'air, sous le plafond. */
     private static Target target(int x, int z, PortalFacing facing, PortalSettings settings) {
-        Vec3d floor = new Vec3d(x + 0.5, LevelZeroLayerStackLayout.airMinY(0), z + 0.5);
+        int anchorY = facing == PortalFacing.DOWN ? LevelZeroLayerStackLayout.airMaxY(0) : LevelZeroLayerStackLayout.airMinY(0);
+        Vec3d floor = new Vec3d(x + 0.5, anchorY, z + 0.5);
         return new Target(BackroomsConstants.LEVEL_ZERO_WORLD, PortalArea.center(floor, facing, settings), facing);
+    }
+
+    /** {@code true} si chaque bloc de l'empreinte d'un cadre couche (largeur le long de X, hauteur le long de Z) est libre. */
+    static boolean fitsFlat(IntBinaryOperator walkable, int x, int z, PortalFacing facing, PortalSettings settings) {
+        for (int column = PortalArea.firstColumn(settings.width()); column <= PortalArea.lastColumn(settings.width()); column++) {
+            for (int row = 0; row < settings.height(); row++) {
+                int cellX = x + (int) (facing.axisW.x * column + facing.axisH.x * row);
+                int cellZ = z + (int) (facing.axisW.z * column + facing.axisH.z * row);
+                if (walkable.applyAsInt(cellX, cellZ) == 0) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** Orientation ou le cadre tient, la preferee d'abord ; {@code null} si aucune. */

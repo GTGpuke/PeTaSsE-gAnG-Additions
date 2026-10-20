@@ -35,7 +35,7 @@ Détails d'installation : [docs/SETUP.md](docs/SETUP.md).
 | **Gang Badge** | Item EPIC unique par pile ; clic droit = miaulement + animation de totem. |
 | **Casse-croûte Maudit** | Nourriture toujours mangeable qui retire 2 points de faim. |
 | **Arbre Maudit** | Tronc, feuilles, pousse (arbre custom), planches. |
-| **Portails Backrooms** | **Portail des Backrooms** (onglet créatif dédié) : portail double face, visible et traversable dans les deux sens vers le Level 0, taille et lumière réglables, portail de retour, monde distant rendu à travers le cadre avec ses entités et ses propres portails, interaction à travers le cadre (chunks et entités synchronisés serveur → client). Détail : [docs/PORTALS.md](docs/PORTALS.md). |
+| **Portails Backrooms** | **Portail des Backrooms** (onglet créatif dédié) : portail double face, visible et traversable dans les deux sens vers le Level 0, taille, lumière, sens de sortie et arrivée au hasard réglables, cadres debout, au sol ou au plafond (changement de gravité), montures et véhicules emmenés avec leurs passagers, portail de retour, monde distant rendu à travers le cadre avec ses entités et ses propres portails, interaction à travers le cadre (chunks et entités synchronisés serveur → client). Détail : [docs/PORTALS.md](docs/PORTALS.md). |
 
 Accès au Level 0 en jeu :
 

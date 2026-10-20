@@ -258,7 +258,7 @@ public final class PortalStencilRenderer {
             if (behind != null) {
                 RemoteWorld view = RemoteWorldRegistry.viewOf(behind.destinationDim());
                 ShaderPackPortalRenderer.renderCovering(client, behind, view, behindCameraPos(view, behind, camera.getFocusedEntity()),
-                        PortalViewTransform.remoteLook(behind, camera.getYaw(), camera.getPitch()), tickCounter, camera, lightmap, projectionMatrix);
+                        tickCounter, camera, lightmap, projectionMatrix);
             } else {
                 ShaderPackPortalRenderer.render(client, VISIBLE, tickCounter, camera, lightmap, positionMatrix, projectionMatrix);
             }
@@ -367,9 +367,8 @@ public final class PortalStencilRenderer {
             float tickDelta) {
         RemoteWorld view = RemoteWorldRegistry.viewOf(portal.destinationDim());
         Vec3d remoteCameraPos = behindCameraPos(view, portal, camera.getFocusedEntity());
-        Vec2f remoteLook = PortalViewTransform.remoteLook(portal, camera.getYaw(), camera.getPitch());
         Camera remoteCamera = PortalRenderState.remoteCamera();
-        aimCamera(remoteCamera, remoteCameraPos, remoteLook, REMOTE_POSITION);
+        Vec2f remoteLook = aimCamera(remoteCamera, remoteCameraPos, portal, camera, REMOTE_POSITION);
 
         saveMainFog();
         GL11.glEnable(GL11.GL_STENCIL_TEST);
@@ -607,9 +606,8 @@ public final class PortalStencilRenderer {
             return;
         }
         Vec3d remoteCameraPos = portal.toDestination(cameraPos);
-        Vec2f remoteLook = PortalViewTransform.remoteLook(portal, camera.getYaw(), camera.getPitch());
         Camera remoteCamera = PortalRenderState.remoteCamera();
-        aimCamera(remoteCamera, remoteCameraPos, remoteLook, REMOTE_POSITION);
+        Vec2f remoteLook = aimCamera(remoteCamera, remoteCameraPos, portal, camera, REMOTE_POSITION);
 
         FrameAreaRenderer.writeDepth(portal, cameraPos, positionMatrix, true);
         // Rien de la vue ne sort du rectangle d'ecran du cadre : le ciseau epargne au GPU les fragments du reste de l'ecran,
@@ -737,7 +735,7 @@ public final class PortalStencilRenderer {
                 BackroomsPortalEntity inner = NESTED.get(i);
                 markArea(inner, remoteCameraPos, REMOTE_POSITION, level);
                 try {
-                    renderNestedPortal(client, inner, camera, remoteCameraPos, remoteLook, projectionMatrix, lightmap, tickDelta);
+                    renderNestedPortal(client, inner, camera, remoteCameraPos, projectionMatrix, lightmap, tickDelta);
                 } finally {
                     restoreArea(inner, remoteCameraPos, REMOTE_POSITION, level);
                 }
@@ -799,7 +797,6 @@ public final class PortalStencilRenderer {
             BackroomsPortalEntity inner,
             Camera camera,
             Vec3d remoteCameraPos,
-            Vec2f remoteLook,
             Matrix4f projectionMatrix,
             LightmapTextureManager lightmap,
             float tickDelta) {
@@ -810,9 +807,8 @@ public final class PortalStencilRenderer {
             return;
         }
         Vec3d innerCameraPos = inner.toDestination(remoteCameraPos);
-        Vec2f innerLook = PortalViewTransform.remoteLook(inner, remoteLook.x, remoteLook.y);
         Camera nestedCamera = PortalRenderState.nestedCamera();
-        aimCamera(nestedCamera, innerCameraPos, innerLook, NESTED_POSITION);
+        aimCamera(nestedCamera, innerCameraPos, inner, PortalRenderState.remoteCamera(), NESTED_POSITION);
 
         FrameAreaRenderer.writeDepth(inner, remoteCameraPos, REMOTE_POSITION, true);
         boolean scissored = pushScissor(client, inner, remoteCameraPos, REMOTE_POSITION, projectionMatrix);
@@ -826,11 +822,17 @@ public final class PortalStencilRenderer {
         }
     }
 
-    /** Oriente une camera de vue et en derive la matrice de vue. */
-    static void aimCamera(Camera viewCamera, Vec3d position, Vec2f look, Matrix4f positionMatrix) {
+    /**
+     * Place et oriente une camera de vue, image par un portail de la camera qui le regarde, roulis compris, et en derive
+     * la matrice de vue.
+     *
+     * @return regard transpose de la camera de vue, pour choisir les portails qu'elle voit
+     */
+    static Vec2f aimCamera(Camera viewCamera, Vec3d position, BackroomsPortalEntity portal, Camera source, Matrix4f positionMatrix) {
         ((CameraAccessor) viewCamera).backrooms$setPos(position);
-        ((CameraAccessor) viewCamera).backrooms$setRotation(look.x, look.y);
+        Vec2f look = PortalViewTransform.aim(viewCamera, portal, source);
         PortalViewTransform.positionMatrix(viewCamera, positionMatrix);
+        return look;
     }
 
     /** {@code true} si la vue possede le chunk du point d'arrivee ; sinon elle ne montrerait que du ciel. */

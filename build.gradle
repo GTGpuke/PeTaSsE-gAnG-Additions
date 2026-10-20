@@ -134,6 +134,7 @@ def coverageExcludes = [
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/entity/**',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/interaction/**',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/sound/FrameSoundPlayer*',
+        'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/sound/SoundAnchors*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/transition/**',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/PortalStencilRenderer*',
         'com/gtgpuke/gtgsbackrooms/backrooms/portal/client/view/ShaderPackPortalRenderer*',

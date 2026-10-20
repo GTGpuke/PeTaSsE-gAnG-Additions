@@ -1,11 +1,12 @@
 package com.gtgpuke.gtgsbackrooms.mixin.client;
 
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.GlStateManager;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.gl.VertexBuffer;
@@ -30,14 +31,14 @@ public abstract class MixinVertexBuffer {
     @Shadow
     private int vertexArrayId;
 
-    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/GlStateManager;_glGenBuffers()I"))
-    private int backrooms$lazyBuffer() {
-        return LazyVertexBuffers.active() ? 0 : GlStateManager._glGenBuffers();
+    @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/GlStateManager;_glGenBuffers()I"))
+    private int backrooms$lazyBuffer(Operation<Integer> original) {
+        return LazyVertexBuffers.active() ? 0 : original.call();
     }
 
-    @Redirect(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/GlStateManager;_glGenVertexArrays()I"))
-    private int backrooms$lazyVertexArray() {
-        return LazyVertexBuffers.active() ? 0 : GlStateManager._glGenVertexArrays();
+    @WrapOperation(method = "<init>", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/platform/GlStateManager;_glGenVertexArrays()I"))
+    private int backrooms$lazyVertexArray(Operation<Integer> original) {
+        return LazyVertexBuffers.active() ? 0 : original.call();
     }
 
     /** Premier usage d'un tampon cree en differe : ses objets GL existent a partir d'ici. */

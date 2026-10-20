@@ -31,10 +31,10 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 - `feature/gang`, `feature/cursed` : contenu gameplay, une classe par item.
 - `backrooms/level0/generation/` : `coord` → `noise` → `sector` → `layout` → `write`, orchestrés par `LevelZeroChunkGenerator`.
 - `backrooms/level0/client/model/` : rendu adaptatif du mur (client uniquement).
-- `backrooms/portal/` : portails (bloc portail double face et ses réglages, entity, téléportation de tout ce qui traverse, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
+- `backrooms/portal/` : portails (bloc portail double face et ses réglages, debout, au sol ou au plafond, entity, téléportation de tout ce qui traverse, attelages compris, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
 - `perf/` : moniteur de performance opt-in.
 - `compat/iris/` : compatibilité avec le mod de shaders Iris, seul mod nommé dans le code (exception accordée) : son API publique dit si un pack est actif, et les vues de portail se dessinent alors après l'image (`ShaderPackPortalRenderer`). Dépendance `modCompileOnly` depuis le maven Modrinth, jamais embarquée ni requise.
-- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre).
+- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre, sons replacés après une traversée, roulis de la caméra à la traversée).
 - `src/gametest/` : tests en jeu, mod séparé `gtgs_backrooms_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
 
 ## Règles de code
@@ -123,6 +123,13 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   est déclaré dans `ClientCommonNetworkHandler`) ; l'erreur ne sort qu'au chargement de la cible, donc au lancement du client
   pour un mixin client. `MixinTargetsTest` charge la cible de chaque mixin déclaré et fait échouer le build à la place. Aucune
   classe de test dans le paquet `mixin` : Mixin refuse de charger les classes de son paquet.
+- Mixins : aucun `@Redirect`. Compilé contre le Mixin de Loader 0.19.5, son point d'injection est un tableau, que le
+  MixinExtras 0.5.4 de Loader 0.19.2 lit comme un seul élément : la cible n'est pas transformée et le jeu plante au
+  démarrage (`ClassCastException`), même sans autre mod. `@WrapOperation` fait le même travail, mais son appel
+  d'origine reçoit ses arguments dans un tableau alloué : dans un chemin de rendu, `@ModifyExpressionValue` quand
+  l'appel d'origine peut s'exécuter. `MixinTargetsTest` refuse tout `@Redirect`. Un chargeur plus ancien s'essaie en
+  production, avec le chargeur, Mixin et MixinExtras de sa version sur le classpath (fichier `.json` de la version sur
+  le maven de Fabric).
 - Mixins et mods de rendu : une injection dans une méthode déjà réécrite (`@Overwrite`) par un autre mod est une erreur
   critique quel que soit `require` (le jeu ne démarre pas) ; ne rien injecter dans `WorldRenderer.setupTerrain` ni
   `renderLayer`, que les mods de rendu réécrivent. Fabric déclenche ses évènements de rendu du monde dans `setupTerrain`
@@ -247,6 +254,18 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - Banc multijoueur : une partie solo ouverte en LAN reste en mode en ligne (`IntegratedServer.setupServer`) ; un second
   client de dev, sans session Mojang, y est refusé dès la connexion. Le multijoueur se vérifie par les tests en jeu
   (`GameTestPlayers`).
+- Caméra d'une vue : un lacet et un tangage ne suffisent pas quand le portail tourne autour d'un axe horizontal (d'un sol
+  à un mur) ; `Camera.getRotation()` et ses trois directions (`getHorizontalPlane`, `getVerticalPlane`,
+  `getDiagonalPlane`) sont des champs mutables que le rendu lit : `PortalViewTransform.aim` y pose la rotation
+  complète (roulis), à recopier aussi dans la caméra du joueur quand elle prend la place d'une vue sous un pack.
+  Un quaternion et son opposé sont la même rotation, et le lacet du joueur n'est jamais ramené à un tour : un angle
+  lu dans un quaternion (`2 atan2(z, w)`) se prend avec `w` positif, sinon un roulis nul vaut un tour entier.
+- Tests en jeu : un joueur tout juste connecté ne prend aucun dégât pendant 60 ticks (`joinInvulnerabilityTicks`,
+  décompté par `playerTick`, donc par `GameTestPlayers.tick`) ; un objet perd 2 % de vitesse par tick, gravité ou non.
+- Tests en jeu : un mob `setAiDisabled(true)` n'a plus de gravité (vanilla ne le fait plus bouger) ; pour un corps qui
+  tombe sans dériver, un porte-armure. Un joueur monté ne bouge qu'à la réception des paquets de son client : le trajet
+  de son véhicule ne se lit pas dans `prevX` (`TeleportExecutor` le suit d'un tick à l'autre). Un serveur de test qui
+  plante n'écrit pas `build/junit.xml` : un script qui lit ce rapport doit tenir le code de sortie pour un échec.
 - Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
   type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
   fautif passe inaperçu).

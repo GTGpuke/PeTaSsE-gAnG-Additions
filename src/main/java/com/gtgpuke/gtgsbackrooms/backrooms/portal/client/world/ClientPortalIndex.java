@@ -8,12 +8,14 @@ import java.util.Map;
 import it.unimi.dsi.fastutil.objects.ObjectArrayList;
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound.SoundAnchors;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.PortalCollision;
 
@@ -161,6 +163,12 @@ public final class ClientPortalIndex {
             portals.add(portal);
             if (world == shownWorld && !portal.hiddenFromPlayer()) {
                 SHOWN.add(portal);
+            }
+            // Un portail de plus dans le monde du joueur : un son d'un autre monde encore joue a peut-etre un chemin desormais
+            // (apres une bascule menee par le serveur, les portails de l'arrivee peuvent arriver apres le joueur).
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (world == client.world) {
+                SoundAnchors.refresh(client);
             }
         }
     }

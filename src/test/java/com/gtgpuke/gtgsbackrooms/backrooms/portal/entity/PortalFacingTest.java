@@ -13,6 +13,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 
@@ -117,6 +118,34 @@ class PortalFacingTest {
         Vec3d velocity = PortalFacing.transformVector(PortalFacing.UP, PortalFacing.NORTH, new Vec3d(0.0, -0.5, 0.0));
         assertEquals(0.5, velocity.length(), EPS, "Norme conservee.");
         assertTrue(velocity.z < 0.0, "Tomber dans un portail au sol fait ressortir vers le nord, cote sortie.");
+        // Du sol au plafond, tout droit : une translation, ni demi-tour ni miroir.
+        Vec3d falling = new Vec3d(0.3, -0.5, -0.2);
+        assertEquals(0.0, PortalFacing.transformVector(PortalFacing.UP, PortalFacing.DOWN, falling).subtract(falling).length(), EPS,
+                "Tomber dans un cadre au sol et ressortir d'un plafond garde vitesse et cap.");
+        assertEquals(0.0, PortalFacing.transformVector(PortalFacing.DOWN, PortalFacing.UP, falling.multiply(-1.0)).add(falling).length(), EPS,
+                "Monter dans un cadre au plafond et ressortir d'un sol aussi.");
+        Vec2f look = PortalFacing.transformLook(PortalFacing.UP, PortalFacing.DOWN, 180.0f, 30.0f);
+        assertEquals(0.0f, MathHelper.wrapDegrees(look.x - 180.0f), 1.0e-3f, "Le regard garde son cap.");
+        assertEquals(30.0f, look.y, 1.0e-3f, "Et son inclinaison.");
+    }
+
+    @Test
+    @DisplayName("Un regard qui devient vertical garde le cap de qui baissera ou levera les yeux")
+    void verticalLookKeepsAMeaningfulHeading() {
+        // Tombe dans un sol en regardant l'horizon au nord, sorti d'un mur au nord (on file vers le nord) : on regarde le
+        // ciel, et en baissant les yeux on regarde le nord, la ou l'on va.
+        Vec2f up = PortalFacing.transformLook(PortalFacing.UP, PortalFacing.NORTH, 180.0f, 0.0f);
+        assertEquals(-90.0f, up.y, 1.0e-3f, "Le regard monte au ciel.");
+        assertEquals(0.0f, MathHelper.wrapDegrees(up.x - 180.0f), 1.0e-3f, "Le cap est le nord.");
+        // Monte dans un plafond en regardant l'horizon au nord, sorti d'un mur a l'est : le nord du plafond devient le ciel.
+        // Le haut de l'ecran reste vers l'est, ou l'on file : l'image ne tourne pas a la traversee (cap a l'ouest, qui
+        // regarde le ciel a le haut de l'ecran derriere lui).
+        Vec2f rising = PortalFacing.transformLook(PortalFacing.DOWN, PortalFacing.EAST, 180.0f, 0.0f);
+        assertEquals(-90.0f, rising.y, 1.0e-3f, "Le regard monte au ciel.");
+        assertEquals(0.0f, MathHelper.wrapDegrees(rising.x - 90.0f), 1.0e-3f, "Cap a l'ouest : le haut de l'ecran vers l'est.");
+        // Tombe dans un sol en regardant le sol, la tete vers le nord, sorti d'un sol au sud : on regarde le ciel.
+        Vec2f looking = PortalFacing.transformLook(PortalFacing.UP, PortalFacing.UP, 180.0f, 90.0f);
+        assertEquals(-90.0f, looking.y, 1.0e-3f, "Le regard monte au ciel.");
     }
 
     @Test

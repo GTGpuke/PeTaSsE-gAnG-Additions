@@ -9,6 +9,7 @@ import java.util.function.Predicate;
 
 import it.unimi.dsi.fastutil.objects.Object2LongMap;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.advancement.criterion.Criteria;
 import net.minecraft.entity.Entity;
@@ -16,13 +17,16 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.s2c.play.DifficultyS2CPacket;
+import net.minecraft.network.packet.s2c.play.EntityPassengersSetS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerAbilitiesS2CPacket;
+import net.minecraft.network.packet.s2c.play.VehicleMoveS2CPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.TypeFilter;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec2f;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.TeleportTarget;
@@ -59,7 +63,9 @@ import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
  * dimension suit la sequence vanilla sans le paquet de respawn : le client bascule sur le monde
  * distant qu'il a deja charge, sans ecran de chargement. Un joueur qui vient de traverser attend
  * {@link ModConfig#PORTAL_TELEPORT_COOLDOWN_TICKS} ticks avant de pouvoir repasser. Les autres entities sont
- * teleportees par le serveur seul, d'apres leur deplacement du tick, avec le cooldown de portail vanilla.
+ * teleportees par le serveur seul, d'apres leur deplacement du tick, avec le cooldown de portail vanilla. Un vehicule
+ * emmene tout ce qui le monte, joueurs compris : en selle, c'est le serveur qui mene la bascule, d'apres le trajet du
+ * vehicule entre deux ticks ({@link #executeTree}).
  */
 public final class TeleportExecutor {
 
@@ -81,6 +87,9 @@ public final class TeleportExecutor {
     private static final String PERF_TELEPORT_PLAYER = "portal.teleport.player";
     private static final String PERF_TELEPORT_VANILLA = "portal.teleport.vanilla";
 
+    private static final Vec3d DOWN = new Vec3d(0.0, -1.0, 0.0);
+    /** Pieds d'une entity debout sur le sol plein d'un cadre au sol : au plus a cette profondeur sous son plan (milieu du bloc). */
+    private static final double DESCENT_DEPTH = 0.6;
     /** Vitesse annoncee la plus forte admise, en blocs par tick : bien au-dela d'un vol propulse a l'elytre. */
     private static final double MAX_ANNOUNCED_SPEED = 10.0;
     private static final float MAX_PITCH = 90.0f;
@@ -90,15 +99,24 @@ public final class TeleportExecutor {
     private static final Object2LongMap<UUID> LAST_CROSSING_TICK = new Object2LongOpenHashMap<>();
     /** Franchissements detectes par le serveur, en attente de l'annonce du client. */
     private static final Map<UUID, PendingCrossing> PENDING_CROSSINGS = new HashMap<>();
+    /** Position, au tick precedent, du vehicule racine de chaque joueur monte : mene par un client, il ne bouge qu'entre deux ticks. */
+    private static final Map<UUID, Vec3d> LAST_VEHICLE_POS = new HashMap<>();
+    /** Vehicule racine que chaque joueur monte montait au tick precedent : passer sur un autre n'est pas un trajet. */
+    private static final Map<UUID, UUID> LAST_VEHICLE = new HashMap<>();
+    /** Joueurs montes sur l'attelage qui traverse, et ce que chacun montait ; remis en selle de l'autre cote. */
+    private static final List<ServerPlayerEntity> RIDERS = new ArrayList<>();
+    private static final List<Entity> RIDER_VEHICLES = new ArrayList<>();
     private static final TypeFilter<Entity, Entity> ENTITY_FILTER = TypeFilter.instanceOf(Entity.class);
     private static final List<Entity> ENTITY_SCRATCH = new ArrayList<>();
-    /** Objets, mobs et projectiles libres : les joueurs ont leur propre chemin, et un portail ne traverse rien. */
+    /**
+     * Objets, mobs, projectiles et vehicules : les joueurs ont leur propre chemin, un portail ne traverse rien, et un
+     * passager suit son vehicule (c'est l'attelage entier qui traverse, par sa racine).
+     */
     private static final Predicate<Entity> CROSSING_CANDIDATE = entity -> !(entity instanceof PlayerEntity)
             && !(entity instanceof BackroomsPortalEntity)
             && entity.isAlive()
             && !entity.hasPortalCooldown()
-            && !entity.hasVehicle()
-            && !entity.hasPassengers();
+            && !entity.hasVehicle();
 
     /** Portail franchi selon le serveur et tick a partir duquel il teleporte lui-meme. */
     private record PendingCrossing(UUID portal, long deadline) {
@@ -117,16 +135,18 @@ public final class TeleportExecutor {
         ServerTickEvents.END_SERVER_TICK.register(TeleportExecutor::tick);
         ServerPlayNetworking.registerGlobalReceiver(PortalCrossPayload.ID, (payload, context) -> onClientCrossing(context.player(), payload));
         ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> {
-            LAST_PLAYER_POS.remove(handler.player.getUuid());
+            forget(handler.player.getUuid());
             PENDING_CROSSINGS.remove(handler.player.getUuid());
             LAST_CROSSING_TICK.removeLong(handler.player.getUuid());
         });
-        // Apres un changement de monde vanilla ou un respawn, l'ancienne position n'est pas un trajet : elle couperait les
-        // plans des portails du nouveau monde.
-        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> LAST_PLAYER_POS.remove(player.getUuid()));
-        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> LAST_PLAYER_POS.remove(newPlayer.getUuid()));
+        // Apres un changement de monde vanilla ou un respawn, l'ancienne position (du joueur ou de son vehicule) n'est pas un
+        // trajet : elle couperait les plans des portails du nouveau monde.
+        ServerEntityWorldChangeEvents.AFTER_PLAYER_CHANGE_WORLD.register((player, origin, destination) -> forget(player.getUuid()));
+        ServerPlayerEvents.AFTER_RESPAWN.register((oldPlayer, newPlayer, alive) -> forget(newPlayer.getUuid()));
         ServerLifecycleEvents.SERVER_STOPPED.register(server -> {
             LAST_PLAYER_POS.clear();
+            LAST_VEHICLE_POS.clear();
+            LAST_VEHICLE.clear();
             PENDING_CROSSINGS.clear();
             LAST_CROSSING_TICK.clear();
         });
@@ -152,13 +172,19 @@ public final class TeleportExecutor {
     private static boolean processPlayer(ServerPlayerEntity player) {
         // Un joueur retire n'est plus vivant non plus.
         if (!player.isAlive()) {
-            LAST_PLAYER_POS.remove(player.getUuid());
+            forget(player.getUuid());
             return false;
         }
         Vec3d currentPos = player.getPos();
         Vec3d lastPos = LAST_PLAYER_POS.put(player.getUuid(), currentPos);
-        if (lastPos == null || lastPos == currentPos || player.hasVehicle()
-                || lastPos.squaredDistanceTo(currentPos) > MAX_STEP_SQUARED) {
+        if (player.hasVehicle()) {
+            return processRider(player);
+        }
+        LAST_VEHICLE_POS.remove(player.getUuid());
+        LAST_VEHICLE.remove(player.getUuid());
+        // Un joueur immobile ne franchit aucun plan (deux positions egales), mais un franchissement en attente se joue quand
+        // meme : qui tombe dans un cadre au sol touche le fond, a deux blocs, avant la fin du delai laisse a son client.
+        if (lastPos == null || lastPos.squaredDistanceTo(currentPos) > MAX_STEP_SQUARED) {
             return false;
         }
         ServerWorld world = player.getServerWorld();
@@ -175,18 +201,66 @@ public final class TeleportExecutor {
             BackroomsPortalEntity portal = BackroomsPortalEntityRegistry.find(world, pending.portal());
             return portal != null && portal.teleportable() && execute(player, portal);
         }
+        BackroomsPortalEntity portal = crossedPortal(world, player, player, lastPos, currentPos);
+        if (portal != null) {
+            PENDING_CROSSINGS.put(player.getUuid(), new PendingCrossing(portal.getUuid(), world.getTime() + CLIENT_PREDICTION_GRACE_TICKS));
+        }
+        return false;
+    }
+
+    /** Oublie les positions suivies d'un joueur parti ou retire. */
+    private static void forget(UUID player) {
+        LAST_PLAYER_POS.remove(player);
+        LAST_VEHICLE_POS.remove(player);
+        LAST_VEHICLE.remove(player);
+    }
+
+    /**
+     * Portail du monde dont le plan est franchi par le trajet d'un corps, depuis le cote d'entree. Une sortie fugace
+     * que le joueur ne regarde pas n'existe pas pour lui : il la traverse comme de l'air.
+     *
+     * @param world monde du joueur
+     * @param player joueur concerne, pour son regard sur les sorties fugaces
+     * @param mover corps dont le trajet est teste : le joueur lui-meme, ou le vehicule racine qu'il monte
+     * @param lastPos position precedente du corps
+     * @param currentPos position courante du corps
+     * @return le portail franchi, ou {@code null}
+     */
+    private static @Nullable BackroomsPortalEntity crossedPortal(
+            ServerWorld world, ServerPlayerEntity player, Entity mover, Vec3d lastPos, Vec3d currentPos) {
         List<BackroomsPortalEntity> portals = BackroomsPortalEntityRegistry.all();
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            // Une sortie fugace que le joueur ne regarde pas n'existe pas pour lui : il la traverse comme de l'air.
             if (portal.getWorld() == world && portal.teleportable()
-                    && crossedPortalPlane(portal, player, lastPos.x, lastPos.y, lastPos.z, currentPos.x, currentPos.y, currentPos.z)
+                    && (crossedPortalPlane(portal, mover, lastPos.x, lastPos.y, lastPos.z, currentPos.x, currentPos.y, currentPos.z)
+                    || descendsThrough(portal, mover))
                     && (!portal.fleeting() || PortalSight.sees(player, portal))) {
-                PENDING_CROSSINGS.put(player.getUuid(), new PendingCrossing(portal.getUuid(), world.getTime() + CLIENT_PREDICTION_GRACE_TICKS));
-                return false;
+                return portal;
             }
         }
-        return false;
+        return null;
+    }
+
+    /**
+     * Joueur monte : son attelage traverse d'apres le deplacement de son vehicule racine entre deux ticks. Mene par un
+     * client, un vehicule ne bouge qu'a la reception de ses paquets, hors du tick : son trajet ne se lit pas dans
+     * {@code prevX}. Le serveur mene seul la bascule, le client ne predit pas une traversee en selle.
+     *
+     * @return {@code true} si l'attelage vient d'etre teleporte
+     */
+    private static boolean processRider(ServerPlayerEntity player) {
+        Entity root = player.getRootVehicle();
+        UUID rider = player.getUuid();
+        Vec3d currentPos = root.getPos();
+        Vec3d lastPos = LAST_VEHICLE_POS.put(rider, currentPos);
+        UUID lastRoot = LAST_VEHICLE.put(rider, root.getUuid());
+        ServerWorld world = player.getServerWorld();
+        if (lastPos == null || lastPos == currentPos || !root.getUuid().equals(lastRoot)
+                || lastPos.squaredDistanceTo(currentPos) > MAX_STEP_SQUARED || isOnCooldown(rider, world.getTime())) {
+            return false;
+        }
+        BackroomsPortalEntity portal = crossedPortal(world, player, root, lastPos, currentPos);
+        return portal != null && executeTree(root, portal);
     }
 
     /** Objets, mobs et projectiles : le serveur decide seul, d'apres le deplacement du tick. */
@@ -273,8 +347,9 @@ public final class TeleportExecutor {
     }
 
     /**
-     * {@code true} si les pieds d'une entity passent le plan du portail depuis le cote d'entree, entre deux positions, le
-     * centre en face de l'ouverture, et que sa boite touche alors le cadre. Sert aussi a la prediction client.
+     * {@code true} si les pieds d'une entity (ses yeux pour un cadre au sol, {@link BackroomsPortalEntity#crossingHeight})
+     * passent le plan du portail depuis le cote d'entree, entre deux positions, le centre en face de l'ouverture, et que sa
+     * boite touche alors le cadre. Sert aussi a la prediction client.
      *
      * @param portal portail teste
      * @param entity entity qui se deplace, pour sa largeur et sa hauteur
@@ -287,7 +362,8 @@ public final class TeleportExecutor {
      */
     public static boolean crossedPortalPlane(
             BackroomsPortalEntity portal, Entity entity, double lastX, double lastY, double lastZ, double currentX, double currentY, double currentZ) {
-        return crossedPortalPlane(portal, lastX, lastY, lastZ, currentX, currentY, currentZ, entity.getWidth() / 2.0, entity.getHeight());
+        return crossedPortalPlane(portal, lastX, lastY, lastZ, currentX, currentY, currentZ, entity.getWidth() / 2.0, entity.getHeight(),
+                portal.crossingHeight(entity));
     }
 
     /**
@@ -304,7 +380,8 @@ public final class TeleportExecutor {
      * @param currentZ position courante des pieds, Z
      * @param halfWidth demi-largeur de la boite
      * @param height hauteur de la boite, au-dessus des pieds
-     * @return {@code true} si les pieds passent le plan depuis le cote d'entree, dans la largeur du cadre, la boite contre lui
+     * @param lift hauteur, au-dessus des pieds, du point qui decide de la traversee (les yeux pour un cadre au sol, sinon zero)
+     * @return {@code true} si ce point passe le plan depuis le cote d'entree, dans la largeur du cadre, la boite contre lui
      */
     static boolean crossedPortalPlane(
             BackroomsPortalEntity portal,
@@ -315,9 +392,10 @@ public final class TeleportExecutor {
             double currentY,
             double currentZ,
             double halfWidth,
-            double height) {
-        double last = portal.signedDistance(lastX, lastY, lastZ);
-        double current = portal.signedDistance(currentX, currentY, currentZ);
+            double height,
+            double lift) {
+        double last = portal.signedDistance(lastX, lastY + lift, lastZ);
+        double current = portal.signedDistance(currentX, currentY + lift, currentZ);
         if (last <= 0.0 || current > 0.0) {
             return false;
         }
@@ -325,37 +403,164 @@ public final class TeleportExecutor {
         double x = lastX + (currentX - lastX) * t;
         double y = lastY + (currentY - lastY) * t;
         double z = lastZ + (currentZ - lastZ) * t;
-        // Au point de passage, la boite chevauche le plan : la toucher, c'est toucher le cadre en hauteur ; le centre, lui,
-        // doit etre en face de l'ouverture.
-        return portal.withinFrameWidth(x, y, z)
+        // Au point de passage, la boite chevauche le plan : la toucher, c'est toucher le cadre en hauteur ; le point qui
+        // decide, lui, doit etre en face de l'ouverture.
+        return portal.withinFrameWidth(x, y + lift, z)
                 && portal.detectionBox().intersects(x - halfWidth, y, z - halfWidth, x + halfWidth, y + height, z + halfWidth);
     }
 
     /**
-     * Point de sortie d'une position qui traverse : son image de l'autre cote, a peine devant le cadre d'arrivee. Sert
-     * aussi a la prediction client.
+     * {@code true} si l'entity, accroupie et au sol, se tient sur un cadre au sol pose sur un sol plein : ses pieds juste sous
+     * le plan (il passe au milieu du bloc au-dessus du sol), son centre au-dessus de l'ouverture. Elle ne peut pas y tomber,
+     * ses yeux restent au-dessus du plan : accroupie, elle s'y laisse descendre, comme le long d'un echafaudage. C'est ainsi
+     * qu'on reprend une arrivee au sol. Sert aussi a la prediction client.
+     *
+     * @param portal portail teste
+     * @param entity entity qui s'y tient peut-etre
+     * @return {@code true} si elle passe le cadre en s'y laissant descendre
      */
-    public static Vec3d exitPoint(BackroomsPortalEntity portal, Vec3d position) {
-        return portal.toDestination(position).add(portal.facingDestination().normal.multiply(EXIT_OFFSET));
+    public static boolean descendsThrough(BackroomsPortalEntity portal, Entity entity) {
+        double below = portal.getY() - entity.getY();
+        return portal.facingSource() == PortalFacing.UP && entity.isSneaking() && entity.isOnGround()
+                && below >= 0.0 && below <= DESCENT_DEPTH && portal.withinFrameWidth(entity.getX(), entity.getY(), entity.getZ());
     }
 
     /**
-     * Teleporte un objet, un mob ou un projectile a travers un portail : meme transposition que pour un
-     * joueur, appliquee directement par le serveur. Le passage pose le cooldown de portail vanilla.
+     * Point de sortie des pieds d'une entity qui traverse : leur image de l'autre cote, a peine devant le cadre d'arrivee,
+     * puis le corps tenu du cote de la sortie et dans l'ouverture. Un corps reste debout : sous un cadre au plafond, il
+     * pend tout entier sous le plan (sinon sa tete entrerait dans le plafond) ; sorti d'un cadre debout apres un cadre
+     * couche, ses pieds restent dans la hauteur de l'ouverture, sa tete sous son haut (la place qu'il avait sur le cadre
+     * couche donnerait sinon n'importe quelle hauteur). Sert aussi a la prediction client.
+     *
+     * @param portal portail traverse
+     * @param position pieds de l'entity
+     * @param height hauteur de son corps
+     * @return pieds de l'entity a l'arrivee
+     */
+    public static Vec3d exitPoint(BackroomsPortalEntity portal, Vec3d position, double height) {
+        Vec3d exit = portal.toDestination(position).add(portal.facingDestination().normal.multiply(EXIT_OFFSET));
+        PortalFacing arrival = portal.facingDestination();
+        double plane = portal.destinationPos().y;
+        if (arrival == PortalFacing.DOWN) {
+            double highest = plane - EXIT_OFFSET - height;
+            return exit.y > highest ? new Vec3d(exit.x, highest, exit.z) : exit;
+        }
+        if (arrival.normal.y == 0.0 && portal.facingSource().normal.y != 0.0) {
+            double bottom = plane - portal.height() / 2.0;
+            double top = Math.max(bottom, bottom + portal.height() - height);
+            return new Vec3d(exit.x, MathHelper.clamp(exit.y, bottom, top), exit.z);
+        }
+        return exit;
+    }
+
+    /**
+     * Chute gardee a la traversee : celle d'avant si le bas reste le bas de l'autre cote (on continue de tomber), nulle
+     * sinon. Tombe dans un sol et sorti d'un mur, on file a l'horizontale : la hauteur de chute devient de la vitesse, pas
+     * des degats a l'atterrissage.
+     */
+    static float fallAfterCrossing(PortalFacing source, PortalFacing exit, float fallDistance) {
+        return PortalFacing.transformVector(source, exit, DOWN).y < 0.0 ? fallDistance : 0.0f;
+    }
+
+    /**
+     * Teleporte un objet, un mob, un projectile ou un vehicule a travers un portail : meme transposition que pour un
+     * joueur, appliquee directement par le serveur. Le passage pose le cooldown de portail vanilla. Un vehicule emmene
+     * tout ce qui le monte ({@link #executeTree}).
      *
      * @param entity entity qui traverse, cote serveur
      * @param portal portail traverse
      * @return {@code true} si la teleportation a eu lieu
      */
     public static boolean execute(Entity entity, BackroomsPortalEntity portal) {
+        return entity.hasPassengers() ? executeTree(entity, portal) : teleportEntity(entity, portal) != null;
+    }
+
+    /**
+     * Un attelage traverse : le vehicule racine emmene tout ce qui le monte. Vanilla fait changer de monde les
+     * passagers avec leur vehicule et les remet en selle de l'autre cote, mais un joueur y passerait par son ecran de
+     * chargement : les joueurs descendent d'abord, traversent par leur propre chemin (bascule menee par le serveur), et
+     * remontent sur ce qu'ils montaient, retrouve de l'autre cote. Dans le meme monde, le vehicule garde son instance
+     * et vanilla ne signale pas des passagers redevenus les memes : le client du joueur, que le serveur a fait
+     * descendre, recoit lui-meme ses passagers et la position de son vehicule (il le mene, et ne la tient que de ce
+     * paquet).
+     *
+     * @param root vehicule racine de l'attelage, cote serveur
+     * @param portal portail traverse
+     * @return {@code true} si l'attelage a traverse
+     */
+    static boolean executeTree(Entity root, BackroomsPortalEntity portal) {
+        collectRiders(root);
+        try {
+            for (int i = 0; i < RIDERS.size(); i++) {
+                RIDERS.get(i).stopRiding();
+            }
+            Entity arrived = teleportEntity(root, portal);
+            if (arrived == null) {
+                // Rien n'a traverse : chacun remonte ou il etait.
+                for (int i = 0; i < RIDERS.size(); i++) {
+                    RIDERS.get(i).startRiding(RIDER_VEHICLES.get(i), true);
+                }
+                return false;
+            }
+            for (int i = 0; i < RIDERS.size(); i++) {
+                ServerPlayerEntity rider = RIDERS.get(i);
+                execute(rider, portal);
+                Entity vehicle = arrivedVehicle(arrived, RIDER_VEHICLES.get(i).getUuid());
+                rider.startRiding(vehicle, true);
+                if (arrived == root) {
+                    rider.networkHandler.sendPacket(new EntityPassengersSetS2CPacket(vehicle));
+                    rider.networkHandler.sendPacket(new VehicleMoveS2CPacket(root));
+                }
+            }
+            return true;
+        } finally {
+            // Listes de travail : aucun joueur ni vehicule n'y reste apres la traversee, reussie ou non.
+            RIDERS.clear();
+            RIDER_VEHICLES.clear();
+        }
+    }
+
+    /** Ajoute a {@link #RIDERS} les joueurs montes sur ce vehicule ou sur l'un de ses passagers, avec ce qu'ils montent. */
+    private static void collectRiders(Entity vehicle) {
+        List<Entity> passengers = vehicle.getPassengerList();
+        for (int i = 0; i < passengers.size(); i++) {
+            Entity passenger = passengers.get(i);
+            if (passenger instanceof ServerPlayerEntity rider) {
+                RIDERS.add(rider);
+                RIDER_VEHICLES.add(vehicle);
+            }
+            collectRiders(passenger);
+        }
+    }
+
+    /** Ce qu'un joueur montait, retrouve de l'autre cote parmi la racine arrivee et ses passagers ; la racine a defaut. */
+    private static Entity arrivedVehicle(Entity arrivedRoot, UUID vehicle) {
+        Entity found = arrivedRoot;
+        for (Entity passenger : arrivedRoot.getPassengersDeep()) {
+            if (passenger.getUuid().equals(vehicle)) {
+                found = passenger;
+            }
+        }
+        return found;
+    }
+
+    /**
+     * Teleporte une entity seule, ou un vehicule avec ses passagers autres que des joueurs (vanilla les emmene et les
+     * remet en selle sur sa copie).
+     *
+     * @return l'entity de l'autre cote (la meme dans le meme monde, sa copie dans un autre), ou {@code null} si la
+     *         dimension d'arrivee est absente ou l'entity deja retiree
+     */
+    private static @Nullable Entity teleportEntity(Entity entity, BackroomsPortalEntity portal) {
         ServerWorld world = (ServerWorld) entity.getWorld();
         ServerWorld destinationWorld = world.getServer().getWorld(portal.destinationDim());
         if (destinationWorld == null) {
-            return false;
+            return null;
         }
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = exitPoint(portal, entity.getPos());
+        Vec3d exit = exitPoint(portal, entity.getPos(), entity.getHeight());
+        float fall = fallAfterCrossing(source, exitFacing, entity.fallDistance);
         Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, entity.getVelocity());
         Vec2f look = PortalFacing.transformLook(source, exitFacing, entity.getYaw(), entity.getPitch());
         LivingEntity chased = PortalPursuit.targetAfterCrossing(entity, portal);
@@ -371,22 +576,27 @@ public final class TeleportExecutor {
         } else {
             arrived = entity.teleportTo(new TeleportTarget(destinationWorld, exit, exitVelocity, look.x, look.y, false, TeleportTarget.NO_OP));
             if (arrived == null) {
-                return false;
+                return null;
             }
             // Vanilla ne reprend que le yaw de la cible : le pitch suit, pour les projectiles.
             arrived.setPitch(look.y);
         }
         arrived.setPortalCooldown(ENTITY_PORTAL_COOLDOWN_TICKS);
+        arrived.fallDistance = fall;
         // Seul un mob poursuit, et sa proie est dans le monde d'arrivee : de ce cote, il la reprend sans s'arreter.
         if (chased != null) {
             PortalPursuit.resumeAfterCrossing((MobEntity) arrived, chased);
         }
         if (arrived != entity) {
-            // Une copie neuve dans l'autre dimension : ceux qui la voient par un portail la recoivent tout de suite.
+            // Des copies neuves dans l'autre dimension, passagers compris : ceux qui les voient par un portail les
+            // recoivent tout de suite.
             PortalViewTracker.onEntityArrived(destinationWorld, arrived);
+            for (Entity passenger : arrived.getPassengersDeep()) {
+                PortalViewTracker.onEntityArrived(destinationWorld, passenger);
+            }
         }
         ModConstants.LOGGER.debug("[Portal] {} traverse un portail vers {}.", entity.getType().getUntranslatedName(), portal.destinationDim().getValue());
-        return true;
+        return arrived;
     }
 
     /**
@@ -433,7 +643,7 @@ public final class TeleportExecutor {
         }
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = liftOutOfBlocks(player, destinationWorld, exitPoint(portal, position));
+        Vec3d exit = liftOutOfBlocks(player, destinationWorld, exitPoint(portal, position, player.getHeight()));
         Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, velocity);
         Vec2f look = PortalFacing.transformLook(source, exitFacing, yaw, pitch);
 
@@ -451,6 +661,7 @@ public final class TeleportExecutor {
         // Pas de velocityModified : le client recoit sa vitesse avec le payload, ou l'a deja s'il a predit le passage. Un
         // paquet de vitesse vanilla arriverait un tick plus tard et ecraserait celle qu'il a depuis (un saut rejoue).
         player.setVelocity(exitVelocity);
+        player.fallDistance = fallAfterCrossing(source, exitFacing, player.fallDistance);
 
         markCrossed(player.getUuid(), destinationWorld.getTime());
         PortalSight.onArrival(player, portal);

@@ -8,6 +8,45 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
 ## [Unreleased]
 
 ### Added
+- **Toutes les variantes de portail dans l'onglet créatif** : 37 réglages au lieu de 9 (`PortalSettings.PRESETS`) :
+  tailles de 1 x 1 à 8 x 8, carrés compris pour les cadres couchés ; chaque sens de sortie (nord, est, sud, ouest, sol,
+  plafond) pour un cadre 1 x 2 et pour un cadre 2 x 2 ; arrivée tirée au sort à 8, 32 et 64 blocs, puis chaque sens de
+  sortie tiré au sort ; chaque comportement seul et quatre combinaisons (trappe, aller simple au hasard, sortie fugace
+  au hasard, aller simple à une face sans lumière). Chaque pile porte un nom qui dit ce qui l'écarte du portail par
+  défaut (*Portail des Backrooms (2x2, sortie par le plafond)*), et l'info-bulle rappelle qu'on couche le cadre en
+  regardant le sol ou le plafond à la pose. Vérifié en jeu : l'onglet montre les 37 piles, noms et info-bulles lus
+  au survol.
+- **Roulis de la caméra à la traversée** : d'un sol à un mur (un portail qui tourne autour d'un axe horizontal), la
+  caméra du joueur part du roulis de l'image vue par le cadre et se redresse en moins d'une demi-seconde, au lieu de
+  se redresser d'un coup (`CrossingRoll`, `MixinCamera`). Vérifié au banc en rafale d'images.
+- **Descendre dans une arrivée au sol** : accroupi sur un cadre au sol posé sur un sol plein, on s'y laisse descendre
+  (prédiction client et secours du serveur) ; c'est ainsi qu'on reprend une arrivée au sol, où l'on ne peut pas tomber.
+- **Portails au sol et au plafond** : le bloc portail se couche quand on le pose en regardant franchement vers le bas
+  (cadre au sol, face au haut : on y tombe) ou vers le haut (cadre au plafond, face au bas : on y monte), dans un vide
+  de trois blocs (le cadre et deux blocs derrière lui). Le réglage `exit` prend `floor` et `ceiling` : le cadre
+  d'arrivée se couche au sol (on en sort vers le haut) ou au plafond (on en tombe), dans le Level 0 (au sol du layer
+  ou sous son plafond, là où son empreinte est libre) comme à la surface (relevé de deux blocs au plafond). Tout droit,
+  un cadre au sol mène à un cadre au plafond et inversement, sans faire tourner (l'orientation « plafond » a pris les
+  axes de « sol » à la manière du nord et du sud : le passage est une translation). Couché, un cadre n'est en face de
+  son ouverture que dans sa largeur et sa hauteur : qui arrive de côté ne bute pas sur l'autre côté avant le bord. La traversée d'un cadre au sol se décide aux yeux (le
+  corps a déjà passé le plan quand la caméra le passe), celle d'un cadre au plafond aux pieds ; collision à travers le
+  cadre et secours du serveur suivent la même règle. Le secours du serveur fait aussi passer un joueur qui s'arrête
+  juste après le plan (il attendait qu'il bouge encore : qui tombe dans un cadre au sol touche le fond avant la fin du
+  délai laissé à son client). Tests unitaires et trois tests en jeu (`PortalLyingGameTests`).
+- **Attelages à travers les portails** : un véhicule (bateau, wagonnet, monture) emmène tout ce qui le monte, joueurs
+  compris, vers une autre dimension comme dans le même monde ; un cheval monté dans un bateau garde son cavalier.
+  En selle, c'est le serveur qui mène la bascule (le client ne prédit pas) : le joueur descend, traverse par son
+  propre chemin et remonte sur son véhicule retrouvé de l'autre côté ; dans le même monde, son client reçoit
+  lui-même ses passagers et la position de son véhicule. Vers une dimension absente, rien ne part et chacun
+  reste assis. Cinq tests en jeu (`PortalRidingGameTests`).
+- **Sens de sortie et arrivée au hasard**, deux réglages de plus du bloc portail (composant `portal_settings`,
+  info-bulle, NBT) : `exit` impose le point cardinal dans lequel on ressort du cadre d'arrivée (`north`, `east`,
+  `south`, `west` ; `straight` par défaut, on continue dans la direction d'entrée), `exit_scatter` tire au sort les
+  X/Z de l'arrivée dans un rayon donné autour de ceux du bloc (jusqu'à 64 blocs ; la cellule libre la plus proche du
+  Level 0 ou la surface du monde normal sont cherchées de là). Un bloc relu avec un autre sens de sortie tourne son
+  cadre d'arrivée sur son pied et repose ses portails ; si ce cadre est couché avant ou après, le bloc retire ses
+  portails et cherche de nouveau son arrivée, comme à la pose. Deux réglages de plus dans l'onglet créatif (sortie vers
+  l'est, arrivée à 32 blocs près) ; tests unitaires et en jeu.
 - **Bloc portail** (`backrooms_portal`), qui remplace pour l'instant la porte des Backrooms : un bloc invisible et
   traversable qui pose un portail plein cadre, le plan au milieu du bloc, face avant vers le joueur. Posé hors du Level 0
   il y mène, posé dedans il ramène à la surface ; il ne se vise qu'accroupi, pour le casser, et rend alors l'item avec
@@ -169,6 +208,40 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- **Écran qui tournait d'un tour complet à la traversée de presque tout portail** : le roulis de départ se lisait
+  sur un quaternion sans en fixer le signe ; or un quaternion et son opposé sont la même rotation, et le lacet du
+  joueur, jamais ramené à un tour, change ce signe à chaque tour sur soi-même. Un roulis nul valait alors un tour
+  entier, que la caméra déroulait en une demi-seconde. Le roulis est pris entre -π et π
+  (`PortalViewTransform.crossingRoll`) ; test sur les 36 paires d'orientations, une grille de regards et des lacets
+  cumulés. Vérifié au banc avant et après : d'un cadre sud à un cadre sud, lacet -180, l'image passait à l'envers
+  et reste droite ; du sol à un mur, le roulis voulu est toujours là.
+- **Plantage au démarrage avec Fabric Loader 0.19.2** (`ClassCastException` dans MixinExtras, transformation de
+  `WorldRenderer` refusée) : compilé contre le Mixin du développement, le point d'injection d'un `@Redirect` est un
+  tableau, que le MixinExtras 0.5.4 embarqué par ce chargeur lit comme un seul élément. Les quatre `@Redirect`
+  disparaissent : le ciel d'une vue passe par `@ModifyExpressionValue` (rien d'alloué à chaque image), les tampons de
+  sommets différés par `@WrapOperation` (l'appel d'origine reste évité), et `MixinTargetsTest` refuse tout
+  `@Redirect`. Vérifié en production, avec Fabric API seul, jusqu'en jeu devant un portail : Loader 0.19.2 avec
+  Fabric API 0.116.11 (la configuration du plantage) et Loader 0.16.9, le minimum déclaré.
+- **Test en jeu intermittent** (`crossingADimensionPortalMovesThePlayerToTheNetherWithoutResendingItsChunks`, une
+  fois sur six) : il comparait les chunks du Nether au début et à la fin, alors qu'un chunk qui change pendant qu'il est
+  tenu (un feu qui naît et s'éteint) repart à bon droit ; il suit maintenant les changements à chaque tick.
+- **Portails d'une orientation à une autre** (changement de gravité : sol ou plafond vers un mur, mur vers sol ou
+  plafond), vérifiés au banc en survie et sur les 36 paires en tests en jeu :
+  - la vue à travers un tel portail était penchée (lacet et tangage seuls, sans roulis) : la caméra d'une vue prend
+    maintenant la rotation complète du portail (`PortalViewTransform.aim`), vues imbriquées et pack de shaders compris ;
+  - tombé de haut dans un sol et sorti d'un mur, on prenait les dégâts de la chute en touchant terre : la chute n'est
+    gardée que si le bas reste le bas ;
+  - un regard devenu vertical prenait un cap au hasard : il garde le haut de l'image ;
+  - sorti d'un plafond après un mur, la tête entrait dans le plafond ; sorti d'un mur après un cadre couché, la tête
+    pouvait sortir au-dessus de l'ouverture : le corps est tenu du bon côté et dans l'ouverture ;
+  - la face arrière d'un portail couché menait dans le sol ou le plafond : un portail couché n'a que sa face avant ;
+  - un sens de sortie imposé pouvait tourner dans le Level 0 pour tenir dans la cellule la plus proche : le cadre se
+    pose plus loin, là où il tient tel quel.
+- **Sons coupés à la traversée** : rien ne les arrêtait (ni la musique), mais les sons positionnés encore joués
+  (un disque, une ambiance longue) restaient à leurs coordonnées du monde quitté, inaudibles depuis l'autre monde.
+  Chaque son garde sa vraie source et, après une traversée (prédite ou menée par le serveur, dans le même monde ou
+  vers un autre), est replacé sans relance : à sa place dans le monde du joueur, au cadre par lequel il voit le monde
+  du son, ou tu faute de chemin, et retrouvé là où il en est au retour (`SoundAnchors`).
 - **Dimension noire sous un pack de shaders** : après une traversée, dès que le portail sortait de l'écran, des
   pans entiers du monde (toute la dimension dans le Level 0) passaient au noir, ou au brouillard sous un ciel. La
   passe finale du pack laisse l'écriture de la profondeur coupée ; une vue dessinée la rétablissait, mais sans vue à
@@ -205,6 +278,14 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   (feuilles et verre aux pixels transparents remplis de couleur, dans la vue puis dans le monde rejoint par le portail,
   jusqu'à un rechargement des ressources). Les renderers des vues se rechargent maintenant avec celui du joueur
   (`MixinWorldRenderer`, `RemoteWorldRegistry.reloadViewRenderers`), tampons GL différés comme à leur création.
+- **Cape étirée au passage d'un portail** : le point d'ancrage de la cape du joueur, qui suit sa position avec retard,
+  restait de l'autre côté jusqu'au tick suivant ; la cape s'étirait vers l'ancienne position sur les images d'entre-deux.
+  Il passe le portail avec le joueur, transposé comme lui (`ClientPortalCrossing.carryCape`), et repart de la position
+  d'arrivée quand c'est le serveur qui mène la bascule.
+- **Sons trop faibles à travers un portail** (la pluie de l'autre côté presque inaudible) : le trajet de la source au
+  cadre retranchait un seizième de volume par bloc, quel que soit le volume : un son de pluie (0,2) s'éteignait à trois
+  blocs du cadre. Il retranche maintenant la part de la portée du son parcourue, comme le moteur de son atténue tout son
+  sur sa portée (`PortalSound.volumeThroughPortal`), test unitaire à l'appui.
 - **Éclair noir ou blanc à la traversée d'un portail à sortie fugace** : le retour d'une sortie fugace perdue de vue
   n'est reposé par le serveur qu'à l'annonce du passage par l'entrée, alors que le client a déjà basculé : le temps d'un
   aller-retour réseau, le monde d'arrivée n'avait pas de retour chez le joueur, qui voyait en se retournant ce qu'il y a

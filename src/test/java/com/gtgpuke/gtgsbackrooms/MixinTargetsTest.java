@@ -3,6 +3,7 @@ package com.gtgpuke.gtgsbackrooms;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -21,6 +22,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 
@@ -28,13 +30,15 @@ import org.objectweb.asm.Type;
  * Chaque mixin du mod s'applique a ses classes cibles. Les tests en jeu tournent sur un serveur sans client et
  * ne chargent jamais les classes client : sans ce test, un mixin client casse (cible, methode ou champ introuvable) ne
  * se verrait qu'au lancement du client. Les tests unitaires tournent sous le chargeur Fabric, cote client : charger ici chaque
- * cible applique ses mixins, et l'erreur fait echouer le build.
+ * cible applique ses mixins, et l'erreur fait echouer le build. Il refuse aussi les injecteurs qu'un chargeur Fabric
+ * plus ancien que celui du developpement ne sait pas lire.
  */
 @DisplayName("Application des mixins a leurs cibles")
 class MixinTargetsTest {
 
     private static final String CONFIG = "gtgs_backrooms.mixins.json";
     private static final String MIXIN_ANNOTATION = "Lorg/spongepowered/asm/mixin/Mixin;";
+    private static final String REDIRECT_ANNOTATION = "Lorg/spongepowered/asm/mixin/injection/Redirect;";
 
     /** Mixins declares dans la configuration, communs et client, en noms de classe complets. */
     static Stream<String> mixins() throws IOException {
@@ -65,6 +69,38 @@ class MixinTargetsTest {
             // Charger sans initialiser suffit : c'est au chargement que Mixin transforme la classe.
             assertDoesNotThrow(() -> Class.forName(target, false, loader), mixin + " s'applique a " + target + ".");
         }
+    }
+
+    /**
+     * Aucun {@code @Redirect} : compile contre le Mixin du developpement, son point d'injection est un tableau, et le
+     * MixinExtras embarque par Fabric Loader 0.19.2 le lit comme un seul element. La classe cible ne se transforme plus et
+     * le jeu plante au demarrage (ClassCastException), meme sans autre mod. {@code @WrapOperation} fait le meme travail
+     * (ou {@code @ModifyExpressionValue} quand l'appel d'origine peut s'executer) et se combine avec les injecteurs des
+     * autres mods.
+     */
+    @ParameterizedTest
+    @MethodSource("mixins")
+    @DisplayName("Aucun @Redirect, illisible pour un chargeur Fabric plus ancien")
+    void usesNoRedirect(String mixin) throws IOException {
+        List<String> redirects = new ArrayList<>();
+        try (InputStream in = MixinTargetsTest.class.getClassLoader().getResourceAsStream(mixin.replace('.', '/') + ".class")) {
+            assertNotNull(in, mixin + " est compile.");
+            new ClassReader(in).accept(new ClassVisitor(Opcodes.ASM9) {
+                @Override
+                public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+                    return new MethodVisitor(Opcodes.ASM9) {
+                        @Override
+                        public AnnotationVisitor visitAnnotation(String annotation, boolean visible) {
+                            if (REDIRECT_ANNOTATION.equals(annotation)) {
+                                redirects.add(name);
+                            }
+                            return null;
+                        }
+                    };
+                }
+            }, ClassReader.SKIP_CODE);
+        }
+        assertTrue(redirects.isEmpty(), mixin + " remplace ses @Redirect par @WrapOperation ou @ModifyExpressionValue : " + redirects + ".");
     }
 
     /** Cibles de l'annotation {@code @Mixin}, lues dans le bytecode : une classe mixin ne se charge pas directement. */

@@ -385,4 +385,17 @@ class BackroomsPortalEntityTest {
         assertEquals(new Box(4.25, -0.5, 0.5, 4.75, 2.5, 2.5), portal.arrivalBox(), "Recalculee quand l'arrivee bouge.");
         assertEquals(new Box(1.25, -3.5, -2.5, 7.75, 5.5, 5.5), portal.arrivalCrossingBox(), "Elargie, recalculee de meme.");
     }
+
+    @Test
+    @DisplayName("Couche, un cadre n'est en face de son ouverture que dans sa largeur et sa hauteur, toutes deux horizontales")
+    void lyingFramesAreFacedAlongBothAxes() {
+        // Au sol en (0.5, 64.5, 0), un bloc sur deux : largeur le long de X, hauteur le long de Z ; arrivee au plafond en (10.5, 70.5, 0).
+        BackroomsPortalEntity floor = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.5, 0.0)).facingSource(PortalFacing.UP)
+                .facingDestination(PortalFacing.DOWN).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 70.5, 0.0)).size(1.0f, 2.0f).build();
+        assertTrue(floor.withinFrameWidth(0.5, 66.0, 0.9), "Au-dessus de l'ouverture.");
+        assertFalse(floor.withinFrameWidth(0.5, 66.0, 1.1), "Au-dessus du sol, a cote du cadre le long de sa hauteur : de cote, pas encore en face.");
+        assertFalse(floor.withinFrameWidth(1.1, 66.0, 0.0), "A cote le long de sa largeur.");
+        assertTrue(floor.withinArrivalWidth(10.5, 60.0, -0.9), "Sous l'ouverture d'arrivee.");
+        assertFalse(floor.withinArrivalWidth(10.5, 60.0, -1.1), "A cote du cadre d'arrivee le long de sa hauteur.");
+    }
 }

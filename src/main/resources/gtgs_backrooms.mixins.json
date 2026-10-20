@@ -6,6 +6,10 @@
   "client": [
     "client.MixinWorldRenderer",
     "client.MixinWorldRenderStart",
+    "client.MixinSoundSystem",
+    "client.MixinCamera",
+    "client.SoundSystemAccessor",
+    "client.SoundManagerAccessor",
     "client.MixinGameRenderer",
     "client.MixinClientPlayNetworkHandler",
     "client.MixinMinecraftClient",

@@ -10,6 +10,7 @@ import net.minecraft.block.ShapeContext;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.block.entity.BlockEntityTicker;
 import net.minecraft.block.entity.BlockEntityType;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.state.StateManager;
 import net.minecraft.state.property.DirectionProperty;
@@ -38,13 +39,17 @@ public final class BackroomsPortalBlock extends BlockWithEntity {
 
     /** Codec du bloc, exige par {@link BlockWithEntity}. */
     public static final MapCodec<BackroomsPortalBlock> CODEC = createCodec(BackroomsPortalBlock::new);
-    /** Orientation de la face avant du portail, vers le joueur qui a pose le bloc. */
-    public static final DirectionProperty FACING = Properties.HORIZONTAL_FACING;
+    /** Orientation de la face avant du portail : vers le joueur qui a pose le bloc, ou vers le haut (cadre au sol) ou le bas (au plafond). */
+    public static final DirectionProperty FACING = Properties.FACING;
+    /** Regard plus incline que cela vers un sol ou un plafond sur lequel on pose le bloc : le cadre se couche dessus. */
+    static final float LYING_PLACEMENT_PITCH = 60.0f;
 
     /** Plan d'un portail face au nord ou au sud, epaissi d'un huitieme de bloc pour etre visable. */
     private static final VoxelShape Z_PLANE = Block.createCuboidShape(0.0, 0.0, 7.0, 16.0, 16.0, 9.0);
     /** Plan d'un portail face a l'est ou a l'ouest. */
     private static final VoxelShape X_PLANE = Block.createCuboidShape(7.0, 0.0, 0.0, 9.0, 16.0, 16.0);
+    /** Plan d'un portail couche, au sol ou au plafond. */
+    private static final VoxelShape Y_PLANE = Block.createCuboidShape(0.0, 7.0, 0.0, 16.0, 9.0, 16.0);
 
     /** Bloc portail aux reglages donnes (son, solidite). */
     public BackroomsPortalBlock(Settings settings) {
@@ -62,15 +67,39 @@ public final class BackroomsPortalBlock extends BlockWithEntity {
         builder.add(FACING);
     }
 
-    /** Face avant vers le joueur ; refuse la pose si le cadre aux reglages de l'item traverserait un bloc. */
+    /**
+     * Face avant vers le joueur ; pose en regardant franchement vers le bas ou vers le haut, le cadre se couche, face au
+     * haut (au sol : on y tombe) ou au bas (au plafond : on y monte). Refuse la pose si le cadre aux reglages de l'item
+     * traverserait un bloc, ou si un cadre couche n'a pas deux blocs libres derriere lui.
+     */
     @Override
     public @Nullable BlockState getPlacementState(ItemPlacementContext context) {
-        Direction front = context.getHorizontalPlayerFacing().getOpposite();
+        Direction front = lyingFacing(context);
+        if (front == null) {
+            front = context.getHorizontalPlayerFacing().getOpposite();
+        }
         PortalSettings settings = PortalSettings.of(context.getStack());
         if (!PortalArea.isFree(context.getWorld(), context.getBlockPos(), PortalFacing.fromDirection(front), settings)) {
             return null;
         }
         return getDefaultState().with(FACING, front);
+    }
+
+    /**
+     * Orientation d'un cadre couche : le joueur pose le bloc en regardant vers le bas a plus de {@value #LYING_PLACEMENT_PITCH}
+     * degres (cadre au sol, face au haut : on y tombe) ou vers le haut (cadre au plafond, face au bas : on y monte), quel
+     * que soit le bloc clique ; {@code null} pour un cadre debout. Le bloc se pose la ou l'on vise, dans le vide qui le
+     * recevra : un cadre au sol au-dessus d'un puits, un cadre au plafond sous une cheminee.
+     */
+    static @Nullable Direction lyingFacing(ItemPlacementContext context) {
+        PlayerEntity player = context.getPlayer();
+        if (player == null) {
+            return null;
+        }
+        if (player.getPitch() > LYING_PLACEMENT_PITCH) {
+            return Direction.UP;
+        }
+        return player.getPitch() < -LYING_PLACEMENT_PITCH ? Direction.DOWN : null;
     }
 
     /**
@@ -82,7 +111,11 @@ public final class BackroomsPortalBlock extends BlockWithEntity {
         if (!context.isDescending()) {
             return VoxelShapes.empty();
         }
-        return state.get(FACING).getAxis() == Direction.Axis.Z ? Z_PLANE : X_PLANE;
+        Direction.Axis axis = state.get(FACING).getAxis();
+        if (axis == Direction.Axis.Y) {
+            return Y_PLANE;
+        }
+        return axis == Direction.Axis.Z ? Z_PLANE : X_PLANE;
     }
 
     @Override

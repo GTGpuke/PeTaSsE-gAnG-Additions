@@ -30,6 +30,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.GameMode;
 import net.minecraft.world.Heightmap;
@@ -42,6 +43,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConstants;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlock;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlockEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalArea;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalExit;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalSettings;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalTargets;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
@@ -111,10 +113,15 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
             // barrieres de l'arene. Le centre est a mi-hauteur du cadre.
             int surface = world.getTopY(Heightmap.Type.MOTION_BLOCKING, slab.getX(), slab.getZ());
             PortalTargets.Target target = PortalTargets.resolve(server, BackroomsConstants.LEVEL_ZERO_WORLD, slab, PortalFacing.NORTH,
-                    new PortalSettings(1, 4, true));
+                    new PortalSettings(1, 4, true), world.getRandom());
             context.assertTrue(target != null && Math.abs(target.position().y - (surface + 2.0)) < EPSILON,
                     "Le centre d'arrivee d'un cadre de quatre blocs est deux blocs au-dessus du sol vu par la heightmap.");
             context.assertTrue(target.facing() == PortalFacing.SOUTH, "Traverser ne fait pas tourner : la sortie regarde a l'oppose de l'entree.");
+            // Un sens de sortie impose tourne le cadre d'arrivee.
+            PortalTargets.Target east = PortalTargets.resolve(server, BackroomsConstants.LEVEL_ZERO_WORLD, slab, PortalFacing.NORTH,
+                    new PortalSettings(1, 2, true, true, false, false, PortalExit.EAST, 0), world.getRandom());
+            context.assertTrue(east != null && east.facing() == PortalFacing.EAST && east.position().x == slab.getX() + 0.5
+                    && east.position().z == slab.getZ() + 0.5, "Sortie vers l'est : le cadre d'arrivee regarde l'est, a l'aplomb du bloc.");
         } finally {
             world.setBlockState(slab, Blocks.AIR.getDefaultState());
             world.setBlockState(carpet, Blocks.AIR.getDefaultState());
@@ -205,7 +212,7 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
         UUID[] returns = new UUID[2];
         double[] arrivalY = new double[1];
         // Chaque relecture change un seul reglage ou un seul element de la destination : les portails sont reposes.
-        String[] steps = {"Width", "TransmitsLight", "FleetingExit", "DestX", "DestDim", "Height"};
+        String[] steps = {"Width", "TransmitsLight", "FleetingExit", "Exit", "DestX", "DestDim", "Height"};
         for (int step = 0; step < steps.length; step++) {
             String key = steps[step];
             context.runAtTick(3 + step * 3, () -> {
@@ -219,6 +226,7 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
                     case "Width" -> nbt.putInt(key, 3);
                     case "TransmitsLight" -> nbt.putBoolean(key, false);
                     case "FleetingExit" -> nbt.putBoolean(key, true);
+                    case "Exit" -> nbt.putString(key, "east");
                     case "DestX" -> nbt.putDouble(key, nbt.getDouble(key) + 2.0);
                     case "DestDim" -> nbt.putString(key, World.NETHER.getValue().toString());
                     default -> nbt.putInt(key, 3);
@@ -243,6 +251,12 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
                 } else if ("Height".equals(key)) {
                     context.assertTrue(Math.abs(portal(world, block.entryPortal(FRONT)).destinationPos().y - arrivalY[0] - 0.5) < EPSILON,
                             "Relu a trois de haut, le cadre d'arrivee garde son pied : son centre monte d'un demi-bloc.");
+                } else if ("Exit".equals(key)) {
+                    BackroomsPortalEntity front = portal(world, block.entryPortal(FRONT));
+                    BackroomsPortalEntity back = portal(world, block.returnPortal(FRONT));
+                    context.assertTrue(front.facingDestination() == PortalFacing.EAST && world.getEntity(returns[0]) == null
+                            && back != null && back.facingSource() == PortalFacing.EAST && Math.abs(back.getY() - arrivalY[0]) < EPSILON,
+                            "Relu avec une sortie vers l'est, le cadre d'arrivee tourne sur son pied vers l'est : entree et retour reposes.");
                 } else {
                     context.assertTrue(world.getEntity(returns[0]) == null && portal(world, block.returnPortal(FRONT)) != null,
                             "Et son retour avant, qui ne correspond plus.");
@@ -250,6 +264,38 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
             });
         }
         context.runAtTick(3 + steps.length * 3, () -> {
+            context.setBlockState(PORTAL, Blocks.AIR);
+            context.complete();
+        });
+    }
+
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 40)
+    public void aBlockRereadWithALyingArrivalSearchesItAgain(TestContext context) {
+        ServerWorld world = context.getWorld();
+        BackroomsPortalBlockEntity block = placePortal(context, PORTAL, Direction.NORTH, PortalSettings.DEFAULT);
+        // Debout vers une sortie au plafond, puis couche vers une sortie a l'est : le pied du cadre d'arrivee ne convient plus.
+        String[] exits = {"ceiling", "east"};
+        PortalFacing[] arrivals = {PortalFacing.SOUTH, PortalFacing.UP};
+        UUID[] old = new UUID[2];
+        for (int step = 0; step < exits.length; step++) {
+            int index = step;
+            context.runAtTick(2 + step * 4, () -> {
+                block.configureTarget(World.OVERWORLD, frameCenter(context, ARRIVAL), arrivals[index]);
+                old[0] = block.entryPortal(FRONT);
+                old[1] = block.returnPortal(FRONT);
+                context.assertTrue(portal(world, old[0]) != null && portal(world, old[1]) != null, "Le bloc a ses portails avant la relecture.");
+                NbtCompound nbt = block.createNbt(world.getRegistryManager());
+                nbt.putString("Exit", exits[index]);
+                block.read(nbt, world.getRegistryManager());
+            });
+            context.runAtTick(3 + step * 4, () -> {
+                // Le serveur de test n'a pas de Level 0 : la nouvelle arrivee ne s'y trouve pas, le bloc reste sans destination.
+                context.assertTrue(!block.isConfigured() && block.entryPortal(FRONT) == null && world.getEntity(old[0]) == null
+                        && world.getEntity(old[1]) == null, "Relu avec une sortie " + exits[index] + " depuis une arrivee " + arrivals[index]
+                        + ", le bloc retire ses portails et cherche de nouveau son arrivee.");
+            });
+        }
+        context.runAtTick(2 + exits.length * 4, () -> {
             context.setBlockState(PORTAL, Blocks.AIR);
             context.complete();
         });
@@ -848,14 +894,60 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
             context.assertTrue(sneaking.getMax(Direction.Axis.X) == 1.0 && sneakingEast.getMax(Direction.Axis.Z) == 1.0
                     && sneaking.getMax(Direction.Axis.Z) < 1.0 && sneakingEast.getMax(Direction.Axis.X) < 1.0,
                     "Le bloc visable est le plan du portail, dans son orientation.");
+            VoxelShape sneakingUp = state.with(BackroomsPortalBlock.FACING, Direction.UP).getOutlineShape(world, anchor, ShapeContext.of(player));
+            context.assertTrue(sneakingUp.getMax(Direction.Axis.X) == 1.0 && sneakingUp.getMax(Direction.Axis.Y) < 1.0, "Couche, le plan visable l'est aussi.");
+            player.setSneaking(false);
+
+            // Pose couchee : en regardant franchement vers le bas, le cadre se couche au sol, au bloc vise, s'il a deux blocs
+            // libres sous lui ; vers le haut, au plafond, s'il en a deux au-dessus. Un pilier de pierre a cliquer par le cote.
+            BlockPos pillar = context.getAbsolutePos(new BlockPos(6, 3, 2));
+            BlockPos lying = pillar.west();
+            world.setBlockState(pillar, Blocks.STONE.getDefaultState());
+            player.setPitch(80.0f);
+            context.assertTrue(place(player, pillar, Direction.WEST, PortalSettings.DEFAULT) && world.getBlockState(lying).get(BackroomsPortalBlock.FACING) == Direction.UP,
+                    "Regard vers le bas : le cadre se couche au sol, face au haut.");
+            world.setBlockState(lying, Blocks.AIR.getDefaultState());
+            world.setBlockState(lying.down(2), Blocks.STONE.getDefaultState());
+            context.assertTrue(!place(player, pillar, Direction.WEST, PortalSettings.DEFAULT) && world.getBlockState(lying).isAir(),
+                    "Sans deux blocs libres sous lui, un cadre au sol est refuse.");
+            world.setBlockState(lying.down(2), Blocks.AIR.getDefaultState());
+            player.setPitch(-80.0f);
+            context.assertTrue(place(player, pillar, Direction.WEST, PortalSettings.DEFAULT) && world.getBlockState(lying).get(BackroomsPortalBlock.FACING) == Direction.DOWN,
+                    "Regard vers le haut : le cadre se couche au plafond, face au bas.");
+            world.setBlockState(lying, Blocks.AIR.getDefaultState());
+            player.setPitch(0.0f);
+            // Sans joueur (distributeur, commande), un cadre debout, face au sud par defaut.
+            ItemStack bare = PortalSettings.DEFAULT.toStack(new ItemStack(ModItems.BACKROOMS_PORTAL));
+            context.assertTrue(ModItems.BACKROOMS_PORTAL.place(new ItemPlacementContext(world, null, Hand.MAIN_HAND, bare,
+                    new BlockHitResult(Vec3d.ofCenter(pillar).add(-0.5, 0.0, 0.0), Direction.WEST, pillar, false))).isAccepted()
+                    && world.getBlockState(lying).get(BackroomsPortalBlock.FACING) == Direction.SOUTH, "Sans joueur, un cadre debout.");
+            world.setBlockState(lying, Blocks.AIR.getDefaultState());
+            world.setBlockState(pillar, Blocks.AIR.getDefaultState());
+            player.setSneaking(true);
 
             // Un portail du Level 0 mene a la surface de l'overworld ; un portail de l'overworld cherche le Level 0, absent ici.
             PortalTargets.Target surface = PortalTargets.resolve(world.getServer(), BackroomsConstants.LEVEL_ZERO_WORLD, anchor, PortalFacing.SOUTH,
-                    PortalSettings.DEFAULT);
+                    PortalSettings.DEFAULT, world.getRandom());
             context.assertTrue(surface != null && surface.dimension().equals(World.OVERWORLD) && surface.facing() == PortalFacing.NORTH,
                     "Depuis le Level 0, la cible est la surface de l'overworld, sans demi-tour.");
             context.assertTrue(surface.position().x == anchor.getX() + 0.5 && surface.position().z == anchor.getZ() + 0.5,
                     "La cible est a l'aplomb du bloc.");
+            // Sortie par le plafond : le cadre d'arrivee est couche face au bas, releve de deux blocs au-dessus du sol pour
+            // que qui en tombe ait encore les pieds au-dessus du sol.
+            PortalTargets.Target overhead = PortalTargets.resolve(world.getServer(), BackroomsConstants.LEVEL_ZERO_WORLD, anchor, PortalFacing.SOUTH,
+                    new PortalSettings(1, 2, true, true, false, false, PortalExit.CEILING, 0), world.getRandom());
+            context.assertTrue(overhead != null && overhead.facing() == PortalFacing.DOWN
+                    && Math.abs(overhead.position().y - (surface.position().y - 1.0 + PortalArea.CLEARANCE_BEHIND + 0.5)) < EPSILON,
+                    "Par le plafond : cadre face au bas, deux blocs et demi au-dessus du sol : " + overhead.position() + ".");
+            // Un rayon de tirage deplace l'arrivee des X/Z tires au sort, dans l'ordre X puis Z, sans la faire tourner.
+            Random draw = Random.create(7L);
+            int dx = draw.nextBetween(-6, 6);
+            int dz = draw.nextBetween(-6, 6);
+            PortalTargets.Target scattered = PortalTargets.resolve(world.getServer(), BackroomsConstants.LEVEL_ZERO_WORLD, anchor, PortalFacing.SOUTH,
+                    new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 6), Random.create(7L));
+            context.assertTrue(scattered != null && scattered.facing() == PortalFacing.NORTH && (dx != 0 || dz != 0)
+                    && scattered.position().x == anchor.getX() + dx + 0.5 && scattered.position().z == anchor.getZ() + dz + 0.5,
+                    "Arrivee tiree au sort : aux X/Z tires dans le rayon autour du bloc, sans tourner.");
             context.assertTrue(PortalTargets.resolve(world, anchor, PortalFacing.SOUTH, PortalSettings.DEFAULT) == null,
                     "Sans Level 0 sur ce serveur, un portail de l'overworld n'a pas de cible.");
         } finally {
@@ -876,10 +968,15 @@ public final class BackroomsPortalBlockGameTests implements FabricGameTest {
 
     /** Le joueur pose le bloc portail aux reglages donnes sur le dessus d'un bloc ; {@code true} si la pose est acceptee. */
     private static boolean place(ServerPlayerEntity player, BlockPos support, PortalSettings settings) {
+        return place(player, support, Direction.UP, settings);
+    }
+
+    /** Pose l'item du bloc portail sur la face donnee d'un bloc, comme un clic droit du joueur. */
+    private static boolean place(ServerPlayerEntity player, BlockPos support, Direction side, PortalSettings settings) {
         ItemStack stack = settings.toStack(new ItemStack(ModItems.BACKROOMS_PORTAL));
         player.setStackInHand(Hand.MAIN_HAND, stack);
-        ItemPlacementContext placement = new ItemPlacementContext(player, Hand.MAIN_HAND, stack,
-                new BlockHitResult(Vec3d.ofCenter(support).add(0.0, 0.5, 0.0), Direction.UP, support, false));
+        Vec3d hit = Vec3d.ofCenter(support).add(side.getOffsetX() * 0.5, side.getOffsetY() * 0.5, side.getOffsetZ() * 0.5);
+        ItemPlacementContext placement = new ItemPlacementContext(player, Hand.MAIN_HAND, stack, new BlockHitResult(hit, side, support, false));
         return ModItems.BACKROOMS_PORTAL.place(placement).isAccepted();
     }
 

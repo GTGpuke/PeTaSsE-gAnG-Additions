@@ -61,6 +61,7 @@ class UtilityClassesTest {
                 "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ObliqueProjection",
                 "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalClipping",
                 "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState",
+                "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.CrossingRoll",
                 "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalViewTransform",
                 "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderClipInjector",
                 "com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderPackPortalRenderer",

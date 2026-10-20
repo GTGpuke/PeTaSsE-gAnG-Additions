@@ -77,6 +77,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private static final String NBT_DOUBLE_SIDED = "DoubleSided";
     private static final String NBT_ONE_WAY = "OneWay";
     private static final String NBT_FLEETING_EXIT = "FleetingExit";
+    private static final String NBT_EXIT = "Exit";
+    private static final String NBT_EXIT_SCATTER = "ExitScatter";
     private static final String NBT_EXIT_LOST = "ExitLost";
     private static final String[] NBT_ENTRY_PORTALS = {"EntryFront", "EntryBack"};
     private static final String[] NBT_RETURN_PORTALS = {"ReturnFront", "ReturnBack"};
@@ -135,7 +137,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         portalsEnabled = enabled;
     }
 
-    /** Reglages du portail : taille du cadre, passage de la lumiere, faces, retour et sortie fugace. */
+    /** Reglages du portail : taille du cadre, passage de la lumiere, faces, retour, sortie fugace, sens de sortie et tirage au sort. */
     public PortalSettings settings() {
         return this.settings;
     }
@@ -312,9 +314,21 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         return false;
     }
 
-    /** {@code true} si les reglages donnent cette face au portail : toujours la face avant, l'arriere s'il a deux faces. */
+    /**
+     * {@code true} si les reglages donnent cette face au portail : toujours la face avant, l'arriere s'il a deux faces et
+     * qu'aucun de ses cadres n'est couche. La face arriere d'un cadre au sol se prend depuis le sol, celle d'un cadre au
+     * plafond ressort dans le plafond : un portail couche, a l'entree ou a l'arrivee, n'a que sa face avant.
+     */
     private boolean hasFace(int face) {
-        return face == FRONT || this.settings.doubleSided();
+        return face == FRONT || this.settings.doubleSided() && !lying();
+    }
+
+    /**
+     * {@code true} si le cadre d'entree ou celui d'arrivee est couche, au sol ou au plafond. Lu seulement par un bloc qui a
+     * sa destination : on ne pose, ne garde ni ne rouvre de portail sans elle.
+     */
+    private boolean lying() {
+        return entryFacing().normal.y != 0.0 || this.destinationFacing.normal.y != 0.0;
     }
 
     /**
@@ -369,7 +383,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         return this.entryCenter;
     }
 
-    /** Orientation de la face avant du cadre d'entree, normale vers le joueur qui a pose le bloc. */
+    /** Orientation de la face avant du cadre d'entree, normale vers le joueur qui a pose le bloc, ou vers le haut ou le bas (couche). */
     public PortalFacing entryFacing() {
         refreshEntryFrame();
         return this.entryFacing;
@@ -582,6 +596,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         nbt.remove(NBT_DOUBLE_SIDED);
         nbt.remove(NBT_ONE_WAY);
         nbt.remove(NBT_FLEETING_EXIT);
+        nbt.remove(NBT_EXIT);
+        nbt.remove(NBT_EXIT_SCATTER);
         nbt.remove(NBT_EXIT_LOST);
         for (int face = 0; face < FACES; face++) {
             nbt.remove(NBT_ENTRY_PORTALS[face]);
@@ -615,6 +631,8 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         nbt.putBoolean(NBT_DOUBLE_SIDED, this.settings.doubleSided());
         nbt.putBoolean(NBT_ONE_WAY, this.settings.oneWay());
         nbt.putBoolean(NBT_FLEETING_EXIT, this.settings.fleetingExit());
+        nbt.putString(NBT_EXIT, this.settings.exit().asString());
+        nbt.putInt(NBT_EXIT_SCATTER, this.settings.exitScatter());
     }
 
     @Override
@@ -632,7 +650,9 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 !nbt.contains(NBT_TRANSMITS_LIGHT) || nbt.getBoolean(NBT_TRANSMITS_LIGHT),
                 !nbt.contains(NBT_DOUBLE_SIDED) || nbt.getBoolean(NBT_DOUBLE_SIDED),
                 nbt.getBoolean(NBT_ONE_WAY),
-                nbt.getBoolean(NBT_FLEETING_EXIT));
+                nbt.getBoolean(NBT_FLEETING_EXIT),
+                PortalExit.byName(nbt.getString(NBT_EXIT)),
+                nbt.getInt(NBT_EXIT_SCATTER));
         // Une copie a sa propre sortie, toute neuve ; seule une sortie fugace se perd de vue.
         this.exitLost = !copy && this.settings.fleetingExit() && nbt.getBoolean(NBT_EXIT_LOST);
         for (int face = 0; face < FACES; face++) {
@@ -665,6 +685,22 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         if (isConfigured() && reread && (previous.width() != this.settings.width() || previous.height() != this.settings.height())) {
             this.destinationPos = PortalArea.center(PortalArea.floor(this.destinationPos, this.destinationFacing, previous),
                     this.destinationFacing, this.settings);
+        }
+        // Relu configure avec un autre sens de sortie : un cadre d'arrivee debout tourne sur son pied vers le nouveau sens, et
+        // ses portails, qui ne correspondent plus, sont reposes. Couche avant ou apres, son pied ne convient plus (un cadre au
+        // plafond se pose sous le plafond, releve a la surface) : ses portails sont retires et l'arrivee se cherche de
+        // nouveau au prochain tick, comme a la pose.
+        if (isConfigured() && reread && previous.exit() != this.settings.exit()) {
+            PortalFacing facing = this.settings.exit().arrivalFacing(entryFacing());
+            if (facing.normal.y == 0.0 && this.destinationFacing.normal.y == 0.0) {
+                this.destinationPos = PortalArea.center(PortalArea.floor(this.destinationPos, this.destinationFacing, this.settings), facing,
+                        this.settings);
+                this.destinationFacing = facing;
+            } else {
+                discardPortals();
+                this.destinationPos = null;
+                this.destinationFacing = null;
+            }
         }
         this.ticksSinceLoad = 0;
     }

@@ -118,6 +118,13 @@ class PortalCollisionTest {
         portal.setTeleportable(false);
         item.setPosition(0.3, 63.5, -0.3);
         assertFalse(PortalCollision.engages(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)), "Portail ferme.");
+        // Un cadre au sol s'engage aux yeux : les pieds deja sous le plan, les yeux encore au-dessus, l'objet est engage.
+        BackroomsPortalEntity floor = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.5, 0.0)).facingSource(PortalFacing.UP)
+                .facingDestination(PortalFacing.DOWN).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 64.5, 0.0)).size(1.0f, 2.0f).build();
+        item.setPosition(0.5, 64.4, 0.0);
+        assertTrue(PortalCollision.engages(floor, item, item.getBoundingBox().stretch(0.0, -0.5, 0.0)), "Les yeux au-dessus du plan du sol : engage.");
+        item.setPosition(0.5, 64.0, 0.0);
+        assertFalse(PortalCollision.engages(floor, item, item.getBoundingBox().stretch(0.0, -0.5, 0.0)), "Les yeux passes : plus engage.");
     }
 
     @Test

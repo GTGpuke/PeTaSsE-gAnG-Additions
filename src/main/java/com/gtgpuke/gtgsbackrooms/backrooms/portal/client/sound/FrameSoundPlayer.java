@@ -1,7 +1,5 @@
 package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound;
 
-import java.util.List;
-
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.sound.PositionedSoundInstance;
@@ -13,7 +11,6 @@ import net.minecraft.util.math.random.Random;
 import net.minecraft.world.World;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.config.ModConfig;
 
 /**
@@ -22,7 +19,8 @@ import com.gtgpuke.gtgsbackrooms.config.ModConfig;
  * trajet jusqu'au cadre ({@link PortalSound}). Le joueur l'entend donc venir du cadre par lequel il voit l'autre
  * cote, d'autant plus faible que la source en est loin, que ce portail ait un retour ou non (aller simple). Un son d'un
  * monde distant qu'aucun portail ouvert ne rapproche du joueur n'est pas joue : a ses coordonnees brutes, il sonnerait
- * n'importe ou.
+ * n'importe ou. Le son rejoue garde sa vraie source ({@link SoundAnchors}) : si le joueur traverse pendant qu'il joue, il
+ * est replace de l'autre cote.
  */
 public final class FrameSoundPlayer {
 
@@ -74,37 +72,20 @@ public final class FrameSoundPlayer {
         if (!remote && listener.squaredDistanceTo(x, y, z) < NEAR_PLAYER_SQUARED) {
             return false;
         }
-        double radius = PortalSound.radius(volume);
         Vec3d source = new Vec3d(x, y, z);
-        Vec3d bestExit = null;
-        double bestDistance = Double.MAX_VALUE;
         // Les portails du monde du joueur vers celui du son : ceux par ou il voit l'autre cote, qu'ils aient un retour ou non.
-        List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(listenerWorld);
-        for (int i = 0; i < portals.size(); i++) {
-            BackroomsPortalEntity portal = portals.get(i);
-            // Un portail ferme ou invisible ne laisse passer aucun son.
-            if (!portal.visible() || !portal.teleportable() || !portal.destinationDim().equals(soundWorld.getRegistryKey())) {
-                continue;
-            }
-            Vec3d image = portal.fromDestination(source);
-            Vec3d exit = PortalSound.exitPoint(portal, image, listener, radius);
-            if (exit == null) {
-                continue;
-            }
-            double distance = Math.sqrt(exit.squaredDistanceTo(image));
-            if (distance < bestDistance) {
-                bestExit = exit;
-                bestDistance = distance;
-            }
-        }
-        if (bestExit == null) {
+        PortalSound.Exit best = PortalSound.bestExit(ClientPortalIndex.portals(listenerWorld), soundWorld.getRegistryKey(), source, listener,
+                PortalSound.radius(volume));
+        if (best == null) {
             return remote;
         }
-        float through = PortalSound.volumeThroughPortal(volume, bestDistance);
+        float through = PortalSound.volumeThroughPortal(volume, best.distance());
         if (through <= 0.0f) {
             return true;
         }
+        Vec3d bestExit = best.point();
         PositionedSoundInstance sound = new PositionedSoundInstance(event, category, through, pitch, Random.create(seed), bestExit.x, bestExit.y, bestExit.z);
+        SoundAnchors.anchor(sound, soundWorld.getRegistryKey(), source, volume);
         double squared = listener.squaredDistanceTo(bestExit);
         if (useDistance && squared > DELAY_THRESHOLD_SQUARED) {
             client.getSoundManager().play(sound, (int) (Math.sqrt(squared) / DELAY_BLOCKS_PER_TICK));

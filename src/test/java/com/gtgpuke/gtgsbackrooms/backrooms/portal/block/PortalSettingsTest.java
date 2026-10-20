@@ -3,6 +3,9 @@ package com.gtgpuke.gtgsbackrooms.backrooms.portal.block;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.HashSet;
+import java.util.List;
+
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.JsonOps;
@@ -38,8 +41,14 @@ class PortalSettingsTest {
         assertEquals(new PortalSettings(1, 2, true, false, true, false), decode("{\"double_sided\":false,\"one_way\":true}"),
                 "Une face, aller simple.");
         assertEquals(new PortalSettings(1, 2, true, true, false, true), decode("{\"fleeting_exit\":true}"), "Sortie fugace.");
+        assertEquals(new PortalSettings(1, 2, true, true, false, false, PortalExit.EAST, 12), decode("{\"exit\":\"east\",\"exit_scatter\":12}"),
+                "Sortie vers l'est, arrivee tiree au sort a douze blocs pres.");
         assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"width\":9}")).isError(), "Neuf blocs : refuse.");
-        PortalSettings settings = new PortalSettings(2, 5, true, false, true, true);
+        assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"exit_scatter\":65}")).isError(),
+                "Soixante-cinq blocs de tirage : refuse.");
+        assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"exit\":\"diagonale\"}")).isError(),
+                "Un sens de sortie inconnu : refuse.");
+        PortalSettings settings = new PortalSettings(2, 5, true, false, true, true, PortalExit.WEST, 5);
         JsonObject json = PortalSettings.CODEC.encodeStart(JsonOps.INSTANCE, settings).getOrThrow().getAsJsonObject();
         assertEquals(settings, PortalSettings.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(), "Aller-retour du format.");
     }
@@ -48,11 +57,14 @@ class PortalSettingsTest {
     @DisplayName("Le format reseau fait l'aller-retour, et une taille hors bornes est ramenee dans les bornes")
     void packetCodecAndClamping() {
         ByteBuf buffer = Unpooled.buffer();
-        PortalSettings settings = new PortalSettings(8, 1, false, false, true, true);
+        PortalSettings settings = new PortalSettings(8, 1, false, false, true, true, PortalExit.SOUTH, 64);
         PortalSettings.PACKET_CODEC.encode(buffer, settings);
         assertEquals(settings, PortalSettings.PACKET_CODEC.decode(buffer), "Aller-retour reseau.");
         assertEquals(new PortalSettings(PortalSettings.MAX_SIZE, PortalSettings.MIN_SIZE, true), new PortalSettings(40, -3, true),
                 "Taille ramenee dans les bornes.");
+        assertEquals(0, new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, -3).exitScatter(), "Rayon negatif : nul.");
+        assertEquals(PortalSettings.MAX_SCATTER, new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 1000).exitScatter(),
+                "Rayon demesure : ramene a la borne.");
     }
 
     @Test
@@ -65,9 +77,33 @@ class PortalSettingsTest {
         ItemStack stack = wide.toStack(plain);
         assertEquals(wide, PortalSettings.of(stack), "La pile reglee porte ses reglages.");
         assertEquals(PortalSettings.DEFAULT, PortalSettings.of(plain), "La pile d'origine n'est pas modifiee.");
-        assertEquals(7, PortalSettings.PRESETS.size(), "Sept reglages proposes dans l'onglet creatif.");
         assertTrue(PortalSettings.DEFAULT.doubleSided() && !PortalSettings.DEFAULT.oneWay() && !PortalSettings.DEFAULT.fleetingExit(),
                 "Par defaut : deux faces, aller-retour, sortie durable.");
+    }
+
+    @Test
+    @DisplayName("L'onglet propose chaque taille utile, chaque sens de sortie, chaque rayon de tirage au sort et chaque comportement")
+    void presetsCoverEveryWayToMakeAPortal() {
+        List<PortalSettings> presets = PortalSettings.PRESETS;
+        assertEquals(PortalSettings.DEFAULT, presets.get(0), "Le portail par defaut en tete.");
+        assertEquals(presets.size(), new HashSet<>(presets).size(), "Tous differents : l'onglet refuse deux piles identiques.");
+        assertEquals(37, presets.size(), "Trente-sept reglages proposes dans l'onglet creatif.");
+        assertTrue(presets.contains(new PortalSettings(1, 1, true)) && presets.contains(new PortalSettings(3, 3, true))
+                && presets.contains(new PortalSettings(PortalSettings.MAX_SIZE, PortalSettings.MAX_SIZE, true)), "Du plus petit cadre au plus grand, carres compris.");
+        for (PortalExit exit : PortalExit.values()) {
+            for (int width = 1; width <= 2; width++) {
+                assertTrue(presets.contains(new PortalSettings(width, 2, true, true, false, false, exit, 0)), "Sortie " + exit + ", " + width + " de large.");
+            }
+            assertTrue(presets.contains(new PortalSettings(1, 2, true, true, false, false, exit, PortalSettings.PRESET_SCATTER)),
+                    "Sortie " + exit + ", arrivee tiree au sort.");
+        }
+        for (int scatter : new int[] {8, PortalSettings.PRESET_SCATTER, PortalSettings.MAX_SCATTER}) {
+            assertTrue(presets.contains(new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, scatter)), "Tirage au sort a " + scatter + " blocs.");
+        }
+        assertTrue(presets.contains(new PortalSettings(1, 2, false)) && presets.contains(new PortalSettings(1, 2, true, false, false, false))
+                && presets.contains(new PortalSettings(1, 2, true, true, true, false)) && presets.contains(new PortalSettings(1, 2, true, true, false, true)),
+                "Chaque comportement seul : sans lumiere, une face, aller simple, sortie fugace.");
+        assertTrue(presets.contains(new PortalSettings(2, 2, true, true, true, false)), "Trappe : carree, aller simple.");
     }
 
     @Test
@@ -87,6 +123,34 @@ class PortalSettingsTest {
         assertEquals(-4.5, center.z, EPSILON, "Plan au milieu du bloc.");
         assertEquals(new Vec3d(10.5, 64.0, -4.5), PortalArea.floor(center, PortalFacing.NORTH, new PortalSettings(2, 3, true)),
                 "Le pied du cadre se retrouve depuis son centre : au pied de l'ancre, au milieu du bloc.");
+        assertEquals(1.0, PortalArea.rowOffset(3), EPSILON, "Trois rangees depuis l'ancre : le centre est a la deuxieme.");
+        assertEquals(0.5, PortalArea.rowOffset(2), EPSILON, "Deux rangees : entre les deux.");
+        Vec3d lying = PortalArea.center(new BlockPos(10, 64, -5), PortalFacing.UP, new PortalSettings(2, 3, true));
+        assertEquals(new Vec3d(11.0, 64.5, -5.5), lying,
+                "Couche au sol : plan au milieu du bloc, largeur paire decalee vers l'est, rangees vers le nord depuis l'ancre.");
+        assertEquals(new Vec3d(10.5, 64.0, -4.5), PortalArea.floor(lying, PortalFacing.UP, new PortalSettings(2, 3, true)), "Et son pied se retrouve.");
+        assertEquals(new Vec3d(10.0, 64.5, -5.5), PortalArea.center(new BlockPos(10, 64, -5), PortalFacing.DOWN, new PortalSettings(2, 3, true)),
+                "Au plafond : rangees vers le nord aussi, largeur paire decalee vers l'ouest.");
+    }
+
+    @Test
+    @DisplayName("Tout droit, le cadre d'arrivee regarde a l'oppose de l'entree ; un point cardinal s'impose quelle que soit l'entree")
+    void exitDirections() {
+        assertEquals(PortalFacing.NORTH, PortalExit.STRAIGHT.arrivalFacing(PortalFacing.SOUTH), "Entre par le sud, on ressort vers le nord.");
+        assertEquals(PortalFacing.WEST, PortalExit.STRAIGHT.arrivalFacing(PortalFacing.EAST), "Entre par l'est, on ressort vers l'ouest.");
+        for (PortalExit exit : PortalExit.values()) {
+            if (exit != PortalExit.STRAIGHT) {
+                assertEquals(exit.arrivalFacing(PortalFacing.SOUTH), exit.arrivalFacing(PortalFacing.NORTH), exit + " s'impose quelle que soit l'entree.");
+            }
+            assertEquals(exit, PortalExit.byName(exit.asString()), "Chaque sens se relit par son nom.");
+        }
+        assertEquals(PortalFacing.EAST, PortalExit.EAST.arrivalFacing(PortalFacing.SOUTH), "Vers l'est : le cadre d'arrivee regarde l'est.");
+        assertEquals(PortalFacing.UP, PortalExit.FLOOR.arrivalFacing(PortalFacing.SOUTH), "Par le sol : le cadre d'arrivee est couche au sol, on en sort vers le haut.");
+        assertEquals(PortalFacing.DOWN, PortalExit.CEILING.arrivalFacing(PortalFacing.UP), "Par le plafond : le cadre d'arrivee est au plafond, on en tombe.");
+        assertEquals(PortalFacing.DOWN, PortalExit.STRAIGHT.arrivalFacing(PortalFacing.UP), "Tout droit depuis un cadre au sol : on ressort d'un plafond.");
+        assertEquals("east", PortalExit.EAST.asString(), "Nom en minuscules.");
+        assertEquals(PortalExit.STRAIGHT, PortalExit.byName(""), "Sans nom : tout droit.");
+        assertEquals(PortalExit.STRAIGHT, PortalExit.byName("diagonale"), "Nom inconnu : tout droit.");
     }
 
     private static PortalSettings decode(String json) {

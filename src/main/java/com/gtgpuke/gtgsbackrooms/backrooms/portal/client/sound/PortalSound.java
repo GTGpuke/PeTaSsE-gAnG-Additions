@@ -1,8 +1,12 @@
 package com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound;
 
+import java.util.List;
+
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
 
@@ -22,6 +26,10 @@ final class PortalSound {
     /** Un son colle au cadre, juste de ce cote de son plan, passe encore ; un auditeur colle au cadre l'entend encore. */
     static final double BEHIND_TOLERANCE = 0.5;
 
+    /** Point du cadre par ou un son ressort, et distance de sa source (vue par ce cadre) a ce point. */
+    record Exit(Vec3d point, double distance) {
+    }
+
     private PortalSound() {
         throw new UnsupportedOperationException("Classe utilitaire.");
     }
@@ -32,14 +40,48 @@ final class PortalSound {
     }
 
     /**
-     * Volume qui ressort du portail : le trajet jusqu'au cadre en a consomme un seizieme par bloc.
+     * Volume qui ressort du portail : le trajet jusqu'au cadre en a consomme la part de la portee du son qu'il represente,
+     * comme le moteur de son attenue tout son lineairement sur sa portee (seize blocs pour un son faible, plus pour un son
+     * fort) : un son faible porte aussi loin a travers le cadre que sans lui.
      *
      * @param volume volume du son a sa source
      * @param distanceToFrame distance de la source au point du cadre le plus proche
      * @return volume au point de sortie, nul si le son s'est eteint en chemin
      */
     static float volumeThroughPortal(float volume, double distanceToFrame) {
-        return (float) Math.max(0.0, volume - distanceToFrame / BLOCKS_PER_VOLUME);
+        return (float) Math.max(0.0, volume * (1.0 - distanceToFrame / radius(volume)));
+    }
+
+    /**
+     * Cadre par lequel un son d'un autre monde parvient a l'auditeur : parmi les portails de son monde, ouverts et visibles,
+     * qui menent au monde du son (qu'ils aient un retour ou non), celui dont le point de sortie est le plus pres de l'image de
+     * la source. Un portail ferme ou invisible ne laisse passer aucun son.
+     *
+     * @param portals portails du monde de l'auditeur
+     * @param soundWorld monde de la source
+     * @param source position de la source dans son monde
+     * @param listener position de l'auditeur
+     * @param radius portee du son
+     * @return point de sortie et distance parcourue jusqu'a lui, ou {@code null} si aucun cadre ne rapproche le son
+     */
+    static @Nullable Exit bestExit(List<BackroomsPortalEntity> portals, RegistryKey<World> soundWorld, Vec3d source, Vec3d listener, double radius) {
+        Exit best = null;
+        for (int i = 0; i < portals.size(); i++) {
+            BackroomsPortalEntity portal = portals.get(i);
+            if (!portal.visible() || !portal.teleportable() || !portal.destinationDim().equals(soundWorld)) {
+                continue;
+            }
+            Vec3d image = portal.fromDestination(source);
+            Vec3d exit = exitPoint(portal, image, listener, radius);
+            if (exit == null) {
+                continue;
+            }
+            double distance = Math.sqrt(exit.squaredDistanceTo(image));
+            if (best == null || distance < best.distance()) {
+                best = new Exit(exit, distance);
+            }
+        }
+        return best;
     }
 
     /**

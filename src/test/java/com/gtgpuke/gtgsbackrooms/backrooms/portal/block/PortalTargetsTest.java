@@ -11,6 +11,8 @@ import java.util.function.IntBinaryOperator;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.util.math.random.Random;
+
 import com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConstants;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroCoords;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroLayerStackLayout;
@@ -72,6 +74,59 @@ class PortalTargetsTest {
         assertNotNull(target, "Une destination de repli est trouvee.");
         assertEquals(PortalFacing.EAST, target.facing(), "La sortie de repli donne sur un bloc libre.");
         assertEquals(1.5, target.position().x, EPSILON, "Au centre de la cellule ouverte la plus proche.");
+    }
+
+    @Test
+    @DisplayName("Un cadre couche se pose la ou toute son empreinte est libre : au sol du layer 0, ou sous son plafond")
+    void lyingFramesNeedTheirFootprintFree() {
+        PortalSettings flat = new PortalSettings(1, 2, true);
+        assertTrue(PortalTargets.fitsFlat((x, z) -> 1, 1, 1, PortalFacing.UP, flat), "Tout ouvert : l'empreinte tient.");
+        assertFalse(PortalTargets.fitsFlat(EAST_WEST_CORRIDOR, 1, 1, PortalFacing.UP, flat), "Au sol, les rangees partent vers le nord, dans le mur.");
+        assertFalse(PortalTargets.fitsFlat(EAST_WEST_CORRIDOR, 1, 1, PortalFacing.DOWN, flat), "Au plafond aussi.");
+        assertTrue(PortalTargets.fitsFlat(EAST_WEST_CORRIDOR, 1, 1, PortalFacing.UP, new PortalSettings(3, 1, true)), "Une rangee le long du couloir tient.");
+        PortalTargets.Target floor = PortalTargets.levelZeroTarget((x, z) -> 1, 1, 1, PortalFacing.UP, flat);
+        assertNotNull(floor, "Une destination au sol est trouvee.");
+        assertEquals(PortalFacing.UP, floor.facing(), "Couchee au sol.");
+        assertEquals(LevelZeroLayerStackLayout.airMinY(0) + 0.5, floor.position().y, EPSILON, "Plan au milieu de la premiere rangee d'air.");
+        PortalTargets.Target ceiling = PortalTargets.levelZeroTarget((x, z) -> 1, 1, 1, PortalFacing.DOWN, flat);
+        assertNotNull(ceiling, "Une destination au plafond est trouvee.");
+        assertEquals(LevelZeroLayerStackLayout.airMaxY(0) + 0.5, ceiling.position().y, EPSILON, "Plan au milieu de la derniere rangee d'air, sous le plafond.");
+        PortalTargets.Target fallback = PortalTargets.levelZeroTarget(EAST_WEST_CORRIDOR, 1, 1, PortalFacing.UP, flat);
+        assertNotNull(fallback, "Faute d'empreinte libre, repli sur la cellule ouverte la plus proche.");
+        assertEquals(PortalFacing.UP, fallback.facing(), "Un cadre couche le reste au repli.");
+        assertEquals(1.5, fallback.position().x, EPSILON, "Au centre de la cellule ouverte la plus proche.");
+        assertEquals(PortalArea.CLEARANCE_BEHIND, PortalTargets.ceilingLift(PortalFacing.DOWN), "A la surface, un cadre au plafond est releve de deux blocs.");
+        assertEquals(0, PortalTargets.ceilingLift(PortalFacing.UP), "Les autres cadres se posent au sol.");
+    }
+
+    @Test
+    @DisplayName("Un sens de sortie impose ne tourne pas : le cadre se pose plus loin, la ou il tient tel quel, sinon de repli dans ce sens")
+    void imposedExitNeverTurns() {
+        PortalSettings north = new PortalSettings(1, 2, true, true, false, false, PortalExit.NORTH, 0);
+        // Un couloir est-ouest, puis une place toute ouverte au-dela de x = 40 : face au nord, le cadre ne tient que sur la place.
+        PortalTargets.Target far = PortalTargets.levelZeroTarget((x, z) -> z == 1 || x >= 40 ? 1 : 0, 1, 1, PortalFacing.NORTH, north);
+        assertNotNull(far, "Une destination est trouvee.");
+        assertEquals(PortalFacing.NORTH, far.facing(), "Le cadre regarde le nord, comme impose.");
+        assertTrue(far.position().x >= 40.0, "Il se pose sur la place, ou il tient tel quel : " + far.position() + ".");
+        PortalTargets.Target fallback = PortalTargets.levelZeroTarget(EAST_WEST_CORRIDOR, 1, 1, PortalFacing.NORTH, north);
+        assertNotNull(fallback, "Faute de place, une destination de repli.");
+        assertEquals(PortalFacing.NORTH, fallback.facing(), "De repli, il regarde encore le nord.");
+        assertEquals(PortalFacing.EAST, PortalTargets.levelZeroTarget(EAST_WEST_CORRIDOR, 1, 1, PortalFacing.NORTH, PortalSettings.DEFAULT).facing(),
+                "Tout droit, le cadre se tourne pour barrer le couloir.");
+    }
+
+    @Test
+    @DisplayName("L'ecart tire au sort reste dans le rayon, et il est nul sans rayon")
+    void scatterStaysWithinRadius() {
+        Random random = Random.create(42L);
+        assertEquals(0, PortalTargets.scatter(random, 0), "Sans rayon, aucun ecart.");
+        boolean moved = false;
+        for (int i = 0; i < 200; i++) {
+            int offset = PortalTargets.scatter(random, 8);
+            assertTrue(Math.abs(offset) <= 8, "L'ecart reste dans le rayon : " + offset + ".");
+            moved |= offset != 0;
+        }
+        assertTrue(moved, "Avec un rayon, l'arrivee bouge.");
     }
 
     @Test

@@ -122,6 +122,14 @@ class ModRegistriesTest {
         assertTrue(english.has(ModEntities.BACKROOMS_PORTAL.getTranslationKey()), "Traduction de l'entity portail.");
         assertTrue(english.has("itemGroup.gtgs_backrooms.main"), "Traduction de l'onglet principal.");
         assertTrue(english.has("itemGroup.gtgs_backrooms.portals"), "Traduction de l'onglet des portails.");
+        // Un item de bloc lit les cles de son bloc : une cle item.* a son nom ne servirait a rien.
+        for (Identifier id : modIds(Registries.ITEM.getIds())) {
+            if (Registries.ITEM.get(id) instanceof BlockItem) {
+                String itemKey = "item." + id.getNamespace() + "." + id.getPath();
+                assertTrue(english.keySet().stream().noneMatch(key -> key.equals(itemKey) || key.startsWith(itemKey + ".")),
+                        "Aucune cle " + itemKey + " pour un item de bloc : les siennes sont sous block.*.");
+            }
+        }
     }
 
     private static void assertResource(String path) {

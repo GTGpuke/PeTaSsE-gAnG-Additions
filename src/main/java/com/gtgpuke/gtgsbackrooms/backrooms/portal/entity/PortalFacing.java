@@ -20,9 +20,13 @@ public enum PortalFacing {
     SOUTH(Direction.SOUTH, new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 1.0, 0.0)),
     EAST(Direction.EAST, new Vec3d(0.0, 0.0, -1.0), new Vec3d(0.0, 1.0, 0.0)),
     WEST(Direction.WEST, new Vec3d(0.0, 0.0, 1.0), new Vec3d(0.0, 1.0, 0.0)),
+    // Au sol et au plafond, la hauteur suit le nord et la largeur s'inverse, comme entre le nord et le sud : un cadre au
+    // sol et un cadre au plafond sont l'un l'autre a l'oppose (opposite) et passer de l'un a l'autre ne fait pas tourner.
     UP(Direction.UP, new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0)),
-    DOWN(Direction.DOWN, new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, 1.0));
+    DOWN(Direction.DOWN, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0));
 
+    /** En deca de cette part horizontale (au carre), un regard est vertical : il n'a plus de cap propre. */
+    private static final double VERTICAL_LOOK_SQUARED = 1.0e-8;
     /** Direction cardinale de la normale. */
     public final Direction direction;
     /** Axe de largeur du portail (unitaire). */
@@ -130,18 +134,35 @@ public enum PortalFacing {
         // Regard en double precision : les tables de MathHelper sont trop grossieres pour un aller-retour exact.
         double yawRad = Math.toRadians(yaw);
         double pitchRad = Math.toRadians(pitch);
+        double sinYaw = Math.sin(yawRad);
+        double cosYaw = Math.cos(yawRad);
+        double sinPitch = Math.sin(pitchRad);
         double cosPitch = Math.cos(pitchRad);
-        double lookX = -Math.sin(yawRad) * cosPitch;
-        double lookY = -Math.sin(pitchRad);
-        double lookZ = Math.cos(yawRad) * cosPitch;
+        double lookX = -sinYaw * cosPitch;
+        double lookY = -sinPitch;
+        double lookZ = cosYaw * cosPitch;
         double w = dot(source.axisW, lookX, lookY, lookZ);
         double h = dot(source.axisH, lookX, lookY, lookZ);
         double n = dot(source.normal, lookX, lookY, lookZ);
         double x = rotated(destination.axisW.x, destination.axisH.x, destination.normal.x, w, h, n);
         double y = rotated(destination.axisW.y, destination.axisH.y, destination.normal.y, w, h, n);
         double z = rotated(destination.axisW.z, destination.axisH.z, destination.normal.z, w, h, n);
+        // Haut de la camera (le regard releve d'un quart de tour), transpose de meme.
+        double upX = -sinYaw * sinPitch;
+        double upZ = cosYaw * sinPitch;
+        double upW = dot(source.axisW, upX, cosPitch, upZ);
+        double upH = dot(source.axisH, upX, cosPitch, upZ);
+        double upN = dot(source.normal, upX, cosPitch, upZ);
+        double newUpX = rotated(destination.axisW.x, destination.axisH.x, destination.normal.x, upW, upH, upN);
+        double newUpZ = rotated(destination.axisW.z, destination.axisH.z, destination.normal.z, upW, upH, upN);
+        // Cap : celui du regard. Devenu vertical (on tombe dans un sol en regardant l'horizon, on sort d'un mur en regardant
+        // le ciel), le regard n'en a plus : le cap est alors celui du haut de la camera (regard vers le bas, le haut de
+        // l'ecran est devant ; vers le haut, derriere), celui de qui baissera ou levera les yeux.
+        boolean vertical = x * x + z * z < VERTICAL_LOOK_SQUARED;
+        double headingX = vertical ? -y * newUpX : x;
+        double headingZ = vertical ? -y * newUpZ : z;
         float newPitch = (float) Math.toDegrees(-Math.asin(MathHelper.clamp(y, -1.0, 1.0)));
-        float newYaw = (float) Math.toDegrees(Math.atan2(-x, z));
+        float newYaw = (float) Math.toDegrees(Math.atan2(-headingX, headingZ));
         return new Vec2f(newYaw, newPitch);
     }
 

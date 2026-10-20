@@ -14,6 +14,9 @@
       "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalSyncGameTests",
       "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalInteractionGameTests",
       "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalPropagationGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalRidingGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalLyingGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalOrientationGameTests",
       "com.gtgpuke.gtgsbackrooms.gametest.feature.ItemGameTests"
     ]
   },

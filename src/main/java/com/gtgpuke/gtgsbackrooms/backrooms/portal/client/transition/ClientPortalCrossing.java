@@ -13,6 +13,7 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
+import net.minecraft.util.Util;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.MathHelper;
@@ -25,6 +26,9 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlockEntity;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalArea;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.PortalSettings;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound.SoundAnchors;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.CrossingRoll;
+import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalViewTransform;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.PortalSightReporter;
 import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorld;
@@ -110,8 +114,8 @@ public final class ClientPortalCrossing {
             return;
         }
         // Position affichee a cette image, pas celle du tick : la continuite visuelle se joue la. Le test
-        // porte sur les pieds, exactement comme celui du serveur : les portails sont verticaux, la camera
-        // franchit le plan au meme instant, et client comme serveur prennent la meme decision.
+        // porte sur les pieds (sur les yeux pour un cadre au sol), exactement comme celui du serveur : devant un cadre
+        // debout la camera franchit le plan au meme instant que les pieds, et client comme serveur prennent la meme decision.
         double feetX = MathHelper.lerp(tickDelta, player.prevX, player.getX());
         double feetY = MathHelper.lerp(tickDelta, player.prevY, player.getY());
         double feetZ = MathHelper.lerp(tickDelta, player.prevZ, player.getZ());
@@ -137,7 +141,9 @@ public final class ClientPortalCrossing {
         List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            if (portal.teleportable() && TeleportExecutor.crossedPortalPlane(portal, player, fromX, fromY, fromZ, feetX, feetY, feetZ)) {
+            // Accroupi sur un cadre au sol pose sur un sol plein, on s'y laisse descendre : c'est ainsi qu'on reprend une arrivee au sol.
+            if (portal.teleportable() && (TeleportExecutor.crossedPortalPlane(portal, player, fromX, fromY, fromZ, feetX, feetY, feetZ)
+                    || TeleportExecutor.descendsThrough(portal, player))) {
                 predict(client, player, world, portal, new Vec3d(feetX, feetY, feetZ));
                 return;
             }
@@ -170,6 +176,8 @@ public final class ClientPortalCrossing {
         unloadWindowTicks = 0;
         previousWorld = null;
         predictedExit = null;
+        SoundAnchors.clear();
+        CrossingRoll.clear();
     }
 
     /** {@code true} tant que les dechargements de chunks vanilla concernent l'ancien monde et doivent etre ignores. */
@@ -210,17 +218,18 @@ public final class ClientPortalCrossing {
         float pitch = player.getPitch();
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = TeleportExecutor.exitPoint(portal, feet);
+        Vec3d exit = TeleportExecutor.exitPoint(portal, feet, player.getHeight());
         Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, velocity);
         Vec2f look = PortalFacing.transformLook(source, exitFacing, yaw, pitch);
-        // Un portail vertical tourne le regard autour de la verticale : un meme angle pour toutes les valeurs, courantes et
-        // precedentes, ramene au plus court pour que le lacet reste continu (pas de tour complet entre deux images).
+        // Le portail tourne le regard d'un meme angle pour toutes les valeurs, courantes et precedentes, ramene au plus
+        // court pour que le lacet reste continu (pas de tour complet entre deux images) ; un cadre couche change aussi
+        // le tangage.
         float yawShift = MathHelper.wrapDegrees(look.x - yaw);
         float pitchShift = look.y - pitch;
         // Les positions du tick courant et du tick precedent passent aussi le portail : l'interpolation de l'image continue
         // sans a-coup, le joueur ne s'arrete pas sur le plan le temps d'un tick.
-        Vec3d thisTick = TeleportExecutor.exitPoint(portal, player.getPos());
-        Vec3d lastTick = TeleportExecutor.exitPoint(portal, new Vec3d(player.prevX, player.prevY, player.prevZ));
+        Vec3d thisTick = TeleportExecutor.exitPoint(portal, player.getPos(), player.getHeight());
+        Vec3d lastTick = TeleportExecutor.exitPoint(portal, new Vec3d(player.prevX, player.prevY, player.prevZ), player.getHeight());
 
         // Le serveur doit recevoir l'annonce avant le prochain paquet de deplacement.
         ClientPlayNetworking.send(new PortalCrossPayload(portal.getUuid(), feet, velocity, yaw, pitch));
@@ -229,7 +238,10 @@ public final class ClientPortalCrossing {
         awaitingServerTicks = SERVER_ANSWER_TIMEOUT_TICKS;
         lastCrossingAge = player.age;
         PortalSightReporter.onArrival();
+        // La camera part de l'image vue par le cadre, penchee si le portail tourne autour d'un axe horizontal.
+        CrossingRoll.start(PortalViewTransform.crossingRoll(source, exitFacing, yaw, pitch), Util.getMeasuringTimeMs());
         turn(player, yawShift, pitchShift);
+        carryCape(player, portal);
         if (sameDimension) {
             place(player, thisTick, exitVelocity);
         } else {
@@ -237,6 +249,7 @@ public final class ClientPortalCrossing {
         }
         continueInterpolation(player, lastTick);
         hasLastFeet = false;
+        SoundAnchors.refresh(client);
     }
 
     /**
@@ -318,6 +331,23 @@ public final class ClientPortalCrossing {
         player.lastRenderPitch += pitchShift;
     }
 
+    /**
+     * La cape passe le portail avec le joueur : son point d'ancrage, qui suit le joueur avec retard, et sa valeur precedente
+     * sont transposes comme lui. Laisses de l'autre cote, vanilla ne les rattrape qu'au tick suivant (un ecart de plus de
+     * dix blocs les ramene d'un coup, un ecart moindre se comble par quarts) et la cape s'etire vers l'ancienne position
+     * sur toutes les images d'ici la.
+     */
+    private static void carryCape(ClientPlayerEntity player, BackroomsPortalEntity portal) {
+        Vec3d cape = portal.toDestination(new Vec3d(player.capeX, player.capeY, player.capeZ));
+        Vec3d previous = portal.toDestination(new Vec3d(player.prevCapeX, player.prevCapeY, player.prevCapeZ));
+        player.capeX = cape.x;
+        player.capeY = cape.y;
+        player.capeZ = cape.z;
+        player.prevCapeX = previous.x;
+        player.prevCapeY = previous.y;
+        player.prevCapeZ = previous.z;
+    }
+
     /** Pose le joueur a la sortie, sans toucher a ses angles ni a ses valeurs d'interpolation. */
     private static void place(ClientPlayerEntity player, Vec3d position, Vec3d velocity) {
         player.setPosition(position.x, position.y, position.z);
@@ -358,6 +388,7 @@ public final class ClientPortalCrossing {
             if (handler.getWorld() != world) {
                 bindNetworkHandler(client, world, handler.getWorld());
             }
+            SoundAnchors.refresh(client);
             return;
         }
         // Bascule menee par le serveur avant toute annonce : la dimension n'a pas encore d'index chez le joueur.
@@ -368,6 +399,7 @@ public final class ClientPortalCrossing {
         }
         switchWorld(client, remote,
                 () -> applyPosition(player, payload.position(), payload.yaw(), payload.pitch(), payload.velocity()), true);
+        SoundAnchors.refresh(client);
     }
 
     /**
@@ -444,5 +476,12 @@ public final class ClientPortalCrossing {
         player.setBodyYaw(yaw);
         player.prevBodyYaw = yaw;
         player.setVelocity(velocity);
+        // Bascule menee par le serveur, sans portail connu : la cape repart de la nouvelle position, comme a une reapparition.
+        player.capeX = position.x;
+        player.capeY = position.y;
+        player.capeZ = position.z;
+        player.prevCapeX = position.x;
+        player.prevCapeY = position.y;
+        player.prevCapeZ = position.z;
     }
 }

@@ -75,6 +75,8 @@ public final class ShaderPackPortalRenderer {
     private static final List<BackroomsPortalEntity> NESTED_PORTALS = new ArrayList<>();
     /** Images de l'ecran gardees le temps d'une vue (textures GL a la taille de l'ecran), remises ensuite autour du cadre. */
     private static final int[] SAVED_IMAGES = new int[2];
+    /** Rotation complete de la camera du joueur, gardee le temps qu'elle prenne celle d'une vue. */
+    private static final Camera SAVED_MAIN_CAMERA = new Camera();
     private static int savedWidth;
     private static int savedHeight;
     /** Une vue limitee a un cadre est en cours : son rendu complet ne doit pas effacer l'ecran, deja rendu autour du cadre. */
@@ -157,13 +159,12 @@ public final class ShaderPackPortalRenderer {
             BackroomsPortalEntity portal,
             RemoteWorld view,
             Vec3d remoteCameraPos,
-            Vec2f remoteLook,
             RenderTickCounter tickCounter,
             Camera camera,
             LightmapTextureManager lightmap,
             Matrix4f projection) {
         Camera remoteCamera = PortalRenderState.remoteCamera();
-        PortalStencilRenderer.aimCamera(remoteCamera, remoteCameraPos, remoteLook, VIEW_POSITION);
+        Vec2f remoteLook = PortalStencilRenderer.aimCamera(remoteCamera, remoteCameraPos, portal, camera, VIEW_POSITION);
         client.getFramebuffer().beginWrite(false);
         Matrix4f drawn = renderView(client, view, tickCounter, camera, remoteCamera, remoteCameraPos, VIEW_POSITION, projection, lightmap, portal, null);
         if (drawn == null) {
@@ -234,9 +235,8 @@ public final class ShaderPackPortalRenderer {
             return;
         }
         Vec3d remoteCameraPos = portal.toDestination(cameraPos);
-        Vec2f remoteLook = PortalViewTransform.remoteLook(portal, camera.getYaw(), camera.getPitch());
         Camera remoteCamera = PortalRenderState.remoteCamera();
-        PortalStencilRenderer.aimCamera(remoteCamera, remoteCameraPos, remoteLook, VIEW_POSITION);
+        Vec2f remoteLook = PortalStencilRenderer.aimCamera(remoteCamera, remoteCameraPos, portal, camera, VIEW_POSITION);
         Framebuffer framebuffer = client.getFramebuffer();
         saveImage(framebuffer, OUTER);
         FrameAreaRenderer.writeDepth(portal, cameraPos, positionMatrix, true);
@@ -295,7 +295,7 @@ public final class ShaderPackPortalRenderer {
                 RenderSystem.setProjectionMatrix(VIEW_DRAW_PROJECTION, VertexSorter.BY_DISTANCE);
                 markNested(inner, remoteCameraPos, value);
                 try {
-                    renderNestedPortal(client, inner, nestedValue, remoteCameraPos, remoteLook, tickCounter, camera, lightmap, projection, framebuffer);
+                    renderNestedPortal(client, inner, nestedValue, remoteCameraPos, tickCounter, camera, lightmap, projection, framebuffer);
                 } finally {
                     RenderSystem.setProjectionMatrix(VIEW_DRAW_PROJECTION, VertexSorter.BY_DISTANCE);
                     unmarkNested(inner, remoteCameraPos, nestedValue, value);
@@ -312,7 +312,6 @@ public final class ShaderPackPortalRenderer {
             BackroomsPortalEntity inner,
             int nestedValue,
             Vec3d remoteCameraPos,
-            Vec2f remoteLook,
             RenderTickCounter tickCounter,
             Camera camera,
             LightmapTextureManager lightmap,
@@ -326,9 +325,8 @@ public final class ShaderPackPortalRenderer {
             return;
         }
         Vec3d innerCameraPos = inner.toDestination(remoteCameraPos);
-        Vec2f innerLook = PortalViewTransform.remoteLook(inner, remoteLook.x, remoteLook.y);
         Camera nestedCamera = PortalRenderState.nestedCamera();
-        PortalStencilRenderer.aimCamera(nestedCamera, innerCameraPos, innerLook, NESTED_POSITION);
+        PortalStencilRenderer.aimCamera(nestedCamera, innerCameraPos, inner, PortalRenderState.remoteCamera(), NESTED_POSITION);
         saveImage(framebuffer, NESTED);
         FrameAreaRenderer.writeDepth(inner, remoteCameraPos, VIEW_POSITION, true);
         limitedToFrame = true;
@@ -423,7 +421,10 @@ public final class ShaderPackPortalRenderer {
             }
             // Le mod de shaders lit la camera du joueur (position de camera, oeil dans l'eau) : elle prend celle de la vue.
             mainCamera.backrooms$setPos(viewCameraPos);
+            // Rotation complete du joueur gardee : roulis d'une traversee compris, qu'un lacet et un tangage ne rendraient pas.
+            PortalViewTransform.copyRotation(camera, SAVED_MAIN_CAMERA);
             mainCamera.backrooms$setRotation(viewCamera.getYaw(), viewCamera.getPitch());
+            PortalViewTransform.copyRotation(viewCamera, camera);
             mainCamera.backrooms$setArea(view.world());
             // La camera de la vue suit le joueur a la troisieme personne : le rendu vanilla dessine alors toutes les
             // entities, le joueur compris dans une vue de son propre monde, et le mod de shaders ne dessine pas la main.
@@ -458,6 +459,7 @@ public final class ShaderPackPortalRenderer {
             remoteCamera.backrooms$setThirdPerson(false);
             mainCamera.backrooms$setArea(mainWorld);
             mainCamera.backrooms$setRotation(mainYaw, mainPitch);
+            PortalViewTransform.copyRotation(SAVED_MAIN_CAMERA, camera);
             mainCamera.backrooms$setPos(mainPos);
             client.cameraEntity = mainCameraEntity;
             client.world = mainWorld;

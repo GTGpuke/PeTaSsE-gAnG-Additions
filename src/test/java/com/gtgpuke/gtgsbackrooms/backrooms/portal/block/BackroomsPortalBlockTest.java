@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -59,13 +60,16 @@ class BackroomsPortalBlockTest {
     void blockIsInvisibleAndRotates() {
         BlockState state = ModBlocks.BACKROOMS_PORTAL.getDefaultState();
         assertEquals(Direction.NORTH, state.get(BackroomsPortalBlock.FACING), "Orientation par defaut.");
-        assertEquals(4, ModBlocks.BACKROOMS_PORTAL.getStateManager().getStates().size(), "Quatre orientations.");
+        assertEquals(6, ModBlocks.BACKROOMS_PORTAL.getStateManager().getStates().size(), "Six orientations : quatre debout, au sol, au plafond.");
         assertEquals(BlockRenderType.INVISIBLE, state.getRenderType(), "Rien a dessiner : le portail est rendu par ses entities.");
         assertTrue(state.getCollisionShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN).isEmpty(), "Aucune collision.");
         assertTrue(state.getOutlineShape(EmptyBlockView.INSTANCE, BlockPos.ORIGIN, ShapeContext.absent()).isEmpty(),
                 "Sans joueur accroupi, le regard passe a travers.");
         assertEquals(Direction.EAST, state.rotate(BlockRotation.CLOCKWISE_90).get(BackroomsPortalBlock.FACING), "Rotation d'un quart de tour.");
         assertEquals(Direction.SOUTH, state.mirror(BlockMirror.LEFT_RIGHT).get(BackroomsPortalBlock.FACING), "Miroir gauche-droite : le nord devient le sud.");
+        BlockState lying = state.with(BackroomsPortalBlock.FACING, Direction.UP);
+        assertEquals(Direction.UP, lying.rotate(BlockRotation.CLOCKWISE_90).get(BackroomsPortalBlock.FACING), "Un cadre au sol tourne sur lui-meme.");
+        assertEquals(Direction.UP, lying.mirror(BlockMirror.FRONT_BACK).get(BackroomsPortalBlock.FACING), "Et reste au sol au miroir.");
         assertTrue(ModBlocks.BACKROOMS_PORTAL.createBlockEntity(BlockPos.ORIGIN, state) instanceof BackroomsPortalBlockEntity,
                 "Le bloc cree sa block entity.");
         assertEquals(BackroomsPortalBlock.CODEC, ModBlocks.BACKROOMS_PORTAL.getCodec(), "Codec du bloc.");
@@ -111,7 +115,7 @@ class BackroomsPortalBlockTest {
         assertFalse(portal.isConfigured(), "Un bloc neuf ne connait pas sa destination.");
         NbtCompound fresh = new NbtCompound();
         portal.writeNbt(fresh, registries);
-        assertEquals(Set.of("Width", "Height", "TransmitsLight", "DoubleSided", "OneWay", "FleetingExit"), fresh.getKeys(),
+        assertEquals(Set.of("Width", "Height", "TransmitsLight", "DoubleSided", "OneWay", "FleetingExit", "Exit", "ExitScatter"), fresh.getKeys(),
                 "Un bloc neuf ne sauve que ses reglages.");
         portal.configureTarget(BackroomsConstants.LEVEL_ZERO_WORLD, new Vec3d(1.5, 2.0, 1.5), PortalFacing.SOUTH);
         assertTrue(portal.isConfigured(), "Le bloc connait sa destination.");
@@ -191,6 +195,14 @@ class BackroomsPortalBlockTest {
         nbt.putBoolean("FleetingExit", true);
         portal.readNbt(nbt, registries);
         assertTrue(portal.settings().fleetingExit(), "Sortie fugace : relue.");
+        nbt.putString("Exit", "east");
+        nbt.putInt("ExitScatter", 12);
+        portal.readNbt(nbt, registries);
+        assertEquals(PortalExit.EAST, portal.settings().exit(), "Sens de sortie : relu.");
+        assertEquals(12, portal.settings().exitScatter(), "Rayon de tirage : relu.");
+        nbt.putString("Exit", "diagonale");
+        portal.readNbt(nbt, registries);
+        assertEquals(PortalExit.STRAIGHT, portal.settings().exit(), "Sens inconnu : tout droit.");
         nbt.remove("DestDim");
         nbt.remove("DestX");
         nbt.remove("DestFacing");
@@ -199,16 +211,62 @@ class BackroomsPortalBlockTest {
     }
 
     @Test
-    @DisplayName("L'info-bulle de l'item donne la taille, la lumiere, les faces, le retour et la facon de casser le bloc")
+    @DisplayName("L'info-bulle de l'item donne la taille, la lumiere, les faces, le retour et la facon de poser et de casser le bloc")
     void tooltipDescribesTheSettings() {
-        assertEquals(List.of("size", "light", "double_sided", "round_trip", "break"), tooltipKeys(new ItemStack(ModItems.BACKROOMS_PORTAL)),
+        assertEquals(List.of("size", "light", "double_sided", "round_trip", "place", "break"), tooltipKeys(new ItemStack(ModItems.BACKROOMS_PORTAL)),
                 "Reglages par defaut.");
-        assertEquals(List.of("size", "no_light", "single_sided", "one_way", "break"),
+        assertEquals(List.of("size", "no_light", "single_sided", "one_way", "place", "break"),
                 tooltipKeys(new PortalSettings(3, 4, false, false, true, true).toStack(new ItemStack(ModItems.BACKROOMS_PORTAL))),
                 "Lumiere bloquee, une face, aller simple : sans sortie, rien de fugace.");
-        assertEquals(List.of("size", "light", "double_sided", "fleeting_exit", "break"),
+        assertEquals(List.of("size", "light", "double_sided", "fleeting_exit", "place", "break"),
                 tooltipKeys(new PortalSettings(1, 2, true, true, false, true).toStack(new ItemStack(ModItems.BACKROOMS_PORTAL))),
                 "Sortie fugace.");
+        assertEquals(List.of("size", "light", "double_sided", "round_trip", "exit", "exit_scatter", "place", "break"),
+                tooltipKeys(new PortalSettings(1, 2, true, true, false, false, PortalExit.WEST, 20).toStack(new ItemStack(ModItems.BACKROOMS_PORTAL))),
+                "Sortie vers l'ouest, arrivee tiree au sort.");
+    }
+
+    @Test
+    @DisplayName("Le nom de la pile dit ce qui l'ecarte du portail par defaut ; chaque reglage propose a le sien")
+    void nameSummarizesTheSettings() {
+        ItemStack plain = new ItemStack(ModItems.BACKROOMS_PORTAL);
+        assertEquals(List.of("backrooms_portal"), nameParts(plain), "Reglages par defaut : le nom du bloc seul.");
+        assertEquals(List.of("variant", "backrooms_portal", "size", "2", "2", "west", "exit_scatter", "20", "one_way", "single_sided", "no_light"),
+                nameParts(new PortalSettings(2, 2, false, false, true, true, PortalExit.WEST, 20).toStack(plain)),
+                "Taille, sortie, tirage au sort, aller simple (rien de fugace sans retour), une face, sans lumiere.");
+        assertEquals(List.of("variant", "backrooms_portal", "fleeting_exit"), nameParts(new PortalSettings(1, 2, true, true, false, true).toStack(plain)),
+                "Sortie fugace.");
+        assertEquals(List.of("variant", "backrooms_portal", "size", "1", "3"), nameParts(new PortalSettings(1, 3, true).toStack(plain)),
+                "Seule la hauteur change : la taille compte.");
+        assertEquals(List.of("variant", "backrooms_portal", "ceiling"),
+                nameParts(new PortalSettings(1, 2, true, true, false, false, PortalExit.CEILING, 0).toStack(plain)), "Sortie par le plafond.");
+        Set<List<String>> names = new HashSet<>();
+        for (PortalSettings preset : PortalSettings.PRESETS) {
+            assertTrue(names.add(nameParts(preset.toStack(plain))), preset + " se distingue des autres par son nom.");
+        }
+    }
+
+    /** Cles (leur dernier segment) et nombres du nom d'une pile, dans l'ordre de lecture. */
+    private static List<String> nameParts(ItemStack stack) {
+        List<String> parts = new ArrayList<>();
+        collectNameParts(ModItems.BACKROOMS_PORTAL.getName(stack), parts);
+        return parts;
+    }
+
+    private static void collectNameParts(Text text, List<String> parts) {
+        if (text.getContent() instanceof TranslatableTextContent translatable) {
+            parts.add(translatable.getKey().substring(translatable.getKey().lastIndexOf('.') + 1));
+            for (Object argument : translatable.getArgs()) {
+                if (argument instanceof Text inner) {
+                    collectNameParts(inner, parts);
+                } else {
+                    parts.add(String.valueOf(argument));
+                }
+            }
+        }
+        for (Text sibling : text.getSiblings()) {
+            collectNameParts(sibling, parts);
+        }
     }
 
     private static List<String> tooltipKeys(ItemStack stack) {

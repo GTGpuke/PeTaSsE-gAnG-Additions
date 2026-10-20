@@ -1,5 +1,6 @@
 package com.gtgpuke.gtgsbackrooms.mixin.client;
 
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import org.jetbrains.annotations.Nullable;
@@ -9,11 +10,9 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.LightmapTextureManager;
@@ -125,18 +124,21 @@ public abstract class MixinWorldRenderer {
 
     /**
      * Le ciel d'une vue se place par rapport a sa camera, pas a celle du joueur : couleur du ciel, et surtout le plan
-     * sombre que vanilla tire sous l'horizon quand le joueur est bas (il noircirait le ciel vu depuis le Level 0).
+     * sombre que vanilla tire sous l'horizon quand le joueur est bas (il noircirait le ciel vu depuis le Level 0). La
+     * valeur de vanilla est remplacee apres coup : a chaque image, rien n'est alloue (l'appel d'origine d'un
+     * {@code @WrapOperation} recoit ses arguments dans un tableau).
      */
-    @Redirect(method = "renderSky", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getCameraPosVec(F)Lnet/minecraft/util/math/Vec3d;"))
-    private Vec3d backrooms$skyPlayerCameraPos(ClientPlayerEntity player, float tickDelta) {
+    @ModifyExpressionValue(method = "renderSky",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/client/network/ClientPlayerEntity;getCameraPosVec(F)Lnet/minecraft/util/math/Vec3d;"))
+    private Vec3d backrooms$skyPlayerCameraPos(Vec3d playerCameraPos) {
         Vec3d override = PortalRenderState.viewCameraPos();
-        return override != null ? override : player.getCameraPosVec(tickDelta);
+        return override != null ? override : playerCameraPos;
     }
 
-    @Redirect(method = "renderSky", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/Camera;getPos()Lnet/minecraft/util/math/Vec3d;"))
-    private Vec3d backrooms$skyCameraPos(Camera camera) {
+    @ModifyExpressionValue(method = "renderSky", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/render/Camera;getPos()Lnet/minecraft/util/math/Vec3d;"))
+    private Vec3d backrooms$skyCameraPos(Vec3d cameraPos) {
         Vec3d override = PortalRenderState.viewCameraPos();
-        return override != null ? override : camera.getPos();
+        return override != null ? override : cameraPos;
     }
 
     /**

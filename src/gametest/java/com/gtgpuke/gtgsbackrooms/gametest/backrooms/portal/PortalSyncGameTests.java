@@ -348,10 +348,12 @@ public final class PortalSyncGameTests implements FabricGameTest {
         LongSet held = new LongOpenHashSet();
         Long2IntMap fingerprints = new Long2IntOpenHashMap();
         LongSet resent = new LongOpenHashSet();
+        LongSet changed = new LongOpenHashSet();
 
         // Le joueur regarde le portail et traverse des la premiere poignee de chunks du Nether recue : vanilla lui
         // reproposera ensuite ces chunks-la, tous proches de l'arrivee, et ne renverra que ceux qui ont change depuis.
-        // Leurs blocs sont releves le tick d'avant : un Nether neuf bouge encore (la lave des sources coule).
+        // Leurs blocs sont releves le tick d'avant, puis a chaque tick jusqu'a leur renvoi : un Nether neuf bouge encore (la
+        // lave des sources coule, un feu nait et s'eteint), et un chunk qui a change, meme revenu a l'identique, repart.
         for (int tick = 20; tick < 2190; tick++) {
             int now = tick;
             context.runAtTick(tick, () -> {
@@ -367,6 +369,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
                         throw new GameTestException("Aucun chunk du Nether recu avant la traversee.");
                     }
                 } else if (crossedAt[0] < 0) {
+                    noteChanges(nether, fingerprints, resent, changed);
                     crossedAt[0] = now;
                     // Arrives depuis le releve : tenus aussi, mais sans empreinte, ils ne sont pas juges.
                     for (RemoteChunkPayload chunk : GameTestPlayers.sent(player, RemoteChunkPayload.class)) {
@@ -381,6 +384,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
                     context.assertTrue(!PortalViewTracker.consumeHeldChunk(player, new ChunkPos(10_000, 10_000)), "Un chunk lointain n'est pas tenu.");
                 } else if (now - crossedAt[0] < 60) {
                     // Le gestionnaire reseau du joueur tique : vanilla lui propose les chunks du Nether, sauf ceux qu'il tient deja.
+                    noteChanges(nether, fingerprints, resent, changed);
                     GameTestPlayers.tick(player);
                     for (ChunkDataS2CPacket chunk : GameTestPlayers.sent(player, ChunkDataS2CPacket.class)) {
                         resent.add(ChunkPos.toLong(chunk.getChunkX(), chunk.getChunkZ()));
@@ -393,7 +397,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
                         LongIterator again = resent.iterator();
                         while (again.hasNext()) {
                             long key = again.nextLong();
-                            context.assertTrue(!fingerprints.containsKey(key) || fingerprints.get(key) != chunkFingerprint(nether, key),
+                            context.assertTrue(!fingerprints.containsKey(key) || changed.contains(key) || fingerprints.get(key) != chunkFingerprint(nether, key),
                                     "Vanilla ne renvoie aucun des " + fingerprints.size() + " chunks deja recus par le portail, sauf s'il a change.");
                         }
                         // Ceux que vanilla n'a pas encore reproposes se consomment jusqu'au dernier ; ensuite, plus rien n'est tenu.
@@ -529,7 +533,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
-    public void aRidingOrJumpingPlayerIsNotCaughtByTheServer(TestContext context) {
+    public void aRidingPlayerCrossesWithTheBoatAndAJumpingPlayerStays(TestContext context) {
         ServerWorld world = context.getWorld();
         Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(1, 2, 1)));
         Vec3d destination = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(6, 2, 6)));
@@ -551,7 +555,8 @@ public final class PortalSyncGameTests implements FabricGameTest {
         }
         context.runAtTick(20, () -> {
             try {
-                context.assertTrue(rider.getX() < destination.x, "En bateau, le joueur n'est pas teleporte par le serveur.");
+                context.assertTrue(rider.getVehicle() == boat && boat.getX() > destination.x && rider.getX() > destination.x,
+                        "En bateau, le joueur traverse avec son bateau, bascule menee par le serveur : " + rider.getPos() + ".");
                 context.assertTrue(jumper.getX() < destination.x, "Un saut de position n'est pas une marche : pas de teleportation.");
             } finally {
                 rider.stopRiding();
@@ -965,12 +970,14 @@ public final class PortalSyncGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 80)
-    public void entitiesThatRideAreRiddenOrWaitDoNotCross(TestContext context) {
+    public void entitiesInCooldownJumpingWithPassengersOrDeadDoNotCross(TestContext context) {
         ServerWorld world = context.getWorld();
         Vec3d source = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(1, 2, 1)));
         Vec3d destination = Vec3d.ofCenter(context.getAbsolutePos(new BlockPos(6, 2, 6)));
         BackroomsPortalEntity portal = localPortal(context, source, destination, true);
-        // Un objet encore en cooldown de portail, un bateau et son passager, un mouton mort : tous dans la boite de traversee.
+        // Un objet encore en cooldown de portail, un bateau et son passager (le bateau passe le plan par sauts de position,
+        // sans trajet de tick : ce n'est pas une traversee, et un passager ne traverse jamais seul), un mouton mort : tous
+        // dans la boite de traversee.
         ItemEntity cooling = new ItemEntity(world, source.x, source.y, source.z - 0.3, new ItemStack(Items.DIAMOND));
         cooling.setNoGravity(true);
         cooling.setVelocity(0.0, 0.0, 0.5);
@@ -1007,7 +1014,8 @@ public final class PortalSyncGameTests implements FabricGameTest {
         context.runAtTick(12, () -> {
             try {
                 context.assertTrue(cooling.getX() < destination.x, "En cooldown, l'objet ne traverse pas.");
-                context.assertTrue(boat.getX() < destination.x && passenger.getX() < destination.x, "Bateau et passager restent ensemble, de ce cote.");
+                context.assertTrue(boat.getX() < destination.x && passenger.getX() < destination.x,
+                        "Deplaces par sauts de position, bateau et passager restent ensemble, de ce cote.");
                 context.assertTrue(dead.getX() < destination.x, "Un mouton mort ne traverse pas.");
             } finally {
                 passenger.stopRiding();
@@ -1749,6 +1757,16 @@ public final class PortalSyncGameTests implements FabricGameTest {
     @AfterBatch(batchId = "portal_sync_held_change")
     public void afterHeldChange(ServerWorld world) {
         releaseLeftovers();
+    }
+
+    /** Note les chunks releves, pas encore renvoyes, dont un bloc a change depuis le releve (meme revenu a l'identique ensuite). */
+    private static void noteChanges(ServerWorld world, Long2IntMap fingerprints, LongSet resent, LongSet changed) {
+        for (Long2IntMap.Entry entry : fingerprints.long2IntEntrySet()) {
+            long key = entry.getLongKey();
+            if (!resent.contains(key) && !changed.contains(key) && chunkFingerprint(world, key) != entry.getIntValue()) {
+                changed.add(key);
+            }
+        }
     }
 
     /** Empreinte des blocs d'un chunk charge : egale a une precedente, aucun bloc n'y a change entre-temps. */

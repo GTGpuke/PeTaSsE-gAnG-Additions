@@ -98,11 +98,15 @@ public final class PortalCollision {
         return result;
     }
 
-    /** L'entity a les pieds devant le plan d'un portail ouvert, le centre en face de l'ouverture, et sa boite deplacee touche le cadre. */
+    /**
+     * L'entity a son point de traversee (pieds, ou yeux pour un cadre au sol) devant le plan d'un portail ouvert, le centre
+     * en face de l'ouverture, et sa boite deplacee touche le cadre.
+     */
     static boolean engages(BackroomsPortalEntity portal, Entity entity, Box movingBox) {
+        double y = entity.getY() + portal.crossingHeight(entity);
         return portal.teleportable()
-                && portal.signedDistance(entity.getX(), entity.getY(), entity.getZ()) > 0.0
-                && portal.withinFrameWidth(entity.getX(), entity.getY(), entity.getZ())
+                && portal.signedDistance(entity.getX(), y, entity.getZ()) > 0.0
+                && portal.withinFrameWidth(entity.getX(), y, entity.getZ())
                 && portal.detectionBox().intersects(movingBox);
     }
 
