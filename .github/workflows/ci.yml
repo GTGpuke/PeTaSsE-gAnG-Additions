@@ -62,7 +62,7 @@ jobs:
         run: ./gradlew benchmarkLevelZeroGeneration --no-daemon --console=plain --warning-mode all
 
       - name: Publier les JARs
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: gtgs_backrooms-${{ github.sha }}
           path: build/libs/*.jar
@@ -70,7 +70,7 @@ jobs:
           retention-days: 14
 
       - name: Publier les rapports (Checkstyle, tests, couverture, serveur de test)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: rapports-${{ github.sha }}
