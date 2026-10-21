@@ -13,7 +13,7 @@ import net.minecraft.block.Blocks;
 import com.gtgpuke.gtgsbackrooms.MinecraftTestBootstrap;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.biome.LevelZeroSurfaceBiome;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.block.LevelZeroWallpaperBlock;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
 
 @DisplayName("Palette de blocs du Level 0")
 class LevelZeroBlockPaletteTest {

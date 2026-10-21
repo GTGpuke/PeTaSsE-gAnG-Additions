@@ -13,11 +13,11 @@ import net.minecraft.network.packet.s2c.play.EntityPositionS2CPacket;
 import net.minecraft.network.packet.s2c.play.PlayerRespawnS2CPacket;
 import net.minecraft.network.packet.s2c.play.UnloadChunkS2CPacket;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.ClientPortalCrossing;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
-import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.transition.ClientPortalCrossing;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.transition.EntityHandover;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorldRegistry;
 
 /**
  * Pendant une bascule de monde par portail, vanilla nettoie l'ancien monde du joueur : les chunks

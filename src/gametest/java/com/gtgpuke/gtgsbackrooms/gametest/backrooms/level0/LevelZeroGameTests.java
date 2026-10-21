@@ -36,8 +36,8 @@ import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.LevelZeroChunkGener
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroLayerStackLayout;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroVerticalSlice;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
 import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestPlayers;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
 
 /**
  * Tests en jeu du Level 0, executes par {@code ./gradlew runGameTest} sur un vrai serveur.

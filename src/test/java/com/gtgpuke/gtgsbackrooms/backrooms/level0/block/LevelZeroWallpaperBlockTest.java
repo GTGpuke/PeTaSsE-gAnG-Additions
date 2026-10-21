@@ -24,7 +24,7 @@ import com.gtgpuke.gtgsbackrooms.MinecraftTestBootstrap;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.biome.LevelZeroSurfaceBiome;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroCoords;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroLayerStackLayout;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
 
 @DisplayName("Mur adaptatif du Level 0")
 class LevelZeroWallpaperBlockTest {

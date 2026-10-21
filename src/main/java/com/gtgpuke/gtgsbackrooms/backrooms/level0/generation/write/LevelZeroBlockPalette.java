@@ -5,7 +5,7 @@ import net.minecraft.block.Blocks;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.biome.LevelZeroSurfaceBiome;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.block.LevelZeroWallpaperBlock;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
 
 /**
  * Blocs utilises par le writer du Level 0, choisis une fois pour toutes.

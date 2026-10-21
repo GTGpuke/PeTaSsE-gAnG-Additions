@@ -1,7 +1,7 @@
 # Blocs — GTG's Backrooms
 
-Catalogue des blocs du mod. Tous sont enregistrés dans `init/ModBlocks.java` ; les `BlockItem`
-correspondants dans `init/ModItems.java`. Textures du Level 0 en 32x32.
+Catalogue des blocs du mod. Tous sont enregistrés dans `core/registry/ModBlocks.java` ; les `BlockItem`
+correspondants dans `core/registry/ModItems.java`. Textures du Level 0 en 32x32.
 
 ---
 
@@ -16,7 +16,7 @@ correspondants dans `init/ModItems.java`. Textures du Level 0 en 32x32.
 | `level_zero_damp_carpet_aged` | `Block` | `yellow_wool` | Sol rouge du biome alternatif (layers 1 et 3). |
 | `level_zero_ceiling_tile` | `Block` | `calcite` | Plafond. |
 | `level_zero_fluorescent_light` | `Block` | `sea_lantern`, luminance 15 | Néon posé au centre du plafond d'une cellule éclairée. |
-| `backrooms_portal` | `BackroomsPortalBlock` (block entity `BackroomsPortalBlockEntity`) | invisible, sans collision, son du verre, résistance 0,5, immobile pour les pistons | **Portail des Backrooms** : pose un portail plein cadre, le plan au milieu du bloc, à la taille, avec la lumière, les faces (une ou deux), le retour (aller-retour ou aller simple) et la sortie (durable, ou fugace : perdue de vue, elle disparaît jusqu'au prochain joueur qui passe l'entrée) réglés par l'item, ainsi que le sens de sortie (tout droit, un point cardinal, le sol ou le plafond) et un tirage au sort de l'arrivée ; face avant vers le joueur, ou couché au sol (regard vers le bas) ou au plafond (regard vers le haut), six orientations ; pose refusée si le cadre traverserait un bloc, ou, couché, sans deux blocs libres derrière lui. Un portail couché, à l'entrée ou à l'arrivée, n'a que sa face avant. Posé hors du Level 0 il y mène, posé dedans il ramène à la surface ; ses portails disparaissent avec lui. Ne se vise qu'accroupi. Loot : l'item avec ses réglages (`copy_components`). Voir [PORTALS.md](PORTALS.md). |
+| `backrooms_portal` | `BackroomsPortalBlock` (block entity `BackroomsPortalBlockEntity`) | invisible, sans collision, son du verre, résistance 0,5, immobile pour les pistons | **Portail des Backrooms** : pose un portail plein cadre, le plan au milieu du bloc (ou sur sa face arrière, réglage `flush`), à la taille, avec la lumière, les faces (une ou deux), le retour (aller-retour ou aller simple) et la sortie (durable, ou fugace : perdue de vue, elle disparaît jusqu'au prochain joueur qui passe l'entrée) réglés par la baguette, ainsi que le sens de sortie (tout droit, un point cardinal, le sol ou le plafond) et un tirage au sort de l'arrivée ; face avant vers le joueur, ou couché au sol (regard vers le bas) ou au plafond (regard vers le haut), six orientations ; pose refusée si le cadre traverserait un bloc, ou, couché, sans deux blocs libres derrière lui (debout au bord du bloc, sans un). Seule la baguette de portail le pose (voir [ITEMS.md](ITEMS.md)) : il n'a pas d'item. Un portail couché, à l'entrée ou à l'arrivée, n'a que sa face avant. Posé hors du Level 0 il y mène, posé dedans il ramène à la surface ; ses portails disparaissent avec lui. Ne se vise qu'accroupi : pour le casser, ou pour en copier les réglages avec la baguette. Casse, il ne rend rien (`dropsNothing`, pas de loot table). Voir [PORTALS.md](PORTALS.md). |
 
 Chaque bloc a un blockstate, un modèle, un modèle d'item et une loot table
 (`data/gtgs_backrooms/loot_table/blocks/<id>.json`) ; le mur adaptatif donne `level_zero_wallpaper`.
@@ -35,20 +35,11 @@ Aucun bloc supplémentaire n'existe dans le monde pour ces détails.
 
 ---
 
-## Arbre Maudit
-
-| ID | Classe | Description |
-|----|--------|-------------|
-| `cursed_log` | `PillarBlock` | Tronc orientable, dans le tag `minecraft:logs` (persistance des feuilles). |
-| `cursed_leaves` | `LeavesBlock` | Feuilles. |
-| `cursed_sapling` | `SaplingBlock` | Pousse ; génère l'arbre via la configured feature `cursed_tree` (`dirt_provider` obligatoire en 1.21.1). |
-| `cursed_planks` | `Block` | Planches. |
-
----
-
 ## Ajouter un bloc
 
-1. Champ `static final` dans `ModBlocks`, puis `BlockItem` dans `ModItems`, puis entrée dans `ModCreativeTab.ENTRIES`.
+1. Sa classe, s'il en a une, dans `backrooms/<niveau>/block/` (ou `core/<système>/block/`) ; champ `static final` dans
+   `core/registry/ModBlocks`, puis `BlockItem` dans `ModItems`, puis entrée dans `ModCreativeTab.ENTRIES`.
 2. `blockstates/<id>.json`, `models/block/<id>.json`, `models/item/<id>.json`, texture, loot table.
 3. Clé `block.gtgs_backrooms.<id>` dans `en_us.json` **et** `fr_fr.json` : l'item du bloc la reprend, pas de clé `item.*`.
+   Un bloc qui ne rend rien (`dropsNothing()`) n'a pas de loot table ; `ModRegistriesTest` exige celle des autres.
 4. `./gradlew test` : `ModRegistriesTest` échoue tant qu'un fichier ou une traduction manque.

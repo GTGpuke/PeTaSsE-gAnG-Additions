@@ -18,7 +18,7 @@ Ces règles priment sur tout le reste du guide. En cas de doute, c'est ici qu'on
 
 1. **Le projet existant est la base.** Le dépôt contient un système de portails complet et un Level 0 fonctionnel, avec leurs conventions (`CLAUDE.md`), leur documentation (`docs/`), leurs tests et leur verrou de couverture. Tout ce qui est décrit ici s'adapte à cette structure, jamais l'inverse. Avant toute modification : lire `CLAUDE.md`, `docs/ARCHITECTURE.md`, `docs/PORTALS.md` et `docs/TESTING.md`, relever les conventions, puis s'y conformer. Les schémas de ce guide sont des cibles indicatives.
 
-2. **Étendre avant de réécrire.** Le système de portails (`backrooms/portal/`) ne se réécrit pas : il s'étend pour exposer ce dont le rendu et l'audio ont besoin. Toute refonte d'un module existant est proposée à l'auteur, avec les compromis, et validée avant d'être entreprise.
+2. **Étendre avant de réécrire.** Le système de portails (`core/portal/`) ne se réécrit pas : il s'étend pour exposer ce dont le rendu et l'audio ont besoin. Toute refonte d'un module existant est proposée à l'auteur, avec les compromis, et validée avant d'être entreprise.
 
 3. **Code original uniquement.** Aucun code tiers n'est repris, traduit ou paraphrasé, quelle que soit sa licence (règle déjà présente dans `CLAUDE.md`). Les principes sont libres, l'implémentation est la nôtre. Méthode clean room obligatoire (section 4). Exception encadrée : pour **s'intégrer** à un mod tiers (Iris, Sodium, un chat vocal), lire son API et ses points d'accroche est nécessaire et autorisé ; en copier l'implémentation ne l'est pas.
 
@@ -30,7 +30,7 @@ Ces règles priment sur tout le reste du guide. En cas de doute, c'est ici qu'on
 
 7. **Tout état modifié est restauré.** OpenGL, OpenAL, état global de Minecraft : ce qu'une vue ou une source change, elle le remet, comme le fait déjà `PortalStencilRenderer` pour le brouillard, l'éclairage des entités et la couleur de shader.
 
-8. **Rien dans les chemins chauds.** Aucune allocation dans les méthodes tick/render, pas de concaténation de chaînes, mesure par le moniteur de performance (`perf/`) dès le premier jalon.
+8. **Rien dans les chemins chauds.** Aucune allocation dans les méthodes tick/render, pas de concaténation de chaînes, mesure par le moniteur de performance (`core/perf/`) dès le premier jalon.
 
 9. **Documenter en même temps que coder.** `docs/` reflète l'état réel : `ARCHITECTURE.md`, `INDEX.md`, `CHANGELOG.md`, et un document par système (`PORTALS.md` existe ; `RENDERING.md` et `AUDIO.md` à créer sur le même modèle). Un changement sans sa documentation n'est pas terminé.
 
@@ -63,7 +63,7 @@ Ce que les nouveaux systèmes doivent connaître et réutiliser. Références : 
 ### 2.1 Structure et conventions
 
 - Racine : `com.gtgpuke.gtgsbackrooms`, `mod_id` `gtgs_backrooms`. Points d'entrée `GtgsBackroomsMod` (commun) et `GtgsBackroomsClientMod` (client).
-- `init/` registres, `config/ModConfig` (options lues en `-D`), `core/ModConstants` (`MOD_ID`, `LOGGER`), `feature/`, `backrooms/level0/`, `backrooms/portal/`, `perf/`, `mixin/` (commun) et `mixin/client/`.
+- `core/` : le socle du mod, `ModConstants` (`MOD_ID`, `LOGGER`), `ModConfig` (options lues en `-D`), `registry/` (un registre par type : blocs, items, onglet, payloads…), `perf/` et `portal/` (le système de portails, dont la baguette). `backrooms/` : le contenu des Backrooms, `level0/`. Puis `compat/`, `mixin/` (commun) et `mixin/client/`.
 - Conventions : commentaires, logs et messages en français, sources ASCII ; texte visible via `Text.translatable()` avec clés dans `en_us.json` **et** `fr_fr.json` ; ordre des imports fixé ; logs par `ModConstants.LOGGER` ; pas d'abstraction sans deuxième implémentation réelle ; pas de dossier vide.
 - Qualité : JUnit 5 sous le classloader Fabric, tests en jeu (`src/gametest/`, mod séparé), JaCoCo à 100 % des instructions et des branches hors colle OpenGL client, Checkstyle, `verifyJarContents` (aucune dépendance embarquée, aucun test dans le JAR), `MixinTargetsTest` (chaque cible de mixin se charge).
 - Documentation : `docs/ARCHITECTURE.md`, `docs/INDEX.md`, `docs/PORTALS.md`, `docs/TESTING.md`, `docs/CHANGELOG.md`, `docs/AUDIT.md`, `docs/SETUP.md`, `docs/prompt/` (onboarding, avant push, vérification finale).
@@ -71,7 +71,7 @@ Ce que les nouveaux systèmes doivent connaître et réutiliser. Références : 
 
 ### 2.2 Ce que le système de portails fait déjà (et que le rendu et l'audio réutilisent)
 
-**Rendu des vues** (`backrooms/portal/client/view/`, `client/world/`, `mixin/client/`)
+**Rendu des vues** (`core/portal/client/view/`, `client/world/`, `mixin/client/`)
 
 - Sans pack de shaders, les vues se dessinent **au milieu de `WorldRenderer.render`**, après les blocs opaques, les entités et les block entities, avant tout ce qui est translucide (`PortalStencilRenderer`, `MixinWorldRenderer`). Le monde du joueur se fond ensuite par-dessus (eau, verre, particules, nuages, pluie). Sous un pack de shaders, elles se dessinent au contraire **après l'image** du monde du joueur, chacune par le rendu complet de son renderer dans le pipeline du pack pour sa dimension (`ShaderPackPortalRenderer`, `compat/iris`).
 - Masque par **stencil** : sans pack, la valeur du stencil est le niveau d'imbrication (0 monde du joueur, 1 vue, 2 vue imbriquée) ; sous un pack, une valeur par cadre et un bit haut pour l'imbrication. Un seul niveau d'imbrication supporté ; au-delà, cadre sombre. L'attachement de profondeur du framebuffer principal est remplacé par un attachement profondeur + stencil (`MixinFramebuffer`).
@@ -82,19 +82,19 @@ Ce que les nouveaux systèmes doivent connaître et réutiliser. Références : 
 - Coupe-circuit (`PortalRenderState`) : stencil refusé ou exception → rendu distant coupé pour la session, cadres sombres.
 - Un mod qui réécrit le pipeline de terrain est **supporté** : la vue détecte sa grille sans portée (`RemoteViewRenderer.foreignTerrain`), lui passe la lumière des chunks distants par la voie vanilla (`readLightData`) et le laisse choisir et dessiner ses sections ; vérifié sur le banc de production. Le mod de shaders Iris est détecté par son API publique (`compat/iris`, le seul mod nommé dans le code) ; sans pack, vues identiques à vanilla ; avec un pack, voir la section 7.
 
-**Son** (`backrooms/portal/client/sound/`, `mixin/MixinPlayerManager`, `MixinServerWorld`, `mixin/client/MixinClientWorld`)
+**Son** (`core/portal/client/sound/`, `mixin/MixinPlayerManager`, `MixinServerWorld`, `mixin/client/MixinClientWorld`)
 
 - **Relais serveur** : sons, évènements de monde et particules d'une dimension partent, enveloppés avec leur dimension (`portal_remote_entity`), aux joueurs dont la fenêtre synchronisée contient leur chunk.
 - **Rejeu au cadre** : côté client, tout son positionné d'un monde distant passe par les portails du monde du joueur qui mènent à ce monde ; il est rejoué au point du cadre le plus proche de l'image de la source, avec le volume qui lui reste après le trajet jusqu'au cadre (`FrameSoundPlayer`, `PortalSound`), puis le moteur de son atténue du cadre à l'oreille. Un son du monde du joueur à plus de 64 blocs passe de même par un portail intra-dimension.
 - Les sons de suivi d'entité (wagonnet, abeille) ne traversent pas.
 
-**Lumière** (`backrooms/portal/light/`, `mixin/MixinWorld`, `MixinChunkBlockLightProvider`)
+**Lumière** (`core/portal/light/`, `mixin/MixinWorld`, `MixinChunkBlockLightProvider`)
 
 - La lumière des blocs traverse un portail ouvert qui la transmet, d'un niveau de moins, par des **sources virtuelles** publiées sur le monde et lues par le moteur de lumière, serveur et client (`PortalLightTransmission`, `VirtualLightSources`, `ClientPortalLight`). La lumière du ciel ne passe pas.
 
-**Mesure** (`perf/`)
+**Mesure** (`core/perf/`)
 
-- Sections nommées `client.portal.render`, `.view`, `.terrain`, `.entities`, `.lightmap`, `.straddling`, `.world_create`, etc., et côté serveur `portal.teleport.player`, `portal.sync.tick`, etc. Les nouveaux systèmes ajoutent les leurs (`client.render.*`, `client.audio.*`, `audio.relay.*`). Le moniteur mesure le thread de rendu, pas le GPU (`docs/PORTALS.md`) : les passes de rendu exigent une mesure GPU (requêtes de temps GL, lecture différée d'une image) à ajouter à `perf/` dès la preuve de concept (section 4.7).
+- Sections nommées `client.portal.render`, `.view`, `.terrain`, `.entities`, `.lightmap`, `.straddling`, `.world_create`, etc., et côté serveur `portal.teleport.player`, `portal.sync.tick`, etc. Les nouveaux systèmes ajoutent les leurs (`client.render.*`, `client.audio.*`, `audio.relay.*`). Le moniteur mesure le thread de rendu, pas le GPU (`docs/PORTALS.md`) : les passes de rendu exigent une mesure GPU (requêtes de temps GL, lecture différée d'une image) à ajouter à `core/perf/` dès la preuve de concept (section 4.7).
 
 ### 2.3 Conséquences pour les nouveaux systèmes
 
@@ -114,6 +114,10 @@ Confrontation de la première version de ce guide au dépôt complet :
 - `compat/` existe (`compat/iris`) ; les vues sous pack se dessinent après l'image, pas au milieu de `WorldRenderer.render` ; le stencil sous pack n'est pas le niveau d'imbrication ; la découpe sous pack passe par la projection oblique et le rognage sur le processeur.
 - `PortalFacing` a six orientations, dont haut et bas, pas seulement un demi-tour horizontal.
 - Le passage sous GPL-3 n'est pas décidé (section 9).
+- Le 21 octobre 2026, à la demande de l'auteur, l'arborescence a changé : le système de portails, les registres (ex-`init/`), la configuration et la mesure sont sous `core/`, le contenu Gang et Arbre Maudit est retiré avec `feature/`, et le bloc portail ne se crée plus qu'avec la baguette, sans item à lui (plus de réglages proposés dans un onglet) ; la
+  baguette copie les réglages d'un portail visé, et sa pose fait entendre un portail qui s'ouvre (premier son du mod,
+  `ModSounds`). L'arrivée dans le Level 0 est calculée par le Level 0 (`backrooms/level0/LevelZeroArrival`), que
+  `PortalTargets` interroge. La cible de la section 3.4 suit : `render/` et `audio/` iront sous `core/`, à côté de `portal/` dont ils consomment l'API.
 - Les anciennes specs (`docs/backrooms/1 - Arborescence`, `3 - Portails`, `4 - Veil Shaders`, `to-check`, `docs/DEPENDENCIES.md`), qui bâtissaient le rendu sur une bibliothèque tierce et une autre arborescence, ont été retirées : ce guide les remplace. Restent la spec du générateur du Level 0, sa roadmap et les règles de contenu.
 
 ---
@@ -176,8 +180,7 @@ Cible indicative, à ajuster au dépôt réel lors de l'audit (section 11) :
 
 ```
 com/gtgpuke/gtgsbackrooms/
-├── backrooms/
-│   ├── level0/        existant
+├── core/
 │   ├── portal/        existant - a etendre par des points d'acces, pas a reecrire
 │   ├── render/        NOUVEAU : profils, gbuffer (injection), lumieres, passes, post
 │   │   ├── profile/   WorldProfile et chargement
@@ -185,20 +188,23 @@ com/gtgpuke/gtgsbackrooms/
 │   │   ├── pass/      passe d'eclairage, chaines de post, par niveau de stencil
 │   │   ├── shader/    injection MRT (meme famille que ShaderClipInjector)
 │   │   └── client/    colle GL (minimale, nommee, exemptee de couverture)
-│   └── audio/         NOUVEAU : environnements, routage EFX, rayons, materiaux
-│       ├── profile/   AudioSettings, materiaux par bloc (tags)
-│       ├── route/     SourceRoute : monde d'origine, cadre, chemin, filtres
-│       ├── trace/     rayons d'occlusion et de rebond, traversee des cadres
-│       └── client/    colle OpenAL (minimale, nommee, exemptee de couverture)
+│   ├── audio/         NOUVEAU : environnements, routage EFX, rayons, materiaux
+│   │   ├── profile/   AudioSettings, materiaux par bloc (tags)
+│   │   ├── route/     SourceRoute : monde d'origine, cadre, chemin, filtres
+│   │   ├── trace/     rayons d'occlusion et de rebond, traversee des cadres
+│   │   └── client/    colle OpenAL (minimale, nommee, exemptee de couverture)
+│   ├── registry/      existant - un registre par type (dont ModSounds)
+│   └── perf/          existant - nouvelles sections
+├── backrooms/
+│   └── level0/        existant - contenu, configure les systemes par donnees
 ├── compat/            existant (iris) : modules optionnels, charges si presents ; les suivants au meme endroit
-├── mixin/, mixin/client/   existants - nouveaux mixins au meme endroit
-└── perf/              existant - nouvelles sections
+└── mixin/, mixin/client/   existants - nouveaux mixins au meme endroit
 ```
 
 Règles de dépendance :
 
 - `render/` et `audio/` consomment l'API de `portal/` (vues, `PortalViewTransform`, `toDestination`/`fromDestination`, `RemoteWorldRegistry`, événement de bascule) ; ils n'en modifient pas les internes. Si une information manque, `portal/` l'expose, sans changer sa logique.
-- Ni `render/` ni `audio/` ne dépendent de `feature/` ou du contenu du Level 0 ; le contenu les configure par données (profils, tags de blocs).
+- Ni `render/` ni `audio/` ne dépendent du contenu (`backrooms/`, dont le Level 0) ; le contenu les configure par données (profils, tags de blocs).
 - `compat/` ne fait que traduire : il appelle l'API du mod tiers et nos propres API, sans logique métier.
 
 ### 3.5 Choix écartés, et pourquoi (pour ne pas les reproposer)
@@ -232,7 +238,7 @@ Ne jamais mélanger les deux phases dans une même session.
 ```markdown
 ## Guide et nouveaux systemes (rendu, audio)
 - Lire `docs/GUIDE.md` au debut de chaque session ; ses regles d'or (section 0) s'appliquent.
-- Le systeme de portails (`backrooms/portal/`) est la base : l'etendre par des points
+- Le systeme de portails (`core/portal/`) est la base : l'etendre par des points
   d'acces (methodes publiques, evenements), pas par des couches d'abstraction, et ne pas
   en reecrire la logique. Toute refonte est proposee et validee avant.
 - Un profil par monde (`WorldProfile`, donnee, pas interface) : aucun test sur la dimension
@@ -314,7 +320,7 @@ L'ordre de V5 à V8 est ajustable selon les besoins du contenu (un Level 1 peut 
 La couverture à 100 % est la règle du dépôt pour tout ce qui n'est pas de la colle GL ou AL, et elle reste ; mais elle ne mesure ni le rendu ni le son. Chaque version ajoute donc des critères chiffrés, comparés au banc de `docs/PORTALS.md` (table avant/après) :
 
 - **CPU** : sections du moniteur par passe et par niveau de stencil, par source audio et par lot de rayons.
-- **GPU** : requêtes de temps GL par passe (lecture différée pour ne pas bloquer), budget par passe et par image à la résolution du banc ; à ajouter à `perf/` en V0.
+- **GPU** : requêtes de temps GL par passe (lecture différée pour ne pas bloquer), budget par passe et par image à la résolution du banc ; à ajouter à `core/perf/` en V0.
 - **Mémoire** : VRAM des attachements et framebuffers (taille × format), tampons des renderers de vue (déjà suivis), nombre d'objets GL, slots et effets EFX.
 - **Charge** : lumières par vue, sources traitées, rayons par seconde, allocations par image (zéro attendu).
 - **Dégradation** : comportement sans EFX, sans MRT, avec stencil refusé ; chaque chemin de repli exercé par un test ou une scène.
@@ -356,11 +362,11 @@ Chaque fonctionnalité a sa **définition de « terminé » (DoD)**. « Existe �
 | Objets, mobs et projectiles qui traversent ; mobs qui voient et poursuivent à travers | `TeleportExecutor`, `PortalPursuit` |
 | Interaction à travers le cadre : viser, frapper, miner, poser, clic molette | `RemoteTargeting`, `RemoteActions`, `RemoteInteractionHandler`, `RemoteMiningTracker` |
 | Synchronisation multijoueur, spectateurs, changement de dimension vanilla | `sync/`, `PortalSight` |
-| Création : bloc portail et réglages (taille, lumière, faces, aller simple, sortie fugace), commandes de dev | `block/`, `PortalSettings`, `DebugPortalCommand` |
+| Création : bloc portail et réglages (taille, lumière, faces, aller simple, sortie fugace, sens de sortie, arrivée au hasard, plan au milieu ou au bord du bloc), baguette qui les règle et pose, commandes de dev | `block/`, `PortalSettings`, `PortalWandItem`, `client/wand/`, `DebugPortalCommand` |
 | Atmosphère distante : ciel, brouillard, lightmap, météo, particules de l'autre monde | `RemoteViewRenderer`, `ViewLightmaps`, `RemoteParticles` |
 | Son, particules, lumière des blocs et regard des mobs qui traversent | `FrameSoundPlayer`, `RemoteParticles`, `PortalLightTransmission`, `PortalPursuit` |
 | Entités à cheval sur un cadre dessinées en deux moitiés ; troisième personne derrière un cadre | `StraddlingEntityRenderer`, `ThirdPersonPortal` |
-| Coupe-circuit et mesure | `PortalRenderState`, `perf/` |
+| Coupe-circuit et mesure | `PortalRenderState`, `core/perf/` |
 
 **Ce que les nouveaux systèmes ont besoin de voir exposé**
 
@@ -713,7 +719,7 @@ Ce guide organise le travail ; il ne vaut pas validation juridique. La méthode 
 - [ ] `docs/RENDERING.md` et `docs/AUDIO.md` créés sur le modèle de `PORTALS.md`, remplis au fil des jalons
 - [ ] Sections `client.render.*` et `client.audio.*` dans le moniteur de performance dès le premier jalon
 - [ ] Scènes de test dans un monde dédié, **captures de référence stockées avant toute modification du rendu**
-- [ ] Mesure GPU (requêtes de temps GL) ajoutée à `perf/`, coût actuel du rendu distant mesuré CPU et GPU
+- [ ] Mesure GPU (requêtes de temps GL) ajoutée à `core/perf/`, coût actuel du rendu distant mesuré CPU et GPU
 - [ ] Matrice de compatibilité définie (vanilla, Sodium, Sodium + Iris, Simple Voice Chat) et budgets de performance fixés (temps par passe et par niveau, coût des rayons)
 - [ ] Contrats partagés fixés (V0) : `WorldProfile` minimal, table des matériaux, sections perf, points d'accès de `portal/`
 - [ ] **V1, jalon bloquant** : attachement MRT ajouté au framebuffer principal, une donnée écrite par injection et visualisée par une passe de debug au niveau 0 puis au niveau 1 ; les six points de la section 3.2 vérifiés

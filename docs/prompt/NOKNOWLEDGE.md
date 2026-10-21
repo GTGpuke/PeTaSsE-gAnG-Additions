@@ -13,8 +13,8 @@ Lis ces fichiers dans l'ordre avant de toucher au code.
 - `src/main/resources/fabric.mod.json` — entrypoints `main`, `client`, `fabric-gametest`, mixins.
 
 ## 3. Code
-- `core/ModConstants.java`, `config/ModConfig.java`.
-- `GtgsBackroomsMod.java` → `registerContent()` ; `init/*`.
+- `core/ModConstants.java`, `core/ModConfig.java`.
+- `GtgsBackroomsMod.java` → `registerContent()` ; `core/registry/*`.
 - `backrooms/level0/generation/LevelZeroChunkGenerator.java` puis `layout/LevelZeroLayout.java`,
   `layout/LevelZeroCellEvaluator.java`, `write/LevelZeroBlockWriter.java`.
 
@@ -26,7 +26,7 @@ Lis ces fichiers dans l'ordre avant de toucher au code.
 - `docs/GUIDE.md` — guide de conception et de développement du projet (règles d'or, état réel, architecture cible du
   rendu et de l'audio, feuille de route) : à lire au début de chaque session, il complète `CLAUDE.md`.
 - `docs/backrooms/backrooms-level0-pipeline-v6.md` (spec du générateur du Level 0) et `backrooms-level0-roadmap.md`.
-- `docs/PORTALS.md` pour le système de portails tel qu'implémenté (lecture obligatoire avant de toucher `backrooms/portal/`).
+- `docs/PORTALS.md` pour le système de portails tel qu'implémenté (lecture obligatoire avant de toucher `core/portal/`).
 
 ## Pièges à mémoriser
 

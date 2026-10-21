@@ -7,9 +7,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.render.WorldRenderer;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewRenderStart;
 import com.gtgpuke.gtgsbackrooms.compat.iris.IrisCompat;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.PortalRenderState;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ViewRenderStart;
 
 /**
  * Arrete {@code WorldRenderer.render} a sa premiere instruction pendant un debut de rendu a blanc d'un renderer de vue

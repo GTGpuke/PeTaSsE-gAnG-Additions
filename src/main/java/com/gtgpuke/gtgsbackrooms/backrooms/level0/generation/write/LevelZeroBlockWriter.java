@@ -8,8 +8,8 @@ import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroCoor
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroVerticalSlice;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.layout.LevelZeroCellEvaluation;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.layout.LevelZeroLayout;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
-import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.perf.ModPerformanceMonitor;
 
 /**
  * Traduit un layout de chunk en blocs pour une slice verticale.

@@ -31,7 +31,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.layout.LevelZeroLay
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.noise.LevelZeroSeedResolver;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.write.LevelZeroBlockPalette;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.write.LevelZeroBlockWriter;
-import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.perf.ModPerformanceMonitor;
 
 /**
  * Generateur de chunks du Level 0 : cinq layers de labyrinthe empiles.

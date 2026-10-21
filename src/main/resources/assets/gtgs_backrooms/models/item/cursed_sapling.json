@@ -1,6 +1,0 @@
-{
-  "parent": "item/generated",
-  "textures": {
-    "layer0": "gtgs_backrooms:block/cursed_sapling"
-  }
-}

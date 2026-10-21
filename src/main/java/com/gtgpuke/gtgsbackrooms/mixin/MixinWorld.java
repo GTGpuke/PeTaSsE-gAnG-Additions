@@ -14,9 +14,9 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.WorldChunk;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.light.VirtualLightSources;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.light.VirtualLightView;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
+import com.gtgpuke.gtgsbackrooms.core.portal.light.VirtualLightSources;
+import com.gtgpuke.gtgsbackrooms.core.portal.light.VirtualLightView;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
 
 /**
  * Chaque monde (serveur, client, monde distant du client) porte ses sources de lumiere virtuelles : elles disparaissent

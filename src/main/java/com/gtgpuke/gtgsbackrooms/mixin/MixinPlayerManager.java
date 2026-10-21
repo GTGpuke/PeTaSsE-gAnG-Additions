@@ -12,8 +12,8 @@ import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.PlayerManager;
 import net.minecraft.world.World;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
 
 /**
  * Sons et evenements de monde (bruit de pas, porte, bloc casse) d'une dimension : vanilla les envoie aux joueurs

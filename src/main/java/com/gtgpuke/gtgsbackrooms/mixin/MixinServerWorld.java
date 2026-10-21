@@ -11,8 +11,8 @@ import net.minecraft.network.packet.s2c.play.ParticleS2CPacket;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
 
 /**
  * Particules diffusees par le serveur (coups critiques, explosions, fumee) et fissures d'un bloc qu'on mine : elles

@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.client.MinecraftClient;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteActions;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.interaction.RemoteActions;
 
 /**
  * Clics du joueur : quand il vise a travers un portail, frapper, miner et utiliser partent au serveur avec

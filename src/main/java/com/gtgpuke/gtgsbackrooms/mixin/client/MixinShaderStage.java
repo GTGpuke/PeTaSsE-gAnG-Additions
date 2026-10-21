@@ -11,9 +11,9 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 import net.minecraft.client.gl.ShaderStage;
 import net.minecraft.resource.ResourceFactory;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderClipInjector;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderStageOrigin;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ShaderClipInjector;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ShaderStageOrigin;
 
 /**
  * Au chargement d'un shader, ajoute le plan de decoupe des vues de portail aux vertex shaders

@@ -6,13 +6,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.debug.DebugPortalCommand;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRegistry;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.interaction.RemoteInteractionHandler;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.DestinationLoader;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.TeleportExecutor;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.debug.DebugPortalCommand;
+import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntityRegistry;
+import com.gtgpuke.gtgsbackrooms.core.portal.interaction.RemoteInteractionHandler;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.DestinationLoader;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.TeleportExecutor;
 
 @DisplayName("Point d'entree du mod")
 class GtgsBackroomsModTest {

@@ -19,7 +19,7 @@ description: "Ajouter une dimension au mod GTG's Backrooms (Fabric 1.21.1). Déc
 
 | Paramètre | Valeur |
 |-----------|--------|
-| `DIMENSION_ID` | `gang_realm`, `void_world` |
+| `DIMENSION_ID` | `backrooms_level_1`, `backrooms_level_2` |
 | Biome | custom ou vanilla (`minecraft:plains`, etc.) |
 | Type de dimension | normal, nether-like, end-like |
 | Portail | bloc de portail custom ou téléportation par commande |
@@ -35,16 +35,16 @@ Les dimensions dans Fabric sont entièrement définies par des fichiers JSON dan
 ```
 data/gtgs_backrooms/
 ├── dimension/
-│   └── gang_realm.json           ← définit la dimension
+│   └── backrooms_level_1.json           ← définit la dimension
 └── dimension_type/
-    └── gang_realm_type.json      ← type (lumière, brouillard, hauteur)
+    └── backrooms_level_1_type.json      ← type (lumière, brouillard, hauteur)
 ```
 
 ---
 
 ### 3. dimension_type JSON
 
-**Fichier :** `data/gtgs_backrooms/dimension_type/gang_realm_type.json`
+**Fichier :** `data/gtgs_backrooms/dimension_type/backrooms_level_1_type.json`
 
 ```json
 {
@@ -75,11 +75,11 @@ data/gtgs_backrooms/
 
 ### 4. dimension JSON
 
-**Fichier :** `data/gtgs_backrooms/dimension/gang_realm.json`
+**Fichier :** `data/gtgs_backrooms/dimension/backrooms_level_1.json`
 
 ```json
 {
-  "type": "gtgs_backrooms:gang_realm_type",
+  "type": "gtgs_backrooms:backrooms_level_1_type",
   "generator": {
     "type": "minecraft:noise",
     "biome_source": {
@@ -93,25 +93,14 @@ data/gtgs_backrooms/
 
 ---
 
-### 5. Portail de téléportation (optionnel)
+### 5. Y mener
 
-Crée un item ou bloc de portail qui téléporte vers la dimension :
-
-```java
-// Dans un Item.use() ou Block.onUse() :
-if (world instanceof ServerWorld serverWorld) {
-    RegistryKey<World> dimensionKey = RegistryKey.of(
-            RegistryKeys.WORLD,
-            Identifier.of("gtgs_backrooms", "gang_realm")
-    );
-    ServerWorld targetWorld = serverWorld.getServer().getWorld(dimensionKey);
-    if (targetWorld != null && player instanceof ServerPlayerEntity serverPlayer) {
-        serverPlayer.teleport(targetWorld,
-                player.getX(), player.getY(), player.getZ(),
-                player.getYaw(), player.getPitch());
-    }
-}
-```
+Le système de portails (`core/portal/`) mène aujourd'hui du monde normal au Level 0 et retour : sa destination est
+aiguillée par `core/portal/block/PortalTargets`, et c'est le Level 0 qui sait où l'on arrive chez lui
+(`backrooms/level0/LevelZeroArrival`). Mener à un nouveau niveau : sa propre classe d'arrivée dans son paquet
+(`backrooms/<niveau>/`), et une branche de plus dans l'aiguillage de `PortalTargets`, sans réécrire sa logique (règle
+d'or de `docs/GUIDE.md`), après avoir lu `docs/PORTALS.md`. En attendant, `/execute in gtgs_backrooms:backrooms_level_1 run teleport @s 0 64 0` suffit pour
+tester.
 
 ---
 
@@ -120,17 +109,18 @@ if (world instanceof ServerWorld serverWorld) {
 Les dimensions JSON dans `data/` sont automatiquement reconnues par Minecraft/Fabric.
 Aucune registration Java supplémentaire n'est nécessaire pour une dimension basique.
 
-Pour un chunk generator custom (comme `LevelZeroChunkGenerator`), il faut enregistrer le CODEC :
+Pour un chunk generator custom (comme `LevelZeroChunkGenerator`), il faut enregistrer son CODEC dans
+`core/registry/ModChunkGenerators.java`, sur le modèle de celui du Level 0 :
 ```java
-// Dans ModChunkGenerators.java :
-public static final MapCodec<LevelZeroChunkGenerator> LEVEL_ZERO =
-        Registry.register(Registries.CHUNK_GENERATOR,
-                Identifier.of(ModConstants.MOD_ID, "level_zero"),
-                LevelZeroChunkGenerator.CODEC);
+Registry.register(
+        Registries.CHUNK_GENERATOR,
+        Identifier.of(ModConstants.MOD_ID, BackroomsConstants.LEVEL_ONE_CHUNK_GENERATOR),
+        LevelOneChunkGenerator.CODEC);
 ```
 
-Dans l'arborescence v4, un generateur de niveau Backrooms doit rester dans
-`backrooms/level/<level_id>/generation/`, avec ses helpers proches de sa feature.
+Le générateur d'un niveau et ses aides vivent dans `backrooms/<niveau>/generation/` (comme
+`backrooms/level0/generation/`), ses blocs dans `backrooms/<niveau>/block/` ; les identifiants partagés dans
+`backrooms/BackroomsConstants`.
 
 ---
 
@@ -139,8 +129,8 @@ Dans l'arborescence v4, un generateur de niveau Backrooms doit rester dans
 - [ ] `data/gtgs_backrooms/dimension_type/my_dim_type.json`
 - [ ] `data/gtgs_backrooms/dimension/my_dim.json`
 - [ ] Biome custom si nécessaire
-- [ ] Portail/téléportation si souhaité
-- [ ] Chunk generator custom enregistré dans `ModChunkGenerators.java` si nécessaire
+- [ ] Accès par les portails si souhaité : classe d'arrivée du niveau et branche dans `PortalTargets`, après lecture de `docs/PORTALS.md`
+- [ ] Chunk generator custom enregistré dans `core/registry/ModChunkGenerators.java` si nécessaire
 - [ ] Lang key pour le nom de la dimension
 - [ ] `docs/DIMENSIONS.md` + `CHANGELOG.md` mis à jour
 - [ ] Testé en jeu : `/execute in gtgs_backrooms:my_dim run teleport @s 0 64 0`

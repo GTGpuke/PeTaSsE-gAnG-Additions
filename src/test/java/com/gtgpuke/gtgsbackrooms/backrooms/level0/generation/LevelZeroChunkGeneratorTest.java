@@ -34,7 +34,7 @@ import net.minecraft.world.gen.noise.NoiseConfig;
 import com.gtgpuke.gtgsbackrooms.MinecraftTestBootstrap;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroLayerStackLayout;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroVerticalSlice;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
 
 @DisplayName("Generateur de chunks du Level 0")
 class LevelZeroChunkGeneratorTest {

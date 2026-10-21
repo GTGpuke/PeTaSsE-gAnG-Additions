@@ -25,14 +25,14 @@ import net.minecraft.entity.Entity;
 import net.minecraft.particle.ParticleEffect;
 import net.minecraft.util.math.Vec3d;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalStencilRenderer;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderPackPortalRenderer;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewRenderStart;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorld;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.StraddlingEntityRenderer;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.PortalRenderState;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.PortalStencilRenderer;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ShaderPackPortalRenderer;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ViewRenderStart;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorld;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorldRegistry;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.StraddlingEntityRenderer;
 
 /**
  * Points d'accroche du rendu monde pour les portails : dessin des portails avant la couche translucide et fin de l'image

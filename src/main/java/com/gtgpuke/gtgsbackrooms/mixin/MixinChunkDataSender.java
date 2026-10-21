@@ -10,7 +10,7 @@ import net.minecraft.server.network.ServerPlayNetworkHandler;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.world.chunk.WorldChunk;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
 
 /**
  * Apres une traversee de portail, vanilla propose au joueur tous les chunks de sa nouvelle dimension : ceux que

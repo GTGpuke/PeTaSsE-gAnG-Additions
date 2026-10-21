@@ -12,9 +12,9 @@ import net.minecraft.sound.SoundCategory;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.world.entity.EntityLookup;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound.FrameSoundPlayer;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.sound.FrameSoundPlayer;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.transition.EntityHandover;
 
 /**
  * Sons des mondes vus a travers un portail : ils passent par le portail qui les rapproche du joueur au lieu de sonner

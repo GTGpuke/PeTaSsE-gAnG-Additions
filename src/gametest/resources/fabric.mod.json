@@ -8,16 +8,16 @@
   "entrypoints": {
     "fabric-gametest": [
       "com.gtgpuke.gtgsbackrooms.gametest.backrooms.level0.LevelZeroGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.BackroomsPortalBlockGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalLightGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalSyncGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalInteractionGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalPropagationGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalRidingGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalLyingGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.backrooms.portal.PortalOrientationGameTests",
-      "com.gtgpuke.gtgsbackrooms.gametest.feature.ItemGameTests"
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.BackroomsPortalBlockGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalLightGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalSyncGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalInteractionGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalPropagationGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalRidingGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalLyingGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalOrientationGameTests",
+      "com.gtgpuke.gtgsbackrooms.gametest.core.portal.PortalWandGameTests"
     ]
   },
   "depends": {

@@ -16,10 +16,10 @@ import net.minecraft.entity.ai.goal.GoalSelector;
 import net.minecraft.entity.mob.MobEntity;
 import net.minecraft.world.World;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.propagation.PortalPursuer;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.propagation.PortalPursuit;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.propagation.PortalPursuitGoal;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.propagation.PortalPursuer;
+import com.gtgpuke.gtgsbackrooms.core.portal.propagation.PortalPursuit;
+import com.gtgpuke.gtgsbackrooms.core.portal.propagation.PortalPursuitGoal;
 
 /**
  * Poursuite a travers les portails : les mobs qui ciblent des joueurs ou se vengent recoivent l'objectif de

@@ -14,8 +14,8 @@ import net.minecraft.entity.ai.goal.ActiveTargetGoal;
 import net.minecraft.entity.ai.goal.TrackTargetGoal;
 import net.minecraft.entity.mob.MobEntity;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.propagation.PortalPursuit;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.propagation.PortalPursuit;
 
 /**
  * Un mob qui cherche un joueur et n'en trouve aucun dans son monde regarde aussi par les portails ouverts, avec ses

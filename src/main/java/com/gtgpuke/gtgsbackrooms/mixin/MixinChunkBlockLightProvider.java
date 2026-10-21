@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.chunk.light.ChunkBlockLightProvider;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.light.VirtualLightView;
+import com.gtgpuke.gtgsbackrooms.core.portal.light.VirtualLightView;
 
 /**
  * Sources de lumiere virtuelles (lumiere transmise par les portails) : la luminosite d'un bloc est la plus forte de la

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.entity.ai.goal.ZombieAttackGoal;
 import net.minecraft.entity.mob.ZombieEntity;
 
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
 
 /**
  * Un zombie qui a deja la posture d'attaque quand son attaque commence la garde : vanilla lui baisse les bras les cinq

@@ -11,8 +11,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteTargeting;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.ClientPortalCrossing;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.interaction.RemoteTargeting;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.transition.ClientPortalCrossing;
 
 /**
  * Avant chaque rendu du monde : si la camera vient de franchir un portail, le client bascule de monde

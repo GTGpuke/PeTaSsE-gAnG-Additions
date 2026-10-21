@@ -8,14 +8,20 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
 ## [Unreleased]
 
 ### Added
-- **Toutes les variantes de portail dans l'onglet créatif** : 37 réglages au lieu de 9 (`PortalSettings.PRESETS`) :
-  tailles de 1 x 1 à 8 x 8, carrés compris pour les cadres couchés ; chaque sens de sortie (nord, est, sud, ouest, sol,
-  plafond) pour un cadre 1 x 2 et pour un cadre 2 x 2 ; arrivée tirée au sort à 8, 32 et 64 blocs, puis chaque sens de
-  sortie tiré au sort ; chaque comportement seul et quatre combinaisons (trappe, aller simple au hasard, sortie fugace
-  au hasard, aller simple à une face sans lumière). Chaque pile porte un nom qui dit ce qui l'écarte du portail par
-  défaut (*Portail des Backrooms (2x2, sortie par le plafond)*), et l'info-bulle rappelle qu'on couche le cadre en
-  regardant le sol ou le plafond à la pose. Vérifié en jeu : l'onglet montre les 37 piles, noms et info-bulles lus
-  au survol.
+- **Baguette de portail** (`portal_wand`, en tête de l'onglet créatif), seule façon de créer un portail : clic droit
+  dans le vide, un écran règle chacun des réglages d'un portail (largeur, hauteur, lumière, faces, retour, sens de
+  sortie, arrivée au hasard, plan), toutes leurs combinaisons comprises ; clic droit sur un bloc, elle pose un bloc
+  portail réglé ainsi, comme vanilla pose un bloc, sans s'user ; accroupi, clic droit sur un portail, elle prend ses
+  réglages. Les réglages choisis partent au serveur à la fermeture de l'écran (payload `portal_wand_settings`), qui ne
+  les pose que sur la baguette de la main désignée. Le bloc portail n'a pas d'item : cassé, il ne rend rien. Trois
+  tests en jeu (`PortalWandGameTests`) et des tests unitaires.
+- **Premier son du mod** : poser un portail avec la baguette fait entendre un portail qui s'ouvre, sous-titré
+  (`ModSounds.PORTAL_WAND_PLACE`, déclaré dans `sounds.json`).
+- **Plan au bord du bloc** (réglage `flush`, composant, NBT et info-bulle) : le plan du cadre passe sur la face arrière
+  de ses blocs, à l'opposé de sa face avant, au lieu de leur milieu, et le portail ne semble plus couper un bloc en
+  deux. Un cadre debout demande alors un bloc libre derrière lui (l'avant du corps y passe), un cadre couché se pose à
+  ras du sol ou du plafond ; le cadre d'arrivée suit le même plan, la lumière transmise se lit juste devant le plan, la
+  plaque visée accroupi se colle à la face arrière. Sans le champ, une sauvegarde garde le plan au milieu.
 - **Roulis de la caméra à la traversée** : d'un sol à un mur (un portail qui tourne autour d'un axe horizontal), la
   caméra du joueur part du roulis de l'image vue par le cadre et se redresse en moins d'une demi-seconde, au lieu de
   se redresser d'un coup (`CrossingRoll`, `MixinCamera`). Vérifié au banc en rafale d'images.
@@ -45,25 +51,22 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   X/Z de l'arrivée dans un rayon donné autour de ceux du bloc (jusqu'à 64 blocs ; la cellule libre la plus proche du
   Level 0 ou la surface du monde normal sont cherchées de là). Un bloc relu avec un autre sens de sortie tourne son
   cadre d'arrivée sur son pied et repose ses portails ; si ce cadre est couché avant ou après, le bloc retire ses
-  portails et cherche de nouveau son arrivée, comme à la pose. Deux réglages de plus dans l'onglet créatif (sortie vers
-  l'est, arrivée à 32 blocs près) ; tests unitaires et en jeu.
+  portails et cherche de nouveau son arrivée, comme à la pose. Tests unitaires et en jeu.
 - **Bloc portail** (`backrooms_portal`), qui remplace pour l'instant la porte des Backrooms : un bloc invisible et
   traversable qui pose un portail plein cadre, le plan au milieu du bloc, face avant vers le joueur. Posé hors du Level 0
-  il y mène, posé dedans il ramène à la surface ; il ne se vise qu'accroupi, pour le casser, et rend alors l'item avec
-  ses réglages. Les clients connaissent ses réglages, pas sa destination : le choix du bloc avec ses données les
-  copie. Copié par `/clone` ou une structure, il garde la destination de l'original et pose ses propres portails, sans
+  il y mène, posé dedans il ramène à la surface ; il ne se vise qu'accroupi, pour le casser ou en copier les réglages
+  avec la baguette. Les clients connaissent ses réglages, pas sa destination. Copié par `/clone` ou une structure, il garde la destination de l'original et pose ses propres portails, sans
   toucher à ceux de l'original.
 - **Portails double face** : chaque côté tient deux portails dos à dos dans le même plan, chaque face menant à la face
   correspondante de l'autre côté. On voit et on traverse le portail par ses deux faces, il ne disparaît plus en tournant
   autour, et traverser ne fait plus tourner (on ressort dans la direction où l'on marchait).
-- **Réglages par portail**, portés par l'item (composant `gtgs_backrooms:portal_settings`, info-bulle) et
-  gardés par le bloc : largeur et hauteur du cadre (1 à 8 blocs), passage de la lumière, faces et retour (voir
-  ci-dessous). L'onglet *GTG's Backrooms - Portails* propose 1 x 2, 2 x 3, 3 x 4, 1 x 2 sans lumière, 1 x 2 à une face,
-  1 x 2 aller simple et 1 x 2 à sortie fugace. La pose est refusée si le cadre traverserait un bloc ;
+- **Réglages par portail**, portés par la baguette (composant `gtgs_backrooms:portal_settings`, info-bulle) et gardés
+  par le bloc : largeur et hauteur du cadre (1 à 8 blocs), passage de la lumière, faces et
+  retour (voir ci-dessous). La pose est refusée si le cadre traverserait un bloc ;
   dans le Level 0, le cadre d'arrivée se pose là où il tient sur toute sa largeur, ses deux faces sur un passage libre.
 - **Portail à une face** (réglage `double_sided`) : seule la face avant existe, de chaque côté ; de dos, rien ne se
   voit et on passe au travers. **Portail aller simple** (réglage `one_way`) : rien n'est posé à l'arrivée pour revenir.
-  L'info-bulle de l'item dit les deux réglages. Un portail que son bloc
+  L'info-bulle de la baguette dit les deux réglages. Un portail que son bloc
   ne tient plus pour sien (face ou retour retiré par les réglages dans un chunk alors déchargé) est retiré par le
   registre.
 - **Posture d'attaque des mobs qui poursuivent** à travers un portail : bras levés, arc bandé, regard fixé sur le
@@ -104,7 +107,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   image et images de plus de 50 ms sur les 120 suivantes, chunks reçus pendant ce temps), repris au F3 en solo. Côté
   serveur, les sections `portal.teleport.player` (dont `portal.teleport.vanilla`), `portal.sync.tick` (dont
   `portal.sync.chunks` et `portal.sync.entities`), `portal.destination.tick` et `portal.light` (lumière transmise ; `portal.light.client` pour la passe du client, en solo) entrent dans le résumé `[perf] serveur:`, et le journal de traversée indique combien de chunks de l'arrivée le client tenait déjà.
-- **Sortie fugace** (réglage `fleeting_exit` du bloc portail, proposé dans l'onglet) : la sortie, le portail de retour à
+- **Sortie fugace** (réglage `fleeting_exit` du bloc portail) : la sortie, le portail de retour à
   l'arrivée, n'existe que sous le regard. Pour chaque joueur, elle disparaît quand il ne la regarde plus depuis une
   demi-seconde (ni dessinée, ni heurtée, ni visée : il la traverse comme de l'air) et revient dès qu'il la revoit, tant
   qu'elle existe ; elle disparaît pour tous (`ExitLost`, sauvé avec le bloc, oublié par une copie ou une nouvelle
@@ -123,6 +126,15 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   Level 0 ou le Nether, qui n'en ont pas.
 
 ### Changed
+- **Arborescence du code** : quatre paquets sous la racine. `core/` est le socle : `ModConstants`, `ModConfig`
+  (ex-`config/`), `registry/` (ex-`init/`, un registre par type, sons compris), `perf/` et `portal/`
+  (ex-`backrooms/portal/`, la baguette dans `portal/item/`) ; `backrooms/` est le contenu (`level0/`, qui calcule
+  lui-même où un portail arrive chez lui : `LevelZeroArrival`, sorti de `PortalTargets`) ; puis `compat/`
+  et `mixin/`. Tests unitaires et en jeu suivent la même arborescence ; `docs/ARCHITECTURE.md` dit où ranger un objet,
+  un son ou un payload (« Où ranger quoi »), et les skills du projet (`.skills/`) suivent. Identifiants de registre,
+  composants et sauvegardes inchangés : les mondes existants ne voient pas la différence.
+- **Un seul onglet créatif**, *GTG's Backrooms* (l'onglet *GTG's Backrooms - Portails* disparaît) : la baguette de
+  portail en tête, puis les blocs du Level 0, à l'icône du papier peint.
 - **Guide du projet** : `docs/GUIDE.md` (règles d'or, état réel du dépôt, architecture cible du rendu et de l'audio,
   méthode clean room, feuille de route par versions, cohabitation avec les packs de shaders, compatibilité, licence)
   devient le document de référence, confronté au dépôt le 2026-10-20 (écarts consignés dans sa section 2.4). Il est
@@ -156,8 +168,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   fois de plus chaque payload quand le moniteur est actif). La section `portal.light.client` devient `client.portal.light`.
 - **Nom** : le projet devient *GTG's Backrooms*, de GTGpuke. Identifiant du mod `gtgs_backrooms`, paquet
   `com.gtgpuke.gtgsbackrooms`, classes `GtgsBackroomsMod` et `GtgsBackroomsClientMod`, propriétés système
-  `gtgsbackrooms.*`, onglets créatifs *GTG's Backrooms* (identifiant `gtgs_backrooms:main`) et *GTG's Backrooms -
-  Portails*. L'info-bulle du Badge de la Gang ne nomme plus de groupe (« Membre officiel »). Changement incompatible :
+  `gtgsbackrooms.*`, onglet créatif *GTG's Backrooms* (identifiant `gtgs_backrooms:main`). Changement incompatible :
   un monde créé avant ne retrouve ni les blocs, ni les items, ni les portails du mod (vanilla les remplace par de
   l'air), et son Level 0 repart d'une dimension neuve.
 - **Licence** : la licence MIT est remplacée par une licence propriétaire, tous droits réservés à GTGpuke
@@ -173,7 +184,7 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   cadre ressortait dans le mur qui encadre l'arrivée, et le contourner en frôlant son bord faisait traverser ou buter
   sur l'autre côté. La collision à travers le cadre suit la même règle ; celui qui entre vraiment, même de biais près
   du bord, bute toujours sur les murs qui encadrent l'arrivée.
-- Le type d'entité portail est enregistré dans `init/ModEntities`, comme les autres registres. Le cooldown des joueurs
+- Le type d'entité portail est enregistré dans `core/registry/ModEntities`, comme les autres registres. Le cooldown des joueurs
   est tenu par `TeleportExecutor` (plus de `TpCooldownTracker`), `PortalSound` rejoint `client/sound`, et la
   transposition d'un point d'un côté à l'autre est portée par le portail (`toDestination`, `fromDestination`).
 - Chemins chauds sans allocation évitable : dimension d'arrivée et orientations du portail en cache, pertinence d'un
@@ -199,6 +210,9 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   ailleurs ne déchargeait plus rien (le journal montrait des chargements et déchargements du Level 0 toutes les deux secondes).
 
 ### Removed
+- **Badge de la Gang**, **Casse-croûte Maudit** et **Arbre Maudit** (tronc, feuilles, pousse, planches, configured
+  feature `cursed_tree`, entrées du mod dans les tags `minecraft:logs`), avec leur payload, leurs ressources, leurs
+  tests et le paquet `feature/` : leurs blocs disparaissent des mondes existants et leurs items des inventaires.
 - **Anciennes specs** remplacées par `docs/GUIDE.md` : `docs/backrooms/1 - Arborescence`, `3 - Portails`,
   `4 - Veil Shaders`, `to-check` et `docs/DEPENDENCIES.md`. Restent `docs/backrooms/backrooms-level0-pipeline-v6.md`,
   `backrooms-level0-roadmap.md` et `level0-manual-structures-template.json` (générateur du Level 0, verrouillé) et
@@ -377,7 +391,6 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   détection à la taille par défaut : elles se refont désormais à chaque changement.
 - Un enderman (ou tout mob que sa cible met en colère) frappé à travers un portail restait en colère et plus rapide
   quand sa poursuite finissait sans traversée : il lâche désormais cette cible comme vanilla.
-- L'animation du badge du gang montrait l'objet de la main droite quand le badge servait de la main gauche.
 - Les sons de l'autre côté ne passaient pas par un portail sans retour (bloc réglé en aller simple, portail invoqué
   seul) : le client cherchait leur chemin parmi les portails du monde du son, c'est-à-dire les retours. Il le cherche
   désormais parmi les portails par lesquels le joueur voit l'autre côté, retour ou non ; un joueur derrière une face

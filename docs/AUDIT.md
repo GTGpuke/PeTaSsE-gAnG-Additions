@@ -4,6 +4,10 @@
 **Méthode :** lecture intégrale du code (≈ 11 500 lignes main, 3 300 lignes test), empreintes de génération
 avant/après, benchmark avant/après sur la même machine, suite de tests réécrite.
 
+> Audit daté : il décrit le dépôt du 2026-10-15 (0.8.0) et n'est pas tenu à jour. L'arborescence a changé depuis
+> (`core/` et `backrooms/`, contenu de la Gang et de l'Arbre Maudit retiré, le 2026-10-21) : la référence actuelle est
+> `docs/ARCHITECTURE.md`.
+
 ---
 
 ## 1. Résumé

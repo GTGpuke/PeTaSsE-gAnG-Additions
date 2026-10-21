@@ -13,8 +13,8 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.World;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.PortalCollision;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalCollision;
 
 /**
  * Collision a travers les portails ouverts : les blocs de l'autre cote s'ajoutent aux collisions d'un deplacement,

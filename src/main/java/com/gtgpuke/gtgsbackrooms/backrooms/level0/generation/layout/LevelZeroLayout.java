@@ -6,8 +6,8 @@ import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.sector.LevelZeroSec
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.sector.LevelZeroSectorData;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.sector.LevelZeroSectorGenerator;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.sector.LevelZeroSectorRoomKind;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
-import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.perf.ModPerformanceMonitor;
 
 /**
  * Layout logique d'un chunk pour un layer : les cellules evaluees qui le couvrent.

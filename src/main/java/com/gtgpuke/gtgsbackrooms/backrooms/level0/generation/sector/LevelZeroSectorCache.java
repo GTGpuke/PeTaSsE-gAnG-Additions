@@ -3,7 +3,7 @@ package com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.sector;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.perf.ModPerformanceMonitor;
 
 /**
  * Cache LRU borne des secteurs generes, partage entre threads de generation.

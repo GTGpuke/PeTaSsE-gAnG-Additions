@@ -5,7 +5,7 @@ description: "Rappelle les conventions du projet GTG's Backrooms (Fabric 1.21.1)
 
 # Conventions du projet GTG's Backrooms (Fabric 1.21.1)
 
-Source de vérité : `CLAUDE.md` (racine) et `docs/ARCHITECTURE.md`.
+Source de vérité : `CLAUDE.md` (racine) et `docs/ARCHITECTURE.md` (dont le tableau « Où ranger quoi »).
 
 ## Identifiants clés
 
@@ -25,23 +25,27 @@ Source de vérité : `CLAUDE.md` (racine) et `docs/ARCHITECTURE.md`.
 com.gtgpuke.gtgsbackrooms/
 |- GtgsBackroomsMod.java        <- ModInitializer (registerContent + hooks)
 |- GtgsBackroomsClientMod.java  <- ClientModInitializer
-|- core/ModConstants.java
-|- config/ModConfig.java
-|- init/                                <- ModBlocks, ModItems, ModBlockEntities, ModChunkGenerators, ModCreativeTab, ModNetworking
-|- feature/gang/, feature/cursed/       <- une classe par item, sous-package client/ si besoin
-|- backrooms/
+|- core/                        <- le socle du mod
+|  |- ModConstants.java, ModConfig.java
+|  |- registry/                 <- ModBlocks, ModItems, ModBlockEntities, ModEntities, ModDataComponents,
+|  |                               ModSounds, ModChunkGenerators, ModCreativeTab, ModNetworking
+|  |- perf/                     <- moniteur opt-in (+ client/)
+|  `- portal/                   <- portails (block, item, entity, transition, sync, interaction, client...), voir docs/PORTALS.md
+|- backrooms/                   <- le contenu des Backrooms
 |  |- BackroomsConstants.java
-|  |- level0/
-|  |  |- biome/  block/  client/model/
-|  |  `- generation/  (LevelZeroChunkGenerator ; coord/ noise/ sector/ layout/ write/)
-|  `- portal/                           <- portails (entity, block, transition, interaction, sync, client), voir docs/PORTALS.md
-|- perf/                                <- moniteur opt-in (+ client/)
-|- gametest/                            <- tests en jeu
-`- mixin/                               <- MixinServerChunkManager + client/
+|  `- level0/                    <- dont LevelZeroArrival : ou un portail arrive dans le labyrinthe
+|     |- biome/  block/  client/model/
+|     `- generation/  (LevelZeroChunkGenerator ; coord/ noise/ sector/ layout/ write/)
+|- compat/iris/                 <- compatibilité Iris (seul mod nommé)
+`- mixin/                       <- communs + client/
 ```
 
-Pas de dossier vide, pas de `.gitkeep`, pas de `package-info.java`. Un package n'existe que s'il
-contient du code utilisé.
+Tests : `src/test/java/` et `src/gametest/java/.../gametest/` reprennent la même arborescence.
+
+Où va un nouvel objet : sa classe dans le paquet de son domaine (`backrooms/<niveau>/{block,item,entity}/` pour le
+contenu d'un niveau, `core/<système>/{block,item,entity}/` pour un système du socle, comme la baguette dans
+`core/portal/item/`), son enregistrement dans `core/registry/`. Pas de dossier vide, pas de `.gitkeep`, pas de
+`package-info.java` : un package n'existe que s'il contient du code utilisé.
 
 ## Nommage
 
@@ -51,22 +55,23 @@ contient du code utilisé.
 | Méthode / variable | camelCase | `wallpaperFaceMask` |
 | Constante | UPPER_SNAKE_CASE | `REGION_MARGIN_CELLS` |
 | Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
-| Clé de langue | `block.<mod_id>.<id>` / `item.<mod_id>.<id>` / `itemGroup.<mod_id>.<id>` | `block.gtgs_backrooms.cursed_log` |
+| Clé de langue | `block.<mod_id>.<id>` / `item.<mod_id>.<id>` / `itemGroup.<mod_id>.<id>` | `block.gtgs_backrooms.level_zero_wallpaper` |
 
 ## Enregistrement Fabric
 
 ```java
-public static final Item GANG_BADGE = Registry.register(
-        Registries.ITEM,
-        Identifier.of(ModConstants.MOD_ID, "gang_badge"),
-        new GangBadgeItem(new Item.Settings().maxCount(1).rarity(Rarity.EPIC)));
+/** Baguette de portail : pose des blocs portail aux reglages qu'elle porte, choisis dans son ecran, sans s'user. */
+public static final PortalWandItem PORTAL_WAND = register("portal_wand", new PortalWandItem(
+        new Item.Settings().maxCount(1).rarity(Rarity.UNCOMMON).component(ModDataComponents.PORTAL_SETTINGS, PortalSettings.DEFAULT)));
 ```
 
-Le champ contient l'objet (pas de `.get()`). Tout nouvel item va aussi dans `ModCreativeTab.ENTRIES`.
+Le champ contient l'objet (pas de `.get()`). Tout nouvel item va aussi dans `ModCreativeTab.ENTRIES` ;
+`ModRegistriesTest` le vérifie. Le bloc portail n'a pas d'item : la baguette le pose.
 
 ## Imports
 
-`java` → tiers (`com.mojang`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke`, aucun wildcard.
+`java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke`, aucun wildcard,
+ordre alphabétique dans chaque groupe (Checkstyle).
 
 ## Règles de qualité
 
@@ -79,13 +84,13 @@ Le champ contient l'objet (pas de `.get()`). Tout nouvel item va aussi dans `Mod
   toute évolution voulue régénère les empreintes **et** passe par `docs/CHANGELOG.md`.
 - Toute modification touchant `backrooms/level0/` relit d'abord `docs/ARCHITECTURE.md` (section pipeline)
   et, pour une évolution de spec, `docs/backrooms/backrooms-level0-pipeline-v6.md`.
+- Toute modification touchant `core/portal/` lit d'abord `docs/PORTALS.md`.
 - Textures des blocs du Level 0 en 32x32 ; loot tables dans `data/<modid>/loot_table/blocks/`.
 - Les murs du Level 0 sont fixes ; les colonnes enfouies restent en `minecraft:bedrock`.
-- `dirt_provider` (pas `below_trunk_provider`) dans un `minecraft:tree`.
 
 ## Après chaque ajout
 
 - `lang/en_us.json` et `lang/fr_fr.json`
 - `docs/CHANGELOG.md` et la doc métier (`BLOCKS.md`, `ITEMS.md`, `DIMENSIONS.md`, `ENTITIES.md`)
-- un test de comportement dans `src/test/` (pas de test par réflexion)
-- `./gradlew build --warning-mode all` vert : Checkstyle, tests unitaires, tests en jeu, couverture (100 % des instructions, 96 % des branches), contenu du JAR
+- un test de comportement dans `src/test/` ou `src/gametest/` (pas de test par réflexion)
+- `./gradlew build --warning-mode all` vert : Checkstyle, tests unitaires, tests en jeu, couverture (100 % des instructions et des branches), contenu du JAR

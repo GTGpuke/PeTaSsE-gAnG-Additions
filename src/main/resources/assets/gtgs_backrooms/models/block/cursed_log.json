@@ -1,7 +1,0 @@
-{
-  "parent": "minecraft:block/cube_column",
-  "textures": {
-    "end": "gtgs_backrooms:block/cursed_log_top",
-    "side": "gtgs_backrooms:block/cursed_log"
-  }
-}

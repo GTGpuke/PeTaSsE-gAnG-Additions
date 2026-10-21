@@ -19,20 +19,25 @@ description: "Ajouter une entité/mob au mod GTG's Backrooms (Fabric 1.21.1). D�
 
 | Paramètre | Valeur |
 |-----------|--------|
-| `ENTITY_ID` | `gang_member`, `backrooms_boss` |
-| `ClassName` | `GangMemberEntity`, `BackroomsBossEntity` |
+| `ENTITY_ID` | `smiler`, `hound` |
+| `ClassName` | `SmilerEntity`, `HoundEntity` |
+| Domaine | le niveau où elle vit (`backrooms/level0/`), ou un système du socle (`core/portal/` pour l'entity portail) |
 | Catégorie | `SpawnGroup.CREATURE` / `MONSTER` / `AMBIENT` / `WATER_CREATURE` |
 | HP | `20.0f` (10 cœurs) |
-| Taille | `EntityDimensions.changing(0.6f, 1.95f)` (humanoïde) |
+| Taille | `dimensions(0.6f, 1.95f)` (humanoïde) |
 
 ---
 
 ### 2. Créer la classe entité
 
-**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/entity/MyEntity.java`
+Sa classe va dans le paquet de son domaine (tableau « Où ranger quoi » de `docs/ARCHITECTURE.md`) :
+`backrooms/<niveau>/entity/` pour une créature d'un niveau, `core/<système>/entity/` pour une entité d'un système du
+socle (comme `core/portal/entity/BackroomsPortalEntity`).
+
+**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level0/entity/SmilerEntity.java`
 
 ```java
-package com.gtgpuke.gtgsbackrooms.entity;
+package com.gtgpuke.gtgsbackrooms.backrooms.level0.entity;
 
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.ai.goal.LookAroundGoal;
@@ -43,14 +48,15 @@ import net.minecraft.entity.mob.PathAwareEntity;
 import net.minecraft.world.World;
 
 /**
- * [Nom] — [Description].
+ * Smiler du Level 0 : [description].
  */
-public class MyEntity extends PathAwareEntity {
+public final class SmilerEntity extends PathAwareEntity {
 
-    public MyEntity(EntityType<? extends MyEntity> type, World world) {
+    public SmilerEntity(EntityType<? extends SmilerEntity> type, World world) {
         super(type, world);
     }
 
+    /** Attributs du smiler : vie, vitesse, degats. */
     public static DefaultAttributeContainer.Builder createAttributes() {
         return PathAwareEntity.createMobAttributes()
                 .add(EntityAttributes.GENERIC_MAX_HEALTH, 20.0)
@@ -60,86 +66,61 @@ public class MyEntity extends PathAwareEntity {
 
     @Override
     protected void initGoals() {
-        goalSelector.add(1, new WanderAroundFarGoal(this, 1.0));
-        goalSelector.add(2, new LookAroundGoal(this));
+        this.goalSelector.add(1, new WanderAroundFarGoal(this, 1.0));
+        this.goalSelector.add(2, new LookAroundGoal(this));
     }
 }
 ```
 
 ---
 
-### 3. Créer ModEntities.java (si absent)
+### 3. Enregistrer le type dans `core/registry/ModEntities.java`
 
-**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/init/ModEntities.java`
+Le registre existe déjà (il tient le type de l'entity portail) : ajouter un champ.
 
 ```java
-package com.gtgpuke.gtgsbackrooms.init;
-
-import com.gtgpuke.gtgsbackrooms.entity.MyEntity;
-import com.gtgpuke.gtgsbackrooms.core.ModConstants;
-import net.minecraft.entity.EntityType;
-import net.minecraft.entity.SpawnGroup;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.util.Identifier;
-
-public final class ModEntities {
-
-    public static final EntityType<MyEntity> MY_ENTITY = Registry.register(
-            Registries.ENTITY_TYPE,
-            Identifier.of(ModConstants.MOD_ID, "my_entity"),
-            EntityType.Builder.create(MyEntity::new, SpawnGroup.CREATURE)
-                    .dimensions(0.6f, 1.95f)
-                    .build()
-    );
-
-    public static void initialize() { }
-
-    private ModEntities() { throw new UnsupportedOperationException("Classe utilitaire."); }
-}
+/** Smiler du Level 0. */
+public static final EntityType<SmilerEntity> SMILER = Registry.register(
+        Registries.ENTITY_TYPE,
+        Identifier.of(ModConstants.MOD_ID, "smiler"),
+        EntityType.Builder.create(SmilerEntity::new, SpawnGroup.MONSTER).dimensions(0.6f, 1.95f).build());
 ```
 
-Appeler `ModEntities.initialize()` dans `onInitialize()`.
-
----
-
-### 4. Enregistrer les attributs
-
-Dans `GtgsBackroomsMod.onInitialize()`, via l'event Fabric :
+Puis, dans `ModEntities.register()` (déjà appelé par `GtgsBackroomsMod.registerContent()`), ses attributs :
 
 ```java
-// Dans onInitialize() :
-FabricDefaultAttributeRegistry.register(ModEntities.MY_ENTITY, MyEntity.createAttributes());
+FabricDefaultAttributeRegistry.register(SMILER, SmilerEntity.createAttributes());
 ```
 
 ---
 
-### 5. Créer le renderer (CLIENT uniquement)
+### 4. Créer le renderer (CLIENT uniquement)
 
-**Fichier :** `src/main/java/com/gtgpuke/gtgsbackrooms/client/renderer/MyEntityRenderer.java`
+Le renderer va dans le sous-paquet `client/` de son domaine :
+`src/main/java/com/gtgpuke/gtgsbackrooms/backrooms/level0/client/entity/SmilerEntityRenderer.java`
+(comme `core/portal/client/entity/BackroomsPortalEntityRenderer`).
 
 ```java
-package com.gtgpuke.gtgsbackrooms.client.renderer;
+package com.gtgpuke.gtgsbackrooms.backrooms.level0.client.entity;
 
-import com.gtgpuke.gtgsbackrooms.entity.MyEntity;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.api.Environment;
 import net.minecraft.client.render.entity.EntityRendererFactory;
 import net.minecraft.client.render.entity.MobEntityRenderer;
 import net.minecraft.util.Identifier;
 
-@Environment(EnvType.CLIENT)
-public class MyEntityRenderer extends MobEntityRenderer<MyEntity, MyEntityModel<MyEntity>> {
+import com.gtgpuke.gtgsbackrooms.backrooms.level0.entity.SmilerEntity;
+import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 
-    private static final Identifier TEXTURE =
-            Identifier.of("gtgs_backrooms", "textures/entity/my_entity.png");
+/** Rendu du smiler. */
+public final class SmilerEntityRenderer extends MobEntityRenderer<SmilerEntity, SmilerEntityModel> {
 
-    public MyEntityRenderer(EntityRendererFactory.Context context) {
-        super(context, new MyEntityModel<>(context.getPart(MyEntityModel.MODEL_LAYER)), 0.5f);
+    private static final Identifier TEXTURE = Identifier.of(ModConstants.MOD_ID, "textures/entity/smiler.png");
+
+    public SmilerEntityRenderer(EntityRendererFactory.Context context) {
+        super(context, new SmilerEntityModel(context.getPart(SmilerEntityModel.LAYER)), 0.5f);
     }
 
     @Override
-    public Identifier getTexture(MyEntity entity) {
+    public Identifier getTexture(SmilerEntity entity) {
         return TEXTURE;
     }
 }
@@ -147,29 +128,29 @@ public class MyEntityRenderer extends MobEntityRenderer<MyEntity, MyEntityModel<
 
 Enregistrer dans `GtgsBackroomsClientMod.onInitializeClient()` :
 ```java
-EntityRendererRegistry.register(ModEntities.MY_ENTITY, MyEntityRenderer::new);
+EntityRendererRegistry.register(ModEntities.SMILER, SmilerEntityRenderer::new);
 ```
+
+Le code client (renderer, modèle) est exclu de la couverture : l'ajouter à `coverageExcludes` dans `build.gradle` et à
+la table des exclusions de `docs/TESTING.md`. Tout le reste (attributs, objectifs, comportement) se teste.
 
 ---
 
-### 6. Fichiers ressources
+### 5. Fichiers ressources
 
-- `textures/entity/my_entity.png` — texture du mob (64×32 ou 64×64)
-- `lang/en_us.json` : `"entity.gtgs_backrooms.my_entity": "My Entity"`
+- `textures/entity/smiler.png` — texture originale (64×32 ou 64×64)
+- `lang/en_us.json` : `"entity.gtgs_backrooms.smiler": "Smiler"`
 - `lang/fr_fr.json` : traduction FR
 
 ---
 
 ## Checklist finale
 
-- [ ] `entity/MyEntity.java`
-- [ ] `init/ModEntities.java` — champ `static final` via `Registry.register(Registries.ENTITY_TYPE, ...)`
-- [ ] `ModEntities.initialize()` appelé dans `onInitialize()`
-- [ ] `FabricDefaultAttributeRegistry.register()` dans `onInitialize()`
-- [ ] `client/renderer/MyEntityRenderer.java` avec `@Environment(EnvType.CLIENT)`
-- [ ] Renderer enregistré dans `onInitializeClient()`
-- [ ] `textures/entity/my_entity.png`
-- [ ] Lang keys EN + FR
-- [ ] `docs/ENTITIES.md` + `CHANGELOG.md` mis à jour
-- [ ] Tests mis à jour
-- [ ] `./gradlew build` + `./gradlew test` passent
+- [ ] `backrooms/<niveau>/entity/SmilerEntity.java`
+- [ ] `core/registry/ModEntities.java` — champ `static final`, attributs dans `register()`
+- [ ] `backrooms/<niveau>/client/entity/SmilerEntityRenderer.java`, enregistré dans `onInitializeClient()`
+- [ ] `textures/entity/smiler.png`
+- [ ] Clés EN + FR
+- [ ] `docs/ENTITIES.md` + `docs/CHANGELOG.md` mis à jour
+- [ ] Tests de comportement (unitaires ou en jeu) ; exclusion de couverture du seul code client
+- [ ] `./gradlew build --warning-mode all` passe

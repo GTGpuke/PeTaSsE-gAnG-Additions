@@ -27,12 +27,17 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 
 ## Structure (voir docs/ARCHITECTURE.md)
 
-- `init/` : registres (`Registry.register` dans des champs `static final`), onglet créatif, payloads.
-- `feature/gang`, `feature/cursed` : contenu gameplay, une classe par item.
+Quatre paquets sous la racine (à côté des deux points d'entrée) : `core/` (le socle), `backrooms/` (le contenu),
+`compat/`, `mixin/`. Où ranger un nouvel objet, un son, un payload : tableau « Où ranger quoi » de `docs/ARCHITECTURE.md`.
+
+- `core/` : `ModConstants`, `ModConfig` (options lues en `-D`) et `registry/` : registres (`Registry.register` dans des
+  champs `static final`), un par type (blocs, items, block entities, entities, composants, sons, onglet créatif,
+  payloads). Le bloc portail n'a pas d'item : la baguette le pose.
+- `core/portal/` : portails (bloc portail double face et ses réglages, plan au milieu ou au bord du bloc, baguette (`item/`), seule façon d'en créer un, debout, au sol ou au plafond, entity, téléportation de tout ce qui traverse, attelages compris, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
+- `core/perf/` : moniteur de performance opt-in.
 - `backrooms/level0/generation/` : `coord` → `noise` → `sector` → `layout` → `write`, orchestrés par `LevelZeroChunkGenerator`.
 - `backrooms/level0/client/model/` : rendu adaptatif du mur (client uniquement).
-- `backrooms/portal/` : portails (bloc portail double face et ses réglages, debout, au sol ou au plafond, entity, téléportation de tout ce qui traverse, attelages compris, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
-- `perf/` : moniteur de performance opt-in.
+- `backrooms/level0/LevelZeroArrival` : où un portail arrive dans le Level 0 ; seul lien, avec les registres, du socle vers le contenu.
 - `compat/iris/` : compatibilité avec le mod de shaders Iris, seul mod nommé dans le code (exception accordée) : son API publique dit si un pack est actif, et les vues de portail se dessinent alors après l'image (`ShaderPackPortalRenderer`). Dépendance `modCompileOnly` depuis le maven Modrinth, jamais embarquée ni requise.
 - `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre, sons replacés après une traversée, roulis de la caméra à la traversée).
 - `src/gametest/` : tests en jeu, mod séparé `gtgs_backrooms_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
@@ -53,7 +58,7 @@ Un seul JDK suffit : Java 21. Si `JAVA_HOME` pointe sur un autre JDK, Gradle dé
 
 - Lire `docs/GUIDE.md` au début de chaque session ; ses règles d'or (section 0) s'appliquent, et un écart entre le guide et
   le code se consigne dans sa section 2.4 au lieu de forcer le code à suivre le guide.
-- Le système de portails (`backrooms/portal/`) est la base : l'étendre par des points d'accès (méthodes publiques,
+- Le système de portails (`core/portal/`) est la base : l'étendre par des points d'accès (méthodes publiques,
   évènements), pas par des couches d'abstraction, et ne pas en réécrire la logique. Toute refonte est proposée et validée
   avant.
 - Un profil par monde (`WorldProfile`, donnée, pas interface) : aucun test sur la dimension du joueur pour décider d'un
@@ -92,6 +97,13 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - `-Dfile.encoding=COMPAT` dans `org.gradle.jvmargs` reste nécessaire sur Windows avec un chemin accentué.
 - Les `assets/<ns>/items/*.json` n'existent qu'à partir de 1.21.4 : en 1.21.1 seuls `models/item/*.json` comptent.
 - Tests : `MinecraftTestBootstrap.ensure()` dans `@BeforeAll` pour tout ce qui touche blocs, items ou registres ; inutile pour la logique pure.
+- `ItemPlacementContext.getBlockPos()` rend la place où l'on poserait (devant le bloc visé s'il n'est pas remplaçable), pas
+  le bloc visé : en jeu, `Item.useOnBlock` reçoit un `ItemUsageContext`, dont la position est le bloc visé. Un test qui
+  simule un clic sur un bloc sans joueur passe un `ItemUsageContext` (constructeur protégé : sous-classe anonyme). Un bloc
+  visé hors du monde, vide et remplaçable, reçoit la pose à sa place, où `setBlockState` échoue.
+- `ServerPlayerEntity.sendMessage(texte, true)` (barre d'action) part en `GameMessageS2CPacket` marqué `overlay`, pas en
+  `OverlayMessageS2CPacket` (celui de `/title actionbar`). Un bloc sans item se déclare `dropsNothing()` (aucune loot table
+  lue) ; un item retiré du registre disparaît des inventaires au chargement (« Tried to load invalid item » dans le journal).
 - `DataTracker` n'a pas de handler `double` : une coordonnée précise se stocke en `LONG` (`Double.doubleToRawLongBits`), un `FLOAT` perd le centimètre loin de l'origine (le serveur GameTest tourne vers x = -1.4e7).
 - `World.getTopY` renvoie `getBottomY()` si le chunk n'est pas chargé : charger le chunk avant de lire une hauteur de surface.
 - `ChunkPos` n'a pas de `PACKET_CODEC` en 1.21.1 : `PacketCodecs.VAR_LONG.xmap(ChunkPos::new, ChunkPos::toLong)`.

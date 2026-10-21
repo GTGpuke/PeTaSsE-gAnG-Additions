@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.gl.VertexBuffer;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.LazyVertexBuffers;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.LazyVertexBuffers;
 
 /**
  * Tampons de sommets crees pendant la creation d'un renderer de vue : leurs objets GL (tampon de sommets, tampon

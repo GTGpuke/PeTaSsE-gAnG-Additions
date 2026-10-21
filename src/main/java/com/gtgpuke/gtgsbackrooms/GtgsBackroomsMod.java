@@ -6,26 +6,28 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.layout.LevelZeroLayout;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.block.BackroomsPortalBlockEntity;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.debug.DebugPortalCommand;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntityRegistry;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.interaction.RemoteInteractionHandler;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.light.PortalLightTransmission;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalSight;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.DestinationLoader;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.transition.TeleportExecutor;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
-import com.gtgpuke.gtgsbackrooms.init.ModBlockEntities;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
-import com.gtgpuke.gtgsbackrooms.init.ModChunkGenerators;
-import com.gtgpuke.gtgsbackrooms.init.ModCreativeTab;
-import com.gtgpuke.gtgsbackrooms.init.ModDataComponents;
-import com.gtgpuke.gtgsbackrooms.init.ModEntities;
-import com.gtgpuke.gtgsbackrooms.init.ModItems;
-import com.gtgpuke.gtgsbackrooms.init.ModNetworking;
-import com.gtgpuke.gtgsbackrooms.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.perf.ModPerformanceMonitor;
+import com.gtgpuke.gtgsbackrooms.core.portal.block.BackroomsPortalBlockEntity;
+import com.gtgpuke.gtgsbackrooms.core.portal.debug.DebugPortalCommand;
+import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntityRegistry;
+import com.gtgpuke.gtgsbackrooms.core.portal.interaction.RemoteInteractionHandler;
+import com.gtgpuke.gtgsbackrooms.core.portal.item.PortalWandItem;
+import com.gtgpuke.gtgsbackrooms.core.portal.light.PortalLightTransmission;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalSight;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.DestinationLoader;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.TeleportExecutor;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlockEntities;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModChunkGenerators;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModCreativeTab;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModDataComponents;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModEntities;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModItems;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModNetworking;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModSounds;
 
 /**
  * Point d'entree commun (client et serveur) du mod.
@@ -46,16 +48,19 @@ public class GtgsBackroomsMod implements ModInitializer {
         ModConstants.LOGGER.info("Initialisation de {} terminee.", ModConstants.MOD_NAME);
     }
 
-    /** Enregistre tout le contenu : blocs avant items, block entities apres blocs, composants avant items. */
+    /** Enregistre tout le contenu : blocs avant items, block entities apres blocs, composants et sons avant items. */
     private static void registerContent() {
         ModChunkGenerators.register();
         ModDataComponents.register();
+        ModSounds.register();
         ModBlocks.register();
         ModBlockEntities.register();
         ModEntities.register();
         ModItems.register();
         ModCreativeTab.register();
         ModNetworking.register();
+        // La baguette se regle meme portails coupes : elle pose alors des blocs portail inertes.
+        PortalWandItem.init();
     }
 
     private static void registerServerHooks() {

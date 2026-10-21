@@ -11,7 +11,7 @@ import net.minecraft.server.world.ServerChunkManager;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.sync.PortalViewTracker;
+import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker;
 
 /**
  * Relaie chaque changement de bloc serveur aux joueurs qui voient ce chunk a travers un portail.

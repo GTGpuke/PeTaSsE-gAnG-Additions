@@ -20,7 +20,7 @@ import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroLaye
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.coord.LevelZeroVerticalSlice;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.layout.LevelZeroCellEvaluation;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.generation.layout.LevelZeroLayout;
-import com.gtgpuke.gtgsbackrooms.init.ModBlocks;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModBlocks;
 
 @DisplayName("Writer de blocs du Level 0")
 class LevelZeroBlockWriterTest {

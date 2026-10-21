@@ -18,10 +18,10 @@ import net.minecraft.client.gl.ShaderProgram;
 import net.minecraft.client.gl.ShaderStage;
 import net.minecraft.resource.ResourceFactory;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalClipping;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderClipInjector;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderStageOrigin;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.PortalClipping;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ShaderClipInjector;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ShaderStageOrigin;
 
 /**
  * A chaque activation d'un shader pendant le dessin d'une vue de portail, lui transmet le plan de decoupe courant

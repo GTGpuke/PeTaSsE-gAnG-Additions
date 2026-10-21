@@ -219,7 +219,7 @@ find src -type d -empty; find src -name ".gitkeep"
 - [ ] `BLOCKS.md`, `ITEMS.md`, `ENTITIES.md`, `DIMENSIONS.md`, `ARCHITECTURE.md` et `README.md` si la structure, le
       contenu ou les commandes changent.
 - [ ] `CLAUDE.md` : structure, commandes, et un piège par leçon nouvelle apprise pendant la passe.
-- [ ] Les nombres et constantes cités dans la doc (payloads, réglages proposés, intervalles, distances) sont ceux du
+- [ ] Les nombres et constantes cités dans la doc (payloads, réglages, intervalles, distances) sont ceux du
       code.
 - [ ] Une fonctionnalité retirée n'est plus citée, sauf dans l'historique.
 

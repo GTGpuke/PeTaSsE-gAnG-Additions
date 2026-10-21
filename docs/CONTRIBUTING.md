@@ -53,7 +53,8 @@ Le détail pas à pas est dans `docs/prompt/BEFOREPUSH.md`.
 
 ## Règles non négociables
 
-1. Un champ `static final` par enregistrement dans `init/`.
+1. Un champ `static final` par enregistrement dans `core/registry/` ; la classe de l'objet dans le paquet de son domaine
+   (tableau « Où ranger quoi » de `docs/ARCHITECTURE.md`).
 2. Code client uniquement sous `client/` ou `mixin/client/`.
 3. Tout texte visible en jeu passe par `Text.translatable` et existe en EN et FR.
 4. Aucune évolution de la génération du Level 0 sans mise à jour des empreintes et du CHANGELOG.

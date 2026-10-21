@@ -1,0 +1,6 @@
+{
+  "parent": "item/handheld",
+  "textures": {
+    "layer0": "gtgs_backrooms:item/portal_wand"
+  }
+}

@@ -395,8 +395,8 @@ Et si la zone auditée touche `backrooms`, confirmer explicitement :
 
 ```bash
 echo "========== ÉTAPE 9.3 — Vérification des enregistrements Fabric =========="
-echo "--- Enregistrements Registry.register dans init/ ---"
-grep -rn "Registry\.register" src/main/java/com/gtgpuke/gtgsbackrooms/init/ --include="*.java"
+echo "--- Enregistrements Registry.register dans core/registry/ ---"
+grep -rn "Registry\.register" src/main/java/com/gtgpuke/gtgsbackrooms/core/registry/ --include="*.java"
 echo "--- Traductions existantes ---"
 python3 -c "import json; d=json.load(open('src/main/resources/assets/gtgs_backrooms/lang/en_us.json')); print(f'{len(d)} clés EN'); d=json.load(open('src/main/resources/assets/gtgs_backrooms/lang/fr_fr.json')); print(f'{len(d)} clés FR')"
 echo "--- Textures existantes ---"

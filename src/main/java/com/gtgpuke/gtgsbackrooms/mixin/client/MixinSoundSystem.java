@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.sound.SoundInstance;
 import net.minecraft.client.sound.SoundSystem;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.sound.SoundAnchors;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.sound.SoundAnchors;
 
 /**
  * Chaque son que le moteur se met a jouer garde sa vraie source ({@link SoundAnchors}) : replace apres une traversee de

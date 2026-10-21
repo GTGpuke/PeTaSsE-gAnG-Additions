@@ -13,8 +13,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.client.gl.Framebuffer;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.PortalRenderState;
-import com.gtgpuke.gtgsbackrooms.config.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.ModConfig;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.PortalRenderState;
 
 /**
  * Remplace l'attachement de profondeur des framebuffers par un attachement profondeur + stencil,

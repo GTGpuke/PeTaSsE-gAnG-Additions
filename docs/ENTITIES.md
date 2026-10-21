@@ -4,9 +4,9 @@
 
 | Propriété | Valeur |
 |-----------|--------|
-| Classe | `backrooms/portal/entity/BackroomsPortalEntity.java` |
+| Classe | `core/portal/entity/BackroomsPortalEntity.java` |
 | Type | `ModEntities.BACKROOMS_PORTAL` (MISC, 0.1 x 0.1, tracking 8, rafraîchi toutes les 20 ticks) |
-| Renderer | `backrooms/portal/client/entity/BackroomsPortalEntityRenderer.java` : rien quand le rendu distant est actif (le contenu passe par le stencil), cadre sombre sinon |
+| Renderer | `core/portal/client/entity/BackroomsPortalEntityRenderer.java` : rien quand le rendu distant est actif (le contenu passe par le stencil), cadre sombre sinon |
 | Données synchronisées | orientation source et destination (`PortalFacing`), dimension et position d'arrivée, taille, visible, ouvert (`teleportable`), lumière transmise |
 | Données serveur | bloc portail propriétaire (dimension + position) |
 | Création | par une `BackroomsPortalBlockEntity` (selon ses réglages, une ou deux faces dos à dos dans le cadre, autant au point d'arrivée sauf aller simple ; ceux d'une sortie fugace disparaissent quand, après avoir été vus, plus aucun joueur ne les regarde, et reviennent au prochain joueur qui passe l'entrée) ; `BackroomsPortalEntity.builder(world)…build()` pour un portail libre |

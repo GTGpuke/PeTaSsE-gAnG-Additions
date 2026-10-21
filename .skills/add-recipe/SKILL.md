@@ -90,8 +90,8 @@ data/gtgs_backrooms/recipe/
 {
   "type": "minecraft:smelting",
   "category": "misc",
-  "ingredient": { "item": "gtgs_backrooms:raw_gangite" },
-  "result": { "id": "gtgs_backrooms:gangite_ingot" },
+  "ingredient": { "item": "gtgs_backrooms:raw_level_zero_ore" },
+  "result": { "id": "gtgs_backrooms:level_zero_ingot" },
   "experience": 1.0,
   "cookingtime": 200
 }
@@ -103,8 +103,8 @@ data/gtgs_backrooms/recipe/
 {
   "type": "minecraft:blasting",
   "category": "misc",
-  "ingredient": { "item": "gtgs_backrooms:gangite_ore" },
-  "result": { "id": "gtgs_backrooms:gangite_ingot" },
+  "ingredient": { "item": "gtgs_backrooms:level_zero_ore" },
+  "result": { "id": "gtgs_backrooms:level_zero_ingot" },
   "experience": 0.7,
   "cookingtime": 100
 }

@@ -1,0 +1,11 @@
+{
+  "item.portal_wand.place": {
+    "subtitle": "subtitles.gtgs_backrooms.item.portal_wand.place",
+    "sounds": [
+      {
+        "name": "minecraft:block.end_portal_frame.fill",
+        "type": "event"
+      }
+    ]
+  }
+}

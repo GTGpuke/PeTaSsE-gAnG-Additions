@@ -11,7 +11,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.Util;
 import net.minecraft.world.BlockView;
 
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.CrossingRoll;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.CrossingRoll;
 
 /** Apres son orientation par vanilla, la camera du joueur prend ce qui reste du roulis d'une traversee ({@link CrossingRoll}). */
 @Mixin(Camera.class)

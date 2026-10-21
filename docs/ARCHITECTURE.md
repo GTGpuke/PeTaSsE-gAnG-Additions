@@ -23,55 +23,69 @@ Aucune dépendance runtime externe en dehors de Fabric API. Le cache de secteurs
 com.gtgpuke.gtgsbackrooms/
 |
 |-- GtgsBackroomsMod.java        <- ModInitializer : registerContent() + hooks serveur + flag portail
-|-- GtgsBackroomsClientMod.java  <- ClientModInitializer : payloads (badge, chunks distants), modèle adaptatif, renderer portail
+|-- GtgsBackroomsClientMod.java  <- ClientModInitializer : modèle adaptatif, écran de la baguette, portails (chunks distants, rendu)
 |
-|-- core/ModConstants.java              <- MOD_ID, MOD_NAME, LOGGER
-|-- config/ModConfig.java               <- options lues au démarrage via -D (debug, portails)
+|-- core/                               <- le socle du mod, sur lequel repose le contenu
+|   |-- ModConstants.java               <- MOD_ID, MOD_NAME, LOGGER
+|   |-- ModConfig.java                  <- options lues au démarrage via -D (debug, portails)
+|   |-- registry/                       <- un registre par type, champs static final
+|   |   |-- ModBlocks.java
+|   |   |-- ModItems.java               <- la baguette, puis l'item de chaque bloc du Level 0 (le bloc portail n'en a pas)
+|   |   |-- ModBlockEntities.java
+|   |   |-- ModEntities.java            <- type de l'entity portail, toujours enregistré
+|   |   |-- ModDataComponents.java      <- composant des réglages de portail
+|   |   |-- ModSounds.java              <- sons, déclarés dans assets/gtgs_backrooms/sounds.json
+|   |   |-- ModChunkGenerators.java
+|   |   |-- ModCreativeTab.java         <- ENTRIES : contenu ordonné de l'onglet du mod
+|   |   `-- ModNetworking.java          <- types de payloads
+|   |-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
+|   `-- portal/                         <- portails : block, item, entity, transition, sync, interaction, propagation, light, client, debug (voir §Portails)
 |
-|-- init/                               <- un registre par type, champs static final
-|   |-- ModBlocks.java
-|   |-- ModItems.java
-|   |-- ModBlockEntities.java
-|   |-- ModEntities.java                <- type de l'entity portail, toujours enregistré
-|   |-- ModDataComponents.java          <- composant des réglages du bloc portail
-|   |-- ModChunkGenerators.java
-|   |-- ModCreativeTab.java             <- ENTRIES et PORTAL_ENTRIES : contenu ordonné des deux onglets
-|   `-- ModNetworking.java              <- types de payloads
-|
-|-- feature/
-|   |-- gang/GangBadgeItem, GangBadgeActivatePayload, client/GangBadgeClientHandler
-|   `-- cursed/CursedSnackItem
-|
-|-- backrooms/
+|-- backrooms/                          <- le contenu des Backrooms
 |   |-- BackroomsConstants.java         <- clé de dimension, identifiants, échelle de cellule
-|   |-- level0/
-|   |   |-- biome/LevelZeroSurfaceBiome          <- palettes cosmétiques par région et par layer
-|   |   |-- block/LevelZeroWallpaperBlock        <- mur adaptatif (face_mask 0-15)
-|   |   |-- client/model/                        <- LevelZeroWallpaperBakedModel + handler
-|   |   `-- generation/
-|   |       |-- LevelZeroChunkGenerator          <- orchestre les 5 layers
-|   |       |-- coord/   LevelZeroCoords, LevelZeroLayerStackLayout, LevelZeroVerticalSlice
-|   |       |-- noise/   StageRandom, LevelZeroSeedResolver
-|   |       |-- sector/  LevelZeroSectorGenerator, LevelZeroSectorData, LevelZeroSectorCache, LevelZeroSectorRoomKind
-|   |       |-- layout/  LevelZeroLayout, LevelZeroRegionWalkability, LevelZeroCellEvaluator,
-|   |       |            LevelZeroTopology, LevelZeroLargeRooms, LevelZeroLightPattern, LevelZeroCorridorGaps,
-|   |       |            LevelZeroCellEvaluation, LevelZeroCellContext, enums et masques
-|   |       `-- write/   LevelZeroBlockPalette, LevelZeroBlockWriter, LevelZeroWallSampler,
-|   |                    LevelZeroWallProps, LevelZeroDebugPalette
-|   `-- portal/                          <- portails : entity, block, transition, sync, interaction, propagation, light, client, debug (voir §Portails)
+|   `-- level0/
+|       |-- LevelZeroArrival                     <- où un portail arrive dans le labyrinthe (demandé par core/portal)
+|       |-- biome/LevelZeroSurfaceBiome          <- palettes cosmétiques par région et par layer
+|       |-- block/LevelZeroWallpaperBlock        <- mur adaptatif (face_mask 0-15)
+|       |-- client/model/                        <- LevelZeroWallpaperBakedModel + handler
+|       `-- generation/
+|           |-- LevelZeroChunkGenerator          <- orchestre les 5 layers
+|           |-- coord/   LevelZeroCoords, LevelZeroLayerStackLayout, LevelZeroVerticalSlice
+|           |-- noise/   StageRandom, LevelZeroSeedResolver
+|           |-- sector/  LevelZeroSectorGenerator, LevelZeroSectorData, LevelZeroSectorCache, LevelZeroSectorRoomKind
+|           |-- layout/  LevelZeroLayout, LevelZeroRegionWalkability, LevelZeroCellEvaluator,
+|           |            LevelZeroTopology, LevelZeroLargeRooms, LevelZeroLightPattern, LevelZeroCorridorGaps,
+|           |            LevelZeroCellEvaluation, LevelZeroCellContext, enums et masques
+|           `-- write/   LevelZeroBlockPalette, LevelZeroBlockWriter, LevelZeroWallSampler,
+|                        LevelZeroWallProps, LevelZeroDebugPalette
 |
 |-- compat/iris/                        <- compatibilité avec le mod de shaders Iris (seul mod nommé) : son API publique dit si un pack est actif
-|-- perf/ModPerformanceMonitor (+ client/ClientPerformanceMonitorHook)
-`-- mixin/                               <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière, météo) + client/ (rendu des portails)
+`-- mixin/                              <- communs (relais de blocs, chunks tenus, sons et particules, collision, mobs, lumière, météo) + client/ (rendu des portails)
 ```
 
-Les systèmes de rendu et d'audio à venir (`backrooms/render/`, `backrooms/audio/`, modules `compat/` supplémentaires)
+Où ranger quoi :
+
+| Ajout | Classe de l'objet | Enregistrement |
+|-------|-------------------|----------------|
+| Bloc, item ou entity d'un niveau des Backrooms | `backrooms/<niveau>/{block,item,entity}/` | `core/registry/Mod{Blocks,Items,Entities}` |
+| Objet d'un système du socle (portails…) | `core/<système>/{block,item,entity}/` (la baguette : `core/portal/item/`) | idem |
+| Son | — (un `SoundEvent` n'a pas de classe à lui) | `core/registry/ModSounds`, déclaré dans `assets/gtgs_backrooms/sounds.json` avec son sous-titre |
+| Payload réseau | dans le paquet de son système (`core/portal/sync/`) | `core/registry/ModNetworking` |
+| Système transverse (rendu, audio, `docs/GUIDE.md`) | `core/<système>/` | — |
+
+Aucun paquet n'existe sans code : un paquet `item/` de niveau naît avec son premier item.
+
+Dépendances : le contenu (`backrooms/`) s'appuie sur le socle (`core/`) ; le socle ne connaît du contenu que ce qu'il
+enregistre (`core/registry/`) et l'endroit où ses portails mènent : `PortalTargets` demande au Level 0 où arriver
+(`LevelZeroArrival`) et lit sa clé de dimension (`BackroomsConstants`). Un niveau de plus s'ajoute là, sans autre lien.
+
+Les systèmes de rendu et d'audio à venir (`core/render/`, `core/audio/`, modules `compat/` supplémentaires)
 s'insèrent selon `docs/GUIDE.md`, section 3.4 : ils consomment l'API de `portal/` (vues, transformations par le passage,
 mondes distants, bascule de monde), qui leur expose des points d'accès sans réécriture de sa logique. Aucun de ces
 paquets n'existe tant qu'il n'a pas de code : pas de dossier vide.
 
 Les tests en jeu vivent dans un source set séparé, `src/gametest/java/com/gtgpuke/gtgsbackrooms/gametest/`, rangé par
-domaine comme le code (`support/`, `backrooms/level0/`, `backrooms/portal/`, `feature/`) : un mod
+domaine comme le code (`support/`, `backrooms/level0/`, `core/portal/`) : un mod
 `gtgs_backrooms_gametest` chargé par `runGameTest` seulement, jamais dans le JAR (`verifyJarContents` le vérifie).
 
 ---
@@ -122,9 +136,10 @@ supplémentaire dans le monde.
 
 ## Portails
 
-`backrooms/portal/` relie le monde normal et le Level 0 par un bloc portail : entity portail persistante,
-block entity qui garde ses réglages (taille, lumière), trouve seule sa destination et pose deux faces dos à dos de
-chaque côté (un portail double face), téléportation par traversée du
+`core/portal/` relie le monde normal et le Level 0 par un bloc portail : entity portail persistante,
+block entity qui garde ses réglages (taille, lumière, plan au milieu ou au bord du bloc), trouve seule sa destination
+et pose deux faces dos à dos de chaque côté (un portail double face), baguette qui pose des blocs portail aux réglages
+choisis dans son écran (`item/PortalWandItem`, `client/wand/`), seule façon d'en créer un, téléportation par traversée du
 plan (joueurs prédits par le client, objets et mobs transposés par le serveur), collision à travers le cadre
 (`transition/PortalCollision`), synchronisation serveur → client des chunks et des entités de l'autre dimension
 (payloads `portal_remote_*`, suivi vanilla des entités), rendu client du monde distant à travers le cadre (stencil,
@@ -140,9 +155,9 @@ Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout (bloc inerte, mi
 
 ```text
 1. Fabric charge le mod ; les mixins communs et client s'appliquent (sans effet si portails désactivés).
-2. onInitialize() : registerContent() (générateurs de chunks -> composants -> blocs -> block entities -> entity -> items -> onglets -> payloads),
+2. onInitialize() : registerContent() (générateurs de chunks -> composants -> blocs -> block entities -> entity -> items -> onglet -> payloads),
    hooks de tick serveur (perf), vidage du cache de secteurs à l'arrêt, runtime portail si activé.
-3. onInitializeClient() : récepteurs des payloads (badge, chunks distants), hook FPS, modèle adaptatif, renderer portail.
+3. onInitializeClient() : hook FPS, modèle adaptatif, écran de la baguette, renderer et récepteurs des portails.
 4. Chargement du monde : le datapack déclare la dimension, qui référence le codec du générateur.
 ```
 
@@ -152,7 +167,7 @@ Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout (bloc inerte, mi
 
 | Règle | Détail |
 |-------|--------|
-| Code commun | `init/`, `feature/*` (hors `client/`), `backrooms/level0/{biome,block,generation}`, `backrooms/portal/{entity,block,transition,sync,interaction,propagation,light,debug}`, `mixin/*` (hors `client/`), `perf/ModPerformanceMonitor` |
+| Code commun | `core/` (hors `client/`) : `ModConstants`, `ModConfig`, `registry/`, `perf/ModPerformanceMonitor`, `portal/{block,item,entity,transition,sync,interaction,propagation,light,debug}` ; `backrooms/level0/{biome,block,generation}`, `mixin/*` (hors `client/`) |
 | Code client | sous-packages `client/` et `mixin/client/` uniquement ; jamais de `MinecraftClient` ailleurs |
 | Point d'entrée | `ClientModInitializer` séparé, déclaré dans `fabric.mod.json` |
 
@@ -166,7 +181,7 @@ Actif par défaut, `ModConfig.ENABLE_PORTAL_FEATURE` coupe tout (bloc inerte, mi
 | Méthode / variable | camelCase | `wallpaperFaceMask` |
 | Constante | UPPER_SNAKE_CASE | `REGION_MARGIN_CELLS` |
 | Identifiant registre | snake_case | `level_zero_wallpaper_adaptive` |
-| Clé de langue | `block.<mod_id>.<id>` (reprise par l'item du bloc), `item.<mod_id>.<id>` pour un item sans bloc | `block.gtgs_backrooms.cursed_log` |
+| Clé de langue | `block.<mod_id>.<id>` (reprise par l'item du bloc), `item.<mod_id>.<id>` pour un item sans bloc | `block.gtgs_backrooms.level_zero_wallpaper` |
 | Commentaires et logs | français, majuscule, point final, ASCII | `// Le cache evince les plus anciens.` |
 | Imports | `java` → tiers (`com.mojang`, `com.llamalad7`, `org.*`) → `net.minecraft` → `net.fabricmc` → `com.gtgpuke` | — |
 

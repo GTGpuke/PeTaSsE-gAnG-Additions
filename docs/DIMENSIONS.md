@@ -7,7 +7,7 @@
 | Type de dimension | `backrooms_level_0_type` : `min_y` 0, `height` 64, sans ciel, plafond, lumière ambiante 0, heure fixe |
 | Biome | `gtgs_backrooms:backrooms_level_0` (vide, aucun spawn) |
 | Générateur | `gtgs_backrooms:backrooms_level_zero` → `LevelZeroChunkGenerator` |
-| Accès | **Portail des Backrooms** (onglet créatif *GTG's Backrooms - Portails*) : posé dans le monde normal, il ouvre un portail double face vers le layer 0 ; posé dans le Level 0, il ramène à la surface. Voir [PORTALS.md](PORTALS.md). |
+| Accès | **Portail des Backrooms**, posé avec la baguette de portail (onglet créatif *GTG's Backrooms*) : posé dans le monde normal, il ouvre un portail double face vers le layer 0 ; posé dans le Level 0, il ramène à la surface. Voir [PORTALS.md](PORTALS.md). |
 
 ### Géographie verticale
 

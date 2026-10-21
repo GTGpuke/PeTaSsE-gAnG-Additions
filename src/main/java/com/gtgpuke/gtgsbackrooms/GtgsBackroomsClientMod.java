@@ -2,32 +2,30 @@ package com.gtgpuke.gtgsbackrooms;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.client.rendering.v1.EntityRendererRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.client.model.LevelZeroWallpaperModelHandler;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.entity.BackroomsPortalEntityRenderer;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteActions;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.interaction.RemoteTargeting;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.ClientPortalCrossing;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.transition.EntityHandover;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ShaderPackPortalRenderer;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.view.ViewLightmaps;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalIndex;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.ClientPortalLight;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.PortalSightReporter;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteSyncReceiver;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.client.world.RemoteWorldRegistry;
 import com.gtgpuke.gtgsbackrooms.compat.iris.IrisCompat;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
-import com.gtgpuke.gtgsbackrooms.feature.gang.GangBadgeActivatePayload;
-import com.gtgpuke.gtgsbackrooms.feature.gang.client.GangBadgeClientHandler;
-import com.gtgpuke.gtgsbackrooms.init.ModEntities;
-import com.gtgpuke.gtgsbackrooms.perf.client.ClientPerformanceMonitorHook;
+import com.gtgpuke.gtgsbackrooms.core.perf.client.ClientPerformanceMonitorHook;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.entity.BackroomsPortalEntityRenderer;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.interaction.RemoteActions;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.interaction.RemoteTargeting;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.transition.ClientPortalCrossing;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.transition.EntityHandover;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ShaderPackPortalRenderer;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.view.ViewLightmaps;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.wand.PortalWandScreen;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.ClientPortalIndex;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.ClientPortalLight;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.PortalSightReporter;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteSyncReceiver;
+import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorldRegistry;
+import com.gtgpuke.gtgsbackrooms.core.registry.ModEntities;
 
 /**
- * Point d'entree client du mod : rendu adaptatif du Level 0, reception des payloads, portails.
+ * Point d'entree client du mod : rendu adaptatif du Level 0, ecran de la baguette, portails.
  */
 public class GtgsBackroomsClientMod implements ClientModInitializer {
 
@@ -35,11 +33,11 @@ public class GtgsBackroomsClientMod implements ClientModInitializer {
     public void onInitializeClient() {
         ModConstants.LOGGER.debug("Initialisation client de {}.", ModConstants.MOD_NAME);
 
-        // Les recepteurs Fabric tournent deja sur le thread de rendu : le badge s'applique a reception.
-        ClientPlayNetworking.registerGlobalReceiver(GangBadgeActivatePayload.ID, (payload, context) -> GangBadgeClientHandler.handle());
         ClientTickEvents.END_CLIENT_TICK.register(ClientPerformanceMonitorHook::onEndClientTick);
         WorldRenderEvents.END.register(ClientPerformanceMonitorHook::onFrameRendered);
         LevelZeroWallpaperModelHandler.register();
+        // La baguette de portail se regle meme portails coupes.
+        PortalWandScreen.register();
 
         // Le type d'entity portail est toujours enregistre : son renderer et ses payloads doivent l'etre aussi.
         EntityRendererRegistry.register(ModEntities.BACKROOMS_PORTAL, BackroomsPortalEntityRenderer::new);

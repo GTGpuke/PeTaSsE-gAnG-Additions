@@ -20,9 +20,9 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConstants;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.BackroomsPortalEntity;
-import com.gtgpuke.gtgsbackrooms.backrooms.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
+import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntity;
+import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
 
 /**
  * Mondes du serveur de test pour les tests de portails : le Nether tient lieu de dimension distante (generation et
