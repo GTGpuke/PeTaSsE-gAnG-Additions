@@ -224,7 +224,11 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   Fabric API 0.116.11 (la configuration du plantage) et Loader 0.16.9, le minimum déclaré.
 - **Test en jeu intermittent** (`crossingADimensionPortalMovesThePlayerToTheNetherWithoutResendingItsChunks`, une
   fois sur six) : il comparait les chunks du Nether au début et à la fin, alors qu'un chunk qui change pendant qu'il est
-  tenu (un feu qui naît et s'éteint) repart à bon droit ; il suit maintenant les changements à chaque tick.
+  tenu (un feu qui naît et s'éteint) repart à bon droit. La CI a montré qu'une empreinte des blocs, même relevée à
+  chaque tick, ne suffit pas : un bloc peut changer puis revenir dans le même tick (une case de lave qui se vide et
+  se remplit), et le serveur renvoie alors le chunk sans qu'aucune empreinte ne voie de différence. Le test place
+  désormais un témoin dans le Nether, à l'arrivée : vanilla lui envoie chaque bloc signalé, et seul un chunk signalé
+  depuis le passage peut être renvoyé ; il vérifie aussi que vanilla repropose des chunks tenus sans les renvoyer.
 - **Portails d'une orientation à une autre** (changement de gravité : sol ou plafond vers un mur, mur vers sol ou
   plafond), vérifiés au banc en survie et sur les 36 paires en tests en jeu :
   - la vue à travers un tel portail était penchée (lacet et tangage seuls, sans roulis) : la caméra d'une vue prend

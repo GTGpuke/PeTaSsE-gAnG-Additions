@@ -4,11 +4,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-import it.unimi.dsi.fastutil.longs.Long2IntMap;
-import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.block.Blocks;
 import net.minecraft.block.SnowBlock;
@@ -25,7 +24,9 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
 import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
+import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.ChunkDataS2CPacket;
+import net.minecraft.network.packet.s2c.play.ChunkDeltaUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntitiesDestroyS2CPacket;
 import net.minecraft.network.packet.s2c.play.EntitySpawnS2CPacket;
 import net.minecraft.network.packet.s2c.play.GameStateChangeS2CPacket;
@@ -342,39 +343,41 @@ public final class PortalSyncGameTests implements FabricGameTest {
         BackroomsPortalEntity portal = netherPortal(context);
         LEFTOVERS.add(portal);
         ServerPlayerEntity player = viewer(context, GameMode.CREATIVE);
+        // Un temoin dans le Nether, a l'arrivee : vanilla lui envoie chaque bloc signale de ses chunks, meme revenu a
+        // l'identique dans le meme tick (une case de lave qui se vide et se remplit). Le serveur renvoie a bon droit un chunk
+        // tenu ainsi signale, et aucune empreinte de ses blocs, relevee entre deux ticks, ne le verrait.
+        ServerPlayerEntity witness = GameTestPlayers.connect(context, GameMode.CREATIVE, context.getAbsolute(VIEWER), 0.0f, 0.0f);
+        witness.teleportTo(new TeleportTarget(nether, NETHER_EXIT, Vec3d.ZERO, 0.0f, 0.0f, TeleportTarget.NO_OP));
         Vec3d plane = portal.getPos();
         int[] crossedAt = {-1};
-        int[] seenAt = {-1};
         LongSet held = new LongOpenHashSet();
-        Long2IntMap fingerprints = new Long2IntOpenHashMap();
+        LongSet witnessed = new LongOpenHashSet();
+        LongSet notified = new LongOpenHashSet();
         LongSet resent = new LongOpenHashSet();
-        LongSet changed = new LongOpenHashSet();
 
-        // Le joueur regarde le portail et traverse des la premiere poignee de chunks du Nether recue : vanilla lui
-        // reproposera ensuite ces chunks-la, tous proches de l'arrivee, et ne renverra que ceux qui ont change depuis.
-        // Leurs blocs sont releves le tick d'avant, puis a chaque tick jusqu'a leur renvoi : un Nether neuf bouge encore (la
-        // lave des sources coule, un feu nait et s'eteint), et un chunk qui a change, meme revenu a l'identique, repart.
-        for (int tick = 20; tick < 2190; tick++) {
+        // Le joueur regarde le portail et traverse des que le temoin a recu tous les chunks du Nether que le portail lui a
+        // envoyes : vanilla lui reproposera ensuite ces chunks-la, tous proches de l'arrivee, et ne renverra que ceux dont un
+        // bloc a ete signale depuis le passage (un changement encore en attente au moment du passage compris).
+        for (int tick = 1; tick < 2190; tick++) {
             int now = tick;
             context.runAtTick(tick, () -> {
-                if (crossedAt[0] < 0 && seenAt[0] < 0) {
-                    if (PortalViewTracker.watchedChunkCount() > 0) {
-                        seenAt[0] = now;
-                        for (RemoteChunkPayload chunk : GameTestPlayers.sent(player, RemoteChunkPayload.class)) {
-                            long key = ChunkPos.toLong(chunk.chunkX(), chunk.chunkZ());
-                            held.add(key);
-                            fingerprints.put(key, chunkFingerprint(nether, key));
-                        }
-                    } else if (now > SYNC_PATIENCE_TICKS) {
-                        throw new GameTestException("Aucun chunk du Nether recu avant la traversee.");
-                    }
-                } else if (crossedAt[0] < 0) {
-                    noteChanges(nether, fingerprints, resent, changed);
-                    crossedAt[0] = now;
-                    // Arrives depuis le releve : tenus aussi, mais sans empreinte, ils ne sont pas juges.
+                GameTestPlayers.tick(witness);
+                for (ChunkDataS2CPacket chunk : GameTestPlayers.sent(witness, ChunkDataS2CPacket.class)) {
+                    witnessed.add(ChunkPos.toLong(chunk.getChunkX(), chunk.getChunkZ()));
+                }
+                if (crossedAt[0] < 0) {
                     for (RemoteChunkPayload chunk : GameTestPlayers.sent(player, RemoteChunkPayload.class)) {
                         held.add(ChunkPos.toLong(chunk.chunkX(), chunk.chunkZ()));
                     }
+                    if (held.isEmpty() || !witnessed.containsAll(held)) {
+                        noteNotified(witness, null);
+                        if (now > SYNC_PATIENCE_TICKS) {
+                            throw new GameTestException("Le temoin n'a pas recu tous les chunks du Nether envoyes au joueur avant la traversee.");
+                        }
+                        return;
+                    }
+                    crossedAt[0] = now;
+                    noteNotified(witness, notified);
                     player.refreshPositionAndAngles(plane.x, plane.y - 1.0, plane.z + 0.05, 0.0f, 0.0f);
                     context.assertTrue(TeleportExecutor.execute(player, portal), "La traversee a lieu.");
                     context.assertTrue(player.getServerWorld() == nether, "Le joueur est dans le Nether.");
@@ -384,36 +387,60 @@ public final class PortalSyncGameTests implements FabricGameTest {
                     context.assertTrue(!PortalViewTracker.consumeHeldChunk(player, new ChunkPos(10_000, 10_000)), "Un chunk lointain n'est pas tenu.");
                 } else if (now - crossedAt[0] < 60) {
                     // Le gestionnaire reseau du joueur tique : vanilla lui propose les chunks du Nether, sauf ceux qu'il tient deja.
-                    noteChanges(nether, fingerprints, resent, changed);
+                    noteNotified(witness, notified);
                     GameTestPlayers.tick(player);
                     for (ChunkDataS2CPacket chunk : GameTestPlayers.sent(player, ChunkDataS2CPacket.class)) {
                         resent.add(ChunkPos.toLong(chunk.getChunkX(), chunk.getChunkZ()));
                     }
                 } else if (now - crossedAt[0] == 60) {
                     try {
+                        noteNotified(witness, notified);
                         context.assertTrue(player.getServerWorld() == nether && player.isAlive(), "Le joueur reste dans le Nether.");
-                        context.assertTrue(!held.isEmpty(), "Le joueur tenait des chunks du Nether avant de traverser.");
                         context.assertTrue(!resent.isEmpty(), "Vanilla envoie au joueur les autres chunks du Nether.");
                         LongIterator again = resent.iterator();
                         while (again.hasNext()) {
                             long key = again.nextLong();
-                            context.assertTrue(!fingerprints.containsKey(key) || changed.contains(key) || fingerprints.get(key) != chunkFingerprint(nether, key),
-                                    "Vanilla ne renvoie aucun des " + fingerprints.size() + " chunks deja recus par le portail, sauf s'il a change.");
+                            context.assertTrue(!held.contains(key) || notified.contains(key), "Vanilla ne renvoie aucun des " + held.size()
+                                    + " chunks deja recus par le portail, sauf ceux dont un bloc a ete signale depuis : " + new ChunkPos(key) + ".");
                         }
-                        // Ceux que vanilla n'a pas encore reproposes se consomment jusqu'au dernier ; ensuite, plus rien n'est tenu.
+                        // Ceux que vanilla n'a pas encore reproposes se consomment jusqu'au dernier ; ceux qu'il a reproposes sans
+                        // les renvoyer, ni renvoyes ni signales, ne sont deja plus tenus. Ensuite, plus rien n'est tenu.
+                        int skipped = 0;
                         LongIterator remaining = held.iterator();
                         while (remaining.hasNext()) {
-                            PortalViewTracker.consumeHeldChunk(player, new ChunkPos(remaining.nextLong()));
+                            long key = remaining.nextLong();
+                            if (!PortalViewTracker.consumeHeldChunk(player, new ChunkPos(key)) && !resent.contains(key) && !notified.contains(key)) {
+                                skipped++;
+                            }
                         }
+                        context.assertTrue(skipped > 0, "Vanilla repropose des chunks tenus sans les renvoyer.");
                         context.assertTrue(!PortalViewTracker.consumeHeldChunk(player, new ChunkPos(held.iterator().nextLong())),
                                 "Le dernier chunk tenu consomme, le joueur n'en tient plus aucun.");
                     } finally {
                         GameTestPlayers.disconnect(player);
+                        GameTestPlayers.disconnect(witness);
                         portal.discard();
                     }
                     context.complete();
                 }
             });
+        }
+    }
+
+    /**
+     * Chunks dont un bloc a ete signale au temoin depuis la derniere lecture : vanilla envoie a ceux qui suivent un chunk
+     * chaque bloc change pendant le tick, avec son etat de fin de tick. Sans {@code into}, les signalements sont oublies.
+     */
+    private static void noteNotified(ServerPlayerEntity witness, @Nullable LongSet into) {
+        for (BlockUpdateS2CPacket update : GameTestPlayers.sent(witness, BlockUpdateS2CPacket.class)) {
+            if (into != null) {
+                into.add(ChunkPos.toLong(update.getPos()));
+            }
+        }
+        for (ChunkDeltaUpdateS2CPacket delta : GameTestPlayers.sent(witness, ChunkDeltaUpdateS2CPacket.class)) {
+            if (into != null) {
+                delta.visitUpdates((pos, state) -> into.add(ChunkPos.toLong(pos)));
+            }
         }
     }
 
@@ -1757,31 +1784,6 @@ public final class PortalSyncGameTests implements FabricGameTest {
     @AfterBatch(batchId = "portal_sync_held_change")
     public void afterHeldChange(ServerWorld world) {
         releaseLeftovers();
-    }
-
-    /** Note les chunks releves, pas encore renvoyes, dont un bloc a change depuis le releve (meme revenu a l'identique ensuite). */
-    private static void noteChanges(ServerWorld world, Long2IntMap fingerprints, LongSet resent, LongSet changed) {
-        for (Long2IntMap.Entry entry : fingerprints.long2IntEntrySet()) {
-            long key = entry.getLongKey();
-            if (!resent.contains(key) && !changed.contains(key) && chunkFingerprint(world, key) != entry.getIntValue()) {
-                changed.add(key);
-            }
-        }
-    }
-
-    /** Empreinte des blocs d'un chunk charge : egale a une precedente, aucun bloc n'y a change entre-temps. */
-    private static int chunkFingerprint(ServerWorld world, long key) {
-        WorldChunk chunk = world.getChunk(ChunkPos.getPackedX(key), ChunkPos.getPackedZ(key));
-        BlockPos.Mutable pos = new BlockPos.Mutable();
-        int hash = 1;
-        for (int y = world.getBottomY(); y < world.getTopY(); y++) {
-            for (int x = 0; x < 16; x++) {
-                for (int z = 0; z < 16; z++) {
-                    hash = 31 * hash + chunk.getBlockState(pos.set(chunk.getPos().getStartX() + x, y, chunk.getPos().getStartZ() + z)).hashCode();
-                }
-            }
-        }
-        return hash;
     }
 
     /** Pose du verre dans le ciel d'un chunk du Nether, ou il n'y a que de l'air, et rend sa position. */

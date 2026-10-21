@@ -266,6 +266,11 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   tombe sans dériver, un porte-armure. Un joueur monté ne bouge qu'à la réception des paquets de son client : le trajet
   de son véhicule ne se lit pas dans `prevX` (`TeleportExecutor` le suit d'un tick à l'autre). Un serveur de test qui
   plante n'écrit pas `build/junit.xml` : un script qui lit ce rapport doit tenir le code de sortie pour un échec.
+- Tests en jeu : un bloc peut changer puis revenir dans le même tick (une case de lave qui se vide et se remplit) ; le
+  serveur le voit (`markForUpdate`), une empreinte des blocs relevée entre deux ticks jamais. Pour savoir si un chunk a
+  été signalé, un joueur témoin qui le suit reçoit de vanilla chaque bloc changé pendant le tick (`BlockUpdateS2CPacket`,
+  `ChunkDeltaUpdateS2CPacket`), une fois le chunk reçu. Le serveur de test coupe déjà le feu, les ticks aléatoires et
+  l'apparition des mobs, sur une graine fixe (0) : un test instable y dépend du minutage, pas du terrain.
 - Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
   type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
   fautif passe inaperçu).
