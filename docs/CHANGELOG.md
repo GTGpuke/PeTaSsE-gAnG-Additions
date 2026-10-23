@@ -60,8 +60,9 @@ rendu. La porte des Backrooms et le badge de la Gang sont retirés.
   (par le serveur), comme les blocs de l'autre côté ; un portail fermé n'arrête rien (`PortalCollision.walls`).
 - **Trappe et garde d'arrivée** : un cadre au sol s'ouvre sous qui s'y tient, même posé sur un sol plein, et l'on y
   tombe avec son élan. Qui sort d'un cadre d'arrivée au sol en est gardé (`ArrivalGuard`) : il s'y pose, même
-  au-dessus du vide, sans repartir aussitôt par le portail de retour, jusqu'à ce qu'il en descende, s'accroupisse (on
-  reprend ainsi une arrivée au sol, volontairement) ou change de monde. Le serveur refuse la traversée annoncée d'un
+  au-dessus du vide, sans repartir aussitôt par le portail de retour, le temps d'en descendre : la garde tombe quand il
+  en descend, s'accroupit (on reprend ainsi une arrivée au sol, volontairement) ou change de monde, et une seconde
+  après qu'il s'y est posé (qui y reste ou y marche sans y prendre garde y retombe). Le serveur refuse la traversée annoncée d'un
   cadre gardé et ne la mène pas lui-même. Remplace la descente accroupie dans une arrivée au sol, qui ne servait plus.
 - **Arrivée tête en bas** (réglage `upside_down`, composant, NBT, info-bulle, écran de la baguette) : le cadre
   d'arrivée est retourné ; on y voit l'autre côté tête en bas, on en ressort renversé, et la caméra se redresse d'un

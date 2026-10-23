@@ -48,8 +48,11 @@ public final class PortalTunnelGameTests implements FabricGameTest {
     private static final double ITEM_SPEED = 0.3;
     /** Pas d'un joueur simule qui descend, par tick, comme le dirait son client. */
     private static final double FALL_STEP = 0.4;
-    /** Ticks pendant lesquels un corps garde doit tenir sur son cadre d'arrivee : plus que le cooldown de portail d'une entity. */
-    private static final int HOLD_TICKS = 20;
+    /**
+     * Ticks pendant lesquels un corps garde doit tenir sur son cadre d'arrivee, compte de sa pose : plus que le cooldown de
+     * portail d'une entity (dix ticks, compte de son arrivee), moins que le repit de la garde.
+     */
+    private static final int HOLD_TICKS = 12;
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 100)
     public void aFloorFrameOnSolidGroundOpensUnderAFallingBodyAndKeepsItsSpeed(TestContext context) {
@@ -241,7 +244,7 @@ public final class PortalTunnelGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 400)
-    public void anArrivalFloorFrameHoldsWhoComesOutOfItUntilTheyStepOffOrSneak(TestContext context) {
+    public void anArrivalFloorFrameHoldsWhoComesOutOfItBrieflyUnlessTheyStepOffOrSneak(TestContext context) {
         ServerWorld world = context.getWorld();
         fill(context, new BlockPos(2, 0, 2), new BlockPos(8, 0, 5), Blocks.STONE);
         // Deux cadres au sol, l'un vers l'autre : A a ras de la pierre, B en l'air, trois blocs au-dessus du sol de l'arene.
@@ -251,26 +254,36 @@ public final class PortalTunnelGameTests implements FabricGameTest {
         BackroomsPortalEntity toA = spawn(world, b, PortalFacing.UP, PortalFacing.UP, a);
         ArmorStandEntity body = stand(world, a.add(0.0, 3.0, 0.0), true);
         int[] held = {0};
+        long[] landed = {0L};
+        long[] pushed = {0L};
         context.createTimedTaskRunner()
                 // Tombe dans A, il ressort de B vers le haut et retombe dessus : garde, il s'y pose, au-dessus du vide.
-                .createAndAdd(() -> context.assertTrue(near(ArrivalGuard.guardedCenter(body), b) && body.isOnGround(), "Pas encore pose sur B."))
+                .createAndAdd(() -> {
+                    context.assertTrue(near(ArrivalGuard.guardedCenter(body), b) && body.isOnGround(), "Pas encore pose sur B.");
+                    landed[0] = world.getTime();
+                })
                 .createAndAdd(() -> context.assertTrue(++held[0] > HOLD_TICKS, "Il doit tenir sur B."))
                 .createAndAddReported(() -> {
                     context.assertTrue(near(ArrivalGuard.guardedCenter(body), b) && Math.abs(body.getY() - b.y) < EPSILON
-                            && Math.abs(body.getX() - b.x) < 0.5, "Garde, il tient sur B, au-dessus du vide, au lieu de repartir : " + body.getPos() + ".");
+                            && Math.abs(body.getX() - b.x) < 0.5, "Garde, il tient sur B pendant son repit, au lieu de repartir : " + body.getPos() + ".");
                     // Pousse a travers le plan (une commande, un piston) : garde, il ne repart pas non plus.
                     body.setPosition(b.x, b.y - 2.5, b.z);
+                    pushed[0] = world.getTime();
                 })
-                .createAndAdd(() -> context.assertTrue(body.isOnGround() && body.getY() < b.y - 2.5, "Pas encore retombe sous B."))
+                // Le serveur juge ce pas a la fin du tick : la suite attend qu'il l'ait juge.
+                .createAndAdd(() -> context.assertTrue(world.getTime() > pushed[0] + 1, "Le pas pousse n'est pas encore juge."))
                 .createAndAddReported(() -> {
-                    context.assertTrue(Math.abs(body.getX() - b.x) < 0.5 && near(ArrivalGuard.guardedCenter(body), b),
+                    context.assertTrue(Math.abs(body.getX() - b.x) < 0.5 && body.getY() < b.y && near(ArrivalGuard.guardedCenter(body), b),
                             "Passe sous B, il n'est pas reparti par lui : " + body.getPos() + ".");
                     body.setPosition(b.x, b.y, b.z);
-                    // Accroupi, on reprend son arrivee : la garde tombe.
+                    // Accroupi, on reprend son arrivee : la garde tombe, avant la fin du repit.
                     body.setSneaking(true);
                 })
                 .createAndAdd(() -> context.assertTrue(ArrivalGuard.guardedCenter(body) == null, "Accroupi, il est encore garde."))
-                .createAndAddReported(() -> body.setSneaking(false))
+                .createAndAddReported(() -> {
+                    context.assertTrue(world.getTime() - landed[0] < ArrivalGuard.GRACE_TICKS, "La garde est tombee a l'accroupissement, pas a la fin du repit.");
+                    body.setSneaking(false);
+                })
                 // B s'ouvre sous lui : il ressort de A, garde sur A cette fois, pose sur la pierre.
                 .createAndAdd(() -> context.assertTrue(near(ArrivalGuard.guardedCenter(body), a) && body.isOnGround(), "Pas encore pose sur A."))
                 .createAndAddReported(() -> {
@@ -281,12 +294,23 @@ public final class PortalTunnelGameTests implements FabricGameTest {
                 })
                 .createAndAdd(() -> context.assertTrue(ArrivalGuard.guardedCenter(body) == null, "Descendu du cadre, il est encore garde."))
                 .createAndAddReported(() -> body.setPosition(a.x, a.y, a.z))
-                .createAndAdd(() -> context.assertTrue(near(ArrivalGuard.guardedCenter(body), b), "Revenu sur A, il n'est pas encore reparti."))
+                // Revenu sur A, il y tombe et ressort de B ; cette fois, il y reste.
+                .createAndAdd(() -> {
+                    context.assertTrue(near(ArrivalGuard.guardedCenter(body), b) && body.isOnGround(), "Revenu sur A, il n'est pas encore pose sur B.");
+                    landed[0] = world.getTime();
+                })
+                // Le repit passe, B s'ouvre sous lui : il retombe et ressort de A, sans avoir bouge.
+                .createAndAdd(() -> context.assertTrue(near(ArrivalGuard.guardedCenter(body), a), "Reste sur B, il n'y est pas encore retombe."))
                 .createAndAddReported(() -> {
-                    body.discard();
-                    toA.discard();
-                    toB.discard();
-                    fill(context, new BlockPos(2, 0, 2), new BlockPos(8, 0, 5), Blocks.AIR);
+                    try {
+                        context.assertTrue(world.getTime() - landed[0] >= ArrivalGuard.GRACE_TICKS,
+                                "B s'est ouvert avant la fin du repit : " + (world.getTime() - landed[0]) + " ticks.");
+                    } finally {
+                        body.discard();
+                        toA.discard();
+                        toB.discard();
+                        fill(context, new BlockPos(2, 0, 2), new BlockPos(8, 0, 5), Blocks.AIR);
+                    }
                 })
                 .completeIfSuccessful();
     }
@@ -335,17 +359,18 @@ public final class PortalTunnelGameTests implements FabricGameTest {
                 player.refreshPositionAndAngles(feet[0].x, feet[0].y, feet[0].z, 0.0f, 90.0f);
             });
         }
-        context.runAtTick(20, () -> {
+        // Il quitte le monde avant la fin du repit de la garde : c'est le changement de monde qui la fait tomber.
+        context.runAtTick(ArrivalGuard.GRACE_TICKS / 2, () -> {
             context.assertTrue(player.getServerWorld() == world && Math.abs(player.getX() - frame.x) < EPSILON && player.getY() < frame.y - 2.0,
                     "Garde, il descend sous son cadre d'arrivee sans repartir : " + player.getPos() + ".");
             // Il quitte le monde (portail vanilla, commande) : la garde tombe.
             player.teleport(nether, frame.x, frame.y, frame.z, 0.0f, 0.0f);
         });
-        context.runAtTick(22, () -> {
+        context.runAtTick(ArrivalGuard.GRACE_TICKS / 2 + 2, () -> {
             context.assertTrue(ArrivalGuard.guardedCenter(player) == null, "Parti dans un autre monde, il n'est plus garde.");
             player.teleport(world, onFrame.x, onFrame.y, onFrame.z, 0.0f, 90.0f);
         });
-        context.runAtTick(24, () -> {
+        context.runAtTick(ArrivalGuard.GRACE_TICKS / 2 + 4, () -> {
             try {
                 // Il tombe dans le cadre : ses yeux ont passe le plan de trois dixiemes, ses pieds sont bien plus bas. Le serveur
                 // juge l'annonce aux yeux, qui decident de la traversee d'un cadre couche.

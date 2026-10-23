@@ -129,8 +129,9 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   tant qu'elle lève (une attente) ; une vérification définitive va dans `createAndAddReported` (jouée une fois, échec
   immédiat), nettoyage en `try/finally`, et ce qu'une attente expirée laisserait dans un `@AfterBatch`. Un échec de
   `createAndAddReported` n'arrête pas la suite : les tâches suivantes s'enchaînent (une attente réussie passe à la
-  suivante dans le même tick) et le message gardé dans `build/junit.xml` est celui de la dernière vérification ratée,
-  pas de la première.
+  suivante dans le même tick, une tâche rapportée aussi) et le message gardé dans `build/junit.xml` est celui de la
+  dernière vérification ratée, pas de la première. Entre une action (un corps poussé à travers un plan) et ce que le
+  serveur en juge en fin de tick (sa traversée), placer une attente, sinon l'action suivante l'efface avant le jugement.
 - Mixins : `@Shadow` ne voit que les membres déclarés dans la classe cible, pas ceux hérités (`ClientPlayNetworkHandler.client`
   est déclaré dans `ClientCommonNetworkHandler`) ; l'erreur ne sort qu'au chargement de la cible, donc au lancement du client
   pour un mixin client. `MixinTargetsTest` charge la cible de chaque mixin déclaré et fait échouer le build à la place. Aucune
