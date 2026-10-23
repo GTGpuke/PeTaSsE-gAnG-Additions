@@ -142,9 +142,10 @@ public final class StraddlingEntityRenderer {
     }
 
     /**
-     * Face de portail ouverte et visible de ce monde qui coupe l'entity : a cheval sur son cadre, le centre devant elle et
-     * en face de l'ouverture. A cote, comme pour la traversee, elle ne fait que longer le portail : rien d'elle n'est
-     * passe. Une entity qui vient d'arriver par un portail n'en a pas : c'est son plan d'arrivee qui la coupe.
+     * Face de portail ouverte et visible de ce monde qui coupe l'entity : a cheval sur son cadre, son point de traversee
+     * (les pieds, les yeux pour un cadre couche) devant elle et en face de l'ouverture. A cote, comme pour la traversee,
+     * elle ne fait que longer le portail : rien d'elle n'est passe. Une entity qui vient d'arriver par un portail n'en a
+     * pas : c'est son plan d'arrivee qui la coupe.
      *
      * <p>Le test porte sur la position affichee a cette image, pas sur celle du tick, qui a jusqu'a un tick d'avance :
      * le joueur bascule de monde quand ses pieds affiches passent le plan ; teste au tick, son centre serait deja derriere
@@ -169,13 +170,17 @@ public final class StraddlingEntityRenderer {
         return null;
     }
 
-    /** {@code true} si cette face, ouverte et visible, coupe l'entity a sa position affichee. */
+    /**
+     * {@code true} si cette face, ouverte et visible, coupe l'entity a sa position affichee. Le point de traversee decide,
+     * comme pour la traversee : sur un cadre au sol, une entity dont les pieds sont passes et pas encore les yeux reste
+     * coupee, sa partie passee dessinee de l'autre cote.
+     */
     private static boolean cutBy(BackroomsPortalEntity portal, Entity entity, float tickDelta) {
         if (!portal.teleportable() || !portal.visible()) {
             return false;
         }
         show(entity, tickDelta);
-        return portal.signedDistance(shownX, shownY, shownZ) > 0.0 && portal.withinFrameWidth(shownX, shownY, shownZ)
+        return portal.crossingPointFaces(entity, shownX, shownY, shownZ)
                 && portal.sourceFrameStraddles(entity.getBoundingBox(), modelMargin(entity), shiftX, shiftY, shiftZ);
     }
 
@@ -202,18 +207,13 @@ public final class StraddlingEntityRenderer {
 
     /**
      * {@code true} si l'entity, a sa position affichee, sort de l'arrivee du portail sans y etre arrivee par lui : a
-     * cheval sur son plan, le centre en face de l'ouverture et deja du cote de la sortie. Un bloc portail a deux faces
-     * dans le meme plan : celle dont le centre est encore devant y entre, et c'est l'arrivee de l'autre face, dont elle
-     * ne sort pas, qui la verrait a cheval ; sans ce cote, ses deux moities passeraient de l'autre cote.
+     * cheval sur son plan, son point de traversee (les yeux si l'arrivee est couchee) en face de l'ouverture et du cote de
+     * la sortie, comme pour la traversee du retour qu'elle prend. Un bloc portail a deux faces dans le meme plan : celle
+     * dont ce point est encore devant y entre, et c'est l'arrivee de l'autre face, dont elle ne sort pas, qui la verrait a
+     * cheval ; sans ce cote, ses deux moities passeraient de l'autre cote.
      */
     private static boolean leavesArrival(BackroomsPortalEntity portal, Entity entity, float tickDelta) {
-        if (!straddlesArrival(portal, entity, tickDelta)) {
-            return false;
-        }
-        Vec3d exit = portal.facingDestination().normal;
-        Vec3d center = portal.destinationPos();
-        return (shownX - center.x) * exit.x + (shownY - center.y) * exit.y + (shownZ - center.z) * exit.z > 0.0
-                && portal.withinArrivalWidth(shownX, shownY, shownZ);
+        return straddlesArrival(portal, entity, tickDelta) && portal.crossingPointFacesArrival(entity, shownX, shownY, shownZ);
     }
 
     /** {@code true} si l'entity, a sa position affichee, est a cheval sur le plan d'arrivee du portail, dans son cadre. */

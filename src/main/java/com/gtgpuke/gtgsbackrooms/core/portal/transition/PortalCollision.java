@@ -337,10 +337,8 @@ public final class PortalCollision {
      * en face de l'ouverture, et sa boite deplacee touche le cadre.
      */
     static boolean engages(BackroomsPortalEntity portal, Entity entity, Box movingBox) {
-        double y = entity.getY() + portal.crossingHeight(entity);
         return portal.teleportable()
-                && portal.signedDistance(entity.getX(), y, entity.getZ()) > 0.0
-                && portal.withinFrameWidth(entity.getX(), y, entity.getZ())
+                && portal.crossingPointFaces(entity, entity.getX(), entity.getY(), entity.getZ())
                 && portal.detectionBox().intersects(movingBox);
     }
 

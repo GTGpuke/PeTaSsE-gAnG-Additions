@@ -482,6 +482,30 @@ public class BackroomsPortalEntity extends Entity {
         return facingSource().normal.y != 0.0 ? entity.getEyeY() - entity.getY() : 0.0;
     }
 
+    /**
+     * {@code true} si le point qui decide de la traversee d'une entity ({@link #crossingHeight}), ses pieds en (x, y, z), est
+     * devant le plan et en face de l'ouverture : elle n'a pas encore traverse, et ce qui d'elle touche le cadre y entre.
+     * Le rendu qui la coupe au plan en decide comme la traversee : sur un cadre au sol, les pieds passent le plan bien avant
+     * les yeux.
+     */
+    public boolean crossingPointFaces(Entity entity, double x, double y, double z) {
+        double crossingY = y + crossingHeight(entity);
+        return signedDistance(x, crossingY, z) > 0.0 && withinFrameWidth(x, crossingY, z);
+    }
+
+    /**
+     * Comme {@link #crossingPointFaces}, pour le cadre d'arrivee, que le retour de ce portail traverse en sens inverse : le
+     * point qui decide de cette traversee (les yeux si l'arrivee est couchee), ses pieds en (x, y, z), est du cote de la
+     * sortie et en face de l'ouverture d'arrivee.
+     */
+    public boolean crossingPointFacesArrival(Entity entity, double x, double y, double z) {
+        PortalFacing arrival = facingDestination();
+        double crossingY = y + (arrival.normal.y != 0.0 ? entity.getEyeY() - entity.getY() : 0.0);
+        Vec3d center = destinationPos();
+        return (x - center.x) * arrival.normal.x + (crossingY - center.y) * arrival.normal.y + (z - center.z) * arrival.normal.z > 0.0
+                && withinArrivalWidth(x, crossingY, z);
+    }
+
     /** Variante sans allocation de {@link #signedDistance(Vec3d)}. */
     public double signedDistance(double x, double y, double z) {
         Vec3d normal = facingSource().normal;

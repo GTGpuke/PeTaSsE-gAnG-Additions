@@ -22,6 +22,7 @@ import net.minecraft.entity.passive.SheepEntity;
 import net.minecraft.entity.vehicle.BoatEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.Items;
+import net.minecraft.network.packet.c2s.common.SyncedClientOptions;
 import net.minecraft.network.packet.s2c.play.BlockBreakingProgressS2CPacket;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
 import net.minecraft.network.packet.s2c.play.BlockUpdateS2CPacket;
@@ -347,6 +348,7 @@ public final class PortalSyncGameTests implements FabricGameTest {
         // l'identique dans le meme tick (une case de lave qui se vide et se remplit). Le serveur renvoie a bon droit un chunk
         // tenu ainsi signale, et aucune empreinte de ses blocs, relevee entre deux ticks, ne le verrait.
         ServerPlayerEntity witness = GameTestPlayers.connect(context, GameMode.CREATIVE, context.getAbsolute(VIEWER), 0.0f, 0.0f);
+        seesWholeWindow(witness);
         witness.teleportTo(new TeleportTarget(nether, NETHER_EXIT, Vec3d.ZERO, 0.0f, 0.0f, TeleportTarget.NO_OP));
         Vec3d plane = portal.getPos();
         int[] crossedAt = {-1};
@@ -425,6 +427,21 @@ public final class PortalSyncGameTests implements FabricGameTest {
                 }
             });
         }
+    }
+
+    /**
+     * Donne au temoin la portee qui couvre toute la fenetre que le portail synchronise, un carre de
+     * {@code DestinationLoader.syncRadius} chunks autour de l'arrivee. A la portee par defaut d'un client (deux chunks), il
+     * ne recevait jamais les chunks plus lointains que le portail avait deja envoyes au joueur, et l'attente de la
+     * traversee expirait selon la course entre les deux envois (vu sur la CI, monde deja joue). Vanilla voit un chunk
+     * si, un chunk retranche de l'ecart sur chaque axe, sa distance est sous la portee : le coin du carre est a
+     * {@code (rayon - 1) * sqrt(2)}.
+     */
+    private static void seesWholeWindow(ServerPlayerEntity witness) {
+        int reach = (int) Math.floor((DestinationLoader.syncRadius(true) - 1) * Math.sqrt(2.0)) + 1;
+        SyncedClientOptions options = witness.getClientOptions();
+        witness.setClientOptions(new SyncedClientOptions(options.language(), reach, options.chatVisibility(), options.chatColorsEnabled(),
+                options.playerModelParts(), options.mainArm(), options.filtersText(), options.allowsServerListing()));
     }
 
     /**

@@ -7,6 +7,16 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
 
 ## [Unreleased]
 
+---
+
+## [0.10.0] - 2026-10-23
+
+Le mod devient *GTG's Backrooms*, sous licence propriétaire. La baguette de portail, seule façon d'en créer un, pose
+des blocs portail double face aux réglages par portail (taille, faces, retour, sortie fugace, sens de sortie, arrivée au
+hasard, destination, sortie fixée, pose) : portails debout, au sol, au plafond ou tête en bas, traversée d'un cadre
+posé contre un bloc, lumière et météo à travers le cadre, compatibilité avec les packs de shaders et les mods de
+rendu. La porte des Backrooms et le badge de la Gang sont retirés.
+
 ### Added
 - **Baguette de portail** (`portal_wand`, en tête de l'onglet créatif), seule façon de créer un portail : clic droit
   dans le vide, un écran règle chacun des réglages d'un portail (largeur, hauteur, lumière, faces, retour, sens de
@@ -256,6 +266,21 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- **Entité coupée par un cadre au sol ou au plafond** : le rendu qui dessine en deux moitiés une entité à cheval sur un
+  portail décidait sur ses pieds, la traversée sur ses yeux pour un cadre couché. Sur un cadre au sol, dès que les pieds
+  passaient le plan, l'entité était dessinée entière jusqu'au passage des yeux : ses jambes pendaient sous un cadre en
+  l'air, et dans un cadre posé sur un bloc elles s'enfonçaient dans le bloc sans paraître de l'autre côté (le modèle
+  semblait disparaître). Le rendu décide désormais au point de traversée, comme la traversée
+  (`BackroomsPortalEntity.crossingPointFaces`). De même, vue de l'autre monde, une entité qui s'enfonce dans un cadre
+  d'arrivée au sol pour prendre le retour sort désormais du portail de départ jusqu'au passage de ses yeux
+  (`crossingPointFacesArrival`).
+- **CI** : la CI rejoue les tests en jeu trois fois sur le même monde (étapes tests en jeu, couverture, `build`), et la
+  couverture se mesure sur le deuxième passage. Le test de l'arrivée sans sol cherchait le vide de l'End là où le
+  passage précédent avait posé ses plateformes d'obsidienne : la recherche s'arrêtait à la première colonne et la
+  couverture tombait sous 100 %. Il rend désormais le vide à ses points de l'End avant de s'en servir. Le témoin du test
+  de traversée vers le Nether sans renvoi des chunks tenus ne voyait que deux chunks (portée par défaut d'un client)
+  quand le portail en synchronise jusqu'à cinq autour de l'arrivée : selon la course entre les deux envois, l'attente ne
+  pouvait plus aboutir (échec d'une CI, monde déjà joué). Il voit désormais toute la fenêtre.
 - **Bloc visé à travers un cadre posé contre lui** : le regard touchait, au plan même, le bloc que le portail cache
   derrière lui, et le contour de ce bloc s'affichait au lieu de viser l'autre côté. Un bloc caché par le portail
   n'arrête plus le regard (`RemoteTargeting`), à la première comme à la troisième personne.

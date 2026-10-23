@@ -225,7 +225,9 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   sa copie n'a pas encore atteint le plan, et la nouvelle, reprise à cette position, reste derrière le plan d'arrivée
   (`EntityHandover` garde l'ancienne jusqu'à l'arrivée de la nouvelle, dessinée ensuite des deux côtés par
   `StraddlingEntityRenderer`). Une décision de rendu se prend sur la position affichée (`lerp(tickDelta, lastRenderX,
-  getX())`), jamais sur celle du tick, qui a jusqu'à un tick d'avance.
+  getX())`), jamais sur celle du tick, qui a jusqu'à un tick d'avance, et au point de traversée, comme la traversée
+  (`crossingPointFaces`, `crossingPointFacesArrival` : les yeux pour un cadre couché), jamais aux pieds : sur un cadre au
+  sol, les pieds passent le plan bien avant les yeux.
 - Moteur de lumière (sources virtuelles, celles de la lumière transmise par les portails) : `ChunkBlockLightProvider.getLightSourceLuminance` est l'entrée des sources
   des mises à jour (`checkBlock`) ; l'éclairage initial d'un chunk lit `getLuminance()` sans elle, et la lumière sauvée
   avec un chunk revient telle quelle (re-signaler ce qui manque ou ce qui a pu s'éteindre). Le moteur serveur
@@ -283,6 +285,12 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
   été signalé, un joueur témoin qui le suit reçoit de vanilla chaque bloc changé pendant le tick (`BlockUpdateS2CPacket`,
   `ChunkDeltaUpdateS2CPacket`), une fois le chunk reçu. Le serveur de test coupe déjà le feu, les ticks aléatoires et
   l'apparition des mobs, sur une graine fixe (0) : un test instable y dépend du minutage, pas du terrain.
+- Tests en jeu : la CI les rejoue trois fois sur le même monde (étapes tests en jeu, couverture, `build`, sans `clean`)
+  et mesure la couverture sur le deuxième passage : un test tient sur un monde déjà joué (il remet ce qu'il suppose,
+  comme le vide de l'End), et une branche que seul un monde neuf fait prendre fait tomber la couverture de la CI.
+  Rejouer en local : `runGameTest` puis `jacocoFullReport jacocoCoverageVerification`, sans `clean`. Un joueur simulé a
+  la portée de vue par défaut d'un client, deux chunks (`SyncedClientOptions.createDefault`) : moins que la fenêtre
+  d'un portail (`DestinationLoader.syncRadius`).
 - Tests en jeu : `GameTestPlayers.sent` consomme ce qu'il rend. Une attente puis une vérification qui lisent le même
   type doivent accumuler ce qu'elles lisent, sinon la vérification ne voit plus ce que l'attente a déjà lu (et un envoi
   fautif passe inaperçu).

@@ -74,6 +74,8 @@ public final class PortalDestinationGameTests implements FabricGameTest {
     private static final int NETHER_SCALE = 8;
     /** Plus haut sol d'une plateforme dans l'End : sa hauteur logique (256 blocs), moins la place du corps et le sol. */
     private static final int END_PLATFORM_TOP = 253;
+    /** Demi-cote, en blocs, de la place videe autour d'un point de l'End : la plateforme d'un cadre d'un bloc sur deux et sa marge. */
+    private static final int END_CLEARANCE = 2;
 
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 100)
     public void aDimensionWithACeilingArrivesOnTheFirstFloorBelowOutOfFluidsOrAbove(TestContext context) {
@@ -116,6 +118,9 @@ public final class PortalDestinationGameTests implements FabricGameTest {
     public void withoutAnyFloorTheArrivalStandsOnAnObsidianPlatform(TestContext context) {
         ServerWorld end = context.getWorld().getServer().getWorld(World.END);
         context.assertTrue(end != null, "Le serveur de test a un End.");
+        for (int x : new int[] {END_VOID, END_WATER, END_SKY, END_STONE}) {
+            emptyAround(end, x, END_VOID);
+        }
         PortalTargets.Target platform = PortalTargets.arrive(end, END_VOID, START_Y, END_VOID, PortalFacing.SOUTH, PortalSettings.DEFAULT);
         BlockPos feet = new BlockPos(END_VOID, START_Y, END_VOID);
         context.assertTrue(near(platform.position(), centerOn(feet, PortalFacing.SOUTH)), "Dans le vide, au point de depart : " + platform.position() + ".");
@@ -257,6 +262,21 @@ public final class PortalDestinationGameTests implements FabricGameTest {
                         "Relu vers le monde normal, il n'y mene pas encore."))
                 .createAndAddReported(() -> context.setBlockState(pos, Blocks.AIR))
                 .completeIfSuccessful();
+    }
+
+    /**
+     * Rend le vide a un point de l'End : un lancement precedent sur le meme monde (le dossier de run n'est vide que par
+     * {@code clean}) y a laisse sa plateforme, que la recherche d'un sol trouverait des la colonne de depart.
+     */
+    private static void emptyAround(ServerWorld end, int x, int z) {
+        BlockPos.Mutable cell = new BlockPos.Mutable();
+        for (int cellX = x - END_CLEARANCE; cellX <= x + END_CLEARANCE; cellX++) {
+            for (int cellZ = z - END_CLEARANCE; cellZ <= z + END_CLEARANCE; cellZ++) {
+                for (int y = end.getBottomY(); y < end.getTopY(); y++) {
+                    end.setBlockState(cell.set(cellX, y, cellZ), Blocks.AIR.getDefaultState());
+                }
+            }
+        }
     }
 
     /** Une colonne du Nether pleine du bas au haut, avec une poche de deux blocs (de lave en bas, ou d'air) a cette hauteur. */

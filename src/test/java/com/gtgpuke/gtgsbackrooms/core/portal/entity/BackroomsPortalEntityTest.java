@@ -14,8 +14,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import net.minecraft.entity.EntityType;
 import net.minecraft.entity.data.DataTracker;
 import net.minecraft.entity.data.TrackedDataHandlerRegistry;
+import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -408,5 +410,35 @@ class BackroomsPortalEntityTest {
         assertFalse(floor.withinFrameWidth(1.1, 66.0, 0.0), "A cote le long de sa largeur.");
         assertTrue(floor.withinArrivalWidth(10.5, 60.0, -0.9), "Sous l'ouverture d'arrivee.");
         assertFalse(floor.withinArrivalWidth(10.5, 60.0, -1.1), "A cote du cadre d'arrivee le long de sa hauteur.");
+    }
+
+    @Test
+    @DisplayName("Le point de traversee decide : les pieds pour un cadre debout, les yeux pour un cadre au sol")
+    void crossingPointFacesTheOpening() {
+        ArmorStandEntity body = new ArmorStandEntity(EntityType.ARMOR_STAND, null);
+        double eyes = body.getEyeY() - body.getY();
+        BackroomsPortalEntity floor = validBuilder().position(new Vec3d(0.5, 64.0, 0.5)).facingSource(PortalFacing.UP).size(1.0f, 2.0f).build();
+        assertTrue(floor.crossingPointFaces(body, 0.5, 64.0 - eyes + 0.1, 0.5), "Les pieds passes, les yeux encore au-dessus : pas encore traverse.");
+        assertFalse(floor.crossingPointFaces(body, 0.5, 64.0 - eyes - 0.1, 0.5), "Les yeux passes : traverse.");
+        assertFalse(floor.crossingPointFaces(body, 3.5, 64.5, 0.5), "Au-dessus du sol, a cote de l'ouverture.");
+        BackroomsPortalEntity standing = validBuilder().position(new Vec3d(0.0, 64.0, 0.0)).size(1.0f, 2.0f).build();
+        assertTrue(standing.crossingPointFaces(body, 0.3, 63.5, -0.2), "Debout, les pieds devant le plan : pas encore traverse.");
+        assertFalse(standing.crossingPointFaces(body, 0.3, 63.5, 0.2), "Les pieds passes : traverse, les yeux n'y comptent pas.");
+    }
+
+    @Test
+    @DisplayName("Au cadre d'arrivee, le point de traversee du retour decide : les yeux si l'arrivee est au sol")
+    void crossingPointFacesTheArrival() {
+        ArmorStandEntity body = new ArmorStandEntity(EntityType.ARMOR_STAND, null);
+        double eyes = body.getEyeY() - body.getY();
+        BackroomsPortalEntity floor = validBuilder().facingDestination(PortalFacing.UP).destinationPos(new Vec3d(10.5, 60.0, 0.0))
+                .size(1.0f, 2.0f).build();
+        assertTrue(floor.crossingPointFacesArrival(body, 10.5, 60.0 - eyes + 0.1, 0.0),
+                "Les pieds sous l'arrivee au sol, les yeux encore du cote de la sortie : le retour n'est pas encore pris.");
+        assertFalse(floor.crossingPointFacesArrival(body, 10.5, 60.0 - eyes - 0.1, 0.0), "Les yeux passes : le retour est pris.");
+        assertFalse(floor.crossingPointFacesArrival(body, 13.5, 60.5, 0.0), "Au-dessus du sol, a cote de l'ouverture d'arrivee.");
+        BackroomsPortalEntity standing = validBuilder().build();
+        assertTrue(standing.crossingPointFacesArrival(body, 1.7, 1.0, 1.5), "Arrivee debout : les pieds du cote de la sortie.");
+        assertFalse(standing.crossingPointFacesArrival(body, 1.3, 1.0, 1.5), "Les pieds passes, les yeux n'y comptent pas.");
     }
 }
