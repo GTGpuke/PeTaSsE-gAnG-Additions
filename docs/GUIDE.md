@@ -114,6 +114,11 @@ Confrontation de la première version de ce guide au dépôt complet :
 - `compat/` existe (`compat/iris`) ; les vues sous pack se dessinent après l'image, pas au milieu de `WorldRenderer.render` ; le stencil sous pack n'est pas le niveau d'imbrication ; la découpe sous pack passe par la projection oblique et le rognage sur le processeur.
 - `PortalFacing` a six orientations, dont haut et bas, pas seulement un demi-tour horizontal.
 - Le passage sous GPL-3 n'est pas décidé (section 9).
+- Le 22 octobre 2026, à la demande de l'auteur : `PortalFacing` compte douze orientations (les six, puis leurs retournées,
+  pour une arrivée tête en bas, réglage `upside_down`) ; un bloc tout entier derrière le plan d'un portail ouvert n'existe
+  plus pour l'entité engagée dans le cadre (`PortalCollision.tunnel`, collisions, étouffement, voile de mur), un cadre se
+  pose donc contre un mur ou sur un sol plein et un cadre au sol est une trappe ; qui sort d'un cadre d'arrivée au sol en
+  est gardé (`ArrivalGuard`). La traversée d'un cadre couché se décide aux yeux, au plafond comme au sol.
 - Le 21 octobre 2026, à la demande de l'auteur, l'arborescence a changé : le système de portails, les registres (ex-`init/`), la configuration et la mesure sont sous `core/`, le contenu Gang et Arbre Maudit est retiré avec `feature/`, et le bloc portail ne se crée plus qu'avec la baguette, sans item à lui (plus de réglages proposés dans un onglet) ; la
   baguette copie les réglages d'un portail visé, et sa pose fait entendre un portail qui s'ouvre (premier son du mod,
   `ModSounds`). L'arrivée dans le Level 0 est calculée par le Level 0 (`backrooms/level0/LevelZeroArrival`), que
@@ -384,7 +389,7 @@ Chaque fonctionnalité a sa **définition de « terminé » (DoD)**. « Existe �
 
 ### 5.1 bis Évolutions du système de portails (cibles, absentes du dépôt aujourd'hui)
 
-Le système actuel relie l'Overworld et le Level 0 par des cadres verticaux posés par le bloc portail ; l'entité portail connaît six orientations axiales (`PortalFacing`, dont haut et bas) et le passage tourne d'une orientation à l'autre, sans angle libre ni échelle. La vision du projet (niveau ↔ niveau, géométrie non euclidienne) demande ces extensions, à jalonner séparément et à faire **avant** ou **avec** le rendu et l'audio selon les besoins de chaque jalon. Chacune touche `PortalFacing`, `PortalViewTransform`, `TeleportExecutor`, `PortalCollision` et les tests qui les verrouillent (36 paires d'orientations dans `PortalFacingTest`).
+Le système actuel relie l'Overworld et le Level 0 par des cadres verticaux posés par le bloc portail ; l'entité portail connaît douze orientations axiales (`PortalFacing` : six, dont haut et bas, et leurs retournées pour une arrivée tête en bas) et le passage tourne d'une orientation à l'autre, sans angle libre ni échelle. La vision du projet (niveau ↔ niveau, géométrie non euclidienne) demande ces extensions, à jalonner séparément et à faire **avant** ou **avec** le rendu et l'audio selon les besoins de chaque jalon. Chacune touche `PortalFacing`, `PortalViewTransform`, `TeleportExecutor`, `PortalCollision` et les tests qui les verrouillent (144 paires d'orientations dans `PortalFacingTest`).
 
 | Fonctionnalité | DoD |
 |---|---|
@@ -616,7 +621,7 @@ Classés par risque. « Conflit » : coexistence improbable ; « à tester » : 
 
 | Mod | Risque | Note |
 |---|---|---|
-| **Lithium** | Faible (banc actuel) | Vérifier relais et téléportation |
+| **Lithium** | Faible (banc actuel) | Vérifier relais, téléportation et blocs cachés derrière le plan d'un cadre (il peut remplacer le parcours vanilla des collisions de blocs) |
 | **C2ME** | À tester | Chargement asynchrone, mondes multiples |
 | **Krypton** | Faible | Réseau ; paquets de relais |
 | **ModernFix, FerriteCore** | Faible | Mémoire ; attachements MRT, renderers de vue |

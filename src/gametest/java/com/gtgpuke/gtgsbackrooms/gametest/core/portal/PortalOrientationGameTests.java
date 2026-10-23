@@ -19,6 +19,7 @@ import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.BackroomsPortalBlock;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.BackroomsPortalBlockEntity;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalArea;
+import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalExit;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalSettings;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
@@ -29,11 +30,12 @@ import com.gtgpuke.gtgsbackrooms.core.registry.ModItems;
 import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestPlayers;
 
 /**
- * Tests en jeu des portails d'une orientation a une autre, les 36 paires : debout, au sol, au plafond, dans tous les
- * sens. Un joueur qui traverse chaque paire file hors du cadre d'arrivee, regarde ou il va, garde sa chute seulement si le
- * bas reste le bas, et ressort du bon cote, dans l'ouverture ; un objet traverse seul chacune des six orientations ; une
- * longue chute renvoyee a l'horizontale ne blesse pas a l'atterrissage, une chute qui continue si ; un portail couche n'a
- * que sa face avant.
+ * Tests en jeu des portails d'une orientation a une autre, les 144 paires : debout, au sol, au plafond, dans tous les
+ * sens, droits ou retournes (tete en bas). Un joueur qui traverse chaque paire file hors du cadre d'arrivee, regarde ou il
+ * va, garde sa chute seulement si le bas reste le bas, et ressort du bon cote, dans l'ouverture ; un objet traverse seul
+ * chacune des six normales, un cadre sur deux retourne ; une longue chute renvoyee a l'horizontale ne blesse pas a
+ * l'atterrissage, une chute qui continue si ; un portail couche n'a que sa face avant ; un bloc a l'arrivee tete en bas
+ * retourne les portails de son cadre d'arrivee, et on en ressort tete en bas.
  */
 public final class PortalOrientationGameTests implements FabricGameTest {
 
@@ -70,7 +72,7 @@ public final class PortalOrientationGameTests implements FabricGameTest {
     }
 
     /**
-     * Le joueur vient de faire passer le plan au point qui decide (ses pieds, ses yeux pour un cadre au sol), au centre du
+     * Le joueur vient de faire passer le plan au point qui decide (ses pieds, ses yeux pour un cadre couche), au centre du
      * cadre, debout les pieds au bas du cadre ; il file a travers, regarde ou il va et a une chute en cours.
      */
     private static void crossAndCheck(TestContext context, ServerPlayerEntity player, BackroomsPortalEntity portal, Vec3d arrival) {
@@ -89,14 +91,17 @@ public final class PortalOrientationGameTests implements FabricGameTest {
         context.assertTrue(player.getVelocity().subtract(exit.normal.multiply(SPEED)).length() < EPSILON,
                 pair + " : on file hors du cadre d'arrivee : " + player.getVelocity() + ".");
         context.assertTrue(player.getRotationVector().dotProduct(exit.normal) > 0.999, pair + " : on regarde ou l'on va.");
-        boolean keepsFalling = source.normal.y == 0.0 && exit.normal.y == 0.0 || source.normal.y * exit.normal.y < 0.0;
+        // Debout vers debout, le bas reste le bas sauf si un seul des deux cadres est retourne ; couche vers couche oppose, la
+        // chute continue le long de la normale, retourne ou non.
+        boolean keepsFalling = source.normal.y == 0.0 && exit.normal.y == 0.0 && source.upsideDown() == exit.upsideDown()
+                || source.normal.y * exit.normal.y < 0.0;
         context.assertTrue(player.fallDistance == (keepsFalling ? FALL : 0.0f),
                 pair + " : chute gardee seulement si le bas reste le bas : " + player.fallDistance + ".");
         double feet = player.getY();
         double top = feet + player.getHeight();
-        if (exit == PortalFacing.DOWN) {
+        if (exit.normal.y < 0.0) {
             context.assertTrue(top <= arrival.y, pair + " : tout le corps pend sous le plafond : " + player.getPos() + ".");
-        } else if (exit == PortalFacing.UP) {
+        } else if (exit.normal.y > 0.0) {
             context.assertTrue(feet >= arrival.y, pair + " : tout le corps est au-dessus du sol : " + player.getPos() + ".");
         } else {
             context.assertTrue(player.getPos().subtract(arrival).dotProduct(exit.normal) > 0.0 && feet >= arrival.y - 1.0 - EPSILON
@@ -109,8 +114,11 @@ public final class PortalOrientationGameTests implements FabricGameTest {
     @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
     public void anObjectCrossesEveryOrientationOnItsOwn(TestContext context) {
         ServerWorld world = context.getWorld();
-        PortalFacing[] entries = PortalFacing.values();
-        PortalFacing[] exits = {PortalFacing.UP, PortalFacing.DOWN, PortalFacing.WEST, PortalFacing.NORTH, PortalFacing.EAST, PortalFacing.SOUTH};
+        // Les six normales, en entree comme en sortie, un cadre sur deux retourne (le retour d'une arrivee tete en bas l'est).
+        PortalFacing[] entries = {PortalFacing.NORTH, PortalFacing.SOUTH_UPSIDE_DOWN, PortalFacing.EAST, PortalFacing.WEST_UPSIDE_DOWN,
+            PortalFacing.UP, PortalFacing.DOWN_UPSIDE_DOWN};
+        PortalFacing[] exits = {PortalFacing.UP_UPSIDE_DOWN, PortalFacing.DOWN, PortalFacing.WEST_UPSIDE_DOWN, PortalFacing.NORTH,
+            PortalFacing.EAST_UPSIDE_DOWN, PortalFacing.SOUTH};
         BackroomsPortalEntity[] portals = new BackroomsPortalEntity[entries.length];
         ItemEntity[] items = new ItemEntity[entries.length];
         for (int i = 0; i < entries.length; i++) {
@@ -184,58 +192,6 @@ public final class PortalOrientationGameTests implements FabricGameTest {
                 .completeIfSuccessful();
     }
 
-    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 60)
-    public void aSneakingPlayerDescendsThroughAFloorFrameStandingPlayersStay(TestContext context) {
-        ServerWorld world = context.getWorld();
-        // Deux cadres au sol, le plan au milieu du bloc au-dessus du sol plein : on s'y tient, les pieds un demi-bloc dessous.
-        Vec3d sneakingFrame = context.getAbsolute(new Vec3d(4.5, 1.5, 4.0));
-        Vec3d standingFrame = context.getAbsolute(new Vec3d(10.5, 1.5, 4.0));
-        Vec3d arrival = context.getAbsolute(ARRIVAL);
-        BackroomsPortalEntity descent = frame(world, sneakingFrame, PortalFacing.UP, PortalFacing.SOUTH, arrival);
-        BackroomsPortalEntity stay = frame(world, standingFrame, PortalFacing.UP, PortalFacing.SOUTH, arrival.add(-6.0, 0.0, 0.0));
-        world.spawnEntity(descent);
-        world.spawnEntity(stay);
-        ServerPlayerEntity sneaking = GameTestPlayers.connect(context, GameMode.CREATIVE, sneakingFrame.subtract(0.0, 0.5, 0.0), 0.0f, 0.0f);
-        ServerPlayerEntity standing = GameTestPlayers.connect(context, GameMode.CREATIVE, standingFrame.subtract(0.0, 0.5, 0.0), 0.0f, 0.0f);
-        sneaking.setSneaking(true);
-        try {
-            context.assertTrue(TeleportExecutor.descendsThrough(descent, sneaking), "Accroupi au sol sur le cadre : il s'y laisse descendre.");
-            context.assertTrue(!TeleportExecutor.descendsThrough(stay, standing), "Debout, il reste.");
-            sneaking.setOnGround(false);
-            context.assertTrue(!TeleportExecutor.descendsThrough(descent, sneaking), "En l'air, il tombera de lui-meme s'il y a de la place.");
-            sneaking.setOnGround(true);
-            sneaking.setPosition(sneakingFrame.x, sneakingFrame.y + 0.2, sneakingFrame.z);
-            context.assertTrue(!TeleportExecutor.descendsThrough(descent, sneaking), "Les pieds au-dessus du plan : il n'est pas dans le cadre.");
-            sneaking.setPosition(sneakingFrame.x, sneakingFrame.y - 0.8, sneakingFrame.z);
-            context.assertTrue(!TeleportExecutor.descendsThrough(descent, sneaking), "Les pieds trop bas : ce n'est pas le sol du cadre.");
-            sneaking.setPosition(sneakingFrame.x, sneakingFrame.y - 0.5, sneakingFrame.z + 1.3);
-            context.assertTrue(!TeleportExecutor.descendsThrough(descent, sneaking), "A cote de l'ouverture.");
-            BackroomsPortalEntity wall = frame(world, sneakingFrame, PortalFacing.NORTH, PortalFacing.UP, arrival);
-            sneaking.setPosition(sneakingFrame.x, sneakingFrame.y - 0.5, sneakingFrame.z);
-            context.assertTrue(!TeleportExecutor.descendsThrough(wall, sneaking), "Seul un cadre au sol se descend.");
-        } catch (RuntimeException failure) {
-            GameTestPlayers.disconnect(sneaking);
-            GameTestPlayers.disconnect(standing);
-            descent.discard();
-            stay.discard();
-            throw failure;
-        }
-        // Le serveur, faute d'annonce du client, fait lui-meme descendre le joueur accroupi, cinq ticks plus tard.
-        context.runAtTick(15, () -> {
-            try {
-                context.assertTrue(sneaking.getPos().squaredDistanceTo(arrival) < 4.0,
-                        "Accroupi sur le cadre au sol, le joueur est passe de l'autre cote : " + sneaking.getPos() + ".");
-                context.assertTrue(standing.getPos().squaredDistanceTo(standingFrame) < 1.0, "Debout, l'autre est reste : " + standing.getPos() + ".");
-            } finally {
-                GameTestPlayers.disconnect(sneaking);
-                GameTestPlayers.disconnect(standing);
-                descent.discard();
-                stay.discard();
-            }
-            context.complete();
-        });
-    }
-
     /** Le joueur, en pleine chute de vingt blocs, passe les yeux par le cadre au sol, puis touche terre de l'autre cote. */
     private static void land(TestContext context, ServerPlayerEntity player, BackroomsPortalEntity portal) {
         Vec3d decision = portal.getPos().subtract(0.0, 0.05, 0.0);
@@ -279,10 +235,52 @@ public final class PortalOrientationGameTests implements FabricGameTest {
         context.complete();
     }
 
+    @GameTest(templateName = GameTestPlayers.ARENA, tickLimit = 40)
+    public void anUpsideDownArrivalTurnsItsFrameOverAndTheTravellerWithIt(TestContext context) {
+        ServerWorld world = context.getWorld();
+        int front = BackroomsPortalBlockEntity.FRONT;
+        int back = BackroomsPortalBlockEntity.BACK;
+        BlockPos anchor = new BlockPos(3, 1, 3);
+        BackroomsPortalBlockEntity block = place(context, anchor, Direction.NORTH,
+                new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 0, false, true));
+        Vec3d arrival = PortalArea.center(context.getAbsolutePos(new BlockPos(3, 1, 15)), PortalFacing.SOUTH, PortalSettings.DEFAULT);
+        block.configureTarget(World.OVERWORLD, arrival, PortalFacing.SOUTH);
+        ServerPlayerEntity player = GameTestPlayers.connect(context, GameMode.CREATIVE, context.getAbsolute(ENTRY), 0.0f, 0.0f);
+        try {
+            BackroomsPortalEntity entry = (BackroomsPortalEntity) world.getEntity(block.entryPortal(front));
+            BackroomsPortalEntity entryBack = (BackroomsPortalEntity) world.getEntity(block.entryPortal(back));
+            BackroomsPortalEntity returnFront = (BackroomsPortalEntity) world.getEntity(block.returnPortal(front));
+            BackroomsPortalEntity returnBack = (BackroomsPortalEntity) world.getEntity(block.returnPortal(back));
+            context.assertTrue(entry.facingDestination() == PortalFacing.SOUTH_UPSIDE_DOWN && entryBack.facingDestination() == PortalFacing.NORTH_UPSIDE_DOWN,
+                    "Chaque face mene au cadre d'arrivee retourne.");
+            context.assertTrue(returnFront.facingSource() == PortalFacing.SOUTH_UPSIDE_DOWN && returnBack.facingSource() == PortalFacing.NORTH_UPSIDE_DOWN,
+                    "Les retours sont poses retournes : on revient tete en bas aussi.");
+            context.assertTrue(entry.destinationPos().squaredDistanceTo(arrival) < EPSILON && returnFront.getPos().squaredDistanceTo(arrival) < EPSILON,
+                    "Le cadre d'arrivee ne bouge pas : son centre est celui de la pose droite.");
+            // Le joueur passe le plan au pied du cadre, en regardant devant lui et vers le bas.
+            Vec3d feet = entry.getPos().add(0.0, -1.0, 0.0).subtract(entry.facingSource().normal.multiply(0.05));
+            player.refreshPositionAndAngles(feet.x, feet.y, feet.z, 0.0f, 30.0f);
+            player.setVelocity(entry.facingSource().normal.multiply(-SPEED));
+            context.assertTrue(TeleportExecutor.execute(player, entry), "La traversee a lieu.");
+            context.assertTrue(Math.abs(player.getPitch() + 30.0f) < EPSILON && player.getRotationVector().z > 0.0,
+                    "Tete en bas, ce qu'il regardait en bas est en haut, et il regarde toujours devant lui : " + player.getPitch() + ".");
+            context.assertTrue(player.getY() >= arrival.y - 1.0 - EPSILON && player.getY() + player.getHeight() <= arrival.y + 1.0 + EPSILON
+                    && player.getZ() > arrival.z, "Il ressort debout dans l'ouverture, devant le cadre : " + player.getPos() + ".");
+        } finally {
+            GameTestPlayers.disconnect(player);
+            context.setBlockState(anchor, Blocks.AIR);
+        }
+        context.complete();
+    }
+
     private static BackroomsPortalBlockEntity place(TestContext context, BlockPos pos, Direction front) {
+        return place(context, pos, front, PortalSettings.DEFAULT);
+    }
+
+    private static BackroomsPortalBlockEntity place(TestContext context, BlockPos pos, Direction front, PortalSettings settings) {
         context.setBlockState(pos, ModBlocks.BACKROOMS_PORTAL.getDefaultState().with(BackroomsPortalBlock.FACING, front));
         BackroomsPortalBlockEntity block = context.getBlockEntity(pos);
-        block.readComponents(wand(PortalSettings.DEFAULT));
+        block.readComponents(wand(settings));
         return block;
     }
 

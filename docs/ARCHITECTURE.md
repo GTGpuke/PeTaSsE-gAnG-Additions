@@ -137,11 +137,12 @@ supplémentaire dans le monde.
 ## Portails
 
 `core/portal/` relie le monde normal et le Level 0 par un bloc portail : entity portail persistante,
-block entity qui garde ses réglages (taille, lumière, plan au milieu ou au bord du bloc), trouve seule sa destination
+block entity qui garde ses réglages (taille, lumière, plan au milieu ou au bord du bloc, arrivée droite ou tête en bas), trouve seule sa destination
 et pose deux faces dos à dos de chaque côté (un portail double face), baguette qui pose des blocs portail aux réglages
 choisis dans son écran (`item/PortalWandItem`, `client/wand/`), seule façon d'en créer un, téléportation par traversée du
-plan (joueurs prédits par le client, objets et mobs transposés par le serveur), collision à travers le cadre
-(`transition/PortalCollision`), synchronisation serveur → client des chunks et des entités de l'autre dimension
+plan (joueurs prédits par le client, objets et mobs transposés par le serveur), collision à travers le cadre et blocs
+cachés derrière son plan à qui s'y engage (`transition/PortalCollision`), garde d'une arrivée au sol
+(`transition/ArrivalGuard`), synchronisation serveur → client des chunks et des entités de l'autre dimension
 (payloads `portal_remote_*`, suivi vanilla des entités), rendu client du monde distant à travers le cadre (stencil,
 caméra transposée, plan de découpe dans les shaders, un niveau de portails imbriqués), interaction à travers le
 cadre (`interaction/`), et ce qui traverse un portail ouvert sans être une entité : sons et particules relayés

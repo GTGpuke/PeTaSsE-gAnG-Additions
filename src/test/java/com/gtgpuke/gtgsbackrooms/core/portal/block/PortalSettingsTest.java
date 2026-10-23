@@ -2,7 +2,10 @@ package com.gtgpuke.gtgsbackrooms.core.portal.block;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.Optional;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -15,7 +18,9 @@ import org.junit.jupiter.api.Test;
 
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 
 import com.gtgpuke.gtgsbackrooms.MinecraftTestBootstrap;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
@@ -45,21 +50,53 @@ class PortalSettingsTest {
         assertEquals(new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 0, true), decode("{\"flush\":true}"),
                 "Plan au bord du bloc.");
         assertFalse(decode("{}").flush(), "Sans le champ, le plan passe au milieu du bloc : les anciennes sauvegardes ne changent pas.");
+        assertEquals(new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 0, false, true), decode("{\"upside_down\":true}"),
+                "Arrivee tete en bas.");
+        assertFalse(decode("{}").upsideDown(), "Sans le champ, on arrive droit : les anciennes sauvegardes ne changent pas.");
         assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"width\":9}")).isError(), "Neuf blocs : refuse.");
         assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"exit_scatter\":65}")).isError(),
                 "Soixante-cinq blocs de tirage : refuse.");
         assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"exit\":\"diagonale\"}")).isError(),
                 "Un sens de sortie inconnu : refuse.");
-        PortalSettings settings = new PortalSettings(2, 5, true, false, true, true, PortalExit.WEST, 5, true);
+        PortalSettings settings = new PortalSettings(2, 5, true, false, true, true, PortalExit.WEST, 5, true, true);
         JsonObject json = PortalSettings.CODEC.encodeStart(JsonOps.INSTANCE, settings).getOrThrow().getAsJsonObject();
         assertEquals(settings, PortalSettings.CODEC.parse(JsonOps.INSTANCE, json).getOrThrow(), "Aller-retour du format.");
+        // Pose, destination et sortie fixee : absentes, selon le regard, automatique, sans sortie fixee.
+        assertEquals(PortalPlacement.LOOK, decode("{}").placement(), "Sans le champ, pose selon le regard.");
+        assertTrue(decode("{}").destination().isEmpty() && decode("{}").mark().isEmpty(), "Sans les champs, destination automatique.");
+        PortalSettings marked = decode("{\"placement\":\"ceiling\",\"destination\":\"minecraft:the_nether\","
+                + "\"mark\":{\"dimension\":\"minecraft:the_end\",\"pos\":[10,64,-3],\"facing\":\"east\"}}");
+        assertEquals(PortalPlacement.CEILING, marked.placement(), "Pose au plafond.");
+        assertEquals(Optional.of(World.NETHER), marked.destination(), "Destination choisie.");
+        assertEquals(Optional.of(new PortalMark(World.END, new BlockPos(10, 64, -3), Direction.EAST)), marked.mark(), "Sortie fixee.");
+        assertTrue(PortalSettings.CODEC.parse(JsonOps.INSTANCE, JsonParser.parseString("{\"placement\":\"en biais\"}")).isError(),
+                "Une pose inconnue : refusee.");
+        JsonObject markedJson = PortalSettings.CODEC.encodeStart(JsonOps.INSTANCE, marked).getOrThrow().getAsJsonObject();
+        assertEquals(marked, PortalSettings.CODEC.parse(JsonOps.INSTANCE, markedJson).getOrThrow(), "Aller-retour avec la sortie fixee.");
+        assertEquals(new PortalSettings(1, 2, true).withExit(Optional.of(World.END), Optional.empty()).destination(), Optional.of(World.END),
+                "Changer la sortie garde le reste.");
+    }
+
+    @Test
+    @DisplayName("Une sortie fixee se fait en marchant, dans la direction du regard ; une pose se relit par son nom")
+    void markAndPlacement() {
+        PortalMark up = new PortalMark(World.OVERWORLD, BlockPos.ORIGIN, Direction.UP);
+        assertEquals(Direction.NORTH, up.facing(), "Regard vertical : vers le nord.");
+        assertEquals(PortalFacing.WEST, new PortalMark(World.OVERWORLD, BlockPos.ORIGIN, Direction.WEST).arrivalFacing(),
+                "On ressort dans la direction du regard.");
+        assertEquals(PortalPlacement.FLOOR, PortalPlacement.byName("floor"), "Pose relue.");
+        assertEquals(PortalPlacement.LOOK, PortalPlacement.byName("inconnue"), "Pose inconnue : selon le regard.");
+        assertEquals(Direction.UP, PortalPlacement.FLOOR.lyingFacing(null), "Au sol, meme sans joueur.");
+        assertEquals(Direction.DOWN, PortalPlacement.CEILING.lyingFacing(null), "Au plafond, meme sans joueur.");
+        assertNull(PortalPlacement.STANDING.lyingFacing(null), "Debout.");
+        assertNull(PortalPlacement.LOOK.lyingFacing(null), "Selon le regard, sans joueur : debout.");
     }
 
     @Test
     @DisplayName("Le format reseau fait l'aller-retour, et une taille hors bornes est ramenee dans les bornes")
     void packetCodecAndClamping() {
         ByteBuf buffer = Unpooled.buffer();
-        PortalSettings settings = new PortalSettings(8, 1, false, false, true, true, PortalExit.SOUTH, 64, true);
+        PortalSettings settings = new PortalSettings(8, 1, false, false, true, true, PortalExit.SOUTH, 64, true, true);
         PortalSettings.PACKET_CODEC.encode(buffer, settings);
         assertEquals(settings, PortalSettings.PACKET_CODEC.decode(buffer), "Aller-retour reseau.");
         assertEquals(new PortalSettings(PortalSettings.MAX_SIZE, PortalSettings.MIN_SIZE, true), new PortalSettings(40, -3, true),

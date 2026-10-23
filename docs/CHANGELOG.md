@@ -19,24 +19,58 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   (`ModSounds.PORTAL_WAND_PLACE`, déclaré dans `sounds.json`).
 - **Plan au bord du bloc** (réglage `flush`, composant, NBT et info-bulle) : le plan du cadre passe sur la face arrière
   de ses blocs, à l'opposé de sa face avant, au lieu de leur milieu, et le portail ne semble plus couper un bloc en
-  deux. Un cadre debout demande alors un bloc libre derrière lui (l'avant du corps y passe), un cadre couché se pose à
-  ras du sol ou du plafond ; le cadre d'arrivée suit le même plan, la lumière transmise se lit juste devant le plan, la
-  plaque visée accroupi se colle à la face arrière. Sans le champ, une sauvegarde garde le plan au milieu.
+  deux. Un cadre debout se pose alors contre un mur, un cadre couché à ras du sol ou du plafond ; le cadre d'arrivée
+  suit le même plan, la lumière transmise se lit juste devant le plan, la plaque visée accroupi se colle à la face
+  arrière. Sans le champ, une sauvegarde garde le plan au milieu.
 - **Roulis de la caméra à la traversée** : d'un sol à un mur (un portail qui tourne autour d'un axe horizontal), la
   caméra du joueur part du roulis de l'image vue par le cadre et se redresse en moins d'une demi-seconde, au lieu de
   se redresser d'un coup (`CrossingRoll`, `MixinCamera`). Vérifié au banc en rafale d'images.
-- **Descendre dans une arrivée au sol** : accroupi sur un cadre au sol posé sur un sol plein, on s'y laisse descendre
-  (prédiction client et secours du serveur) ; c'est ainsi qu'on reprend une arrivée au sol, où l'on ne peut pas tomber.
+- **Traverser un cadre posé contre un bloc** : les blocs tout entiers derrière le plan d'un portail ouvert, dans son
+  ouverture, n'existent plus pour l'entité engagée dans le cadre (son point de traversée devant le plan, en face de
+  l'ouverture, sa boîte contre le cadre) : ni collision (déplacement, place libre, contrôle des pas d'un joueur par le
+  serveur), ni étouffement, ni voile du bloc à l'écran (`PortalCollision.tunnel`, `MixinBlockCollisionSpliterator`,
+  `MixinEntity`, `MixinInGameOverlayRenderer`). Un cadre se pose et se traverse contre un mur, un plafond ou un sol
+  plein ; la tête entre dans un cadre au plafond collé au toit. L'engagement tient dix ticks une fois le point de
+  traversée passé derrière le plan, le temps de la bascule ; la face arrière d'un cadre double face ne cache pas le
+  côté d'où l'on vient. La pose n'exige plus aucun bloc libre derrière le cadre. Tests en jeu (`PortalTunnelGameTests`).
+- **Baguette : pose, destination et sortie fixée** (réglages `placement`, `destination` et `mark`, composant, NBT,
+  info-bulle, écran) : la pose se règle (selon le regard, comme avant, ou imposée : debout, au sol, au plafond) ; la
+  destination se choisit parmi les dimensions du serveur (automatique par défaut : le Level 0, et la surface depuis le
+  Level 0), les X/Z suivant l'échelle de coordonnées comme vanilla, l'arrivée cherchée sur le haut du sol, ou dans le
+  Nether sur le premier sol où l'on tient debout, le cadre hors des blocs et des fluides, jusqu'à seize colonnes autour ;
+  sans sol à portée (le vide de l'End, un lac de lave), sur une plateforme d'obsidienne posée au point de départ, la
+  place dégagée : on n'arrive jamais dans des blocs ; « Fixer la sortie ici » retient l'endroit où l'on se tient (dimension, bloc, regard) : le portail y mène, et
+  l'arrivée au hasard tire autour de ce point. Le serveur oublie une destination qu'il n'a pas et ne fixe une sortie que
+  là où se tient le joueur. Un bloc relu vers une autre destination ou une autre sortie fixée cherche de nouveau son
+  arrivée. Tests unitaires et en jeu (`PortalDestinationGameTests`).
+- **Bord d'un portail qui fait paroi** : du côté d'entrée d'un portail ouvert, qui ne peut pas le traverser
+  correctement (son point de traversée hors de l'ouverture, sur un bord) bute sur le plan comme sur une paroi mince,
+  même pour un cadre en l'air : son corps ne passe plus à moitié dans le portail, et un corps sur le bord d'un cadre au
+  sol se pose sur son plan. De dos, on passe toujours au travers. Joueur (par son client), mobs, objets et projectiles
+  (par le serveur), comme les blocs de l'autre côté ; un portail fermé n'arrête rien (`PortalCollision.walls`).
+- **Trappe et garde d'arrivée** : un cadre au sol s'ouvre sous qui s'y tient, même posé sur un sol plein, et l'on y
+  tombe avec son élan. Qui sort d'un cadre d'arrivée au sol en est gardé (`ArrivalGuard`) : il s'y pose, même
+  au-dessus du vide, sans repartir aussitôt par le portail de retour, jusqu'à ce qu'il en descende, s'accroupisse (on
+  reprend ainsi une arrivée au sol, volontairement) ou change de monde. Le serveur refuse la traversée annoncée d'un
+  cadre gardé et ne la mène pas lui-même. Remplace la descente accroupie dans une arrivée au sol, qui ne servait plus.
+- **Arrivée tête en bas** (réglage `upside_down`, composant, NBT, info-bulle, écran de la baguette) : le cadre
+  d'arrivée est retourné ; on y voit l'autre côté tête en bas, on en ressort renversé, et la caméra se redresse d'un
+  demi-tour de roulis en moins d'une demi-seconde (`CrossingRoll`) ; couché, l'arrivée fait un demi-tour sur place. Le
+  retour est retourné de même. `PortalFacing` compte douze orientations : les six droites, dont les ordinaux et les
+  noms ne changent pas, puis leurs retournées ; le cadre d'arrivée lui-même se pose comme le droit. La colonne de
+  droite de l'écran de la baguette devient Retour, Sortie, Arrivée.
 - **Portails au sol et au plafond** : le bloc portail se couche quand on le pose en regardant franchement vers le bas
-  (cadre au sol, face au haut : on y tombe) ou vers le haut (cadre au plafond, face au bas : on y monte), dans un vide
-  de trois blocs (le cadre et deux blocs derrière lui). Le réglage `exit` prend `floor` et `ceiling` : le cadre
+  (cadre au sol, face au haut : on y tombe) ou vers le haut (cadre au plafond, face au bas : on y monte), là où le
+  cadre tient (derrière son plan, un bloc ne gêne pas). Le réglage `exit` prend `floor` et `ceiling` : le cadre
   d'arrivée se couche au sol (on en sort vers le haut) ou au plafond (on en tombe), dans le Level 0 (au sol du layer
   ou sous son plafond, là où son empreinte est libre) comme à la surface (relevé de deux blocs au plafond). Tout droit,
   un cadre au sol mène à un cadre au plafond et inversement, sans faire tourner (l'orientation « plafond » a pris les
   axes de « sol » à la manière du nord et du sud : le passage est une translation). Couché, un cadre n'est en face de
-  son ouverture que dans sa largeur et sa hauteur : qui arrive de côté ne bute pas sur l'autre côté avant le bord. La traversée d'un cadre au sol se décide aux yeux (le
-  corps a déjà passé le plan quand la caméra le passe), celle d'un cadre au plafond aux pieds ; collision à travers le
-  cadre et secours du serveur suivent la même règle. Le secours du serveur fait aussi passer un joueur qui s'arrête
+  son ouverture que dans sa largeur et sa hauteur : qui arrive de côté ne bute pas sur l'autre côté avant le bord. La
+  traversée d'un cadre couché se décide aux yeux (au sol, le corps a déjà passé le plan quand la caméra le passe ; au
+  plafond, la tête y entre la première), et la sortie garde la place de ce point : tombé par un sol, on ressort de
+  l'autre côté à la hauteur où les yeux ont passé le plan, avec son élan ; collision à travers le cadre, annonces du
+  client vérifiées par le serveur et secours du serveur suivent la même règle. Le secours du serveur fait aussi passer un joueur qui s'arrête
   juste après le plan (il attendait qu'il bouge encore : qui tombe dans un cadre au sol touche le fond avant la fin du
   délai laissé à son client). Tests unitaires et trois tests en jeu (`PortalLyingGameTests`).
 - **Attelages à travers les portails** : un véhicule (bateau, wagonnet, monture) emmène tout ce qui le monte, joueurs
@@ -222,6 +256,30 @@ Format : [Keep a Changelog](https://keepachangelog.com/fr/1.0.0/). Versions : [S
   n'existant plus.
 
 ### Fixed
+- **Bloc visé à travers un cadre posé contre lui** : le regard touchait, au plan même, le bloc que le portail cache
+  derrière lui, et le contour de ce bloc s'affichait au lieu de viser l'autre côté. Un bloc caché par le portail
+  n'arrête plus le regard (`RemoteTargeting`), à la première comme à la troisième personne.
+- **Caméra à la troisième personne arrêtée par un cadre posé contre un mur** : vanilla l'arrête au premier bloc que
+  touchent ses huit rayons décalés, ce bloc caché derrière le plan, voire un peu avant lui ; elle ne passait pas le
+  portail. Le passage se décide sur un rayon qui ignore les blocs cachés par le portail, et le recul de l'autre côté
+  part un peu devant le plan d'arrivée (`PortalStencilRenderer`).
+- **Vue d'un portail immobile pendant le balancement de la marche**, sous un pack de shaders : le mod de shaders
+  porte le balancement de la vue dans la matrice de vue du joueur, alors que vanilla le met dans la projection, et
+  les vues, construites depuis la seule rotation de leur caméra, ne balançaient pas avec le cadre. Elles prennent ce
+  que la matrice de vue du joueur ajoute à sa rotation (`ShaderPackPortalRenderer`). Mesuré au banc en reculant face à
+  un cadre : l'écart de la vue dans le cadre est le même que sans pack (0,057 contre 0,052 de plage), contre 0,098
+  sans la correction.
+- **Main traversée par la vue d'un cadre tout proche**, en première personne sous un pack de shaders : le pack dessine
+  la main à sa vraie profondeur, que le plan d'un cadre à moins d'un demi-bloc de la caméra bat, et la vue, dessinée
+  après l'image, la recouvrait juste avant la traversée. Les pixels de la main prennent un bit du stencil pendant son
+  dessin (`HandMask`, `MixinHeldItemRenderer`) ; aucun cadre ne s'y marque et l'image gardée du joueur y est remise.
+  Sans pack, vanilla dessine déjà la main par-dessus tout. Vérifié au banc, avec un mod de rendu et un pack de shaders.
+- **Cadre à ras d'un bloc qui scintillait** (plan au bord du bloc sur un sol plein, par exemple) : la marque du cadre
+  dans le stencil et la face du bloc qu'elle touche se disputaient la profondeur. La marque est tirée vers la caméra le
+  temps de se poser (`glPolygonOffset`, `FrameAreaRenderer.mark`). Vérifié au banc, avec et sans pack de shaders.
+- **Élan perdu en sautant dans un cadre au sol** : la sortie plaçait les pieds à leur image, plus d'un bloc et demi sous
+  le plan quand les yeux décident ; elle garde maintenant la place du point qui décide (voir *Portails au sol et au
+  plafond*), et un cadre posé sur un sol plein s'ouvre sous qui y tombe (voir *Trappe et garde d'arrivée*).
 - **Écran qui tournait d'un tour complet à la traversée de presque tout portail** : le roulis de départ se lisait
   sur un quaternion sans en fixer le signe ; or un quaternion et son opposé sont la même rotation, et le lacet du
   joueur, jamais ramené à un tour, change ce signe à chaque tour sur soi-même. Un roulis nul valait alors un tour

@@ -30,7 +30,8 @@ class PortalTargetsTest {
     @Test
     @DisplayName("A la surface, un cadre au plafond est releve de deux blocs ; les autres se posent au sol")
     void ceilingLiftAtTheSurface() {
-        assertEquals(PortalArea.CLEARANCE_BEHIND, PortalTargets.ceilingLift(PortalFacing.DOWN), "Un cadre au plafond est releve de deux blocs.");
+        assertEquals(2, PortalTargets.ceilingLift(PortalFacing.DOWN), "Un cadre au plafond est releve de deux blocs.");
+        assertEquals(PortalTargets.CEILING_LIFT, PortalTargets.ceilingLift(PortalFacing.DOWN_UPSIDE_DOWN), "Retourne aussi.");
         assertEquals(0, PortalTargets.ceilingLift(PortalFacing.UP), "Les autres cadres se posent au sol.");
     }
 }

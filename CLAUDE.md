@@ -33,13 +33,13 @@ Quatre paquets sous la racine (à côté des deux points d'entrée) : `core/` (l
 - `core/` : `ModConstants`, `ModConfig` (options lues en `-D`) et `registry/` : registres (`Registry.register` dans des
   champs `static final`), un par type (blocs, items, block entities, entities, composants, sons, onglet créatif,
   payloads). Le bloc portail n'a pas d'item : la baguette le pose.
-- `core/portal/` : portails (bloc portail double face et ses réglages, plan au milieu ou au bord du bloc, baguette (`item/`), seule façon d'en créer un, debout, au sol ou au plafond, entity, téléportation de tout ce qui traverse, attelages compris, collision à travers le cadre, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
+- `core/portal/` : portails (bloc portail double face et ses réglages, plan au milieu ou au bord du bloc, baguette (`item/`), seule façon d'en créer un, debout, au sol ou au plafond, entity, téléportation de tout ce qui traverse, attelages compris, collision à travers le cadre, blocs derrière le plan cachés à qui s'engage dans le cadre (cadre contre un mur, trappe au sol), garde d'une arrivée au sol, arrivée tête en bas, synchronisation des chunks et des entités, rendu stencil avec un niveau d'imbrication et la météo de l'autre côté, interaction à travers le cadre, sons, particules et regard des mobs qui le traversent), actifs par défaut (`ModConfig.ENABLE_PORTAL_FEATURE`). Lire `docs/PORTALS.md` avant d'y toucher.
 - `core/perf/` : moniteur de performance opt-in.
 - `backrooms/level0/generation/` : `coord` → `noise` → `sector` → `layout` → `write`, orchestrés par `LevelZeroChunkGenerator`.
 - `backrooms/level0/client/model/` : rendu adaptatif du mur (client uniquement).
 - `backrooms/level0/LevelZeroArrival` : où un portail arrive dans le Level 0 ; seul lien, avec les registres, du socle vers le contenu.
 - `compat/iris/` : compatibilité avec le mod de shaders Iris, seul mod nommé dans le code (exception accordée) : son API publique dit si un pack est actif, et les vues de portail se dessinent alors après l'image (`ShaderPackPortalRenderer`). Dépendance `modCompileOnly` depuis le maven Modrinth, jamais embarquée ni requise.
-- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre, sons replacés après une traversée, roulis de la caméra à la traversée).
+- `mixin/` : commun (relais des changements de blocs, chunks tenus non renvoyés, sons et particules relayés, collision à travers le cadre, blocs cachés derrière le plan (collisions, étouffement), regard et poursuite des mobs, sources de lumière virtuelles des portails, accesseurs du suivi vanilla des entities et de la météo brute d'un monde) et `client/` (rendu des portails, découpe dans les shaders, monde distant, entités à cheval sur un portail, copies d'entités périmées remplacées, visée et clics à travers le cadre, sons replacés après une traversée, roulis de la caméra à la traversée, voile de mur levé dans un bloc caché, main gardée des vues sous un pack).
 - `src/gametest/` : tests en jeu, mod séparé `gtgs_backrooms_gametest` chargé par `runGameTest` seulement (jamais dans le JAR, `verifyJarContents` le vérifie).
 
 ## Règles de code
@@ -138,8 +138,8 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - Mixins : aucun `@Redirect`. Compilé contre le Mixin de Loader 0.19.5, son point d'injection est un tableau, que le
   MixinExtras 0.5.4 de Loader 0.19.2 lit comme un seul élément : la cible n'est pas transformée et le jeu plante au
   démarrage (`ClassCastException`), même sans autre mod. `@WrapOperation` fait le même travail, mais son appel
-  d'origine reçoit ses arguments dans un tableau alloué : dans un chemin de rendu, `@ModifyExpressionValue` quand
-  l'appel d'origine peut s'exécuter. `MixinTargetsTest` refuse tout `@Redirect`. Un chargeur plus ancien s'essaie en
+  d'origine reçoit ses arguments dans un tableau alloué : dans un chemin de rendu ou de tick, `@ModifyExpressionValue`
+  (ou `@ModifyArg` pour remplacer un argument, un prédicat par exemple) quand l'appel d'origine peut s'exécuter. `MixinTargetsTest` refuse tout `@Redirect`. Un chargeur plus ancien s'essaie en
   production, avec le chargeur, Mixin et MixinExtras de sa version sur le classpath (fichier `.json` de la version sur
   le maven de Fabric).
 - Mixins et mods de rendu : une injection dans une méthode déjà réécrite (`@Overwrite`) par un autre mod est une erreur
@@ -293,6 +293,31 @@ Les sels de `StageRandom.Stage` et l'algorithme de `LevelZeroSectorGenerator` ne
 - Tests en jeu : `PlayerManager.respawnPlayer` appelé directement ne met pas à jour `networkHandler.player` (vanilla le
   fait à la demande de respawn) ; sans cela, la déconnexion retire l'ancien joueur et le nouveau reste dans le monde,
   compté parmi les joueurs des tests suivants.
+- Collisions de blocs : toutes les requêtes passent par `BlockCollisionSpliterator` (déplacement, place libre, poussée
+  hors des blocs, contrôle des pas d'un joueur par le serveur) ; un bloc qu'on y retire l'est pour toutes, mais pas pour
+  les effets de contact (`onEntityCollision` : cactus, toile) ni les fluides. Le serveur refuse le pas d'un joueur qui
+  entre dans un bloc qu'il voit (ramené en arrière) : un bloc caché au client doit l'être au serveur, et encore un peu
+  après le plan (l'engagement retenu de `PortalCollision.tunnel`), sinon le pas qui passe le plan est refusé.
+  L'étouffement (`Entity.isInsideWall`) et le voile de mur à l'écran (`InGameOverlayRenderer.getInWallBlockState`, huit
+  points autour des yeux) se décident chacun de leur côté.
+- Cadre double face : passé le plan de la face avant, on est devant la face arrière (même centre, normale opposée) ;
+  « le portail où l'entity est engagée » doit exclure la face arrière de celui qu'elle traverse, qui cache le côté d'où
+  elle vient. La caméra ne passe jamais le plan avant la bascule : un œil dans un bloc caché derrière le plan y lit une
+  lumière nulle (image noire sous un pack de shaders) ; d'où la traversée aux yeux des cadres couchés.
+- Pack de shaders et balancement : vanilla met le balancement de la vue en marchant dans la projection
+  (`GameRenderer.renderWorld`), le pack le porte dans la matrice de vue passée à `WorldRenderer.render` (projection
+  sans balancement, mesuré au banc) ; une vue construite depuis la seule rotation de sa caméra reste immobile dans un
+  cadre qui balance (`ShaderPackPortalRenderer.VIEW_EXTRA` lui reporte l'écart).
+- Pack de shaders et main : le pack dessine la main à sa vraie profondeur, et le plan d'un cadre à moins d'un demi-bloc
+  de la caméra la bat ; une vue dessinée après l'image la recouvrait (`HandMask` marque ses pixels dans le stencil).
+- Code commun mesuré : pas de branche sur `world.isClient()` (le serveur de test n'a pas de client, la branche client
+  ne serait jamais prise) ; le côté se choisit par `PortalCollision.Worlds.side`, que le client implémente
+  (`ClientPortalIndex`). JaCoCo affiche un ratio sous le minimum tronqué à la précision du minimum (« 0.9 » pour 0,998) :
+  les lignes manquantes se lisent dans le rapport fusionné (`./gradlew jacocoFullReport`, `build/reports/jacoco/full`).
+- Suivi par entity : `Entity.equals` compare les identifiants réseau, que deux entités de mondes différents (un monde
+  distant du client) peuvent partager : une table par entity est une `IdentityHashMap`, une liste tenue à côté se vide
+  par identité. Un tick la parcourt par index : l'itérateur d'une `IdentityHashMap` alloue une entrée par élément
+  (`PortalCollision.Side`).
 - L'extension Java de VSCode compile avec JDT dans `build/classes/java/main` (même dossier que Gradle) ; avec un modèle de projet périmé, elle y écrit des classes `Unresolved compilation problems` qui font planter le client au chargement. L'autobuild est coupé dans `.vscode/settings.json` ; ne jamais le réactiver sans un import Gradle sain (JDK 21).
 
 ## Avant de push

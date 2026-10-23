@@ -68,6 +68,13 @@ public final class ShaderPackPortalRenderer {
     private static final int NESTED = 1;
     private static final Matrix4f VIEW_POSITION = new Matrix4f();
     private static final Matrix4f NESTED_POSITION = new Matrix4f();
+    /**
+     * Ce que la matrice de vue du joueur ajoute, a cette image, a la seule rotation de sa camera : le mod de shaders y
+     * porte le balancement de la vue en marchant, que vanilla met dans la projection (sa projection n'en a plus rien), et
+     * tout ce qu'il y ajoute d'autre. Les vues le prennent aussi, sans quoi l'autre cote resterait immobile dans un cadre
+     * qui balance. L'identite quand la matrice de vue n'est que la rotation.
+     */
+    private static final Matrix4f VIEW_EXTRA = new Matrix4f();
     /** Projection avec laquelle la vue en cours a ete dessinee, copiee : le renderer de vue reutilise la sienne pour la vue imbriquee. */
     private static final Matrix4f VIEW_DRAW_PROJECTION = new Matrix4f();
     private static final Matrix4f IDENTITY = new Matrix4f();
@@ -131,12 +138,16 @@ public final class ShaderPackPortalRenderer {
             LightmapTextureManager lightmap,
             Matrix4f positionMatrix,
             Matrix4f projection) {
+        captureViewExtra(camera, positionMatrix);
         Framebuffer framebuffer = client.getFramebuffer();
         framebuffer.beginWrite(false);
         Vec3d cameraPos = camera.getPos();
         GL11.glEnable(GL11.GL_STENCIL_TEST);
         GL11.glClearStencil(NO_FRAME);
+        // Le bit de la main, pose pendant son dessin, reste : aucun cadre ne s'y marque.
+        GL11.glStencilMask(FULL_MASK & ~HandMask.BIT);
         RenderSystem.clear(GL11.GL_STENCIL_BUFFER_BIT, false);
+        GL11.glStencilMask(FULL_MASK);
         try {
             markFrames(portals, cameraPos, positionMatrix);
             for (int i = 0; i < portals.size(); i++) {
@@ -162,9 +173,12 @@ public final class ShaderPackPortalRenderer {
             RenderTickCounter tickCounter,
             Camera camera,
             LightmapTextureManager lightmap,
+            Matrix4f positionMatrix,
             Matrix4f projection) {
+        captureViewExtra(camera, positionMatrix);
         Camera remoteCamera = PortalRenderState.remoteCamera();
         Vec2f remoteLook = PortalStencilRenderer.aimCamera(remoteCamera, remoteCameraPos, portal, camera, VIEW_POSITION);
+        VIEW_POSITION.mulLocal(VIEW_EXTRA);
         client.getFramebuffer().beginWrite(false);
         Matrix4f drawn = renderView(client, view, tickCounter, camera, remoteCamera, remoteCameraPos, VIEW_POSITION, projection, lightmap, portal, null);
         if (drawn == null) {
@@ -185,9 +199,17 @@ public final class ShaderPackPortalRenderer {
     }
 
     /**
+     * Garde ce que la matrice de vue du joueur ajoute a la rotation de sa camera ({@link #VIEW_EXTRA}) : vanilla la
+     * construit depuis la seule rotation de la camera.
+     */
+    private static void captureViewExtra(Camera camera, Matrix4f positionMatrix) {
+        VIEW_EXTRA.set(positionMatrix).rotate(camera.getRotation());
+    }
+
+    /**
      * Chaque cadre prend sa valeur dans le stencil la ou il passe le test de profondeur de l'image du joueur, puis y
      * ecrit sa propre profondeur : un cadre plus lointain derriere lui n'y passe plus, un cadre plus proche devant lui
-     * le recouvre, quel que soit l'ordre.
+     * le recouvre, quel que soit l'ordre. La main du joueur ({@link HandMask}) n'est recouverte par aucun.
      */
     private static void markFrames(List<BackroomsPortalEntity> portals, Vec3d cameraPos, Matrix4f positionMatrix) {
         RenderSystem.enableDepthTest();
@@ -195,7 +217,8 @@ public final class ShaderPackPortalRenderer {
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
             int value = NO_FRAME + 1 + i;
-            GL11.glStencilFunc(GL11.GL_ALWAYS, value, FULL_MASK);
+            // Compare le seul bit de la main : la valeur d'un cadre ne l'a pas.
+            GL11.glStencilFunc(GL11.GL_EQUAL, value, HandMask.BIT);
             GL11.glStencilOp(GL11.GL_KEEP, GL11.GL_KEEP, GL11.GL_REPLACE);
             drawAreaMask(portal, cameraPos, positionMatrix);
             GL11.glStencilFunc(GL11.GL_EQUAL, value, FULL_MASK);
@@ -208,7 +231,7 @@ public final class ShaderPackPortalRenderer {
         RenderSystem.colorMask(false, false, false, false);
         RenderSystem.depthMask(false);
         try {
-            FrameAreaRenderer.draw(portal, cameraPos, positionMatrix);
+            FrameAreaRenderer.mark(portal, cameraPos, positionMatrix);
         } finally {
             RenderSystem.colorMask(true, true, true, true);
             RenderSystem.depthMask(true);
@@ -237,6 +260,7 @@ public final class ShaderPackPortalRenderer {
         Vec3d remoteCameraPos = portal.toDestination(cameraPos);
         Camera remoteCamera = PortalRenderState.remoteCamera();
         Vec2f remoteLook = PortalStencilRenderer.aimCamera(remoteCamera, remoteCameraPos, portal, camera, VIEW_POSITION);
+        VIEW_POSITION.mulLocal(VIEW_EXTRA);
         Framebuffer framebuffer = client.getFramebuffer();
         saveImage(framebuffer, OUTER);
         FrameAreaRenderer.writeDepth(portal, cameraPos, positionMatrix, true);
@@ -327,6 +351,7 @@ public final class ShaderPackPortalRenderer {
         Vec3d innerCameraPos = inner.toDestination(remoteCameraPos);
         Camera nestedCamera = PortalRenderState.nestedCamera();
         PortalStencilRenderer.aimCamera(nestedCamera, innerCameraPos, inner, PortalRenderState.remoteCamera(), NESTED_POSITION);
+        NESTED_POSITION.mulLocal(VIEW_EXTRA);
         saveImage(framebuffer, NESTED);
         FrameAreaRenderer.writeDepth(inner, remoteCameraPos, VIEW_POSITION, true);
         limitedToFrame = true;

@@ -77,4 +77,19 @@ class PortalPursuitTest {
         assertFalse(PortalPursuit.linedUp(portal, 10.5, 64.0, 6.5), "En face, mais encore loin du plan.");
         assertFalse(PortalPursuit.linedUp(portal, 10.5, 64.0, 11.5), "Derriere le plan.");
     }
+
+    @Test
+    @DisplayName("Par le retour d'une arrivee tete en bas, le mob vise encore le pied du cadre, pas son haut")
+    void upsideDownFrameKeepsItsFoot() {
+        BackroomsPortalEntity flipped = BackroomsPortalEntity.builder(null)
+                .position(new Vec3d(10.5, 65.0, 10.5))
+                .facingSource(PortalFacing.NORTH_UPSIDE_DOWN)
+                .facingDestination(PortalFacing.EAST)
+                .destinationDim(World.NETHER)
+                .destinationPos(new Vec3d(100.5, 70.0, -40.5))
+                .size(1.0f, 2.0f)
+                .build();
+        assertEquals(64.0, PortalPursuit.approachPoint(flipped).y, EPSILON, "Il approche au pied du cadre.");
+        assertEquals(64.0, PortalPursuit.throughPoint(flipped).y, EPSILON, "Et le traverse au pied.");
+    }
 }

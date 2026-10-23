@@ -32,8 +32,46 @@ class PortalFacingTest {
             assertEquals(0.0, facing.axisW.crossProduct(facing.axisH).subtract(facing.normal).length(), EPS, facing + " : normale = W x H.");
             assertEquals(0.0, Vec3d.of(facing.direction.getVector()).subtract(facing.normal).length(), EPS,
                     facing + " : la normale est la direction cardinale.");
-            assertEquals(facing, PortalFacing.fromDirection(facing.direction), facing + " : aller-retour direction.");
+            assertEquals(facing.upright(), PortalFacing.fromDirection(facing.direction), facing + " : aller-retour direction, vers la droite.");
         }
+    }
+
+    @Test
+    @DisplayName("Chaque orientation a sa retournee : meme plan et meme normale, largeur et hauteur inversees")
+    void everyFacingHasAnUpsideDownTwin() {
+        for (PortalFacing facing : PortalFacing.values()) {
+            PortalFacing flipped = facing.flipped();
+            assertEquals(facing.direction, flipped.direction, facing + " : meme direction.");
+            assertEquals(0.0, flipped.normal.subtract(facing.normal).length(), EPS, facing + " : meme normale.");
+            assertEquals(0.0, flipped.axisW.add(facing.axisW).length(), EPS, facing + " : largeur inversee.");
+            assertEquals(0.0, flipped.axisH.add(facing.axisH).length(), EPS, facing + " : hauteur inversee.");
+            assertEquals(facing, flipped.flipped(), facing + " : la retournee de la retournee est l'orientation.");
+            assertTrue(facing.upsideDown() != flipped.upsideDown(), facing + " : l'une des deux est retournee.");
+            assertEquals(facing.upsideDown() ? flipped : facing, facing.upright(), facing + " : l'orientation droite de la paire.");
+            assertEquals(facing.opposite().flipped(), flipped.opposite(), facing + " : la face arriere d'un cadre retourne l'est aussi.");
+        }
+        assertEquals(12, PortalFacing.values().length, "Six orientations et leurs six retournees.");
+    }
+
+    @Test
+    @DisplayName("Par un cadre debout retourne, on ressort tete en bas ; par un cadre couche retourne, d'un demi-tour")
+    void upsideDownArrivalTurnsTheTraveller() {
+        Vec3d up = new Vec3d(0.0, 1.0, 0.0);
+        assertEquals(0.0, PortalFacing.transformVector(PortalFacing.NORTH, PortalFacing.SOUTH_UPSIDE_DOWN, up).add(up).length(), EPS,
+                "Debout vers debout retourne : le haut devient le bas.");
+        Vec3d ahead = new Vec3d(0.0, 0.0, 1.0);
+        assertEquals(0.0, PortalFacing.transformVector(PortalFacing.NORTH, PortalFacing.SOUTH_UPSIDE_DOWN, ahead).subtract(ahead).length(), EPS,
+                "On continue tout droit.");
+        Vec3d north = new Vec3d(0.0, 0.0, -1.0);
+        assertEquals(0.0, PortalFacing.transformVector(PortalFacing.UP, PortalFacing.DOWN_UPSIDE_DOWN, up).subtract(up).length(), EPS,
+                "Du sol a un plafond retourne : on reste debout.");
+        assertEquals(0.0, PortalFacing.transformVector(PortalFacing.UP, PortalFacing.DOWN_UPSIDE_DOWN, north).add(north).length(), EPS,
+                "Mais tourne d'un demi-tour.");
+        // Le retour d'un cadre retourne ramene exactement d'ou l'on vient.
+        Vec3d point = new Vec3d(10.3, 64.7, -2.2);
+        Vec3d there = PortalFacing.transformPoint(PortalFacing.NORTH, Vec3d.ZERO, PortalFacing.SOUTH_UPSIDE_DOWN, new Vec3d(5.0, 70.0, 5.0), point);
+        Vec3d back = PortalFacing.transformPoint(PortalFacing.SOUTH_UPSIDE_DOWN, new Vec3d(5.0, 70.0, 5.0), PortalFacing.NORTH, Vec3d.ZERO, there);
+        assertEquals(0.0, back.subtract(point).length(), EPS, "Aller et retour par un cadre retourne : le point revient a sa place.");
     }
 
     static Stream<Arguments> allPairs() {
@@ -175,7 +213,8 @@ class PortalFacingTest {
     @Test
     @DisplayName("Horizontalement, deux portails dos a dos vers les faces correspondantes font la meme transformation : un trou")
     void backPairMatchesTheFrontPair() {
-        PortalFacing[] horizontal = {PortalFacing.NORTH, PortalFacing.EAST, PortalFacing.SOUTH, PortalFacing.WEST};
+        PortalFacing[] horizontal = {PortalFacing.NORTH, PortalFacing.EAST, PortalFacing.SOUTH, PortalFacing.WEST,
+            PortalFacing.NORTH_UPSIDE_DOWN, PortalFacing.EAST_UPSIDE_DOWN, PortalFacing.SOUTH_UPSIDE_DOWN, PortalFacing.WEST_UPSIDE_DOWN};
         Vec3d[] vectors = {new Vec3d(0.3, -1.2, 2.5), new Vec3d(-4.0, 0.5, 0.25), new Vec3d(1.0, 1.0, -1.0)};
         for (PortalFacing source : horizontal) {
             for (PortalFacing destination : horizontal) {

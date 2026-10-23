@@ -39,6 +39,8 @@ import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
 import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalCrossPayload;
 import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalTeleportPayload;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.ArrivalGuard;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalCollision;
 import com.gtgpuke.gtgsbackrooms.core.portal.transition.TeleportExecutor;
 import com.gtgpuke.gtgsbackrooms.mixin.EntityAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.ClientPlayNetworkHandlerAccessor;
@@ -111,7 +113,7 @@ public final class ClientPortalCrossing {
             return;
         }
         // Position affichee a cette image, pas celle du tick : la continuite visuelle se joue la. Le test
-        // porte sur les pieds (sur les yeux pour un cadre au sol), exactement comme celui du serveur : devant un cadre
+        // porte sur les pieds (sur les yeux pour un cadre couche), exactement comme celui du serveur : devant un cadre
         // debout la camera franchit le plan au meme instant que les pieds, et client comme serveur prennent la meme decision.
         double feetX = MathHelper.lerp(tickDelta, player.prevX, player.getX());
         double feetY = MathHelper.lerp(tickDelta, player.prevY, player.getY());
@@ -138,9 +140,9 @@ public final class ClientPortalCrossing {
         List<BackroomsPortalEntity> portals = ClientPortalIndex.portals(world);
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity portal = portals.get(i);
-            // Accroupi sur un cadre au sol pose sur un sol plein, on s'y laisse descendre : c'est ainsi qu'on reprend une arrivee au sol.
-            if (portal.teleportable() && (TeleportExecutor.crossedPortalPlane(portal, player, fromX, fromY, fromZ, feetX, feetY, feetZ)
-                    || TeleportExecutor.descendsThrough(portal, player))) {
+            // Le cadre d'arrivee au sol dont le joueur vient de sortir ne le renvoie pas : meme garde que le serveur.
+            if (portal.teleportable() && TeleportExecutor.crossedPortalPlane(portal, player, fromX, fromY, fromZ, feetX, feetY, feetZ)
+                    && !ArrivalGuard.guards(player, portal)) {
                 predict(client, player, world, portal, new Vec3d(feetX, feetY, feetZ));
                 return;
             }
@@ -156,6 +158,8 @@ public final class ClientPortalCrossing {
 
     /** Tick client : expiration des attentes. */
     public static void onClientTick() {
+        ArrivalGuard.tick(PortalCollision.Side.CLIENT);
+        PortalCollision.tick(PortalCollision.Side.CLIENT);
         if (awaitingServerTicks > 0) {
             awaitingServerTicks--;
         }
@@ -175,6 +179,8 @@ public final class ClientPortalCrossing {
         predictedExit = null;
         SoundAnchors.clear();
         CrossingRoll.clear();
+        ArrivalGuard.clear(PortalCollision.Side.CLIENT);
+        PortalCollision.clear(PortalCollision.Side.CLIENT);
     }
 
     /** {@code true} tant que les dechargements de chunks vanilla concernent l'ancien monde et doivent etre ignores. */
@@ -215,7 +221,7 @@ public final class ClientPortalCrossing {
         float pitch = player.getPitch();
         PortalFacing source = portal.facingSource();
         PortalFacing exitFacing = portal.facingDestination();
-        Vec3d exit = TeleportExecutor.exitPoint(portal, feet, player.getHeight());
+        Vec3d exit = TeleportExecutor.exitPoint(portal, feet, player.getHeight(), portal.crossingHeight(player));
         Vec3d exitVelocity = PortalFacing.transformVector(source, exitFacing, velocity);
         Vec2f look = PortalFacing.transformLook(source, exitFacing, yaw, pitch);
         // Le portail tourne le regard d'un meme angle pour toutes les valeurs, courantes et precedentes, ramene au plus
@@ -223,10 +229,11 @@ public final class ClientPortalCrossing {
         // le tangage.
         float yawShift = MathHelper.wrapDegrees(look.x - yaw);
         float pitchShift = look.y - pitch;
-        // Les positions du tick courant et du tick precedent passent aussi le portail : l'interpolation de l'image continue
-        // sans a-coup, le joueur ne s'arrete pas sur le plan le temps d'un tick.
-        Vec3d thisTick = TeleportExecutor.exitPoint(portal, player.getPos(), player.getHeight());
-        Vec3d lastTick = TeleportExecutor.exitPoint(portal, new Vec3d(player.prevX, player.prevY, player.prevZ), player.getHeight());
+        // Les positions du tick courant et du tick precedent passent aussi le portail, decalees comme celle de cette image a
+        // sa sortie : l'interpolation de l'image continue sans a-coup, le joueur ne s'arrete pas sur le plan le temps d'un tick.
+        Vec3d shift = exit.subtract(portal.toDestination(feet));
+        Vec3d thisTick = portal.toDestination(player.getPos()).add(shift);
+        Vec3d lastTick = portal.toDestination(new Vec3d(player.prevX, player.prevY, player.prevZ)).add(shift);
 
         // Le serveur doit recevoir l'annonce avant le prochain paquet de deplacement.
         ClientPlayNetworking.send(new PortalCrossPayload(portal.getUuid(), feet, velocity, yaw, pitch));
@@ -235,8 +242,11 @@ public final class ClientPortalCrossing {
         awaitingServerTicks = SERVER_ANSWER_TIMEOUT_TICKS;
         lastCrossingAge = player.age;
         PortalSightReporter.onArrival();
-        // La camera part de l'image vue par le cadre, penchee si le portail tourne autour d'un axe horizontal.
-        CrossingRoll.start(PortalViewTransform.crossingRoll(source, exitFacing, yaw, pitch), Util.getMeasuringTimeMs());
+        // La camera part de l'image vue par le cadre, penchee si le portail tourne autour d'un axe horizontal ou retourne
+        // l'arrivee, et placee a l'image de l'oeil : elle rejoint ensuite l'oeil, la ou le corps ressort debout.
+        double eyeHeight = player.getEyeY() - player.getY();
+        Vec3d cameraShift = portal.toDestination(feet.add(0.0, eyeHeight, 0.0)).subtract(exit.x, exit.y + eyeHeight, exit.z);
+        CrossingRoll.start(PortalViewTransform.crossingRoll(source, exitFacing, yaw, pitch), cameraShift, Util.getMeasuringTimeMs());
         turn(player, yawShift, pitchShift);
         carryCape(player, portal);
         if (sameDimension) {
@@ -245,6 +255,7 @@ public final class ClientPortalCrossing {
             switchWorld(client, remote, () -> place(player, thisTick, exitVelocity), false);
         }
         continueInterpolation(player, lastTick);
+        ArrivalGuard.arrive(player, portal);
         hasLastFeet = false;
         SoundAnchors.refresh(client);
     }
@@ -288,7 +299,7 @@ public final class ClientPortalCrossing {
     private static boolean fleetingEntry(ClientWorld departure, BackroomsPortalEntity crossed) {
         int width = Math.round(crossed.width());
         int height = Math.round(crossed.height());
-        PortalFacing facing = crossed.facingSource();
+        PortalFacing facing = crossed.facingSource().upright();
         for (int side = 0; side < 2; side++) {
             if (departure.getBlockEntity(PortalArea.anchor(crossed.getPos(), facing, width, height)) instanceof BackroomsPortalBlockEntity block) {
                 return PortalWayBack.of(block.settings()).fleetingExit();
@@ -379,8 +390,9 @@ public final class ClientPortalCrossing {
         predictedExit = null;
         if (world.getRegistryKey().equals(dimension)) {
             if (predicted == null || predicted.squaredDistanceTo(payload.position()) > CONFIRMATION_TOLERANCE_SQUARED) {
-                // Bascule menee par le serveur, ou position corrigee : alignement sur lui.
+                // Bascule menee par le serveur, ou position corrigee : alignement sur lui, et garde du cadre au sol ou il le pose.
                 applyPosition(player, payload.position(), payload.yaw(), payload.pitch(), payload.velocity());
+                ArrivalGuard.arriveOnFrame(player, ClientPortalIndex.portals(world));
             }
             // Sinon la prediction est confirmee telle quelle : le joueur a continue d'avancer depuis, on ne le ramene pas en arriere.
             if (handler.getWorld() != world) {
@@ -397,6 +409,7 @@ public final class ClientPortalCrossing {
         }
         switchWorld(client, remote,
                 () -> applyPosition(player, payload.position(), payload.yaw(), payload.pitch(), payload.velocity()), true);
+        ArrivalGuard.arriveOnFrame(player, ClientPortalIndex.portals(remote.world()));
         SoundAnchors.refresh(client);
     }
 

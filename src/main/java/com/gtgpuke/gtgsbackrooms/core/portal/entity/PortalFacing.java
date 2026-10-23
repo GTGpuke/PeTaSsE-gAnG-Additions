@@ -14,6 +14,11 @@ import net.minecraft.util.math.Vec3d;
  * Ce qui est devant la source est donc derriere la destination ; le voyageur garde sa droite (vue de face, la
  * largeur W de la source s'inverse a l'arrivee) : le passage est une rotation de 180 degres autour de l'axe H, jamais
  * un miroir.
+ *
+ * <p>Chaque orientation a sa retournee ({@link #flipped()}) : meme plan, meme normale, largeur et hauteur inversees, un
+ * demi-tour autour de la normale. Un cadre d'arrivee retourne fait ressortir tete en bas : le haut de la source devient
+ * le bas de l'arrivee. Le cadre lui-meme, rectangle centre, n'en change pas : une orientation retournee ne sert qu'au
+ * passage, jamais a poser un cadre a partir de son pied ({@link #upright()}).
  */
 public enum PortalFacing {
     NORTH(Direction.NORTH, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, 1.0, 0.0)),
@@ -23,7 +28,14 @@ public enum PortalFacing {
     // Au sol et au plafond, la hauteur suit le nord et la largeur s'inverse, comme entre le nord et le sud : un cadre au
     // sol et un cadre au plafond sont l'un l'autre a l'oppose (opposite) et passer de l'un a l'autre ne fait pas tourner.
     UP(Direction.UP, new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0)),
-    DOWN(Direction.DOWN, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0));
+    DOWN(Direction.DOWN, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, -1.0)),
+    // Retournees : apres les six premieres, dont les ordinaux (reseau) et les noms (sauvegarde) ne changent pas.
+    NORTH_UPSIDE_DOWN(Direction.NORTH, new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, -1.0, 0.0)),
+    SOUTH_UPSIDE_DOWN(Direction.SOUTH, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, -1.0, 0.0)),
+    EAST_UPSIDE_DOWN(Direction.EAST, new Vec3d(0.0, 0.0, 1.0), new Vec3d(0.0, -1.0, 0.0)),
+    WEST_UPSIDE_DOWN(Direction.WEST, new Vec3d(0.0, 0.0, -1.0), new Vec3d(0.0, -1.0, 0.0)),
+    UP_UPSIDE_DOWN(Direction.UP, new Vec3d(-1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, 1.0)),
+    DOWN_UPSIDE_DOWN(Direction.DOWN, new Vec3d(1.0, 0.0, 0.0), new Vec3d(0.0, 0.0, 1.0));
 
     /** En deca de cette part horizontale (au carre), un regard est vertical : il n'a plus de cap propre. */
     private static final double VERTICAL_LOOK_SQUARED = 1.0e-8;
@@ -38,6 +50,8 @@ public enum PortalFacing {
 
     /** Orientations, sans la copie de {@code values()} a chaque recherche. */
     private static final PortalFacing[] VALUES = values();
+    /** Orientations droites, en tete de l'enumeration ; leurs retournees suivent dans le meme ordre. */
+    private static final int UPRIGHT_COUNT = 6;
 
     PortalFacing(Direction direction, Vec3d axisW, Vec3d axisH) {
         this.direction = direction;
@@ -47,7 +61,7 @@ public enum PortalFacing {
     }
 
     /**
-     * Orientation dont la normale suit une direction.
+     * Orientation droite dont la normale suit une direction.
      *
      * @param direction direction cardinale, non nulle
      * @return orientation correspondante
@@ -64,7 +78,8 @@ public enum PortalFacing {
 
     /**
      * Orientation de la face arriere d'un portail : meme plan, normale opposee. Deux portails dos a dos, chacun vers la
-     * face correspondante de l'autre cote, font la meme transformation : un trou qui se traverse dans les deux sens.
+     * face correspondante de l'autre cote, font la meme transformation : un trou qui se traverse dans les deux sens. La
+     * face arriere d'un cadre retourne l'est aussi.
      */
     public PortalFacing opposite() {
         return switch (this) {
@@ -74,7 +89,28 @@ public enum PortalFacing {
             case WEST -> EAST;
             case UP -> DOWN;
             case DOWN -> UP;
+            case NORTH_UPSIDE_DOWN -> SOUTH_UPSIDE_DOWN;
+            case SOUTH_UPSIDE_DOWN -> NORTH_UPSIDE_DOWN;
+            case EAST_UPSIDE_DOWN -> WEST_UPSIDE_DOWN;
+            case WEST_UPSIDE_DOWN -> EAST_UPSIDE_DOWN;
+            case UP_UPSIDE_DOWN -> DOWN_UPSIDE_DOWN;
+            case DOWN_UPSIDE_DOWN -> UP_UPSIDE_DOWN;
         };
+    }
+
+    /** Orientation retournee : meme plan, meme normale, un demi-tour autour d'elle ; la retournee d'une retournee est la droite. */
+    public PortalFacing flipped() {
+        return VALUES[(ordinal() + UPRIGHT_COUNT) % VALUES.length];
+    }
+
+    /** {@code true} pour une orientation retournee : passer par elle fait ressortir tete en bas. */
+    public boolean upsideDown() {
+        return ordinal() >= UPRIGHT_COUNT;
+    }
+
+    /** Orientation droite de meme normale : celle-ci, ou sa retournee ; c'est elle qui pose un cadre a partir de son pied. */
+    public PortalFacing upright() {
+        return upsideDown() ? flipped() : this;
     }
 
     /**

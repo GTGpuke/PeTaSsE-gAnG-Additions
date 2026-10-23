@@ -1,6 +1,7 @@
 package com.gtgpuke.gtgsbackrooms.core.portal.item;
 
 import java.util.List;
+import java.util.Optional;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -10,6 +11,8 @@ import net.minecraft.item.ItemPlacementContext;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.ItemUsageContext;
 import net.minecraft.item.tooltip.TooltipType;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.text.Text;
@@ -24,6 +27,8 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.BackroomsPortalBlockEntity;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalExit;
+import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalMark;
+import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalPlacement;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalSettings;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalWayBack;
 import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalWandSettingsPayload;
@@ -55,10 +60,20 @@ public final class PortalWandItem extends Item {
     private static final String SETTINGS_EXIT = SETTINGS + "exit";
     private static final String SETTINGS_EXIT_SCATTER = SETTINGS + "exit_scatter";
     private static final String SETTINGS_FLUSH = SETTINGS + "flush";
+    private static final String SETTINGS_UPSIDE_DOWN = SETTINGS + "upside_down";
+    private static final String SETTINGS_PLACEMENT = SETTINGS + "placement";
+    private static final String SETTINGS_DESTINATION = SETTINGS + "destination";
+    private static final String SETTINGS_MARK = SETTINGS + "mark";
+    /** Prefixe du nom d'une dimension, suivi de son identifiant ; l'identifiant lui-meme pour une dimension sans nom traduit. */
+    private static final String DIMENSION = "dimension." + ModConstants.MOD_ID + ".";
+    /** Ecart tolere, en blocs, entre la sortie qu'un client vient de marquer et le joueur, que le serveur voit avec un retard. */
+    private static final int MARK_TOLERANCE = 3;
     /** Cle de la ligne de chaque retour, par ordinal. */
     private static final String[] SETTINGS_WAY_BACK_KEYS = wayBackKeys();
     /** Cle du nom de chaque sens de sortie, par ordinal. */
     private static final String[] SETTINGS_EXIT_KEYS = exitKeys();
+    /** Cle du nom de chaque pose, par ordinal. */
+    private static final String[] SETTINGS_PLACEMENT_KEYS = placementKeys();
     /** Message de la barre d'action quand la baguette prend les reglages d'un portail. */
     private static final String COPIED = "message." + ModConstants.MOD_ID + ".portal_wand.copied";
     private static boolean initialized;
@@ -78,8 +93,8 @@ public final class PortalWandItem extends Item {
     }
 
     /**
-     * Pose sur la baguette tenue dans la main indiquee les reglages choisis dans son ecran ; rien si cette main ne la tient
-     * plus (changee de main, lachee entre-temps).
+     * Pose sur la baguette tenue dans la main indiquee les reglages choisis dans son ecran ({@link #accepted}) ; rien si
+     * cette main ne la tient plus (changee de main, lachee entre-temps).
      *
      * @param player joueur qui a choisi les reglages
      * @param payload main et reglages choisis
@@ -87,8 +102,37 @@ public final class PortalWandItem extends Item {
     static void applySettings(PlayerEntity player, PortalWandSettingsPayload payload) {
         ItemStack stack = player.getStackInHand(payload.hand());
         if (stack.isOf(ModItems.PORTAL_WAND)) {
-            stack.set(ModDataComponents.PORTAL_SETTINGS, payload.settings());
+            stack.set(ModDataComponents.PORTAL_SETTINGS, accepted(player, PortalSettings.of(stack), payload.settings()));
         }
+    }
+
+    /**
+     * Reglages recus d'un client, la sortie verifiee : une dimension de destination que le serveur n'a pas est oubliee
+     * (destination automatique), et une sortie fixee nouvelle doit etre la ou se tient le joueur, qui ne la marque que la ou
+     * il est ; sinon la baguette garde la sienne.
+     *
+     * @param player joueur qui a choisi les reglages
+     * @param current reglages que porte la baguette
+     * @param chosen reglages recus
+     * @return reglages a poser sur la baguette
+     */
+    static PortalSettings accepted(PlayerEntity player, PortalSettings current, PortalSettings chosen) {
+        MinecraftServer server = player.getServer();
+        Optional<RegistryKey<World>> destination = chosen.destination().filter(key -> server.getWorld(key) != null);
+        Optional<PortalMark> mark = chosen.mark().isEmpty() || chosen.mark().equals(current.mark()) || markedHere(player, chosen.mark().get())
+                ? chosen.mark()
+                : current.mark();
+        return chosen.withExit(destination, mark);
+    }
+
+    /** {@code true} si la sortie est marquee la ou se tient le joueur, a {@value #MARK_TOLERANCE} blocs pres. */
+    private static boolean markedHere(PlayerEntity player, PortalMark mark) {
+        return mark.dimension().equals(player.getWorld().getRegistryKey()) && mark.pos().isWithinDistance(player.getBlockPos(), MARK_TOLERANCE);
+    }
+
+    /** Nom d'une dimension : traduit pour celles qu'on connait, son identifiant pour les autres. */
+    public static Text dimensionName(RegistryKey<World> dimension) {
+        return Text.translatableWithFallback(DIMENSION + dimension.getValue().toTranslationKey(), dimension.getValue().toString());
     }
 
     /**
@@ -136,7 +180,7 @@ public final class PortalWandItem extends Item {
 
     /**
      * Lignes qui decrivent des reglages de portail : taille, lumiere, faces, retour, puis ce qui n'est pas par defaut (sens
-     * de sortie, tirage au sort, plan au bord du bloc).
+     * de sortie, tirage au sort, plan au bord du bloc, arrivee tete en bas, pose, sortie fixee ou a defaut destination).
      */
     private static void appendSettings(PortalSettings settings, List<Text> tooltip) {
         tooltip.add(Text.translatable(SETTINGS_SIZE, settings.width(), settings.height()).formatted(Formatting.GRAY));
@@ -152,6 +196,20 @@ public final class PortalWandItem extends Item {
         if (settings.flush()) {
             tooltip.add(Text.translatable(SETTINGS_FLUSH).formatted(Formatting.GRAY));
         }
+        if (settings.upsideDown()) {
+            tooltip.add(Text.translatable(SETTINGS_UPSIDE_DOWN).formatted(Formatting.GRAY));
+        }
+        if (settings.placement() != PortalPlacement.LOOK) {
+            tooltip.add(Text.translatable(SETTINGS_PLACEMENT, Text.translatable(SETTINGS_PLACEMENT_KEYS[settings.placement().ordinal()]))
+                    .formatted(Formatting.GRAY));
+        }
+        if (settings.mark().isPresent()) {
+            PortalMark mark = settings.mark().get();
+            tooltip.add(Text.translatable(SETTINGS_MARK, dimensionName(mark.dimension()), mark.pos().getX(), mark.pos().getY(), mark.pos().getZ())
+                    .formatted(Formatting.GRAY));
+        } else if (settings.destination().isPresent()) {
+            tooltip.add(Text.translatable(SETTINGS_DESTINATION, dimensionName(settings.destination().get())).formatted(Formatting.GRAY));
+        }
     }
 
     private static String[] wayBackKeys() {
@@ -159,6 +217,15 @@ public final class PortalWandItem extends Item {
         String[] keys = new String[ways.length];
         for (int i = 0; i < ways.length; i++) {
             keys[i] = SETTINGS + ways[i].key();
+        }
+        return keys;
+    }
+
+    private static String[] placementKeys() {
+        PortalPlacement[] placements = PortalPlacement.values();
+        String[] keys = new String[placements.length];
+        for (int i = 0; i < placements.length; i++) {
+            keys[i] = SETTINGS_PLACEMENT + "." + placements[i].asString();
         }
         return keys;
     }

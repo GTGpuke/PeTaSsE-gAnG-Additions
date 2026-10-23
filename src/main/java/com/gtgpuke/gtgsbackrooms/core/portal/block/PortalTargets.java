@@ -1,36 +1,58 @@
 package com.gtgpuke.gtgsbackrooms.core.portal.block;
 
+import java.util.Optional;
 
 import org.jetbrains.annotations.Nullable;
 
+import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.util.math.random.Random;
 import net.minecraft.util.shape.VoxelShape;
 import net.minecraft.world.BlockView;
 import net.minecraft.world.Heightmap;
 import net.minecraft.world.World;
+import net.minecraft.world.dimension.DimensionType;
 
 import com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConstants;
 import com.gtgpuke.gtgsbackrooms.backrooms.level0.LevelZeroArrival;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
 
 /**
- * Ciblage automatique d'un bloc portail : ou il mene, et dans quel sens on en sort.
+ * Ciblage d'un bloc portail : ou il mene, et dans quel sens on en sort.
  *
- * <p>Un portail pose hors du Level 0 mene au layer 0 du Level 0, pres des memes X/Z ; pose dans le Level 0, il ramene a
- * la surface du monde normal aux memes X/Z. Par defaut, traverser ne fait pas tourner : la face de sortie regarde a
- * l'oppose de celle d'entree, et on continue dans la meme direction ; les reglages peuvent imposer un point cardinal de
- * sortie, le sol ou le plafond ({@link PortalExit}) et tirer au sort les X/Z de l'arrivee dans un rayon autour de ceux du
- * bloc. A la surface, le cadre d'arrivee se pose sur le haut reel du sol ; dans le Level 0, c'est le Level 0 qui sait ou
- * il tient ({@link LevelZeroArrival}).
+ * <p>Par defaut (destination automatique), un portail pose hors du Level 0 mene au layer 0 du Level 0, pres des memes X/Z ;
+ * pose dans le Level 0, il ramene a la surface du monde normal aux memes X/Z. Les reglages peuvent choisir la dimension
+ * d'arrivee : les X/Z y suivent l'echelle de coordonnees des deux dimensions, comme vanilla (un huitieme dans le Nether).
+ * Une sortie fixee ({@link PortalMark}) l'emporte : on arrive la ou elle a ete marquee. Par defaut, traverser ne fait pas
+ * tourner : la face de sortie regarde a l'oppose de celle d'entree, et on continue dans la meme direction ; vers une
+ * sortie fixee, on ressort dans la direction de son regard ; les reglages peuvent imposer un point cardinal de sortie, le
+ * sol ou le plafond ({@link PortalExit}) et tirer au sort les X/Z de l'arrivee dans un rayon autour de son point de depart.
+ *
+ * <p>Dans le Level 0, c'est le Level 0 qui sait ou le cadre d'arrivee tient ({@link LevelZeroArrival}). Dans une
+ * dimension a ciel ouvert, il se pose sur le haut reel du sol ; dans une dimension a plafond (le Nether), sur le premier
+ * sol plein sous le point de depart ou il tient, hors des fluides. Sans sol pres du point de depart (le vide de l'End, un
+ * lac de lave), il se pose au point de depart sur une plateforme d'obsidienne, la place du cadre et du corps degagee : on
+ * n'arrive jamais dans des blocs, ni dans un fluide, ni au-dessus du vide.
  */
 public final class PortalTargets {
+
+    /** Hauteur, en blocs, dont un cadre d'arrivee au plafond pose a la surface est releve au-dessus du sol. */
+    static final int CEILING_LIFT = 2;
+    /** Rayon, en colonnes, de la recherche d'un sol autour du point de depart, hors du Level 0 : celui de vanilla pour ses portails. */
+    static final int SEARCH_RADIUS = 16;
+    /** Hauteur libre, en blocs, au-dessus d'un sol ou l'on arrive : de quoi s'y tenir debout. */
+    private static final int STANDING_ROOM = 2;
+    /** Marge, en blocs, de la plateforme et de la place degagee autour du cadre, d'un sol sans sol a portee. */
+    private static final int PLATFORM_MARGIN = 1;
 
     /**
      * Destination d'un portail.
@@ -60,16 +82,17 @@ public final class PortalTargets {
     }
 
     /**
-     * Meme resolution, la dimension du bloc donnee par sa cle : un portail du Level 0 mene a la surface de l'overworld,
-     * tout autre portail mene au Level 0.
+     * Meme resolution, la dimension du bloc donnee par sa cle : vers la sortie fixee si les reglages en ont une, sinon vers
+     * la dimension choisie, ou, automatiquement, de tout portail vers le Level 0 et du Level 0 vers la surface de
+     * l'overworld.
      *
      * @param server serveur dont on lit les mondes
      * @param dimension dimension du bloc
      * @param anchor position du bloc
      * @param entryFacing orientation de sa face avant
-     * @param settings taille du cadre, sens de sortie et rayon de tirage au sort de l'arrivee
+     * @param settings taille du cadre, sens de sortie, rayon de tirage au sort, destination et sortie fixee
      * @param random tirage des X/Z de l'arrivee, quand les reglages en veulent un
-     * @return destination, ou {@code null} si la dimension cible est absente ou sans cellule ouverte
+     * @return destination, ou {@code null} si la dimension cible est absente ou sans arrivee pres du point de depart
      */
     public static @Nullable Target resolve(
             MinecraftServer server,
@@ -79,26 +102,172 @@ public final class PortalTargets {
             PortalSettings settings,
             Random random) {
         PortalFacing exitFacing = settings.exit().arrivalFacing(entryFacing);
-        int x = anchor.getX() + scatter(random, settings.exitScatter());
-        int z = anchor.getZ() + scatter(random, settings.exitScatter());
-        if (dimension.equals(BackroomsConstants.LEVEL_ZERO_WORLD)) {
-            ServerWorld overworld = server.getOverworld();
-            // World.getTopY renvoie le fond du monde si le chunk n'est pas charge : on le charge d'abord (une fois, a la pose).
-            overworld.getChunk(ChunkSectionPos.getSectionCoord(x), ChunkSectionPos.getSectionCoord(z));
-            int surfaceY = overworld.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z);
-            Vec3d floor = new Vec3d(x + 0.5, floorHeight(overworld, x, surfaceY, z) + ceilingLift(exitFacing), z + 0.5);
-            return new Target(World.OVERWORLD, PortalArea.center(floor, exitFacing, settings), exitFacing);
+        Optional<PortalMark> mark = settings.mark();
+        if (mark.isPresent()) {
+            PortalFacing facing = settings.exit() == PortalExit.STRAIGHT ? mark.get().arrivalFacing() : exitFacing;
+            return toMark(server, mark.get(), facing, settings, random);
         }
-        ServerWorld levelZero = server.getWorld(BackroomsConstants.LEVEL_ZERO_WORLD);
-        return levelZero == null ? null : LevelZeroArrival.find(levelZero, x, z, exitFacing, settings);
+        RegistryKey<World> target = settings.destination().orElse(automatic(dimension));
+        ServerWorld world = server.getWorld(target);
+        if (world == null) {
+            return null;
+        }
+        double scale = scale(server.getWorld(dimension), world);
+        int x = MathHelper.floor(anchor.getX() * scale) + scatter(random, settings.exitScatter());
+        int z = MathHelper.floor(anchor.getZ() * scale) + scatter(random, settings.exitScatter());
+        if (target.equals(BackroomsConstants.LEVEL_ZERO_WORLD)) {
+            return LevelZeroArrival.find(world, x, z, exitFacing, settings);
+        }
+        return arrive(world, x, anchor.getY(), z, exitFacing, settings);
+    }
+
+    /** Destination automatique : la surface de l'overworld depuis le Level 0, le Level 0 depuis toute autre dimension. */
+    static RegistryKey<World> automatic(RegistryKey<World> dimension) {
+        return dimension.equals(BackroomsConstants.LEVEL_ZERO_WORLD) ? World.OVERWORLD : BackroomsConstants.LEVEL_ZERO_WORLD;
+    }
+
+    /** Facteur des X/Z d'une dimension a l'autre, comme vanilla ; un quand la dimension de depart n'est pas chargee. */
+    private static double scale(@Nullable ServerWorld from, ServerWorld to) {
+        return from == null ? 1.0 : DimensionType.getCoordinateScaleFactor(from.getDimension(), to.getDimension());
     }
 
     /**
-     * Un cadre au plafond pose a la surface est releve de deux blocs : qui en sort pend sous son plan, les pieds encore
-     * au-dessus du sol. Rien pour les autres orientations.
+     * Arrivee a une sortie fixee : sur le bloc ou elle a ete marquee, ou, avec un rayon de tirage au sort, sur un sol pres
+     * d'un point tire autour d'elle.
+     */
+    private static @Nullable Target toMark(MinecraftServer server, PortalMark mark, PortalFacing facing, PortalSettings settings, Random random) {
+        ServerWorld world = server.getWorld(mark.dimension());
+        if (world == null) {
+            return null;
+        }
+        BlockPos pos = mark.pos();
+        if (settings.exitScatter() > 0) {
+            return arrive(world, pos.getX() + scatter(random, settings.exitScatter()), pos.getY(),
+                    pos.getZ() + scatter(random, settings.exitScatter()), facing, settings);
+        }
+        world.getChunk(ChunkSectionPos.getSectionCoord(pos.getX()), ChunkSectionPos.getSectionCoord(pos.getZ()));
+        return target(world, pos.getX(), floorHeight(world, pos.getX(), pos.getY(), pos.getZ()), pos.getZ(), facing, settings);
+    }
+
+    /**
+     * Arrivee hors du Level 0, la colonne de depart d'abord puis des anneaux de colonnes autour d'elle, jusqu'a
+     * {@value #SEARCH_RADIUS} : sur le haut du sol dans une dimension a ciel ouvert (un vide sans sol ne compte pas), sur le
+     * premier sol ou l'on tient debout sous le point de depart, le cadre entier hors des blocs et des fluides, dans une
+     * dimension a plafond, ou au-dessus a defaut. Sans sol a portee, sur une plateforme au point de depart ({@link #onPlatform}).
+     *
+     * @return destination
+     */
+    public static Target arrive(ServerWorld world, int x, int startY, int z, PortalFacing facing, PortalSettings settings) {
+        boolean ceiling = world.getDimension().hasCeiling();
+        for (int ring = 0; ring <= SEARCH_RADIUS; ring++) {
+            for (int dx = -ring; dx <= ring; dx++) {
+                for (int dz = -ring; dz <= ring; dz++) {
+                    if (Math.max(Math.abs(dx), Math.abs(dz)) != ring) {
+                        continue;
+                    }
+                    int columnX = x + dx;
+                    int columnZ = z + dz;
+                    world.getChunk(ChunkSectionPos.getSectionCoord(columnX), ChunkSectionPos.getSectionCoord(columnZ));
+                    Double floor = ceiling ? caveFloor(world, columnX, startY, columnZ, facing, settings) : surfaceFloor(world, columnX, columnZ);
+                    if (floor != null) {
+                        return target(world, columnX, floor, columnZ, facing, settings);
+                    }
+                }
+            }
+        }
+        return onPlatform(world, x, startY, z, facing, settings);
+    }
+
+    /**
+     * Arrivee sans sol a portee, repli de {@link #arrive} : au point de depart, a sa hauteur ramenee dans la hauteur logique
+     * du monde (et au-dessus d'un fluide), sur une plateforme d'obsidienne de {@value #PLATFORM_MARGIN} bloc de marge autour
+     * du cadre, la place du cadre et du corps degagee de tout bloc et de tout fluide. Pose la plateforme dans le monde.
+     *
+     * @return destination, sur la plateforme
+     */
+    public static Target onPlatform(ServerWorld world, int x, int startY, int z, PortalFacing facing, PortalSettings settings) {
+        int bottom = world.getBottomY() + 1;
+        int top = world.getBottomY() + world.getDimension().logicalHeight() - STANDING_ROOM - 1;
+        BlockPos.Mutable pos = new BlockPos.Mutable(x, MathHelper.clamp(startY, bottom, top), z);
+        while (pos.getY() < top && !world.getFluidState(pos).isEmpty()) {
+            pos.move(Direction.UP);
+        }
+        int floor = pos.getY();
+        Target target = target(world, x, floor, z, facing, settings);
+        BlockBox frame = PortalArea.cells(PortalArea.anchor(target.position(), facing, settings.width(), settings.height()), facing, settings);
+        int ceiling = Math.max(frame.getMaxY(), floor + STANDING_ROOM);
+        for (int cellX = frame.getMinX() - PLATFORM_MARGIN; cellX <= frame.getMaxX() + PLATFORM_MARGIN; cellX++) {
+            for (int cellZ = frame.getMinZ() - PLATFORM_MARGIN; cellZ <= frame.getMaxZ() + PLATFORM_MARGIN; cellZ++) {
+                world.setBlockState(pos.set(cellX, floor - 1, cellZ), Blocks.OBSIDIAN.getDefaultState());
+                for (int cellY = floor; cellY <= ceiling; cellY++) {
+                    world.setBlockState(pos.set(cellX, cellY, cellZ), Blocks.AIR.getDefaultState());
+                }
+            }
+        }
+        return target;
+    }
+
+    private static Target target(ServerWorld world, int x, double floor, int z, PortalFacing facing, PortalSettings settings) {
+        Vec3d point = new Vec3d(x + 0.5, floor + ceilingLift(facing), z + 0.5);
+        return new Target(world.getRegistryKey(), PortalArea.center(point, facing, settings), facing);
+    }
+
+    /** Haut reel du sol d'une colonne a ciel ouvert, ou {@code null} si elle n'a aucun bloc (le vide de l'End). */
+    private static @Nullable Double surfaceFloor(ServerWorld world, int x, int z) {
+        // World.getTopY renvoie le fond du monde si le chunk n'est pas charge : il l'est deja (une fois, a la pose).
+        int surfaceY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z);
+        return surfaceY <= world.getBottomY() ? null : floorHeight(world, x, surfaceY, z);
+    }
+
+    /**
+     * Sol d'une colonne d'une dimension a plafond : le premier bloc plein sous le point de depart (puis au-dessus) surmonte
+     * de {@value #STANDING_ROOM} blocs libres, hors des fluides, ou le cadre entier tient sans bloc ni fluide ; {@code null}
+     * s'il n'y en a aucun dans la hauteur logique.
+     */
+    private static @Nullable Double caveFloor(ServerWorld world, int x, int startY, int z, PortalFacing facing, PortalSettings settings) {
+        int bottom = world.getBottomY() + 1;
+        int top = world.getBottomY() + world.getDimension().logicalHeight() - STANDING_ROOM;
+        int start = MathHelper.clamp(startY, bottom, top);
+        BlockPos.Mutable pos = new BlockPos.Mutable();
+        for (int y = start; y >= bottom; y--) {
+            if (standsAt(world, pos, x, y, z) && frameFits(world, x, y, z, facing, settings)) {
+                return (double) y;
+            }
+        }
+        for (int y = start + 1; y <= top; y++) {
+            if (standsAt(world, pos, x, y, z) && frameFits(world, x, y, z, facing, settings)) {
+                return (double) y;
+            }
+        }
+        return null;
+    }
+
+    /** {@code true} si le cadre d'arrivee pose sur ce sol tient tout entier hors des blocs et des fluides. */
+    private static boolean frameFits(ServerWorld world, int x, int floor, int z, PortalFacing facing, PortalSettings settings) {
+        Vec3d center = target(world, x, floor, z, facing, settings).position();
+        return PortalArea.isClear(world, PortalArea.anchor(center, facing, settings.width(), settings.height()), facing, settings);
+    }
+
+    /** {@code true} si l'on tient debout aux pieds en (x, y, z) : un sol plein dessous, de la place libre au-dessus, sans fluide. */
+    private static boolean standsAt(ServerWorld world, BlockPos.Mutable pos, int x, int y, int z) {
+        if (!world.getBlockState(pos.set(x, y - 1, z)).isSideSolidFullSquare(world, pos, Direction.UP)) {
+            return false;
+        }
+        for (int dy = 0; dy < STANDING_ROOM; dy++) {
+            BlockState state = world.getBlockState(pos.set(x, y + dy, z));
+            if (!state.isReplaceable() || !state.getFluidState().isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Un cadre au plafond pose a la surface est releve de {@value #CEILING_LIFT} blocs : qui en sort pend sous son plan, les
+     * pieds encore au-dessus du sol. Rien pour les autres orientations.
      */
     static int ceilingLift(PortalFacing facing) {
-        return facing == PortalFacing.DOWN ? PortalArea.CLEARANCE_BEHIND : 0;
+        return facing.normal.y < 0.0 ? CEILING_LIFT : 0;
     }
 
     /** Ecart tire au sort dans [-rayon, rayon], en blocs ; nul sans rayon. */

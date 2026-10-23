@@ -75,12 +75,12 @@ class CrossingRollTest {
     }
 
     @Test
-    @DisplayName("Toutes orientations, tous regards : le roulis rend l'image vue, en moins d'un demi-tour, et rien entre deux cadres debout")
+    @DisplayName("Toutes orientations, retournees comprises, tous regards : le roulis rend l'image vue, en au plus un demi-tour, et rien quand le haut reste le haut")
     void rollMatchesTheViewForEveryPortalAndLook() {
         int rolled = 0;
         for (PortalFacing entry : PortalFacing.values()) {
             for (PortalFacing arrival : PortalFacing.values()) {
-                boolean upright = entry.normal.y == 0.0 && arrival.normal.y == 0.0 || entry.normal.y + arrival.normal.y == 0.0 && entry.normal.y != 0.0;
+                boolean upright = PortalFacing.transformVector(entry, arrival, new Vec3d(0.0, 1.0, 0.0)).y > 1.0 - EPSILON;
                 for (float yaw = -180.0f; yaw < 180.0f; yaw += 15.0f) {
                     for (float pitch = -90.0f; pitch <= 90.0f; pitch += 15.0f) {
                         String label = entry + " vers " + arrival + ", lacet " + yaw + ", tangage " + pitch;
@@ -135,8 +135,41 @@ class CrossingRollTest {
     void negligibleRollAndClear() {
         CrossingRoll.start(1.0e-5f, 0L);
         assertFalse(CrossingRoll.active(), "Rien a redresser.");
+        CrossingRoll.start(1.0e-5f, new Vec3d(0.01, 0.0, 0.0), 0L);
+        assertFalse(CrossingRoll.active(), "Un centimetre d'ecart ne se voit pas non plus.");
         CrossingRoll.start(0.5f, 0L);
         CrossingRoll.clear();
         assertFalse(CrossingRoll.active(), "Deconnexion : plus rien.");
+    }
+
+    @Test
+    @DisplayName("Par un cadre debout retourne, l'image est a l'envers : un demi-tour de roulis")
+    void upsideDownArrivalRollsAHalfTurn() {
+        float roll = PortalViewTransform.crossingRoll(PortalFacing.NORTH, PortalFacing.SOUTH_UPSIDE_DOWN, 0.0f, 0.0f);
+        assertEquals(Math.PI, Math.abs(roll), EPSILON, "Tete en bas : la camera part d'un demi-tour et se redresse.");
+    }
+
+    @Test
+    @DisplayName("La camera part de l'image de l'oeil vue par le cadre et rejoint l'oeil, vite d'abord")
+    void shiftFadesOut() {
+        Vec3d shift = new Vec3d(0.0, -1.44, 0.2);
+        CrossingRoll.start(0.0f, shift, 1000L);
+        assertTrue(CrossingRoll.active(), "Un ecart a rejoindre, sans roulis.");
+        Camera start = placed(10.0, 70.0, -3.0);
+        CrossingRoll.apply(start, 1000L);
+        assertEquals(0.0, start.getPos().subtract(new Vec3d(10.0, 68.56, -2.8)).length(), EPSILON, "A la traversee, tout l'ecart.");
+        assertEquals(camera(30.0f, 10.0f).getRotation(), start.getRotation(), "Sans roulis, la rotation n'est pas touchee.");
+        Camera half = placed(10.0, 70.0, -3.0);
+        CrossingRoll.apply(half, 1000L + CrossingRoll.DURATION_MS / 2);
+        assertEquals(0.0, half.getPos().subtract(new Vec3d(10.0, 70.0 - 0.18, -3.0 + 0.025)).length(), EPSILON, "A mi-chemin, un huitieme de l'ecart.");
+        Camera done = placed(10.0, 70.0, -3.0);
+        CrossingRoll.apply(done, 1000L + CrossingRoll.DURATION_MS);
+        assertEquals(new Vec3d(10.0, 70.0, -3.0), done.getPos(), "Rejoint : la camera est a l'oeil.");
+    }
+
+    private static Camera placed(double x, double y, double z) {
+        Camera camera = camera(30.0f, 10.0f);
+        ((CameraAccessor) camera).backrooms$setPos(new Vec3d(x, y, z));
+        return camera;
     }
 }

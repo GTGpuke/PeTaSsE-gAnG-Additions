@@ -1,7 +1,12 @@
 package com.gtgpuke.gtgsbackrooms.core.portal.client.wand;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.IntStream;
+
+import org.jetbrains.annotations.Nullable;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -10,25 +15,32 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.CyclingButtonWidget;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.item.ItemStack;
+import net.minecraft.registry.RegistryKey;
 import net.minecraft.screen.ScreenTexts;
 import net.minecraft.text.Text;
 import net.minecraft.util.Hand;
 import net.minecraft.util.TypedActionResult;
+import net.minecraft.world.World;
 
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 
 import com.gtgpuke.gtgsbackrooms.core.ModConstants;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalExit;
+import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalMark;
+import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalPlacement;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalSettings;
 import com.gtgpuke.gtgsbackrooms.core.portal.block.PortalWayBack;
+import com.gtgpuke.gtgsbackrooms.core.portal.item.PortalWandItem;
 import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalWandSettingsPayload;
 import com.gtgpuke.gtgsbackrooms.core.registry.ModItems;
 
 /**
- * Ecran de la baguette de portail : chacun des reglages d'un portail, en deux colonnes (taille, lumiere et faces ; retour,
- * sens de sortie, arrivee au hasard et plan). Les reglages choisis partent au serveur a la fermeture de l'ecran, par
- * Terminer comme par Echap, s'ils ont change ; le serveur les pose sur la baguette tenue.
+ * Ecran de la baguette de portail : chacun des reglages d'un portail, en deux colonnes (taille, lumiere, faces, pose et
+ * destination ; retour, sens de sortie, arrivee tete en bas, arrivee au hasard, plan et sortie fixee). La sortie se fixe la
+ * ou se tient le joueur, et sa dimension devient la destination ; changer de destination l'oublie. Les reglages choisis
+ * partent au serveur a la fermeture de l'ecran, par Terminer comme par Echap, s'ils ont change ; le serveur les pose sur la
+ * baguette tenue.
  */
 public final class PortalWandScreen extends Screen {
 
@@ -52,6 +64,12 @@ public final class PortalWandScreen extends Screen {
     private PortalExit exit;
     private int exitScatter;
     private boolean flush;
+    private boolean upsideDown;
+    private PortalPlacement placement;
+    private Optional<RegistryKey<World>> destination;
+    private Optional<PortalMark> mark;
+    private @Nullable CyclingButtonWidget<Optional<RegistryKey<World>>> destinationButton;
+    private @Nullable ButtonWidget markButton;
 
     /**
      * Ecran des reglages de la baguette tenue dans cette main.
@@ -71,6 +89,10 @@ public final class PortalWandScreen extends Screen {
         this.exit = settings.exit();
         this.exitScatter = settings.exitScatter();
         this.flush = settings.flush();
+        this.upsideDown = settings.upsideDown();
+        this.placement = settings.placement();
+        this.destination = settings.destination();
+        this.mark = settings.mark();
     }
 
     /** Ouvre l'ecran quand le joueur utilise la baguette dans le vide ; visant un bloc, la baguette pose un portail. */
@@ -99,6 +121,19 @@ public final class PortalWandScreen extends Screen {
         addDrawableChild(CyclingButtonWidget.onOffBuilder(Text.translatable(KEY + "faces.double"), Text.translatable(KEY + "faces.single"))
                 .initially(this.doubleSided)
                 .build(left, TOP + 3 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "faces"), (button, value) -> this.doubleSided = value));
+        addDrawableChild(CyclingButtonWidget.<PortalPlacement>builder(value -> Text.translatable(KEY + "placement." + value.asString()))
+                .values(PortalPlacement.values())
+                .initially(this.placement)
+                .build(left, TOP + 4 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "placement"), (button, value) -> this.placement = value));
+        this.destinationButton = addDrawableChild(CyclingButtonWidget.<Optional<RegistryKey<World>>>builder(PortalWandScreen::destinationName)
+                .values(destinations())
+                .initially(this.destination)
+                .build(left, TOP + 5 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "destination"), (button, value) -> {
+                    this.destination = value;
+                    // La sortie fixee est dans sa propre dimension : une autre destination l'oublie.
+                    this.mark = Optional.empty();
+                    updateMarkButton();
+                }));
         addDrawableChild(CyclingButtonWidget.<PortalWayBack>builder(value -> Text.translatable(KEY + "return." + value.key()))
                 .values(PortalWayBack.values())
                 .initially(this.wayBack)
@@ -106,12 +141,63 @@ public final class PortalWandScreen extends Screen {
         addDrawableChild(CyclingButtonWidget.<PortalExit>builder(value -> Text.translatable(KEY + "exit." + value.asString())).values(PortalExit.values())
                 .initially(this.exit)
                 .build(right, TOP + ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "exit"), (button, value) -> this.exit = value));
-        addDrawableChild(new ScatterSlider(right, TOP + 2 * ROW_STEP));
+        addDrawableChild(CyclingButtonWidget.onOffBuilder(Text.translatable(KEY + "arrival.upside_down"), Text.translatable(KEY + "arrival.upright"))
+                .initially(this.upsideDown)
+                .build(right, TOP + 2 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "arrival"), (button, value) -> this.upsideDown = value));
+        addDrawableChild(new ScatterSlider(right, TOP + 3 * ROW_STEP));
         addDrawableChild(CyclingButtonWidget.onOffBuilder(Text.translatable(KEY + "plane.edge"), Text.translatable(KEY + "plane.middle"))
                 .initially(this.flush)
-                .build(right, TOP + 3 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "plane"), (button, value) -> this.flush = value));
+                .build(right, TOP + 4 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT, Text.translatable(KEY + "plane"), (button, value) -> this.flush = value));
+        this.markButton = addDrawableChild(ButtonWidget.builder(Text.empty(), button -> toggleMark())
+                .dimensions(right, TOP + 5 * ROW_STEP, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+        updateMarkButton();
         addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, button -> close())
-                .dimensions(this.width / 2 - BUTTON_WIDTH / 2, TOP + 4 * ROW_STEP + ROW_STEP / 2, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+                .dimensions(this.width / 2 - BUTTON_WIDTH / 2, TOP + 6 * ROW_STEP + ROW_STEP / 2, BUTTON_WIDTH, BUTTON_HEIGHT).build());
+    }
+
+    /**
+     * Destinations proposees : automatique, puis chaque dimension du serveur (le monde normal, le Nether et l'End d'abord),
+     * et celle des reglages si le serveur ne l'annonce pas.
+     */
+    private List<Optional<RegistryKey<World>>> destinations() {
+        List<RegistryKey<World>> worlds = new ArrayList<>();
+        if (this.client != null && this.client.getNetworkHandler() != null) {
+            worlds.addAll(this.client.getNetworkHandler().getWorldKeys());
+        }
+        this.destination.filter(key -> !worlds.contains(key)).ifPresent(worlds::add);
+        List<RegistryKey<World>> vanilla = List.of(World.OVERWORLD, World.NETHER, World.END);
+        worlds.sort(Comparator.<RegistryKey<World>>comparingInt(key -> vanilla.contains(key) ? vanilla.indexOf(key) : vanilla.size())
+                .thenComparing(key -> key.getValue().toString()));
+        List<Optional<RegistryKey<World>>> values = new ArrayList<>();
+        values.add(Optional.empty());
+        worlds.forEach(key -> values.add(Optional.of(key)));
+        return values;
+    }
+
+    private static Text destinationName(Optional<RegistryKey<World>> destination) {
+        return destination.map(PortalWandItem::dimensionName).orElseGet(() -> Text.translatable(KEY + "destination.auto"));
+    }
+
+    /** Fixe la sortie la ou se tient le joueur (sa dimension devient la destination), ou l'oublie si elle l'est deja. */
+    private void toggleMark() {
+        if (this.mark.isPresent() || this.client == null || this.client.player == null) {
+            this.mark = Optional.empty();
+        } else {
+            PortalMark here = PortalMark.at(this.client.player);
+            this.mark = Optional.of(here);
+            this.destination = Optional.of(here.dimension());
+            if (this.destinationButton != null) {
+                this.destinationButton.setValue(this.destination);
+            }
+        }
+        updateMarkButton();
+    }
+
+    private void updateMarkButton() {
+        if (this.markButton != null) {
+            this.markButton.setMessage(this.mark.map(fixed -> (Text) Text.translatable(KEY + "mark.set",
+                    fixed.pos().getX(), fixed.pos().getY(), fixed.pos().getZ())).orElseGet(() -> Text.translatable(KEY + "mark")));
+        }
     }
 
     @Override
@@ -124,7 +210,8 @@ public final class PortalWandScreen extends Screen {
     @Override
     public void removed() {
         PortalSettings chosen = new PortalSettings(this.frameWidth, this.frameHeight, this.transmitsLight, this.doubleSided,
-                this.wayBack.oneWay(), this.wayBack.fleetingExit(), this.exit, this.exitScatter, this.flush);
+                this.wayBack.oneWay(), this.wayBack.fleetingExit(), this.exit, this.exitScatter, this.flush, this.upsideDown, this.placement,
+                this.destination, this.mark);
         if (!chosen.equals(this.initial)) {
             ClientPlayNetworking.send(new PortalWandSettingsPayload(this.hand, chosen));
         }

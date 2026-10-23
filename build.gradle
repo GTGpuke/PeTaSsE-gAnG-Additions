@@ -140,6 +140,7 @@ def coverageExcludes = [
         'com/gtgpuke/gtgsbackrooms/core/portal/client/view/ShaderPackPortalRenderer*',
         'com/gtgpuke/gtgsbackrooms/core/portal/client/view/PortalClipping*',
         'com/gtgpuke/gtgsbackrooms/core/portal/client/view/FrameAreaRenderer*',
+        'com/gtgpuke/gtgsbackrooms/core/portal/client/view/HandMask*',
         'com/gtgpuke/gtgsbackrooms/core/portal/client/view/ViewLightmaps*',
         'com/gtgpuke/gtgsbackrooms/core/portal/client/wand/**',
         'com/gtgpuke/gtgsbackrooms/core/portal/client/world/**',

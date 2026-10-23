@@ -223,9 +223,9 @@ public final class PortalPursuit {
         return pursuit == null || !pursuit.target().getWorld().getRegistryKey().equals(portal.destinationDim()) ? null : pursuit.target();
     }
 
-    /** Point ou le mob vient d'abord : devant le plan, en face du milieu de l'ouverture, au pied du cadre. */
+    /** Point ou le mob vient d'abord : devant le plan, en face du milieu de l'ouverture, au pied du cadre (retourne ou non). */
     static Vec3d approachPoint(BackroomsPortalEntity portal) {
-        PortalFacing facing = portal.facingSource();
+        PortalFacing facing = portal.facingSource().upright();
         return portal.getPos()
                 .add(facing.normal.multiply(APPROACH_DEPTH))
                 .subtract(facing.axisH.multiply(portal.height() / 2.0));
@@ -247,9 +247,9 @@ public final class PortalPursuit {
         return Math.abs(lateral * THROUGH_DEPTH / (ahead + THROUGH_DEPTH)) <= portal.width() / 2.0;
     }
 
-    /** Point vise par le mob une fois aligne : derriere le plan, au pied du cadre, pour que son chemin le traverse. */
+    /** Point vise par le mob une fois aligne : derriere le plan, au pied du cadre (retourne ou non), pour que son chemin le traverse. */
     static Vec3d throughPoint(BackroomsPortalEntity portal) {
-        PortalFacing facing = portal.facingSource();
+        PortalFacing facing = portal.facingSource().upright();
         return portal.getPos()
                 .subtract(facing.normal.multiply(THROUGH_DEPTH))
                 .subtract(facing.axisH.multiply(portal.height() / 2.0));

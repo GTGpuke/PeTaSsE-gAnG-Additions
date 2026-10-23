@@ -77,6 +77,17 @@ class BackroomsPortalEntityTest {
     }
 
     @Test
+    @DisplayName("Un point est en face d'une ouverture dans sa largeur, et dans sa hauteur aussi pour un cadre couche")
+    void facesOpening() {
+        Vec3d center = new Vec3d(0.5, 64.0, 0.0);
+        assertTrue(BackroomsPortalEntity.facesOpening(PortalFacing.NORTH, center, 1.0f, 2.0f, 0.9, 80.0, 3.0), "Debout : la hauteur ne compte pas.");
+        assertFalse(BackroomsPortalEntity.facesOpening(PortalFacing.NORTH, center, 1.0f, 2.0f, 1.1, 64.0, 3.0), "A cote de la largeur.");
+        assertTrue(BackroomsPortalEntity.facesOpening(PortalFacing.UP, center, 1.0f, 2.0f, 0.9, 70.0, -0.9), "Couche : dans la largeur et la hauteur.");
+        assertFalse(BackroomsPortalEntity.facesOpening(PortalFacing.UP, center, 1.0f, 2.0f, 0.9, 70.0, -1.1), "Couche : au-dela de sa hauteur.");
+        assertTrue(BackroomsPortalEntity.facesOpening(PortalFacing.UP_UPSIDE_DOWN, center, 1.0f, 2.0f, 0.9, 70.0, -0.9), "Retourne, la meme ouverture.");
+    }
+
+    @Test
     @DisplayName("La boite de detection suit l'orientation, est mise en cache, et la distance signee est positive devant")
     void geometry() {
         BackroomsPortalEntity portal = validBuilder().build();

@@ -49,8 +49,8 @@ import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestPlayers;
  * Tests en jeu de la baguette de portail et du plan au bord du bloc : reglages recus du client poses sur la baguette tenue
  * (et seulement sur elle), pose d'un bloc portail regle sans user la baguette, avec son et evenement de pose, refus rendu
  * comme un echec, copie des reglages d'un portail vise, bloc casse qui ne rend rien ; plan au bord du
- * bloc qui demande un bloc libre derriere un cadre debout, plan visable sur la face arriere, cadre couche a ras du bloc,
- * arrivee a la surface a ras du sol.
+ * bloc sur la face arriere, cadre debout pose contre un mur, plan visable sur la face arriere, cadre couche a ras d'un sol
+ * plein, arrivee a la surface a ras du sol.
  */
 public final class PortalWandGameTests implements FabricGameTest {
 
@@ -184,7 +184,7 @@ public final class PortalWandGameTests implements FabricGameTest {
     }
 
     @GameTest(templateName = GameTestPlayers.ARENA)
-    public void aPlaneOnTheBlockEdgeSitsOnTheBackFaceAndNeedsRoomBehind(TestContext context) {
+    public void aPlaneOnTheBlockEdgeSitsOnTheBackFaceAgainstAWall(TestContext context) {
         ServerWorld world = context.getWorld();
         BlockPos support = context.getAbsolutePos(new BlockPos(4, 0, 4));
         BlockPos anchor = support.up();
@@ -196,10 +196,8 @@ public final class PortalWandGameTests implements FabricGameTest {
         BlockPos lying = pillar.west();
         try {
             player.setStackInHand(Hand.MAIN_HAND, wand(FLUSH));
-            context.assertTrue(use(player, support) == ActionResult.FAIL && world.getBlockState(anchor).isAir(),
-                    "Au bord du bloc, un cadre debout demande un bloc libre derriere lui : l'avant du corps y passe.");
-            world.setBlockState(anchor.north(), Blocks.AIR.getDefaultState());
-            context.assertTrue(use(player, support).isAccepted(), "Avec le bloc libre, il se pose.");
+            // Le mur, derriere le plan, est cache a qui s'engage dans le cadre : il ne gene pas la pose.
+            context.assertTrue(use(player, support).isAccepted(), "Au bord du bloc, un cadre debout se pose contre un mur.");
             BackroomsPortalBlockEntity standing = (BackroomsPortalBlockEntity) world.getBlockEntity(anchor);
             Vec3d center = standing.entryCenter();
             context.assertTrue(Math.abs(center.z - anchor.getZ()) < EPSILON && Math.abs(center.x - (anchor.getX() + 0.5)) < EPSILON,
@@ -215,8 +213,9 @@ public final class PortalWandGameTests implements FabricGameTest {
                     "Sans ses reglages, le plan visable est celui du milieu du bloc.");
             player.setSneaking(false);
 
-            // Couche au sol (regard vers le bas, pilier clique par le cote) : le plan a ras du bas du bloc, deux blocs libres dessous.
+            // Couche au sol (regard vers le bas, pilier clique par le cote) : le plan a ras du bas du bloc, sur un sol plein.
             world.setBlockState(pillar, Blocks.STONE.getDefaultState());
+            world.setBlockState(lying.down(), Blocks.STONE.getDefaultState());
             player.setPitch(80.0f);
             context.assertTrue(use(player, pillar, Direction.WEST).isAccepted() && world.getBlockState(lying).get(BackroomsPortalBlock.FACING) == Direction.UP,
                     "Regard vers le bas : le cadre se couche.");
@@ -242,8 +241,10 @@ public final class PortalWandGameTests implements FabricGameTest {
         } finally {
             GameTestPlayers.disconnect(player);
             world.setBlockState(anchor, Blocks.AIR.getDefaultState());
+            world.setBlockState(anchor.north(), Blocks.AIR.getDefaultState());
             world.setBlockState(support, Blocks.AIR.getDefaultState());
             world.setBlockState(lying, Blocks.AIR.getDefaultState());
+            world.setBlockState(lying.down(), Blocks.AIR.getDefaultState());
             world.setBlockState(pillar, Blocks.AIR.getDefaultState());
         }
         context.complete();

@@ -28,12 +28,14 @@ import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorld;
 import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorldRegistry;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalCollision;
 
 /**
  * Visee a travers un portail : ce que le regard du joueur touche de l'autre cote.
  *
- * <p>Apres le raycast vanilla de chaque image, si le regard traverse le cadre d'un portail avant sa cible,
- * le rayon est transpose dans la dimension d'arrivee et poursuivi sur la portee restante, contre les blocs
+ * <p>Apres le raycast vanilla de chaque image, si le regard traverse le cadre d'un portail avant sa cible (ou si sa
+ * cible est un bloc que le portail cache derriere son plan, quand le cadre est pose contre un mur), le rayon est
+ * transpose dans la dimension d'arrivee et poursuivi sur la portee restante, contre les blocs
  * puis les entities de la vue. Vanilla recoit alors une cible manquee : ce qui est derriere le cadre dans
  * le monde du joueur ne se vise plus. Les actions et le contour du bloc vise lisent l'etat garde ici.
  */
@@ -113,20 +115,22 @@ public final class RemoteTargeting {
         Vec3d direction = player.getRotationVec(tickDelta);
         double blockReach = player.getBlockInteractionRange();
         double entityReach = player.getEntityInteractionRange();
-        double limit = Math.max(blockReach, entityReach);
+        double reach = Math.max(blockReach, entityReach);
         HitResult vanilla = client.crosshairTarget;
-        if (vanilla != null && vanilla.getType() != HitResult.Type.MISS) {
-            limit = Math.min(limit, vanilla.getPos().distanceTo(eye));
-        }
+        double vanillaDistance = vanilla != null && vanilla.getType() != HitResult.Type.MISS ? vanilla.getPos().distanceTo(eye) : reach;
+        BlockPos vanillaBlock = vanilla instanceof BlockHitResult block && block.getType() == HitResult.Type.BLOCK ? block.getBlockPos() : null;
         BackroomsPortalEntity crossed = null;
-        double crossedAt = limit;
+        double crossedAt = reach;
         for (int i = 0; i < portals.size(); i++) {
             BackroomsPortalEntity candidate = portals.get(i);
             if (!candidate.visible()) {
                 continue;
             }
             double t = frameHit(candidate, eye, direction);
-            if (t >= 0.0 && t < crossedAt) {
+            // Un bloc que le portail cache derriere son plan (cadre pose contre un mur) n'arrete pas le regard : vanilla le
+            // touche au plan meme, le regard passe par le cadre.
+            boolean hidden = vanillaBlock != null && PortalCollision.hides(candidate, vanillaBlock.getX(), vanillaBlock.getY(), vanillaBlock.getZ());
+            if (t >= 0.0 && t < crossedAt && (hidden || t < vanillaDistance)) {
                 crossed = candidate;
                 crossedAt = t;
             }

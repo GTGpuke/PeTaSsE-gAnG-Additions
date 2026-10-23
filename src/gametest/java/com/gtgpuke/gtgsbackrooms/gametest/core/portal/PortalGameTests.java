@@ -44,7 +44,8 @@ import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestServerWorlds;
 
 /**
  * Tests en jeu des portails sur un vrai serveur : teleportation du joueur et des objets dans le meme monde, saut court
- * envoye aux clients en position absolue, collision avec ce qui est de l'autre cote, payload de chunk.
+ * envoye aux clients en position absolue, collision avec ce qui est de l'autre cote et avec le bord du cadre, payload de
+ * chunk.
  *
  * <p>Les portails sont poses a la main entre deux points de l'overworld, ce qui exerce la transposition, le cooldown
  * et le reseau sans autre dimension.
@@ -196,9 +197,14 @@ public final class PortalGameTests implements FabricGameTest {
 
     /** Pousse un objet d'un demi-bloc vers le sud depuis un point, et renvoie le Z ou il s'arrete. */
     private static double pushSouth(ServerWorld world, double x, double y, double z) {
+        return push(world, x, y, z, 0.5);
+    }
+
+    /** Pousse un objet le long de Z depuis un point, et renvoie le Z ou il s'arrete. */
+    private static double push(ServerWorld world, double x, double y, double z, double dz) {
         ItemEntity item = new ItemEntity(world, x, y, z, new ItemStack(Items.DIAMOND));
         item.setNoGravity(true);
-        item.move(MovementType.SELF, new Vec3d(0.0, 0.0, 0.5));
+        item.move(MovementType.SELF, new Vec3d(0.0, 0.0, dz));
         return item.getZ();
     }
 
@@ -226,9 +232,19 @@ public final class PortalGameTests implements FabricGameTest {
                     "Au milieu du cadre, rien ne l'arrete.");
             context.assertTrue(Math.abs(pushSouth(world, source.x + 0.4, source.y, source.z + 0.1) - (source.z + 0.6)) < EPSILON,
                     "Deja passe derriere le plan, il n'est plus engage.");
+            // Sur un bord, le centre hors de l'ouverture : il ne peut pas traverser correctement, le plan fait paroi.
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.6, source.y, start) - blocked) < EPSILON,
+                    "Sur le bord, l'objet bute sur le plan, meme sans rien de l'autre cote.");
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.7, source.y, start) - through) < EPSILON,
+                    "Tout a cote du cadre, rien ne l'arrete.");
+            // Parti de derriere l'ouverture fermee (un demi-bloc derriere le plan) : une paroi de dos l'arreterait.
+            context.assertTrue(Math.abs(push(world, source.x + 0.6, source.y, source.z + 0.8, -1.0) - (source.z - 0.2)) < EPSILON,
+                    "De dos, sur le bord, rien ne l'arrete non plus.");
             portal.setTeleportable(false);
             context.assertTrue(Math.abs(pushSouth(world, source.x + 0.4, source.y, start) - through) < EPSILON,
                     "Portail ferme : l'autre cote n'existe pas.");
+            context.assertTrue(Math.abs(pushSouth(world, source.x + 0.6, source.y, start) - through) < EPSILON,
+                    "Portail ferme : son bord n'arrete rien.");
             portal.setTeleportable(true);
             // Un cadre vers une dimension absente ne change rien ; deux cadres engages ajoutent chacun leur autre cote.
             lost = GameTestServerWorlds.spawnNorthPortal(world, source, GameTestServerWorlds.nowhere(), destination);

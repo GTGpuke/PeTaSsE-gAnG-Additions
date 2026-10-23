@@ -351,23 +351,31 @@ public class BackroomsPortalEntity extends Entity {
      * au-dessous) de l'ouverture tant qu'il n'a pas franchi son bord.
      */
     public boolean withinFrameWidth(double x, double y, double z) {
-        return facingOpening(facingSource(), getX(), getY(), getZ(), x, y, z);
+        return facesOpening(facingSource(), getPos(), width(), height(), x, y, z);
     }
 
     /** Comme {@link #withinFrameWidth}, pour le cadre d'arrivee : un point du monde d'arrivee en face de son ouverture. */
     public boolean withinArrivalWidth(double x, double y, double z) {
-        Vec3d center = destinationPos();
-        return facingOpening(facingDestination(), center.x, center.y, center.z, x, y, z);
+        return facesOpening(facingDestination(), destinationPos(), width(), height(), x, y, z);
     }
 
-    private boolean facingOpening(PortalFacing facing, double centerX, double centerY, double centerZ, double x, double y, double z) {
-        double dx = x - centerX;
-        double dy = y - centerY;
-        double dz = z - centerZ;
-        if (Math.abs(dx * facing.axisW.x + dy * facing.axisW.y + dz * facing.axisW.z) > width() / 2.0) {
+    /**
+     * {@code true} si un point est en face de l'ouverture d'un cadre donne : dans sa largeur, et dans sa hauteur aussi pour
+     * un cadre couche (voir {@link #withinFrameWidth}).
+     *
+     * @param facing orientation du cadre
+     * @param center centre du cadre
+     * @param width largeur du cadre, en blocs
+     * @param height hauteur du cadre, en blocs
+     */
+    public static boolean facesOpening(PortalFacing facing, Vec3d center, float width, float height, double x, double y, double z) {
+        double dx = x - center.x;
+        double dy = y - center.y;
+        double dz = z - center.z;
+        if (Math.abs(dx * facing.axisW.x + dy * facing.axisW.y + dz * facing.axisW.z) > width / 2.0) {
             return false;
         }
-        return facing.normal.y == 0.0 || Math.abs(dx * facing.axisH.x + dy * facing.axisH.y + dz * facing.axisH.z) <= height() / 2.0;
+        return facing.normal.y == 0.0 || Math.abs(dx * facing.axisH.x + dy * facing.axisH.y + dz * facing.axisH.z) <= height / 2.0;
     }
 
     /**
@@ -466,11 +474,12 @@ public class BackroomsPortalEntity extends Entity {
 
     /**
      * Hauteur, au-dessus des pieds, du point d'une entity qui decide de sa traversee de ce portail : ses yeux pour un cadre
-     * couche au sol (on y tombe, la tete la derniere : le corps a passe le plan quand les yeux le passent, et la vue bascule
-     * avec la camera), ses pieds pour un cadre debout ou au plafond (on y entre les pieds les derniers, ou de front).
+     * couche (au sol, on y tombe la tete la derniere ; au plafond, on y monte la tete la premiere) : la vue bascule avec la
+     * camera, qui ne passe jamais le plan avant elle, meme contre un bloc ; ses pieds pour un cadre debout (on y entre de
+     * front, les yeux au-dessus des pieds).
      */
     public double crossingHeight(Entity entity) {
-        return facingSource().normal.y > 0.0 ? entity.getEyeY() - entity.getY() : 0.0;
+        return facingSource().normal.y != 0.0 ? entity.getEyeY() - entity.getY() : 0.0;
     }
 
     /** Variante sans allocation de {@link #signedDistance(Vec3d)}. */

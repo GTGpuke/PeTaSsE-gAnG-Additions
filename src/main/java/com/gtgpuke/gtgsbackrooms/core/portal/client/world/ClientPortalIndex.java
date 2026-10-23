@@ -57,7 +57,7 @@ public final class ClientPortalIndex {
     public static void init() {
         ClientEntityEvents.ENTITY_LOAD.register(ClientPortalIndex::onEntityLoad);
         ClientEntityEvents.ENTITY_UNLOAD.register(ClientPortalIndex::onEntityUnload);
-        // Le serveur integre tourne dans le meme processus : ses mondes gardent le registre serveur.
+        // Le serveur integre tourne dans le meme processus : ses mondes gardent le registre serveur et le suivi du serveur.
         PortalCollision.setWorlds(new PortalCollision.Worlds() {
             @Override
             public List<BackroomsPortalEntity> portals(World world) {
@@ -69,6 +69,11 @@ public final class ClientPortalIndex {
                 return portal.getWorld().isClient()
                         ? RemoteWorldRegistry.worldOf(portal.destinationDim())
                         : PortalCollision.SERVER_WORLDS.destination(portal);
+            }
+
+            @Override
+            public PortalCollision.Side side(World world) {
+                return world.isClient() ? PortalCollision.Side.CLIENT : PortalCollision.Side.SERVER;
             }
         });
     }

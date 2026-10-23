@@ -128,7 +128,98 @@ class PortalCollisionTest {
     }
 
     @Test
-    @DisplayName("Les portails viennent des mondes branches : ceux du client, ou le registre du serveur par defaut")
+    @DisplayName("Le plan d'un portail ouvert arrete qui le touche du cote d'entree, le centre hors de l'ouverture, et seulement lui")
+    void wallsOnlyWhoCannotCrossOnTheEntrySide() {
+        BackroomsPortalEntity portal = northPortal();
+        ItemEntity item = new ItemEntity(EntityType.ITEM, null);
+        item.setPosition(0.6, 63.5, -0.3);
+        assertTrue(PortalCollision.walls(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)),
+                "Sur le bord, devant le plan : il ne peut pas traverser, le plan l'arrete.");
+        item.setPosition(0.3, 63.5, -0.3);
+        assertFalse(PortalCollision.walls(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)), "En face de l'ouverture : il s'y engage.");
+        item.setPosition(0.6, 63.5, 0.3);
+        assertFalse(PortalCollision.walls(portal, item, item.getBoundingBox().stretch(0.0, 0.0, -0.5)), "De dos, rien ne l'arrete.");
+        item.setPosition(3.0, 63.5, -0.3);
+        assertFalse(PortalCollision.walls(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)), "Loin a cote du cadre, rien.");
+        portal.setTeleportable(false);
+        item.setPosition(0.6, 63.5, -0.3);
+        assertFalse(PortalCollision.walls(portal, item, item.getBoundingBox().stretch(0.0, 0.0, 0.5)), "Portail ferme : pas de paroi.");
+    }
+
+    @Test
+    @DisplayName("Un cadre au plafond s'engage aux yeux : la tete peut entrer, les yeux passes, plus rien")
+    void ceilingEngagesAtTheEyes() {
+        BackroomsPortalEntity ceiling = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.5, 0.0)).facingSource(PortalFacing.DOWN)
+                .facingDestination(PortalFacing.UP).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 64.5, 0.0)).size(1.0f, 2.0f).build();
+        ItemEntity item = new ItemEntity(EntityType.ITEM, null);
+        item.setPosition(0.5, 64.2, 0.0);
+        assertTrue(PortalCollision.engages(ceiling, item, item.getBoundingBox().stretch(0.0, 0.5, 0.0)), "Le haut de l'objet contre le plan, les yeux dessous.");
+        item.setPosition(0.5, 64.4, 0.0);
+        assertFalse(PortalCollision.engages(ceiling, item, item.getBoundingBox()), "Les yeux passes : plus engage.");
+    }
+
+    @Test
+    @DisplayName("Un portail cache les blocs tout entiers derriere son plan, dans son ouverture prolongee, et seulement eux")
+    void hidesOnlyTheBlocksBehindTheOpening() {
+        // Cadre 1 x 2 face au nord, plan en z = 0 sur le bord des blocs : ouverture x de 0 a 1, y de 63 a 65 ; derriere, z >= 0.
+        BackroomsPortalEntity wall = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.0, 0.0)).facingSource(PortalFacing.NORTH)
+                .facingDestination(PortalFacing.SOUTH).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 64.0, 10.0)).size(1.0f, 2.0f).build();
+        assertTrue(PortalCollision.hides(wall, 0, 63, 0), "Le bloc colle derriere le bas du cadre.");
+        assertTrue(PortalCollision.hides(wall, 0, 64, 0), "Celui derriere son haut.");
+        assertTrue(PortalCollision.hides(wall, 0, 63, 7), "Loin derriere, toujours dans l'ouverture prolongee.");
+        assertFalse(PortalCollision.hides(wall, 0, 63, -1), "Devant le plan : il reste.");
+        assertFalse(PortalCollision.hides(wall, 1, 63, 0), "A cote de l'ouverture : il reste.");
+        assertFalse(PortalCollision.hides(wall, -1, 63, 0), "De l'autre cote de l'ouverture : il reste.");
+        assertFalse(PortalCollision.hides(wall, 0, 65, 0), "Au-dessus du cadre : il reste.");
+        assertFalse(PortalCollision.hides(wall, 0, 62, 0), "Sous le cadre : il reste.");
+        // Plan au milieu du bloc : le bloc qu'il coupe n'est pas tout entier derriere.
+        BackroomsPortalEntity middle = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.0, 0.5)).facingSource(PortalFacing.NORTH)
+                .facingDestination(PortalFacing.SOUTH).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 64.0, 10.5)).size(1.0f, 2.0f).build();
+        assertFalse(PortalCollision.hides(middle, 0, 63, 0), "Le bloc coupe par le plan reste.");
+        assertTrue(PortalCollision.hides(middle, 0, 63, 1), "Le suivant est cache.");
+        // Cadre au sol : derriere, c'est dessous.
+        BackroomsPortalEntity floor = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.0, 0.0)).facingSource(PortalFacing.UP)
+                .facingDestination(PortalFacing.DOWN).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 64.0, 0.0)).size(1.0f, 2.0f).build();
+        assertTrue(PortalCollision.hides(floor, 0, 63, -1), "Le sol sous l'ouverture.");
+        assertTrue(PortalCollision.hides(floor, 0, 63, 0), "Sous la seconde rangee.");
+        assertFalse(PortalCollision.hides(floor, 0, 64, 0), "Au-dessus du plan : il reste.");
+        assertFalse(PortalCollision.hides(floor, 0, 63, 1), "Sous le sol, a cote de l'ouverture : il reste.");
+    }
+
+    @Test
+    @DisplayName("Dans chacune des douze orientations, le cadre ne cache que l'ouverture prolongee derriere son plan")
+    void everyOrientationHidesItsOpeningBehindThePlane() {
+        for (PortalFacing facing : PortalFacing.values()) {
+            // Cadre 1 x 2 sur les bords des blocs : plan sur une face de bloc, ouverture d'un bloc sur deux.
+            Vec3d center = new Vec3d(Math.abs(facing.axisW.x) * 0.5, 64.0, Math.abs(facing.axisW.z) * 0.5);
+            BackroomsPortalEntity portal = BackroomsPortalEntity.builder(null).position(center).facingSource(facing)
+                    .facingDestination(facing.opposite()).destinationDim(World.OVERWORLD).destinationPos(center).size(1.0f, 2.0f).build();
+            int hidden = 0;
+            for (int x = -4; x < 4; x++) {
+                for (int y = 60; y < 68; y++) {
+                    for (int z = -4; z < 4; z++) {
+                        if (PortalCollision.hides(portal, x, y, z)) {
+                            hidden++;
+                            assertTrue(portal.signedDistance(x + 0.5, y + 0.5, z + 0.5) < 0.0, facing + " : un bloc cache est derriere le plan.");
+                        }
+                    }
+                }
+            }
+            assertEquals(8, hidden, facing + " : les deux blocs de l'ouverture sur les quatre rangees derriere le plan.");
+        }
+    }
+
+    @Test
+    @DisplayName("L'ouverture fermee (paroi d'un bord, sol d'une garde) va du plan a un demi-bloc derriere")
+    void closedOpeningRunsFromThePlaneBehindIt() {
+        BackroomsPortalEntity floor = BackroomsPortalEntity.builder(null).position(new Vec3d(0.5, 64.0, 0.0)).facingSource(PortalFacing.UP)
+                .facingDestination(PortalFacing.DOWN).destinationDim(World.OVERWORLD).destinationPos(new Vec3d(10.5, 64.0, 0.0)).size(1.0f, 2.0f).build();
+        assertBox(new Box(0.0, 64.0 - PortalCollision.CLOSED_DEPTH, -1.0, 1.0, 64.0, 1.0), PortalCollision.closedOpening(floor),
+                "L'ouverture, du plan a un demi-bloc dessous.");
+    }
+
+    @Test
+    @DisplayName("Portails et cote viennent des mondes branches : ceux du client, ou le registre et le suivi du serveur par defaut")
     void portalsComeFromThePluggedWorlds() {
         ItemEntity item = new ItemEntity(EntityType.ITEM, null);
         List<VoxelShape> collisions = List.of();
@@ -144,15 +235,22 @@ class PortalCollisionTest {
             public World destination(BackroomsPortalEntity portal) {
                 return null;
             }
+
+            @Override
+            public PortalCollision.Side side(World world) {
+                return PortalCollision.Side.CLIENT;
+            }
         });
         try {
             assertSame(collisions, PortalCollision.withOtherSide(item, null, collisions, item.getBoundingBox()),
                     "Aucun portail branche : les collisions vanilla, telles quelles.");
             assertTrue(asked[0], "Les portails viennent des mondes branches.");
+            assertSame(PortalCollision.Side.CLIENT, PortalCollision.side(null), "Le cote aussi.");
         } finally {
             PortalCollision.setWorlds(PortalCollision.SERVER_WORLDS);
         }
         assertSame(BackroomsPortalEntityRegistry.all(), PortalCollision.SERVER_WORLDS.portals(null),
                 "Par defaut, le registre des portails du serveur, tous mondes confondus.");
+        assertSame(PortalCollision.Side.SERVER, PortalCollision.side(null), "Et le suivi du serveur.");
     }
 }

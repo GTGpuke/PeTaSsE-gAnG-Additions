@@ -38,6 +38,9 @@ public final class FrameAreaRenderer {
     /** Plan de decoupe en espace camera, un peu au-dela du plan proche vanilla pour que la section ne soit pas coupee a son tour. */
     private static final float CLIP_Z = -(GameRenderer.CAMERA_DEPTH + 0.002f);
     private static final float WELD_EPSILON = 1.0e-5f;
+    /** Decalage de polygone du marquage, celui que vanilla donne aux fissures du minage sur la face d'un bloc. */
+    private static final float MARK_OFFSET_FACTOR = -1.0f;
+    private static final float MARK_OFFSET_UNITS = -10.0f;
     private static final int CORNER_COUNT = 8;
     private static final int FACE_VERTICES = 4;
     /** Une face decoupee par un plan a au plus cinq sommets ; la section d'une boite au plus six, douze avant soudure. */
@@ -63,6 +66,22 @@ public final class FrameAreaRenderer {
 
     private FrameAreaRenderer() {
         throw new UnsupportedOperationException("Classe utilitaire.");
+    }
+
+    /**
+     * Zone de vue pour le marquage du stencil, tiree vers la camera le temps du dessin (decalage de polygone, celui des
+     * fissures du minage) : posee sur une face de bloc (cadre au bord du bloc, au sol sur un sol plein), elle l'emporte sur
+     * elle au test de profondeur ; a egalite, l'une ou l'autre gagnait selon le pixel et l'image, et le cadre scintillait.
+     */
+    public static void mark(BackroomsPortalEntity portal, Vec3d cameraPos, Matrix4f positionMatrix) {
+        RenderSystem.polygonOffset(MARK_OFFSET_FACTOR, MARK_OFFSET_UNITS);
+        RenderSystem.enablePolygonOffset();
+        try {
+            draw(portal, cameraPos, positionMatrix);
+        } finally {
+            RenderSystem.polygonOffset(0.0f, 0.0f);
+            RenderSystem.disablePolygonOffset();
+        }
     }
 
     /** Zone de vue, position seule (marquage du stencil) : le shader des positions est pose ici, les masques par l'appelant. */

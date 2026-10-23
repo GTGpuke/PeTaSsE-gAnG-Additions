@@ -21,9 +21,9 @@ import com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalTeleportPayload;
 import com.gtgpuke.gtgsbackrooms.gametest.support.GameTestPlayers;
 
 /**
- * Tests en jeu des cadres couches : un corps tombe dans un cadre au sol et on ressort d'un cadre au plafond (la traversee se
- * decide aux yeux, le corps a deja passe le plan), on monte dans un cadre au plafond et on ressort d'un cadre au sol (aux
- * pieds), le serveur rattrape un joueur qui tombe dans un cadre au sol. Les deux cadres sont dans le monde du test, un
+ * Tests en jeu des cadres couches, ou la traversee se decide aux yeux : un corps tombe dans un cadre au sol et ressort d'un
+ * cadre au plafond (le corps a deja passe le plan), on monte dans un cadre au plafond, la tete la premiere, et on ressort
+ * d'un cadre au sol, le serveur rattrape un joueur qui tombe dans un cadre au sol. Les deux cadres sont dans le monde du test, un
  * bloc sur deux, couches (largeur le long de X, hauteur le long de Z), et tout reste sous le plafond de l'arene (huit
  * blocs) : une entity posee dessus n'en tombe pas.
  */

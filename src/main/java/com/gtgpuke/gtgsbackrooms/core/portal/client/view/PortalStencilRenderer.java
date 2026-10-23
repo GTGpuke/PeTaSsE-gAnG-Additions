@@ -24,7 +24,9 @@ import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.LivingEntity;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkSectionPos;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec2f;
@@ -43,6 +45,7 @@ import com.gtgpuke.gtgsbackrooms.core.portal.client.world.RemoteWorldRegistry;
 import com.gtgpuke.gtgsbackrooms.core.portal.client.world.StraddlingEntityRenderer;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.BackroomsPortalEntity;
 import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
+import com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalCollision;
 import com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalRelevance;
 import com.gtgpuke.gtgsbackrooms.mixin.client.BackgroundRendererAccessor;
 import com.gtgpuke.gtgsbackrooms.mixin.client.CameraAccessor;
@@ -181,6 +184,8 @@ public final class PortalStencilRenderer {
         RenderSystem.colorMask(true, true, true, true);
         try (ModPerformanceMonitor.Scope ignored = ModPerformanceMonitor.scope(PERF_RENDER)) {
             renderPortalsAfterWorld(tickCounter, camera, lightmap, positionMatrix, projectionMatrix);
+        } finally {
+            HandMask.clear(MinecraftClient.getInstance());
         }
     }
 
@@ -258,7 +263,7 @@ public final class PortalStencilRenderer {
             if (behind != null) {
                 RemoteWorld view = RemoteWorldRegistry.viewOf(behind.destinationDim());
                 ShaderPackPortalRenderer.renderCovering(client, behind, view, behindCameraPos(view, behind, camera.getFocusedEntity()),
-                        tickCounter, camera, lightmap, projectionMatrix);
+                        tickCounter, camera, lightmap, positionMatrix, projectionMatrix);
             } else {
                 ShaderPackPortalRenderer.render(client, VISIBLE, tickCounter, camera, lightmap, positionMatrix, projectionMatrix);
             }
@@ -327,15 +332,31 @@ public final class PortalStencilRenderer {
         if (portal == null || !portal.visible() || RemoteWorldRegistry.viewOf(portal.destinationDim()) == null) {
             return null;
         }
-        // Un bloc de ce cote, entre l'oeil et le plan, a deja retenu la camera vanilla : elle ne passe pas le portail.
-        double reached = camera.getPos().distanceTo(eye);
-        double plane = ThirdPersonPortal.crossingFraction(portal, eye, wanted) * eye.distanceTo(wanted);
-        if (reached + CAMERA_CLEARANCE < plane) {
+        // Un bloc de ce cote, entre l'oeil et le plan, retient la camera : elle ne passe pas le portail. Un bloc que le portail
+        // cache derriere son plan (cadre pose contre un mur) n'en est pas un : vanilla s'y arrete, au plan meme ou un peu
+        // avant par ses rayons decales, mais la camera passe le cadre comme le corps.
+        Vec3d crossing = eye.lerp(wanted, ThirdPersonPortal.crossingFraction(portal, eye, wanted));
+        if (blockedBefore(world, focused, eye, crossing, portal)) {
             return null;
         }
         behindEye = eye;
         behindWanted = wanted;
         return portal;
+    }
+
+    /**
+     * {@code true} si un bloc de ce cote arrete le segment de l'oeil au plan du portail avant le plan, a plus de
+     * {@value #CAMERA_CLEARANCE} bloc de lui ; les blocs que ce portail cache ne comptent pas. Un rayon par image, a la
+     * troisieme personne quand la camera passe un cadre seulement : il alloue comme les huit que vanilla lance pour sa camera.
+     */
+    private static boolean blockedBefore(ClientWorld world, Entity focused, Vec3d eye, Vec3d crossing, BackroomsPortalEntity portal) {
+        BlockHitResult hit = world.raycast(new RaycastContext(eye, crossing, RaycastContext.ShapeType.VISUAL, RaycastContext.FluidHandling.NONE, focused));
+        if (hit.getType() != HitResult.Type.BLOCK) {
+            return false;
+        }
+        BlockPos pos = hit.getBlockPos();
+        return !PortalCollision.hides(portal, pos.getX(), pos.getY(), pos.getZ())
+                && hit.getPos().distanceTo(eye) + CAMERA_CLEARANCE < crossing.distanceTo(eye);
     }
 
     /** Camera a sa pleine distance derriere l'oeil, avant que les blocs ne la rapprochent. */
@@ -352,7 +373,9 @@ public final class PortalStencilRenderer {
      */
     private static Vec3d behindCameraPos(RemoteWorld view, BackroomsPortalEntity portal, Entity focused) {
         double fraction = ThirdPersonPortal.crossingFraction(portal, behindEye, behindWanted);
-        Vec3d start = portal.toDestination(behindEye.lerp(behindWanted, fraction));
+        // Le recul part un peu devant le plan d'arrivee : ses rayons decales n'y commencent pas dans un bloc colle au cadre.
+        Vec3d start = portal.toDestination(behindEye.lerp(behindWanted, fraction))
+                .add(portal.facingDestination().normal.multiply(2.0 * CAMERA_CLEARANCE));
         Vec3d end = portal.toDestination(behindWanted);
         return clipToSpace(view.world(), focused, start, end);
     }
@@ -559,7 +582,7 @@ public final class PortalStencilRenderer {
         RenderSystem.colorMask(false, false, false, false);
         RenderSystem.depthMask(false);
         try {
-            FrameAreaRenderer.draw(portal, cameraPos, positionMatrix);
+            FrameAreaRenderer.mark(portal, cameraPos, positionMatrix);
         } finally {
             RenderSystem.colorMask(true, true, true, true);
             RenderSystem.depthMask(true);

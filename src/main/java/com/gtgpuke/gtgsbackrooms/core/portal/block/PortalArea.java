@@ -1,5 +1,9 @@
 package com.gtgpuke.gtgsbackrooms.core.portal.block;
 
+import java.util.function.Predicate;
+
+import net.minecraft.block.BlockState;
+import net.minecraft.util.math.BlockBox;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.BlockView;
@@ -12,18 +16,15 @@ import com.gtgpuke.gtgsbackrooms.core.portal.entity.PortalFacing;
  * <p>Le plan passe au milieu des blocs. Le cadre part du bloc ancre le long de son axe de hauteur sur la hauteur reglee
  * (vers le haut pour un cadre debout ; couche au sol ou au plafond, son axe de hauteur est horizontal), et s'etend de part
  * et d'autre de sa colonne sur la largeur reglee : une largeur paire prend une colonne de plus du cote de l'axe de
- * largeur, et son centre tombe entre deux blocs. Le cadre d'arrivee suit la meme regle autour de son point de sol. Un
- * cadre couche demande aussi {@value #CLEARANCE_BEHIND} blocs libres derriere lui : le corps qui le franchit les occupe
- * avant la bascule.
+ * largeur, et son centre tombe entre deux blocs. Le cadre d'arrivee suit la meme regle autour de son point de sol.
  *
  * <p>Avec le plan au bord du bloc ({@link PortalSettings#flush()}), le plan passe sur la face arriere des blocs du cadre,
- * un demi-bloc en retrait : un cadre debout demande alors aussi un bloc libre derriere lui, ou passe l'avant du corps
- * qui le franchit.
+ * un demi-bloc en retrait. Derriere le plan, rien n'est exige : un bloc y est cache a qui s'engage dans le cadre
+ * ({@link com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalCollision#tunnel}), un cadre se pose contre un mur, un
+ * plafond ou un sol plein.
  */
 public final class PortalArea {
 
-    /** Blocs libres exiges derriere un cadre couche, en plus du cadre : la tete ou les pieds d'un joueur qui le franchit. */
-    public static final int CLEARANCE_BEHIND = 2;
     /** Pas vers l'avant du cadre qui ramene dans le bloc ancre un pied lu sur sa face arriere (plan au bord du bloc). */
     private static final double INTO_ANCHOR = 0.25;
 
@@ -102,33 +103,49 @@ public final class PortalArea {
     }
 
     /**
-     * {@code true} si chaque bloc du cadre est libre ou remplacable (air, herbe, neige) : le plan ne traverse aucun bloc.
-     * Un cadre couche (au sol, au plafond) demande de plus {@value #CLEARANCE_BEHIND} blocs libres derriere chacun des
-     * siens : la bascule se decide aux yeux pour un cadre au sol, aux pieds pour un cadre au plafond, et le reste du corps
-     * a deja passe le plan. Un cadre debout au plan au bord du bloc en demande un : l'avant du corps passe le plan avant
-     * son centre.
+     * {@code true} si chaque bloc du cadre est libre ou remplacable (air, herbe, neige). Ce qui est derriere le plan ne
+     * compte pas : un bloc y est cache a qui s'engage dans le cadre.
      *
      * @param world monde lu
      * @param anchor bloc ancre, premier bloc du cadre le long de son axe de hauteur
      * @param facing orientation du cadre
-     * @param settings taille du cadre et place du plan
+     * @param settings taille du cadre
      * @return {@code true} si le cadre tient
      */
     public static boolean isFree(BlockView world, BlockPos anchor, PortalFacing facing, PortalSettings settings) {
-        BlockPos.Mutable cell = new BlockPos.Mutable();
-        int depth = facing.direction.getAxis().isVertical() ? CLEARANCE_BEHIND : (int) Math.ceil(planeOffset(settings));
+        return allCells(anchor, facing, settings, cell -> world.getBlockState(cell).isReplaceable());
+    }
+
+    /**
+     * {@code true} si chaque bloc du cadre est libre ou remplacable et sans fluide : on peut y arriver, ni dans un bloc ni
+     * dans la lave.
+     */
+    public static boolean isClear(BlockView world, BlockPos anchor, PortalFacing facing, PortalSettings settings) {
+        return allCells(anchor, facing, settings, cell -> {
+            BlockState state = world.getBlockState(cell);
+            return state.isReplaceable() && state.getFluidState().isEmpty();
+        });
+    }
+
+    /** Plus petite boite de blocs qui contient tous ceux du cadre. */
+    public static BlockBox cells(BlockPos anchor, PortalFacing facing, PortalSettings settings) {
+        return BlockBox.create(cell(anchor, facing, firstColumn(settings.width()), 0),
+                cell(anchor, facing, lastColumn(settings.width()), settings.height() - 1));
+    }
+
+    private static boolean allCells(BlockPos anchor, PortalFacing facing, PortalSettings settings, Predicate<BlockPos> test) {
         for (int column = firstColumn(settings.width()); column <= lastColumn(settings.width()); column++) {
             for (int row = 0; row < settings.height(); row++) {
-                for (int behind = 0; behind <= depth; behind++) {
-                    cell.set(anchor.getX() + (int) (facing.axisW.x * column + facing.axisH.x * row - facing.normal.x * behind),
-                            anchor.getY() + (int) (facing.axisW.y * column + facing.axisH.y * row - facing.normal.y * behind),
-                            anchor.getZ() + (int) (facing.axisW.z * column + facing.axisH.z * row - facing.normal.z * behind));
-                    if (!world.getBlockState(cell).isReplaceable()) {
-                        return false;
-                    }
+                if (!test.test(cell(anchor, facing, column, row))) {
+                    return false;
                 }
             }
         }
         return true;
+    }
+
+    private static BlockPos cell(BlockPos anchor, PortalFacing facing, int column, int row) {
+        return anchor.add((int) (facing.axisW.x * column + facing.axisH.x * row), (int) (facing.axisW.y * column + facing.axisH.y * row),
+                (int) (facing.axisW.z * column + facing.axisH.z * row));
     }
 }

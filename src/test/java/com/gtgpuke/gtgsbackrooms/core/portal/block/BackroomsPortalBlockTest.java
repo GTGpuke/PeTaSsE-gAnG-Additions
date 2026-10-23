@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -26,6 +27,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.EmptyBlockView;
+import net.minecraft.world.World;
 
 import com.gtgpuke.gtgsbackrooms.MinecraftTestBootstrap;
 import com.gtgpuke.gtgsbackrooms.backrooms.BackroomsConstants;
@@ -98,16 +100,27 @@ class BackroomsPortalBlockTest {
         assertEquals(4.5, center.x, EPSILON, "Plan au milieu du bloc.");
         assertEquals(10.0 + 1.5, center.y, EPSILON, "Centre a mi-hauteur d'un cadre de trois blocs.");
         assertEquals(-2.0 + 0.5 + PortalFacing.EAST.axisW.z * 0.5, center.z, EPSILON, "Largeur paire : decale d'un demi-bloc.");
-        // Plan au bord du bloc : sur sa face arriere, a l'ouest pour une face avant a l'est ; garde a la sauvegarde.
-        PortalSettings edge = new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 0, true);
+        // Plan au bord du bloc : sur sa face arriere, a l'ouest pour une face avant a l'est ; garde a la sauvegarde, comme une
+        // arrivee tete en bas, la pose, la destination et la sortie fixee.
+        PortalSettings edge = new PortalSettings(1, 2, true, true, false, false, PortalExit.STRAIGHT, 0, true, true, PortalPlacement.FLOOR,
+                Optional.of(World.NETHER), Optional.of(new PortalMark(World.END, new BlockPos(100, 50, -20), Direction.WEST)));
         portal.readComponents(wand(edge));
         assertEquals(4.0, portal.entryCenter().x, EPSILON, "Plan sur la face ouest du bloc.");
         NbtCompound nbt = new NbtCompound();
         portal.writeNbt(nbt, registries);
         assertTrue(nbt.getBoolean("Flush"), "Le plan au bord du bloc se sauve.");
+        assertTrue(nbt.getBoolean("UpsideDown"), "L'arrivee tete en bas se sauve.");
+        assertEquals("floor", nbt.getString("Placement"), "La pose se sauve.");
+        assertEquals("minecraft:the_nether", nbt.getString("Destination"), "La destination se sauve.");
+        assertTrue(nbt.contains("Mark"), "La sortie fixee se sauve.");
         BackroomsPortalBlockEntity restored = new BackroomsPortalBlockEntity(new BlockPos(4, 10, -2), east);
         restored.readNbt(nbt, registries);
         assertEquals(edge, restored.settings(), "Et se relit.");
+        // Une destination ou une sortie fixee illisibles sont oubliees : destination automatique, sans sortie fixee.
+        nbt.putString("Destination", "pas une destination");
+        nbt.put("Mark", new NbtCompound());
+        restored.readNbt(nbt, registries);
+        assertTrue(restored.settings().destination().isEmpty() && restored.settings().mark().isEmpty(), "Illisibles, elles sont oubliees.");
     }
 
     @Test
@@ -117,7 +130,8 @@ class BackroomsPortalBlockTest {
         assertFalse(portal.isConfigured(), "Un bloc neuf ne connait pas sa destination.");
         NbtCompound fresh = new NbtCompound();
         portal.writeNbt(fresh, registries);
-        assertEquals(Set.of("Width", "Height", "TransmitsLight", "DoubleSided", "OneWay", "FleetingExit", "Exit", "ExitScatter", "Flush"),
+        assertEquals(Set.of("Width", "Height", "TransmitsLight", "DoubleSided", "OneWay", "FleetingExit", "Exit", "ExitScatter", "Flush", "UpsideDown",
+                "Placement"),
                 fresh.getKeys(),
                 "Un bloc neuf ne sauve que ses reglages.");
         portal.configureTarget(BackroomsConstants.LEVEL_ZERO_WORLD, new Vec3d(1.5, 2.0, 1.5), PortalFacing.SOUTH);

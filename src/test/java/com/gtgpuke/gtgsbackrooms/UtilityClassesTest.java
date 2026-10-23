@@ -78,6 +78,7 @@ class UtilityClassesTest {
                 "com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalSight",
                 "com.gtgpuke.gtgsbackrooms.core.portal.sync.PortalViewTracker",
                 "com.gtgpuke.gtgsbackrooms.core.portal.sync.RemoteChunkWindow",
+                "com.gtgpuke.gtgsbackrooms.core.portal.transition.ArrivalGuard",
                 "com.gtgpuke.gtgsbackrooms.core.portal.transition.DestinationLoader",
                 "com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalCollision",
                 "com.gtgpuke.gtgsbackrooms.core.portal.transition.PortalRelevance",

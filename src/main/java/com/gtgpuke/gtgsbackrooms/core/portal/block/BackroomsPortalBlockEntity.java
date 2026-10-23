@@ -3,6 +3,7 @@ package com.gtgpuke.gtgsbackrooms.core.portal.block;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.jetbrains.annotations.Nullable;
@@ -12,6 +13,7 @@ import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtElement;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.listener.ClientPlayPacketListener;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.s2c.play.BlockEntityUpdateS2CPacket;
@@ -79,6 +81,10 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     private static final String NBT_EXIT = "Exit";
     private static final String NBT_EXIT_SCATTER = "ExitScatter";
     private static final String NBT_FLUSH = "Flush";
+    private static final String NBT_UPSIDE_DOWN = "UpsideDown";
+    private static final String NBT_PLACEMENT = "Placement";
+    private static final String NBT_DESTINATION = "Destination";
+    private static final String NBT_MARK = "Mark";
     private static final String NBT_EXIT_LOST = "ExitLost";
     private static final String[] NBT_ENTRY_PORTALS = {"EntryFront", "EntryBack"};
     private static final String[] NBT_RETURN_PORTALS = {"ReturnFront", "ReturnBack"};
@@ -137,7 +143,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         portalsEnabled = enabled;
     }
 
-    /** Reglages du portail : taille du cadre, lumiere, faces, retour, sortie fugace, sens de sortie, tirage au sort et plan. */
+    /** Reglages du portail : taille du cadre, lumiere, faces, retour, sortie fugace, sens de sortie, tirage au sort, plan et arrivee. */
     public PortalSettings settings() {
         return this.settings;
     }
@@ -415,6 +421,15 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
     }
 
     /**
+     * Orientation d'une face du cadre d'arrivee pour ses portails : retournee si les reglages veulent une arrivee tete en
+     * bas. Le cadre lui-meme, centre et pied, garde l'orientation droite ({@code destinationFacing}).
+     */
+    private PortalFacing arrivalFacing(int face) {
+        PortalFacing facing = faceFacing(this.destinationFacing, face);
+        return this.settings.upsideDown() ? facing.flipped() : facing;
+    }
+
+    /**
      * Le portail d'entree d'une face existe tant que le bloc connait sa destination. Un portail qui ne remplit plus le
      * cadre (bloc tourne, reglages changes) est remplace.
      */
@@ -422,7 +437,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         UUID uuid = this.entryPortals[face];
         Entity entity = uuid == null ? null : world.getEntity(uuid);
         if (entity instanceof BackroomsPortalEntity portal) {
-            if (matches(portal, entryCenter(), faceFacing(entryFacing(), face), faceFacing(this.destinationFacing, face),
+            if (matches(portal, entryCenter(), faceFacing(entryFacing(), face), arrivalFacing(face),
                     this.destinationDim, this.destinationPos, false)) {
                 return;
             }
@@ -431,7 +446,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
             // Le chunk vient de charger : ses entities arrivent, on laisse au portail le temps d'apparaitre.
             return;
         }
-        BackroomsPortalEntity portal = portal(world, entryCenter(), faceFacing(entryFacing(), face), faceFacing(this.destinationFacing, face))
+        BackroomsPortalEntity portal = portal(world, entryCenter(), faceFacing(entryFacing(), face), arrivalFacing(face))
                 .destinationDim(this.destinationDim)
                 .destinationPos(this.destinationPos)
                 .build();
@@ -446,7 +461,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         UUID uuid = this.returnPortals[face];
         Entity entity = destination == null || uuid == null ? null : destination.getEntity(uuid);
         if (entity instanceof BackroomsPortalEntity portal && !matches(portal, this.destinationPos,
-                faceFacing(this.destinationFacing, face), faceFacing(entryFacing(), face), world.getRegistryKey(), entryCenter(),
+                arrivalFacing(face), faceFacing(entryFacing(), face), world.getRegistryKey(), entryCenter(),
                 this.settings.fleetingExit())) {
             portal.discard();
             spawnReturnPortal(world, face);
@@ -495,7 +510,7 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
             return;
         }
         this.returnAwaitingChunk[face] = false;
-        BackroomsPortalEntity portal = portal(destination, this.destinationPos, faceFacing(this.destinationFacing, face), faceFacing(entryFacing(), face))
+        BackroomsPortalEntity portal = portal(destination, this.destinationPos, arrivalFacing(face), faceFacing(entryFacing(), face))
                 .destinationDim(world.getRegistryKey())
                 .destinationPos(entryCenter())
                 .fleeting(this.settings.fleetingExit())
@@ -600,6 +615,11 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
         nbt.putString(NBT_EXIT, this.settings.exit().asString());
         nbt.putInt(NBT_EXIT_SCATTER, this.settings.exitScatter());
         nbt.putBoolean(NBT_FLUSH, this.settings.flush());
+        nbt.putBoolean(NBT_UPSIDE_DOWN, this.settings.upsideDown());
+        nbt.putString(NBT_PLACEMENT, this.settings.placement().asString());
+        this.settings.destination().ifPresent(destination -> nbt.putString(NBT_DESTINATION, destination.getValue().toString()));
+        this.settings.mark().flatMap(mark -> PortalMark.CODEC.encodeStart(NbtOps.INSTANCE, mark).result())
+                .ifPresent(mark -> nbt.put(NBT_MARK, mark));
     }
 
     @Override
@@ -620,7 +640,13 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 nbt.getBoolean(NBT_FLEETING_EXIT),
                 PortalExit.byName(nbt.getString(NBT_EXIT)),
                 nbt.getInt(NBT_EXIT_SCATTER),
-                nbt.getBoolean(NBT_FLUSH));
+                nbt.getBoolean(NBT_FLUSH),
+                nbt.getBoolean(NBT_UPSIDE_DOWN),
+                PortalPlacement.byName(nbt.getString(NBT_PLACEMENT)),
+                readDestination(nbt),
+                nbt.contains(NBT_MARK, NbtElement.COMPOUND_TYPE)
+                        ? PortalMark.CODEC.parse(NbtOps.INSTANCE, nbt.get(NBT_MARK)).result()
+                        : Optional.empty());
         // Une copie a sa propre sortie, toute neuve ; seule une sortie fugace se perd de vue.
         this.exitLost = !copy && this.settings.fleetingExit() && nbt.getBoolean(NBT_EXIT_LOST);
         for (int face = 0; face < FACES; face++) {
@@ -671,7 +697,20 @@ public final class BackroomsPortalBlockEntity extends BlockEntity {
                 this.destinationFacing = null;
             }
         }
+        // Relu configure vers une autre destination ou une autre sortie fixee : l'arrivee se cherche de nouveau, comme a la pose.
+        if (isConfigured() && reread && (!previous.destination().equals(this.settings.destination())
+                || !previous.mark().equals(this.settings.mark()))) {
+            discardPortals();
+            this.destinationPos = null;
+            this.destinationFacing = null;
+        }
         this.ticksSinceLoad = 0;
+    }
+
+    /** Dimension de destination choisie, sauvegardee par son identifiant ; vide pour la destination automatique. */
+    private static Optional<RegistryKey<World>> readDestination(NbtCompound nbt) {
+        Identifier id = nbt.contains(NBT_DESTINATION, NbtElement.STRING_TYPE) ? Identifier.tryParse(nbt.getString(NBT_DESTINATION)) : null;
+        return id == null ? Optional.empty() : Optional.of(RegistryKey.of(RegistryKeys.WORLD, id));
     }
 
     @Override

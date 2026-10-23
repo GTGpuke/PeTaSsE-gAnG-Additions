@@ -117,7 +117,7 @@ class PortalViewTransformTest {
     }
 
     @Test
-    @DisplayName("La rotation d'un portail envoie chaque direction sur son image, pour les 36 paires d'orientations")
+    @DisplayName("La rotation d'un portail envoie chaque direction sur son image, pour les 144 paires d'orientations, droites et retournees")
     void portalRotationMatchesTheVectorTransform() {
         Vec3d sample = new Vec3d(0.3, -0.5, 0.7);
         for (PortalFacing entry : PortalFacing.values()) {
